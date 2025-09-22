@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrailReplay" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Central Park 5K Tempo</name>
+    <time>2024-07-14T07:00:00Z</time>
+    <desc>Loop around Central Park with rolling terrain and varied pacing, ideal for demonstrating TrailReplay running visuals.</desc>
+  </metadata>
+  <trk>
+    <name>Central Park Tempo Run</name>
+    <type>running</type>
+    <trkseg>
+      <trkpt lat="40.771133" lon="-73.974187"><ele>32</ele><time>2024-07-14T07:00:00Z</time></trkpt>
+      <trkpt lat="40.772810" lon="-73.971563"><ele>34</ele><time>2024-07-14T07:01:00Z</time></trkpt>
+      <trkpt lat="40.774842" lon="-73.969495"><ele>35</ele><time>2024-07-14T07:02:00Z</time></trkpt>
+      <trkpt lat="40.777320" lon="-73.967745"><ele>38</ele><time>2024-07-14T07:03:00Z</time></trkpt>
+      <trkpt lat="40.780002" lon="-73.966080"><ele>40</ele><time>2024-07-14T07:04:00Z</time></trkpt>
+      <trkpt lat="40.782684" lon="-73.964520"><ele>42</ele><time>2024-07-14T07:05:00Z</time></trkpt>
+      <trkpt lat="40.785351" lon="-73.963275"><ele>45</ele><time>2024-07-14T07:06:00Z</time></trkpt>
+      <trkpt lat="40.787876" lon="-73.963030"><ele>47</ele><time>2024-07-14T07:07:00Z</time></trkpt>
+      <trkpt lat="40.790511" lon="-73.964187"><ele>50</ele><time>2024-07-14T07:08:00Z</time></trkpt>
+      <trkpt lat="40.793051" lon="-73.966493"><ele>51</ele><time>2024-07-14T07:09:00Z</time></trkpt>
+      <trkpt lat="40.795339" lon="-73.969302"><ele>49</ele><time>2024-07-14T07:10:00Z</time></trkpt>
+      <trkpt lat="40.798002" lon="-73.972978"><ele>46</ele><time>2024-07-14T07:11:00Z</time></trkpt>
+      <trkpt lat="40.800327" lon="-73.977090"><ele>44</ele><time>2024-07-14T07:12:00Z</time></trkpt>
+      <trkpt lat="40.802091" lon="-73.981942"><ele>42</ele><time>2024-07-14T07:13:00Z</time></trkpt>
+      <trkpt lat="40.803011" lon="-73.986843"><ele>40</ele><time>2024-07-14T07:14:00Z</time></trkpt>
+      <trkpt lat="40.802284" lon="-73.990997"><ele>39</ele><time>2024-07-14T07:15:00Z</time></trkpt>
+      <trkpt lat="40.800162" lon="-73.994233"><ele>37</ele><time>2024-07-14T07:16:00Z</time></trkpt>
+      <trkpt lat="40.797523" lon="-73.996365"><ele>36</ele><time>2024-07-14T07:17:00Z</time></trkpt>
+      <trkpt lat="40.794402" lon="-73.997835"><ele>35</ele><time>2024-07-14T07:18:00Z</time></trkpt>
+      <trkpt lat="40.791425" lon="-73.997569"><ele>34</ele><time>2024-07-14T07:19:00Z</time></trkpt>
+      <trkpt lat="40.788784" lon="-73.996136"><ele>33</ele><time>2024-07-14T07:20:00Z</time></trkpt>
+      <trkpt lat="40.785923" lon="-73.993955"><ele>34</ele><time>2024-07-14T07:21:00Z</time></trkpt>
+      <trkpt lat="40.783090" lon="-73.991280"><ele>36</ele><time>2024-07-14T07:22:00Z</time></trkpt>
+      <trkpt lat="40.780345" lon="-73.988230"><ele>38</ele><time>2024-07-14T07:23:00Z</time></trkpt>
+      <trkpt lat="40.778001" lon="-73.984510"><ele>37</ele><time>2024-07-14T07:24:00Z</time></trkpt>
+      <trkpt lat="40.776070" lon="-73.980320"><ele>35</ele><time>2024-07-14T07:25:00Z</time></trkpt>
+      <trkpt lat="40.773980" lon="-73.976420"><ele>34</ele><time>2024-07-14T07:26:00Z</time></trkpt>
+      <trkpt lat="40.771961" lon="-73.973220"><ele>33</ele><time>2024-07-14T07:27:00Z</time></trkpt>
+      <trkpt lat="40.770420" lon="-73.970420"><ele>33</ele><time>2024-07-14T07:28:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

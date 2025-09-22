@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrailReplay" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>NYC Triathlon Training Day</name>
+    <time>2024-08-03T06:30:00Z</time>
+    <desc>Brick session simulating the Hudson River swim, a ride up the West Side Highway, and a run through Fort Washington Park.</desc>
+  </metadata>
+  <trk>
+    <name>Hudson Swim Leg</name>
+    <type>swimming</type>
+    <trkseg>
+      <trkpt lat="40.795900" lon="-73.985000"><ele>0</ele><time>2024-08-03T06:30:00Z</time></trkpt>
+      <trkpt lat="40.796500" lon="-73.984500"><ele>0</ele><time>2024-08-03T06:31:00Z</time></trkpt>
+      <trkpt lat="40.797200" lon="-73.984000"><ele>0</ele><time>2024-08-03T06:32:00Z</time></trkpt>
+      <trkpt lat="40.797900" lon="-73.983600"><ele>0</ele><time>2024-08-03T06:33:00Z</time></trkpt>
+      <trkpt lat="40.798600" lon="-73.983100"><ele>1</ele><time>2024-08-03T06:34:00Z</time></trkpt>
+      <trkpt lat="40.799300" lon="-73.982600"><ele>1</ele><time>2024-08-03T06:35:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+  <trk>
+    <name>West Side Highway Ride</name>
+    <type>cycling</type>
+    <trkseg>
+      <trkpt lat="40.799300" lon="-73.982600"><ele>8</ele><time>2024-08-03T06:45:00Z</time></trkpt>
+      <trkpt lat="40.806200" lon="-73.973900"><ele>12</ele><time>2024-08-03T06:55:00Z</time></trkpt>
+      <trkpt lat="40.813900" lon="-73.965800"><ele>15</ele><time>2024-08-03T07:05:00Z</time></trkpt>
+      <trkpt lat="40.821300" lon="-73.958000"><ele>18</ele><time>2024-08-03T07:15:00Z</time></trkpt>
+      <trkpt lat="40.829400" lon="-73.950400"><ele>24</ele><time>2024-08-03T07:25:00Z</time></trkpt>
+      <trkpt lat="40.838900" lon="-73.942500"><ele>31</ele><time>2024-08-03T07:35:00Z</time></trkpt>
+      <trkpt lat="40.848700" lon="-73.936100"><ele>38</ele><time>2024-08-03T07:45:00Z</time></trkpt>
+      <trkpt lat="40.858900" lon="-73.932200"><ele>43</ele><time>2024-08-03T07:55:00Z</time></trkpt>
+      <trkpt lat="40.868600" lon="-73.928500"><ele>48</ele><time>2024-08-03T08:05:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+  <trk>
+    <name>Fort Washington Run</name>
+    <type>running</type>
+    <trkseg>
+      <trkpt lat="40.868600" lon="-73.928500"><ele>12</ele><time>2024-08-03T08:10:00Z</time></trkpt>
+      <trkpt lat="40.866800" lon="-73.936200"><ele>18</ele><time>2024-08-03T08:15:00Z</time></trkpt>
+      <trkpt lat="40.864100" lon="-73.941300"><ele>22</ele><time>2024-08-03T08:20:00Z</time></trkpt>
+      <trkpt lat="40.860200" lon="-73.943900"><ele>28</ele><time>2024-08-03T08:25:00Z</time></trkpt>
+      <trkpt lat="40.855900" lon="-73.944500"><ele>32</ele><time>2024-08-03T08:30:00Z</time></trkpt>
+      <trkpt lat="40.851700" lon="-73.941300"><ele>30</ele><time>2024-08-03T08:35:00Z</time></trkpt>
+      <trkpt lat="40.848200" lon="-73.936000"><ele>27</ele><time>2024-08-03T08:40:00Z</time></trkpt>
+      <trkpt lat="40.846100" lon="-73.929800"><ele>24</ele><time>2024-08-03T08:45:00Z</time></trkpt>
+      <trkpt lat="40.847900" lon="-73.922700"><ele>20</ele><time>2024-08-03T08:50:00Z</time></trkpt>
+      <trkpt lat="40.851400" lon="-73.918500"><ele>18</ele><time>2024-08-03T08:55:00Z</time></trkpt>
+      <trkpt lat="40.854600" lon="-73.918100"><ele>16</ele><time>2024-08-03T09:00:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

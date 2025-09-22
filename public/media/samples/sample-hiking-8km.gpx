@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrailReplay" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Bear Mountain Summit Loop</name>
+    <time>2024-09-01T09:30:00Z</time>
+    <desc>Classic Hudson Valley hike climbing the Major Welch Trail to Perkins Memorial Tower before looping back on the Appalachian Trail.</desc>
+  </metadata>
+  <trk>
+    <name>Bear Mountain Summit Loop</name>
+    <type>hiking</type>
+    <trkseg>
+      <trkpt lat="41.312800" lon="-74.006000"><ele>170</ele><time>2024-09-01T09:30:00Z</time></trkpt>
+      <trkpt lat="41.314500" lon="-74.007500"><ele>205</ele><time>2024-09-01T09:35:00Z</time></trkpt>
+      <trkpt lat="41.316100" lon="-74.009200"><ele>240</ele><time>2024-09-01T09:40:00Z</time></trkpt>
+      <trkpt lat="41.318000" lon="-74.011300"><ele>280</ele><time>2024-09-01T09:45:00Z</time></trkpt>
+      <trkpt lat="41.319800" lon="-74.013600"><ele>320</ele><time>2024-09-01T09:50:00Z</time></trkpt>
+      <trkpt lat="41.321700" lon="-74.015900"><ele>360</ele><time>2024-09-01T09:55:00Z</time></trkpt>
+      <trkpt lat="41.323200" lon="-74.018400"><ele>395</ele><time>2024-09-01T10:00:00Z</time></trkpt>
+      <trkpt lat="41.324600" lon="-74.020900"><ele>425</ele><time>2024-09-01T10:05:00Z</time></trkpt>
+      <trkpt lat="41.326100" lon="-74.023600"><ele>455</ele><time>2024-09-01T10:10:00Z</time></trkpt>
+      <trkpt lat="41.327700" lon="-74.026400"><ele>480</ele><time>2024-09-01T10:15:00Z</time></trkpt>
+      <trkpt lat="41.328900" lon="-74.029100"><ele>505</ele><time>2024-09-01T10:20:00Z</time></trkpt>
+      <trkpt lat="41.329600" lon="-74.032400"><ele>540</ele><time>2024-09-01T10:25:00Z</time></trkpt>
+      <trkpt lat="41.330000" lon="-74.035500"><ele>565</ele><time>2024-09-01T10:30:00Z</time></trkpt>
+      <trkpt lat="41.329200" lon="-74.038500"><ele>535</ele><time>2024-09-01T10:35:00Z</time></trkpt>
+      <trkpt lat="41.327400" lon="-74.040600"><ele>510</ele><time>2024-09-01T10:40:00Z</time></trkpt>
+      <trkpt lat="41.325200" lon="-74.042100"><ele>475</ele><time>2024-09-01T10:45:00Z</time></trkpt>
+      <trkpt lat="41.322800" lon="-74.042800"><ele>440</ele><time>2024-09-01T10:50:00Z</time></trkpt>
+      <trkpt lat="41.320300" lon="-74.041800"><ele>395</ele><time>2024-09-01T10:55:00Z</time></trkpt>
+      <trkpt lat="41.318000" lon="-74.039200"><ele>350</ele><time>2024-09-01T11:00:00Z</time></trkpt>
+      <trkpt lat="41.316100" lon="-74.036000"><ele>300</ele><time>2024-09-01T11:05:00Z</time></trkpt>
+      <trkpt lat="41.314600" lon="-74.032400"><ele>260</ele><time>2024-09-01T11:10:00Z</time></trkpt>
+      <trkpt lat="41.313400" lon="-74.028200"><ele>220</ele><time>2024-09-01T11:15:00Z</time></trkpt>
+      <trkpt lat="41.312600" lon="-74.024000"><ele>190</ele><time>2024-09-01T11:20:00Z</time></trkpt>
+      <trkpt lat="41.312200" lon="-74.019500"><ele>170</ele><time>2024-09-01T11:25:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrailReplay" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Hudson River Greenway 25K</name>
+    <time>2024-07-20T08:15:00Z</time>
+    <desc>Popular New York City cycling route from Battery Park up to the George Washington Bridge, showcasing riverfront scenery and steady pacing.</desc>
+  </metadata>
+  <trk>
+    <name>Hudson River Morning Ride</name>
+    <type>cycling</type>
+    <trkseg>
+      <trkpt lat="40.703310" lon="-74.017000"><ele>5</ele><time>2024-07-20T08:15:00Z</time></trkpt>
+      <trkpt lat="40.707900" lon="-74.017500"><ele>6</ele><time>2024-07-20T08:17:00Z</time></trkpt>
+      <trkpt lat="40.713540" lon="-74.017600"><ele>7</ele><time>2024-07-20T08:19:00Z</time></trkpt>
+      <trkpt lat="40.720320" lon="-74.012300"><ele>8</ele><time>2024-07-20T08:21:00Z</time></trkpt>
+      <trkpt lat="40.728120" lon="-74.009000"><ele>10</ele><time>2024-07-20T08:23:00Z</time></trkpt>
+      <trkpt lat="40.735770" lon="-74.010100"><ele>12</ele><time>2024-07-20T08:25:00Z</time></trkpt>
+      <trkpt lat="40.744310" lon="-74.010300"><ele>14</ele><time>2024-07-20T08:27:00Z</time></trkpt>
+      <trkpt lat="40.752620" lon="-74.003900"><ele>15</ele><time>2024-07-20T08:29:00Z</time></trkpt>
+      <trkpt lat="40.760020" lon="-73.998220"><ele>16</ele><time>2024-07-20T08:31:00Z</time></trkpt>
+      <trkpt lat="40.768710" lon="-73.996220"><ele>18</ele><time>2024-07-20T08:33:00Z</time></trkpt>
+      <trkpt lat="40.777420" lon="-73.988990"><ele>20</ele><time>2024-07-20T08:35:00Z</time></trkpt>
+      <trkpt lat="40.786740" lon="-73.985500"><ele>23</ele><time>2024-07-20T08:37:00Z</time></trkpt>
+      <trkpt lat="40.795910" lon="-73.977020"><ele>26</ele><time>2024-07-20T08:39:00Z</time></trkpt>
+      <trkpt lat="40.805100" lon="-73.972500"><ele>28</ele><time>2024-07-20T08:41:00Z</time></trkpt>
+      <trkpt lat="40.814410" lon="-73.968920"><ele>31</ele><time>2024-07-20T08:43:00Z</time></trkpt>
+      <trkpt lat="40.823350" lon="-73.962550"><ele>34</ele><time>2024-07-20T08:45:00Z</time></trkpt>
+      <trkpt lat="40.832450" lon="-73.957100"><ele>36</ele><time>2024-07-20T08:47:00Z</time></trkpt>
+      <trkpt lat="40.841760" lon="-73.949880"><ele>38</ele><time>2024-07-20T08:49:00Z</time></trkpt>
+      <trkpt lat="40.851150" lon="-73.946510"><ele>40</ele><time>2024-07-20T08:51:00Z</time></trkpt>
+      <trkpt lat="40.861300" lon="-73.942850"><ele>42</ele><time>2024-07-20T08:53:00Z</time></trkpt>
+      <trkpt lat="40.870720" lon="-73.936920"><ele>44</ele><time>2024-07-20T08:55:00Z</time></trkpt>
+      <trkpt lat="40.873950" lon="-73.925120"><ele>46</ele><time>2024-07-20T08:57:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

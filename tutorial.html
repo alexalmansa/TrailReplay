@@ -291,16 +291,16 @@
                     
                     <div class="download-section">
                         
-                        <a href="#" class="download-btn" onclick="downloadSampleGPX('running')" data-i18n="tutorial.downloadRunning">
+                        <a href="media/samples/sample-running-5km.gpx" class="download-btn" download data-i18n="tutorial.downloadRunning">
                             🏃‍♂️ Running Trail (5km)
                         </a>
-                        <a href="#" class="download-btn" onclick="downloadSampleGPX('cycling')" data-i18n="tutorial.downloadCycling">
+                        <a href="media/samples/sample-cycling-25km.gpx" class="download-btn" download data-i18n="tutorial.downloadCycling">
                             🚴‍♂️ Cycling Route (25km)
                         </a>
-                        <a href="#" class="download-btn" onclick="downloadSampleGPX('hiking')" data-i18n="tutorial.downloadHiking">
+                        <a href="media/samples/sample-hiking-8km.gpx" class="download-btn" download data-i18n="tutorial.downloadHiking">
                             🥾 Mountain Hike (8km)
                         </a>
-                        <a href="#" class="download-btn" onclick="downloadSampleGPX('multi')" data-i18n="tutorial.downloadMulti">
+                        <a href="media/samples/sample-multisport.gpx" class="download-btn" download data-i18n="tutorial.downloadMulti">
                             🏆 Multi-Sport Journey
                         </a>
                     </div>
@@ -612,215 +612,6 @@
         <div id="footer"></div>
     </div>
 
-    <script>
-        // Sample GPX file generation
-        function downloadSampleGPX(type) {
-            let gpxContent = '';
-            let filename = '';
-            
-            switch(type) {
-                case 'running':
-                    filename = 'sample-running-5km.gpx';
-                    gpxContent = generateRunningGPX();
-                    break;
-                case 'cycling':
-                    filename = 'sample-cycling-25km.gpx';
-                    gpxContent = generateCyclingGPX();
-                    break;
-                case 'hiking':
-                    filename = 'sample-hiking-8km.gpx';
-                    gpxContent = generateHikingGPX();
-                    break;
-                case 'multi':
-                    filename = 'sample-multisport.gpx';
-                    gpxContent = generateMultiSportGPX();
-                    break;
-            }
-            
-            const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-        
-        function generateRunningGPX() {
-            return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="TrailReplay Sample">
-  <trk>
-    <name>Morning Run - Central Park</name>
-    <type>running</type>
-    <trkseg>
-      <trkpt lat="40.7829" lon="-73.9654">
-        <ele>45</ele>
-        <time>2024-01-15T08:00:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7849" lon="-73.9647">
-        <ele>47</ele>
-        <time>2024-01-15T08:02:30Z</time>
-      </trkpt>
-      <trkpt lat="40.7869" lon="-73.9640">
-        <ele>50</ele>
-        <time>2024-01-15T08:05:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7889" lon="-73.9655">
-        <ele>48</ele>
-        <time>2024-01-15T08:07:30Z</time>
-      </trkpt>
-      <trkpt lat="40.7909" lon="-73.9670">
-        <ele>46</ele>
-        <time>2024-01-15T08:10:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7925" lon="-73.9685">
-        <ele>44</ele>
-        <time>2024-01-15T08:12:30Z</time>
-      </trkpt>
-      <trkpt lat="40.7940" lon="-73.9700">
-        <ele>42</ele>
-        <time>2024-01-15T08:15:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7950" lon="-73.9720">
-        <ele>40</ele>
-        <time>2024-01-15T08:17:30Z</time>
-      </trkpt>
-      <trkpt lat="40.7960" lon="-73.9740">
-        <ele>38</ele>
-        <time>2024-01-15T08:20:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7970" lon="-73.9760">
-        <ele>36</ele>
-        <time>2024-01-15T08:22:30Z</time>
-      </trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-        }
-        
-        function generateCyclingGPX() {
-            return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="TrailReplay Sample">
-  <trk>
-    <name>Cycling Adventure - Hudson River</name>
-    <type>cycling</type>
-    <trkseg>
-      <trkpt lat="40.7589" lon="-73.9851">
-        <ele>10</ele>
-        <time>2024-01-15T09:00:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7689" lon="-73.9891">
-        <ele>12</ele>
-        <time>2024-01-15T09:03:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7789" lon="-73.9931">
-        <ele>15</ele>
-        <time>2024-01-15T09:06:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7889" lon="-73.9971">
-        <ele>18</ele>
-        <time>2024-01-15T09:09:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7989" lon="-74.0011">
-        <ele>20</ele>
-        <time>2024-01-15T09:12:00Z</time>
-      </trkpt>
-      <trkpt lat="40.8089" lon="-74.0051">
-        <ele>22</ele>
-        <time>2024-01-15T09:15:00Z</time>
-      </trkpt>
-      <trkpt lat="40.8189" lon="-74.0091">
-        <ele>25</ele>
-        <time>2024-01-15T09:18:00Z</time>
-      </trkpt>
-      <trkpt lat="40.8289" lon="-74.0131">
-        <ele>28</ele>
-        <time>2024-01-15T09:21:00Z</time>
-      </trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-        }
-        
-        function generateHikingGPX() {
-            return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="TrailReplay Sample">
-  <trk>
-    <name>Mountain Hike - Bear Mountain</name>
-    <type>hiking</type>
-    <trkseg>
-      <trkpt lat="41.3128" lon="-74.0060">
-        <ele>150</ele>
-        <time>2024-01-15T10:00:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3148" lon="-74.0080">
-        <ele>180</ele>
-        <time>2024-01-15T10:10:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3168" lon="-74.0100">
-        <ele>220</ele>
-        <time>2024-01-15T10:20:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3188" lon="-74.0120">
-        <ele>280</ele>
-        <time>2024-01-15T10:30:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3208" lon="-74.0140">
-        <ele>350</ele>
-        <time>2024-01-15T10:40:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3228" lon="-74.0160">
-        <ele>420</ele>
-        <time>2024-01-15T10:50:00Z</time>
-      </trkpt>
-      <trkpt lat="41.3248" lon="-74.0180">
-        <ele>500</ele>
-        <time>2024-01-15T11:00:00Z</time>
-      </trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-        }
-        
-        function generateMultiSportGPX() {
-            return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="TrailReplay Sample">
-  <trk>
-    <name>Triathlon Training Day</name>
-    <type>triathlon</type>
-    <trkseg>
-      <trkpt lat="40.7500" lon="-73.9900">
-        <ele>5</ele>
-        <time>2024-01-15T07:00:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7520" lon="-73.9920">
-        <ele>8</ele>
-        <time>2024-01-15T07:15:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7540" lon="-73.9940">
-        <ele>10</ele>
-        <time>2024-01-15T07:30:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7560" lon="-73.9960">
-        <ele>12</ele>
-        <time>2024-01-15T08:00:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7580" lon="-73.9980">
-        <ele>15</ele>
-        <time>2024-01-15T08:30:00Z</time>
-      </trkpt>
-      <trkpt lat="40.7600" lon="-74.0000">
-        <ele>18</ele>
-        <time>2024-01-15T09:00:00Z</time>
-      </trkpt>
-    </trkseg>
-  </trk>
-</gpx>`;
-        }
-    </script>
-    
     <!-- Include translations -->
     <script type="module">
         import { initializeTranslations, setLanguage } from './src/translations.js';
