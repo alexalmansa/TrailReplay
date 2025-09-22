@@ -1,263 +1,74 @@
-# 🏃‍♂️ TrailReplay
+# TrailReplay
 
-TrailReplay is a powerful, open-source web application that transforms your GPX trail data into stunning, interactive 3D animations. Create beautiful visual stories of your outdoor adventures with professional-quality video exports, detailed analytics, and rich storytelling features.
+TrailReplay turns raw GPX files into polished, shareable trail stories. The entire pipeline—track ingestion, 3D map playback, journey authoring, and video export—runs in the browser, so nothing leaves the user’s machine unless they explicitly share it. A production build of this repo powers [trailreplay.com](https://trailreplay.com).
 
-## 🎬 See What You Can Create
+📹 **Demo**: [media/video/demo.mp4](media/video/demo.mp4)
 
-<div align="center">
+## Highlights
+- **In-browser GPX studio**: Drag-and-drop one or many GPX files, paste links from Strava or Wikiloc to open their download pages, and attach local images that become picture-in-picture annotations.
+- **Journey builder**: Merge activities into a single route, reorder segments, add transportation hops with realistic timing, or sketch connector routes directly on the map. OSRM routing is used by default; bring your own OpenRouteService/Mapbox key for premium routing.
+- **Immersive 3D maps**: MapLibre GL powers satellite, topo, and street styles with optional 3D terrain (Mapzen Terrarium and OpenTopography). A follow-behind camera, auto zoom, and layout-aware UI keep the action framed.
+- **Storytelling timeline**: Manage annotations, icon swaps, and photo overlays from one timeline. Events appear in the playback, on the progress bar, and in exports without blocking the animation.
+- **Playback & comparison tools**: Scrub with mouse or touch, review kilometre splits, toggle live speed vs pace metrics, and load a second GPX file for side-by-side comparison with independent colouring.
+- **Video export built in**: Auto recording supports WebM and browser-powered MP4 via `MediaRecorder`. Manual mode highlights the capture window for external tools, and aspect ratio presets keep overlays pixel perfect.
+- **Localization & feedback**: English and Spanish translations ship by default. A lightweight feedback widget, analytics hooks, and cookie consent manager are wired in but easy to disable.
 
-https://github.com/alexalmansa/TrailReplay/blob/main/media/video/demo.mp4 
+## Quick Start
+TrailReplay is a Vite project—standard Node tooling applies.
 
-*Example of a stunning 3D trail animation created with TrailReplay - this is what your GPX data can become!*
-
-**🎥 [View Full Example Video](media/video/demo.mp4)**
-
-</div>
-
-## ✨ Core Features
-
-### 📁 **Multi-File Journey Builder**
-- **Multiple GPX Upload**: Upload and combine multiple GPX files into a single journey
-- **Drag & Drop Interface**: Intuitive file handling with visual feedback
-- **Transportation Segments**: Add custom transportation between tracks (car, boat, plane, train, walking)
-- **Custom Timing**: Override automatic timing calculations with your own durations
-- **Auto-Preview**: Real-time visualization updates as you build your journey
-
-### 🎬 **3D Visualization & Animation**
-- **Interactive 3D Maps**: Powered by MapLibre GL JS with smooth animations
-- **Multiple Map Styles**: Satellite, terrain, and street view options
-- **3D Terrain Rendering**: Dramatic elevation visualization with multiple data sources
-- **Customizable Trail Styling**: Custom colors, marker sizes, and visual effects
-- **Auto-Follow Camera**: Dynamic camera that follows your animated progress
-- **Real-Time Statistics**: Live distance, elevation, and timing data during playback
-
-### 📹 **Professional Video Export**
-- **WebM Export**: 30 FPS video recording at 2.5 Mbps bitrate
-- **Clean Interface**: UI elements automatically hidden during recording
-- **Browser-Native Recording**: Uses MediaRecorder API for optimal performance
-- **Optimized for Sharing**: Perfect format for social media and presentations
-
-### 📝 **Rich Storytelling Features**
-- **Trail Annotations**: Add notes, warnings, photos, and points of interest
-- **Dynamic Icon Changes**: Change activity icons during animation (perfect for triathlons!)
-- **Timeline Editor**: Visual timeline with drag-to-reorder functionality
-- **Icon Library**: Extensive collection of activity and location icons
-- **Custom Descriptions**: Add context and stories to specific trail moments
-
-### 🗺️ **Advanced Map Features**
-- **Multiple Terrain Sources**: Mapzen Terrarium and OpenTopography SRTM data
-- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
-- **Real-Time Map Controls**: Zoom, pan, and style switching during animation
-- **Watermark Support**: Branded logo overlay for professional presentations
-- **Live Stats Overlay**: Real-time performance metrics display
-
-### 🌍 **Multi-Language Support**
-- **English & Spanish**: Full translation support with automatic detection
-- **Extensible**: Easy to add new languages
-- **Cultural Adaptation**: Localized date, time, and measurement formats
-
-## 🚀 Quick Start
-
-### Option 1: Try the Examples
-1. Visit the [Tutorial Page](tutorial.html) for comprehensive guides and examples
-2. Download sample GPX files for running, cycling, hiking, or multi-sport activities
-3. Follow the step-by-step tutorial to explore all features
-
-### Option 2: Use Your Own Data
-1. **Upload GPX Files**: Drag & drop your GPX files or click "Choose Files"
-2. **Build Your Journey**: Arrange tracks and add transportation segments
-3. **Customize**: Choose map style, colors, and animation settings
-4. **Animate**: Click Play to watch your trail come to life
-5. **Export**: Save as video to share your adventure
-
-## 🛠️ Development Setup
-
-### Prerequisites
-- Node.js 16+ and npm/yarn
-- Modern web browser (Chrome 80+, Firefox 75+, Safari 14+, Edge 80+)
-
-### Installation
-```bash
-git clone https://github.com/yourusername/trail-replay.git
-cd trail-replay
+```
 npm install
 npm run dev
 ```
 
-### Building for Production
-```bash
-npm run build
-```
+- Development server: <http://localhost:5173> (Vite auto-opens the landing page; `app.html` is the main editor).
+- Build for production: `npm run build` (outputs to `dist/` and copies `strava-callback.html`).
+- Preview a production build: `npm run preview`.
 
-## 📖 Complete Feature Guide
+### Prerequisites
+- Node.js 18+.
+- Modern Chromium, Firefox, or Safari for 3D map rendering and video recording features.
 
-### 🧩 Journey Builder
-The Journey Builder is the heart of TrailReplay, allowing you to create complex multi-activity journeys:
+## Using the App Locally
+- **Sample data**: Open `tutorial.html` for a guided walkthrough and download the GPX samples under `public/media/samples/`.
+- **Upload workflow**: Drag-and-drop files onto the upload card or click to browse. Paste Strava/Wikiloc URLs with “Import from Strava/Wikiloc” to open the correct download pages in a new tab.
+- **Journey authoring**: The journey builder (right-hand panel) lets you reorder tracks, insert transportation segments, draw connectors, and control segment duration. Timings sync automatically with the map animation, stats, and elevation chart.
+- **Annotations & icons**: Use the add-annotation and add-icon-change buttons or click directly on the progress bar/map when in selection mode. Picture annotations use the images you uploaded earlier and fade in/out without pausing playback.
+- **Stats & comparison**: Toggle kilometre splits, choose speed or pace units, and enable comparison mode to overlay a second GPX file with its own colour and name.
+- **Video export**: Pick WebM, MP4, or manual recording. Auto modes hide non-essential UI, enforce aspect ratios, and use `MediaRecorder` with tuned bitrate defaults. Manual mode gives on-screen guidance for OS-level capture utilities.
 
-- **Track Management**: Upload, reorder, and manage multiple GPX files
-- **Transportation Modes**: Add segments between activities (🚗 car, ⛵ boat, ✈️ plane, 🚂 train, 🚶‍♂️ walk)
-- **Custom Timing**: Override automatic calculations with your preferred durations
-- **Visual Timeline**: Drag-and-drop timeline editor with real-time preview
-- **Auto-Synchronization**: All timing displays stay synchronized across the interface
+## Repository Layout
+- `src/core/TrailReplayApp.js` – composition root that wires controllers, global state, and translations.
+- `src/controllers/` – feature controllers (file ingest, journey, map, playback, stats, timeline, export, video export, annotations, icons, progress, URL helper).
+- `src/map/` – MapLibre renderer, camera helpers, annotation/icon rendering, picture overlays, and terrain controls.
+- `src/journey/` – journey builder engine, segment UI, timing logic, and optional routing/drawing utilities.
+- `src/utils/` – analytics wrapper, MP4 helpers, constants, and shared utilities.
+- `public/` – static assets plus sample GPX files (`public/media/samples/`).
+- `docs/` & standalone `.html` files – marketing pages, tutorials, privacy policy, terms, etc., served as-is in production.
 
-### 🎨 Visualization Customization
-Make your trail uniquely yours:
+## Configuration Notes
+- **Analytics**: Edit `src/config/analytics.js` to change the GA4 ID, disable tracking, or require consent. The default build enables GA for non-localhost domains.
+- **Routing APIs**: `src/routingService.js` falls back to the public OSRM instance. To use OpenRouteService or Mapbox, set `routingService.openRouteServiceApiKey` or `.mapboxApiKey` at runtime before calculating routes.
+- **Terrain & map styles**: 3D terrain is enabled automatically when the browser supports it. Users can switch between Mapzen Terrarium and OpenTopography SRTM datasets; styles and labels live in `src/map/MapRenderer.js`.
+- **Branding & assets**: Logos, favicons, and hero imagery live under `media/`. Update `media/images/simplelogo.png` and related assets to rebrand.
+- **Localization**: Translations reside in `src/translations.js`. Add a new language by extending the `translations` object and providing the appropriate `data-i18n` strings in the markup.
+- **Feedback**: `src/ui/feedback.js` and `src/ui/feedbackSolicitation.js` handle the optional feedback drawer and solicitation prompts.
 
-- **Map Styles**: 
-  - 🛰️ **Satellite**: High-resolution satellite imagery
-  - 🗻 **Terrain**: Topographic maps with elevation shading  
-  - 🗺️ **Street**: Detailed street-level mapping
-- **3D Terrain**: Enable dramatic elevation visualization
-- **Trail Styling**: Custom colors, marker sizes, background circles
-- **Activity Icons**: 100+ icons across categories (activities, transportation, landmarks, weather)
-- **Auto-Follow**: Camera automatically tracks animated marker
+## Development Tips
+- Inspect console logs—the controllers emit verbose traces (especially journey and export flows) to aid debugging.
+- The app stores runtime state on `window.app`; use DevTools to trigger helpers like `window.setTrackColors()` or `window.forceSyntheticTimeData()`.
+- Because everything is client-side, any network failures you see in dev usually come from tile servers or rate-limited routing APIs; exports and playback continue to work offline once the map tiles are cached.
 
-### 📝 Advanced Storytelling
-Tell rich stories with your trail data:
+## Privacy & Data
+- GPX parsing, journey editing, rendering, and video export happen locally. Files and generated videos are never uploaded to a backend.
+- Analytics can be turned off entirely or restricted to production domains via `ANALYTICS_CONFIG`.
+- When users open Strava/Wikiloc links, the app simply opens the provider’s download page in a new tab—no credentials or API tokens are handled.
 
-- **Trail Annotations**: 
-  - Add titles and descriptions to specific points
-  - Choose from preset icons (📍 📸 ⚠️ 🏔️ 💧 🌳 🏠 ⭐)
-  - Automatic display during animation playback
-  - Click to jump to specific moments
-- **Icon Timeline**:
-  - Change activity icons during animation
-  - Perfect for triathlons, adventure races, weather changes
-  - Visual markers on progress bar
-  - Edit and delete functionality
+## Contributing
+Issues and pull requests are welcome. Helpful contributions include bug fixes, new journey-building tools, camera presets, translations, or documentation enhancements. Please explain any new dependencies and add usage notes when you change user-facing behaviour.
 
-### 🎥 Video Export System
-Professional-quality video creation:
-
-- **Format**: WebM with VP9 codec for optimal web compatibility
-- **Quality**: 30 FPS at 2.5 Mbps for smooth, high-quality output
-- **Clean Recording**: UI elements automatically hidden during export
-- **Performance**: Optimized recording process with map tile pre-loading
-- **Tips for Best Results**: 
-  - Wait for map tiles to fully load
-  - Use slower animation speeds for smoother recordings
-  - Close other browser tabs during export
-
-### 📊 Analytics & Statistics
-Comprehensive trail analytics:
-
-- **Real-Time Stats**: Distance and elevation update during animation
-- **Journey Totals**: Complete distance, elevation gain, and duration
-- **Segment Breakdown**: Individual statistics for each track
-- **Live Overlay**: Optional floating stats panel during animation
-- **Export Data**: All statistics included in video exports
-
-## 🔧 Technical Architecture
-
-### Technology Stack
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Mapping**: MapLibre GL JS for 3D mapping and animations
-- **3D Graphics**: Three.js for enhanced visualizations
-- **Video**: MediaRecorder API for browser-native recording
-- **Geospatial**: Turf.js for distance calculations and spatial analysis
-- **Build Tool**: Vite for fast development and optimized builds
-
-### Data Processing
-- **GPX Parsing**: Custom parser supporting tracks, segments, and waypoints
-- **Timing Calculation**: Smart algorithms for realistic animation timing
-- **Elevation Data**: Integration with Mapzen and OpenTopography APIs
-- **Coordinate System**: WGS84 with proper projection handling
-
-### Performance Features
-- **Client-Side Processing**: All data stays in your browser
-- **Web Workers**: Background processing for large files
-- **Efficient Rendering**: Optimized WebGL rendering pipeline
-- **Memory Management**: Smart cleanup for long animations
-
-## 🔒 Privacy & Security
-
-- **🛡️ Client-Side Only**: All processing happens in your browser
-- **🔐 No Data Upload**: Your GPX files never leave your device
-- **👁️ No Tracking**: No analytics, cookies, or user tracking
-- **📖 Open Source**: All code is publicly available and auditable
-- **🌐 Offline Capable**: Works without internet once loaded (except map tiles)
-
-## 🌍 Browser Compatibility
-
-| Browser | Version | Features |
-|---------|---------|----------|
-| Chrome | 80+ | ✅ Full support including video export |
-| Firefox | 75+ | ✅ Full support including video export |
-| Safari | 14+ | ⚠️ Basic features (limited video export) |
-| Edge | 80+ | ✅ Full support including video export |
-
-## 🤝 Contributing
-
-We welcome contributions! Here are ways you can help:
-
-### Development
-- 🐛 **Bug Reports**: Submit detailed bug reports with reproduction steps
-- 💡 **Feature Requests**: Suggest new features or improvements
-- 🔧 **Code Contributions**: Submit pull requests with new features or fixes
-- 📝 **Documentation**: Help improve documentation and tutorials
-
-### Localization
-- 🌍 **New Languages**: Add translations in `src/translations.js`
-- 🔤 **Improve Translations**: Enhance existing translations
-- 🏛️ **Cultural Adaptation**: Help with cultural customizations
-
-### Testing
-- 🧪 **Beta Testing**: Test new features and report issues
-- 📱 **Device Testing**: Test on different devices and browsers
-- 🗺️ **Map Testing**: Test with different GPX files and regions
-
-
-## 🔮 Roadmap & Future Features
-
-### v1.0
-- [ ] **Enhanced Video Export**: MP4 format with ffmpeg.wasm
-- [ ] **Photo Integration**: Sync photos with GPS locations
-- [ ] **No gpx route builder**: Add a route between two points
-- [ ] **Strava Integration**: Sync with Strava
-- [ ] **Social Sharing**: Direct sharing to social media platforms
-- [ ] **Route Planning**: Draw routes directly on the map
-
-
-### Medium Term (v1.5)
-- [ ] **Have an account with projects**: Save your journeys to your account
-- [ ] **Advanced Analytics**: Heart rate, pace, and power data visualization
-- [ ] **Weather Integration**: Historical weather data overlay
-
-### Long Term (v2.0)
-- [ ] **Cloud Sync**: Optional cloud storage for journeys
-- [ ] **Community Features**: Share and discover public journeys
-- [ ] **Advanced 3D**: Terrain textures and environmental effects
-- [ ] **VR/AR Support**: Virtual and augmented reality viewing
-- [ ] **API Platform**: REST API for third-party integrations
-
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **MapLibre GL JS** - Open-source mapping that makes this possible
-- **OpenStreetMap** - The collaborative mapping project powering our maps
-- **Three.js** - 3D graphics library enabling stunning visualizations
-- **Turf.js** - Geospatial analysis toolkit
-- **Mapzen & OpenTopography** - Elevation data providers
-- **The Open Source Community** - For tools, libraries, and inspiration
-
----
-
-**Made with ❤️ for the outdoor community. Happy trails! 🌲**
-
-*TrailReplay: Where every trail tells a story*
-
-## Internationalization (i18n)
-
-TrailReplay supports English and Spanish. The language is auto-detected from your browser, and you can switch it at any time using the language selector in the header. All major UI elements, including the journey timing panel and journey update messages, are now fully translated.
+## License
+This project is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Support the Project
-
-If you enjoy using TrailReplay and want to support its development, you can now [☕ Buy me a coffee](https://ko-fi.com/alexalmansa)!
-
-<a href="https://ko-fi.com/alexalmansa" target="_blank" rel="noopener noreferrer"><img src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
-
-Thank you for your support! 
+If TrailReplay is useful to you, consider supporting development on Ko-fi: <https://ko-fi.com/alexalmansa>
