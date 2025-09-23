@@ -14,7 +14,8 @@ export default defineConfig({
         tutorial: resolve(fileURLToPath(new URL('.', import.meta.url)), 'tutorial.html'),
         acknowledgments: resolve(fileURLToPath(new URL('.', import.meta.url)), 'acknowledgments.html'),
         privacy: resolve(fileURLToPath(new URL('.', import.meta.url)), 'privacy.html'),
-        terms: resolve(fileURLToPath(new URL('.', import.meta.url)), 'terms.html')
+        terms: resolve(fileURLToPath(new URL('.', import.meta.url)), 'terms.html'),
+        gpxDownloadGuide: resolve(fileURLToPath(new URL('.', import.meta.url)), 'gpx-download-guide.html')
       },
       output: {
         manualChunks: {
