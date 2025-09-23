@@ -303,6 +303,18 @@ export function setupEventListeners(app) {
         });
     }
 
+    const showLiveElevationToggle = byId('showLiveElevation');
+    if (showLiveElevationToggle) {
+        showLiveElevationToggle.checked = app.state.showLiveElevationLabel;
+        showLiveElevationToggle.addEventListener('change', (e) => {
+            if (typeof app.setShowLiveElevationLabel === 'function') {
+                app.setShowLiveElevationLabel(e.target.checked);
+            } else {
+                app.state.showLiveElevationLabel = e.target.checked;
+            }
+        });
+    }
+
 
 
 

@@ -104,7 +104,7 @@ export class PlaybackController {
         this.app.updateProgressDisplay();
         
         // Update elevation progress
-        this.app.updateElevationProgress(0);
+        this.app.updateElevationProgress(0, { force: true });
     }
 
     /**

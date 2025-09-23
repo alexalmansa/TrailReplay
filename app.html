@@ -541,12 +541,20 @@
                             <div class="control-group">
                                 <label data-i18n="controls.showSegmentSpeeds">Show Segment Speeds</label>
                                 <div class="toggle-switch">
-                                    <input type="checkbox" id="showSegmentSpeeds">
+                                    <input type="checkbox" id="showSegmentSpeeds" checked>
                                     <label for="showSegmentSpeeds" class="toggle-slider"></label>
                                 </div>
                             </div>
 
-                            <div id="speedUnitToggleGroup" class="control-group" style="display: none;">
+                            <div class="control-group">
+                                <label data-i18n="controls.showLiveElevation">Show Live Elevation</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="showLiveElevation" checked>
+                                    <label for="showLiveElevation" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                            <div id="speedUnitToggleGroup" class="control-group" style="display: block;">
                                 <label data-i18n="controls.speedAsPace">Show pace (min/km)</label>
                                 <div class="toggle-switch">
                                     <input type="checkbox" id="speedAsPace">
@@ -753,6 +761,9 @@
                                     
                                     <!-- Annotation markers -->
                                     <div id="annotationMarkers" class="elevation-markers"></div>
+
+                                    <!-- Live elevation marker -->
+                                    <div id="liveElevationMarker" class="elevation-live-label">0 m</div>
                                     
                                     <!-- Elevation labels -->
                                     <div class="elevation-labels">

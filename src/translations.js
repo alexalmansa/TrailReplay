@@ -445,6 +445,7 @@ export const translations = {
         avgSpeed: "Average Speed",
     showEndStats: "Show End Stats",
     showSegmentSpeeds: "Show Segment Speeds",
+    showLiveElevation: "Show Live Elevation",
     speedAsPace: "Show pace (min/km)",
             
             // Comparison Mode
@@ -1382,9 +1383,10 @@ export const translations = {
             // Stats Labels
                     distance: "Distancia",
         elevation: "Elevación",
-            showEndStats: "Mostrar Estadísticas Finales",
-            showSegmentSpeeds: "Mostrar velocidades por segmento",
-            speedAsPace: "Mostrar ritmo (min/km)",
+    showEndStats: "Mostrar Estadísticas Finales",
+    showSegmentSpeeds: "Mostrar velocidades por segmento",
+            showLiveElevation: "Mostrar altitud en vivo",
+    speedAsPace: "Mostrar ritmo (min/km)",
             
             // Comparison Mode
             comparisonSettings: "🏃‍♂️ Modo Comparación",
@@ -2301,6 +2303,7 @@ export const translations = {
             elevation: "Elevació",
                 showEndStats: "Mostrar Estadístiques Finals",
                 showSegmentSpeeds: "Mostrar velocitats per segment",
+                showLiveElevation: "Mostrar altitud en viu",
                 speedAsPace: "Mostrar ritme (min/km)",
 
                 // Comparison Mode

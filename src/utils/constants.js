@@ -18,7 +18,8 @@ export const AVAILABLE_ICONS = Object.values(ICON_CATEGORIES).flat();
 export const DEFAULT_SETTINGS = {
     TOTAL_ANIMATION_TIME: 60, // seconds
     GPX_ONLY_STATS: false,
-    SHOW_SEGMENT_SPEEDS: false,
+    SHOW_SEGMENT_SPEEDS: true, // Enable segment speeds by default
+    SHOW_LIVE_ELEVATION_LABEL: true, // Enable live elevation by default
     SPEED_DISPLAY_MODE: 'speed',
     DEFAULT_ICON: '🏃‍♂️',
     DEFAULT_ANNOTATION_ICON: '📍',

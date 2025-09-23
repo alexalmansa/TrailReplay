@@ -2062,27 +2062,161 @@ export class VideoExportController {
 
         const { width, height } = this.recordingDimensions;
         
-        // Position stats in top-right corner of video (matching browser layout)
-        const statsX = width - 200; // 200px from right edge
-        const statsY = 20; // 20px from top
+        // Use calculated positioning instead of DOM positioning (like end stats do)
+        // Position in top-RIGHT corner matching CSS positioning
+        const margin = 8; // 0.5rem = 8px
+        const statsWidth = 120; // Approximate width for the stats block
+        const x = width - statsWidth - margin; // Right-aligned positioning
+        const y = margin + 10; // Small additional offset for better positioning
+        
+        // NO BACKGROUND - matches CSS: background: none !important;
+        // The live stats overlay should be completely transparent
 
+        // Get the stats elements from DOM
         const distanceElement = document.getElementById('liveDistance');
         const elevationElement = document.getElementById('liveElevation');
+        const liveSpeedElement = document.getElementById('liveSpeed');
+        const liveSpeedItem = document.getElementById('liveSpeedItem');
+        const liveSpeedLabel = document.getElementById('liveSpeedLabel');
+
+        // Text styling to match CSS (.live-stats-overlay)
+        context.textAlign = 'left'; // matches text-align: left from CSS
+        context.textBaseline = 'middle';
+        context.fillStyle = '#FFFFFF'; // matches color: #fff from CSS
         
-        if (distanceElement && elevationElement) {
-            // Match the exact font and styling from CSS
-            context.font = 'bold 0.92rem Arial'; // Matches CSS font-size: 0.92rem
-            context.fillStyle = '#fff'; // Matches CSS color: #fff
-            context.textAlign = 'left'; // Matches CSS text-align: left
+        let currentY = y + 8; // Start with small padding to match CSS padding: 0.25rem 0.75rem
+        const lineHeight = 18; // Increased line height for better spacing
+        const startX = x + 12; // Match CSS padding-left: 0.75rem
+        const labelValueGap = 30; // Increased gap between label and value
+
+        // Draw distance
+        if (distanceElement) {
+            // Draw label and value on same line (matches CSS flex layout)
+            context.font = '600 13px Arial, sans-serif'; // Reduced font size for better fit
+            context.fillText('D:', startX, currentY);
+            context.fillText(distanceElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
+        }
+
+        // Draw elevation
+        if (elevationElement) {
+            // Draw label and value on same line
+            context.font = '600 13px Arial, sans-serif';
+            context.fillText('E:', startX, currentY);
+            context.fillText(elevationElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
+        }
+
+        // Draw live speed if enabled and visible
+        if (liveSpeedItem && liveSpeedItem.style.display !== 'none' && liveSpeedElement && liveSpeedLabel) {
+            // Draw label and value on same line with more space
+            context.font = '600 12px Arial, sans-serif'; // Even smaller font for speed values
+            context.fillText(liveSpeedLabel.textContent, startX, currentY);
+            context.fillText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
+        }
+
+        // Draw segment speed overlay if visible
+        await this.drawHighQualitySegmentSpeedOverlay(context);
+    }
+
+    /**
+     * Draw high-quality segment speed overlay (kilometer segments info)
+     */
+    async drawHighQualitySegmentSpeedOverlay(context) {
+        const liveSpeedSegments = document.getElementById('liveSpeedSegments');
+        if (!liveSpeedSegments || liveSpeedSegments.style.display === 'none') return;
+
+        const liveStatsOverlay = document.getElementById('liveStatsOverlay');
+        if (liveStatsOverlay && liveStatsOverlay.classList.contains('end-animation')) {
+            return; // Don't show during end animation
+        }
+
+        const { width, height } = this.recordingDimensions;
+
+        // Use calculated positioning instead of DOM positioning
+        // Position below the live stats, in top-RIGHT area
+        const margin = 8;
+        const overlayWidth = 180; // Fixed width similar to live stats
+        const overlayHeight = 80; // Fixed height
+        const x = width - overlayWidth - margin; // Right-aligned positioning
+        const y = margin + 80; // Below live stats (which take ~70px)
+
+        // No background for the segments container - it's transparent
+
+        // Draw title
+        const title = document.querySelector('.live-speed-segments-title');
+        if (title) {
+            context.fillStyle = 'rgba(255, 255, 255, 0.78)'; // Matches CSS color
+            context.font = '600 10px Arial, sans-serif'; // Smaller font for compact display
+            context.textAlign = 'center';
             context.textBaseline = 'top';
+            context.fillText(title.textContent.toUpperCase(), x + overlayWidth / 2, y + 4);
+        }
 
-            // Draw distance with exact positioning (matches CSS margin and padding)
-            const distanceText = `D: ${distanceElement.textContent}`;
-            context.fillText(distanceText, statsX + 12, statsY + 4); // 12px padding, 4px top margin
+        // Draw segment info
+        const segmentItem = document.querySelector('.speed-segment-item');
+        if (segmentItem) {
+            const segmentLabel = segmentItem.querySelector('.speed-segment-label');
+            const segmentSpeed = segmentItem.querySelector('.speed-segment-speed');
+            const segmentPace = segmentItem.querySelector('.speed-segment-pace');
 
-            // Draw elevation with exact positioning (matches CSS gap: 0.1rem)
-            const elevationText = `E: ${elevationElement.textContent}`;
-            context.fillText(elevationText, statsX + 12, statsY + 24); // 20px gap between items
+            // Check if this segment is currently pulsing (has segment-change class)
+            const isChanging = segmentItem.classList.contains('segment-change');
+
+            let currentY = y + 25; // Below title
+            const itemPadding = 4; // Reduced padding for compact display
+            const itemHeight = 28; // Reduced height
+            const itemX = x + 4; // Small margin
+            const itemWidth = overlayWidth - 8; // Full width minus margins
+
+            // Draw segment item background with blur effect (matches .speed-segment-item styles)
+            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default background
+            
+            // Apply orange pulse effect if segment is changing
+            if (isChanging) {
+                backgroundColor = 'rgba(193, 101, 47, 0.55)'; // Orange background during pulse
+            }
+
+            // Draw background with rounded corners (matches border-radius: 10px)
+            context.fillStyle = backgroundColor;
+            this.drawRoundedRect(context, itemX, currentY - itemPadding, itemWidth, itemHeight, 8);
+            context.fill();
+
+            // Simulate backdrop-filter blur effect with additional semi-transparent layer
+            context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            this.drawRoundedRect(context, itemX, currentY - itemPadding, itemWidth, itemHeight, 8);
+            context.fill();
+
+            const leftPadding = itemX + 6;
+            const rightPadding = itemX + itemWidth - 6;
+
+            // Draw segment label (e.g., "Km 2 · +15m") - left aligned, uppercase
+            if (segmentLabel) {
+                context.fillStyle = '#FFFFFF';
+                context.font = '600 10px Arial, sans-serif'; // Smaller font
+                context.textAlign = 'left';
+                context.textBaseline = 'middle';
+                context.fillText(segmentLabel.textContent.toUpperCase(), leftPadding, currentY + 2);
+            }
+
+            // Draw speed values in the values container (right side)
+            if (segmentSpeed) {
+                const valuesY = currentY + 14; // Below the label
+                
+                // Primary speed value (larger)
+                context.fillStyle = '#FFFFFF';
+                context.font = '600 11px JetBrains Mono, monospace'; // Smaller font for compact display
+                context.textAlign = 'right';
+                context.fillText(segmentSpeed.textContent, rightPadding, valuesY);
+                
+                // Secondary value (pace or speed) - smaller, slightly transparent
+                if (segmentPace && segmentPace.textContent !== segmentSpeed.textContent) {
+                    context.fillStyle = 'rgba(255, 255, 255, 0.75)'; // Matches CSS opacity
+                    context.font = '400 9px JetBrains Mono, monospace'; // Even smaller font
+                    context.fillText(segmentPace.textContent, rightPadding, valuesY - 10); // Above primary value
+                }
+            }
         }
     }
 
@@ -2094,12 +2228,14 @@ export class VideoExportController {
         if (!elevationContainer || elevationContainer.style.display === 'none') return;
 
         const { width, height } = this.recordingDimensions;
-        
-        // Position elevation profile at bottom of video (matching browser layout)
-        const profileX = 20; // 20px from left edge
-        const profileY = height - 100; // 100px from bottom
-        const profileWidth = width - 40; // Full width minus margins
-        const profileHeight = 80; // Fixed height for elevation profile
+
+        // Use calculated positioning instead of DOM positioning
+        // Position at bottom matching CSS: bottom: 0.75rem, left: 0.75rem, right: 0.75rem
+        const margin = 12; // 0.75rem = 12px
+        const profileHeight = 60; // Fixed height for elevation profile
+        const x = margin;
+        const y = height - profileHeight - margin; // Bottom positioning
+        const profileWidth = width - (margin * 2); // Full width minus margins
 
         // Get current progress - try multiple sources for accuracy
         let progress = this.getAnimationProgress();
@@ -2128,7 +2264,7 @@ export class VideoExportController {
             }
         }
 
-        // Try to capture the actual SVG elements from the browser
+        // Try to capture the actual SVG elements from the browser first
         const elevationPath = document.getElementById('elevationPath');
         const progressPath = document.getElementById('progressPath');
         
@@ -2138,18 +2274,36 @@ export class VideoExportController {
             const progressPathData = progressPath.getAttribute('d');
             
             if (elevationPathData && progressPathData) {
-                // Draw the elevation profile by parsing the SVG path
-                this.drawSVGPath(context, elevationPathData, profileX, profileY, profileWidth, profileHeight, '#4CAF50', 'rgba(76, 175, 80, 0.3)');
+                // Draw the elevation profile by parsing the SVG path with calculated positioning
+                this.drawSVGPath(context, elevationPathData, x, y, profileWidth, profileHeight, '#4CAF50', 'rgba(76, 175, 80, 0.3)');
                 
                 // Draw the progress overlay
-                this.drawSVGPath(context, progressPathData, profileX, profileY, profileWidth, profileHeight, '#C1652F', 'rgba(193, 101, 47, 0.8)');
-                
-                return;
+                this.drawSVGPath(context, progressPathData, x, y, profileWidth, profileHeight, '#C1652F', 'rgba(193, 101, 47, 0.8)');
             }
+        } else if (progress >= 0) {
+            // Fallback to simple progress bar
+            const barWidth = profileWidth;
+            const barHeight = 8; // Slightly thicker for better visibility
+            const barX = x;
+            const barY = y + profileHeight - 20; // Position within the profile area
+
+            // Draw elevation profile background
+            context.fillStyle = 'rgba(76, 175, 80, 0.3)';
+            context.fillRect(barX, barY, barWidth, barHeight);
+
+            // Draw border for the elevation profile
+            context.strokeStyle = 'rgba(76, 175, 80, 0.6)';
+            context.lineWidth = 1;
+            context.strokeRect(barX, barY, barWidth, barHeight);
+
+            // Draw progress fill - always draw something even at 0 progress
+            context.fillStyle = '#C1652F';
+            const progressWidth = Math.max(2, barWidth * progress); // Minimum 2px width
+            context.fillRect(barX, barY, progressWidth, barHeight);
         }
 
-        // Fallback to simple progress bar if SVG capture fails
-        this.drawSimpleProgressBar(context, profileX, profileY, profileWidth, profileHeight, progress);
+        // Draw elevation labels (min, max, live) with calculated positioning
+        await this.drawElevationLabelsCalculated(context, x, y, profileWidth, profileHeight);
     }
 
     /**
@@ -2235,11 +2389,19 @@ export class VideoExportController {
         const statsY = (videoHeight - statsHeight) / 2;
 
         // No background for the overlay (matches live animation)
-        // Draw title (no title in live animation, but keeping for clarity)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 24px Arial, sans-serif';
+        // Draw title with proper styling and shadow
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.font = '700 24px Arial, sans-serif';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Add text shadow for better visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+        ctx.shadowBlur = 4;
         ctx.fillText(t('stats.title'), videoWidth / 2, statsY + 30);
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
 
         // Calculate grid layout for stats
         const numStats = selectedStats.length;
@@ -2310,26 +2472,43 @@ export class VideoExportController {
                 const boxWidth = statWidth - (boxPadding * 2);
                 const boxHeight = 50; // Fixed height for mobile
 
-                // Draw stat box background with transparent blur effect (matches .final-stat-box with backdrop-filter)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-                ctx.fillRect(statX + boxPadding, statY + boxPadding, boxWidth, boxHeight);
+                // Draw stat box background with proper blur effect simulation (matches .final-stat-box)
+                // First layer: base background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
+
+                // Second layer: simulate backdrop-filter blur with additional transparency
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
 
                 // Draw stat box border (matches .final-stat-box)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
                 ctx.lineWidth = 1;
-                ctx.strokeRect(statX + boxPadding, statY + boxPadding, boxWidth, boxHeight);
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.stroke();
 
                 // Draw stat label (left side, matches .aspect-mobile .final-stat-box .final-stat-label)
-                ctx.fillStyle = '#FFFFFF';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 ctx.font = '500 12px Arial, sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText(statLabel, statX + boxPadding + 10, statY + boxPadding + 20);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(statLabel.toUpperCase(), statX + boxPadding + 10, statY + boxPadding + boxHeight / 2);
 
                 // Draw stat value (right side, matches .aspect-mobile .final-stat-box .final-stat-value)
-                ctx.fillStyle = '#4CAF50';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
                 ctx.font = '700 14px Arial, sans-serif';
                 ctx.textAlign = 'right';
-                ctx.fillText(statValue, statX + statWidth - boxPadding - 10, statY + boxPadding + 20);
+                ctx.textBaseline = 'middle';
+                // Add text shadow effect
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 1;
+                ctx.shadowBlur = 2;
+                ctx.fillText(statValue, statX + statWidth - boxPadding - 10, statY + boxPadding + boxHeight / 2);
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
 
             } else {
                 // Desktop/Square layout: vertical centered layout
@@ -2337,28 +2516,43 @@ export class VideoExportController {
                 const boxWidth = statWidth - (boxPadding * 2);
                 const boxHeight = statHeight - (boxPadding * 2);
 
-                // Draw stat box background with transparent blur effect (matches .final-stat-box with backdrop-filter)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-                ctx.fillRect(statX + boxPadding, statY + boxPadding, boxWidth, boxHeight);
+                // Draw stat box background with proper blur effect simulation (matches .final-stat-box)
+                // First layer: base background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
+
+                // Second layer: simulate backdrop-filter blur with additional transparency
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
 
                 // Draw stat box border (matches .final-stat-box)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
                 ctx.lineWidth = 1;
-                ctx.strokeRect(statX + boxPadding, statY + boxPadding, boxWidth, boxHeight);
-
-                // Add rounded corners (matches border-radius: 6px)
-                // Note: Canvas doesn't have built-in rounded rect, so we'll approximate with the border
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.stroke();
 
                 // Draw stat label (matches .final-stat-label)
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '14px Arial, sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '500 12px Arial, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(statLabel, statX + statWidth / 2, statY + boxPadding + 25);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(statLabel.toUpperCase(), statX + statWidth / 2, statY + boxPadding + 25);
 
                 // Draw stat value (matches .final-stat-value)
-                ctx.fillStyle = '#4CAF50';
-                ctx.font = 'bold 18px Arial, sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.font = '700 16px Arial, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Add text shadow effect
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 1;
+                ctx.shadowBlur = 2;
                 ctx.fillText(statValue, statX + statWidth / 2, statY + boxPadding + 50);
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
             }
         });
 
@@ -2641,34 +2835,188 @@ export class VideoExportController {
         const liveStatsOverlay = document.getElementById('liveStatsOverlay');
         if (!liveStatsOverlay || liveStatsOverlay.style.display === 'none') return;
 
-        const rect = liveStatsOverlay.getBoundingClientRect();
-        const containerRect = this.videoCaptureContainer.getBoundingClientRect();
-        
-        // Calculate relative position within the container
-        const x = rect.left - containerRect.left;
-        const y = rect.top - containerRect.top;
+        // Skip normal stats drawing if we're in end-animation mode (final stats will be drawn separately)
+        if (liveStatsOverlay.classList.contains('end-animation')) {
+            return;
+        }
 
-        // Get the stats text from DOM
+        const { width, height } = this.recordingDimensions;
+        const ctx = this.recordingContext;
+        
+        // Use calculated positioning instead of DOM positioning (like end stats do)
+        // Position in top-RIGHT corner matching CSS positioning
+        const margin = 8; // 0.5rem = 8px
+        const statsWidth = 120; // Approximate width for the stats block
+        const x = width - statsWidth - margin; // Right-aligned positioning
+        const y = margin + 10; // Small additional offset for better positioning
+        
+        // NO BACKGROUND - matches CSS: background: none !important;
+        // The live stats overlay should be completely transparent
+
+        // Get the stats elements from DOM
         const distanceElement = document.getElementById('liveDistance');
         const elevationElement = document.getElementById('liveElevation');
+        const liveSpeedElement = document.getElementById('liveSpeed');
+        const liveSpeedItem = document.getElementById('liveSpeedItem');
+        const liveSpeedLabel = document.getElementById('liveSpeedLabel');
+
+        // Text styling to match CSS (.live-stats-overlay)
+        ctx.textAlign = 'left'; // matches text-align: left from CSS
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF'; // matches color: #fff from CSS
         
-        if (distanceElement && elevationElement) {
-            const ctx = this.recordingContext;
-            ctx.font = '16px Arial';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.lineWidth = 2;
+        let currentY = y + 8; // Start with small padding to match CSS padding: 0.25rem 0.75rem
+        const lineHeight = 18; // Increased line height for better spacing
+        const startX = x + 12; // Match CSS padding-left: 0.75rem
+        const labelValueGap = 30; // Increased gap between label and value
 
-            // Draw distance
-            const distanceText = `Distance: ${distanceElement.textContent}`;
-            ctx.strokeText(distanceText, x + 10, y + 25);
-            ctx.fillText(distanceText, x + 10, y + 25);
-
-            // Draw elevation
-            const elevationText = `Elevation: ${elevationElement.textContent}`;
-            ctx.strokeText(elevationText, x + 10, y + 50);
-            ctx.fillText(elevationText, x + 10, y + 50);
+        // Draw distance
+        if (distanceElement) {
+            // Draw label and value on same line (matches CSS flex layout)
+            ctx.font = '600 13px Arial, sans-serif'; // Reduced font size for better fit
+            ctx.fillText('D:', startX, currentY);
+            ctx.fillText(distanceElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
         }
+
+        // Draw elevation
+        if (elevationElement) {
+            // Draw label and value on same line
+            ctx.font = '600 13px Arial, sans-serif';
+            ctx.fillText('E:', startX, currentY);
+            ctx.fillText(elevationElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
+        }
+
+        // Draw live speed if enabled and visible
+        if (liveSpeedItem && liveSpeedItem.style.display !== 'none' && liveSpeedElement && liveSpeedLabel) {
+            // Draw label and value on same line with more space
+            ctx.font = '600 12px Arial, sans-serif'; // Even smaller font for speed values
+            ctx.fillText(liveSpeedLabel.textContent, startX, currentY);
+            ctx.fillText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
+            currentY += lineHeight;
+        }
+
+        // Draw segment speed overlay if visible
+        await this.drawSegmentSpeedOverlay();
+    }
+
+    /**
+     * Draw segment speed overlay (kilometer segments info)
+     */
+    async drawSegmentSpeedOverlay() {
+        const liveSpeedSegments = document.getElementById('liveSpeedSegments');
+        if (!liveSpeedSegments || liveSpeedSegments.style.display === 'none') return;
+
+        const liveStatsOverlay = document.getElementById('liveStatsOverlay');
+        if (liveStatsOverlay && liveStatsOverlay.classList.contains('end-animation')) {
+            return; // Don't show during end animation
+        }
+
+        const { width, height } = this.recordingDimensions;
+        const ctx = this.recordingContext;
+
+        // Use calculated positioning instead of DOM positioning
+        // Position below the live stats, in top-RIGHT area
+        const margin = 8;
+        const overlayWidth = 180; // Fixed width similar to live stats
+        const overlayHeight = 80; // Fixed height
+        const x = width - overlayWidth - margin; // Right-aligned positioning
+        const y = margin + 80; // Below live stats (which take ~70px)
+
+        // No background for the segments container - it's transparent
+
+        // Draw title
+        const title = document.querySelector('.live-speed-segments-title');
+        if (title) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.78)'; // Matches CSS color
+            ctx.font = '600 10px Arial, sans-serif'; // Smaller font for compact display
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(title.textContent.toUpperCase(), x + overlayWidth / 2, y + 4);
+        }
+
+        // Draw segment info
+        const segmentItem = document.querySelector('.speed-segment-item');
+        if (segmentItem) {
+            const segmentLabel = segmentItem.querySelector('.speed-segment-label');
+            const segmentSpeed = segmentItem.querySelector('.speed-segment-speed');
+            const segmentPace = segmentItem.querySelector('.speed-segment-pace');
+
+            // Check if this segment is currently pulsing (has segment-change class)
+            const isChanging = segmentItem.classList.contains('segment-change');
+
+            let currentY = y + 25; // Below title
+            const itemPadding = 4; // Reduced padding for compact display
+            const itemHeight = 28; // Reduced height
+            const itemX = x + 4; // Small margin
+            const itemWidth = overlayWidth - 8; // Full width minus margins
+
+            // Draw segment item background with blur effect (matches .speed-segment-item styles)
+            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default background
+            
+            // Apply orange pulse effect if segment is changing
+            if (isChanging) {
+                backgroundColor = 'rgba(193, 101, 47, 0.55)'; // Orange background during pulse
+            }
+
+            // Draw background with rounded corners (matches border-radius: 10px)
+            ctx.fillStyle = backgroundColor;
+            this.drawRoundedRect(ctx, itemX, currentY - itemPadding, itemWidth, itemHeight, 8);
+            ctx.fill();
+
+            // Simulate backdrop-filter blur effect with additional semi-transparent layer
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            this.drawRoundedRect(ctx, itemX, currentY - itemPadding, itemWidth, itemHeight, 8);
+            ctx.fill();
+
+            const leftPadding = itemX + 6;
+            const rightPadding = itemX + itemWidth - 6;
+
+            // Draw segment label (e.g., "Km 2 · +15m") - left aligned, uppercase
+            if (segmentLabel) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 10px Arial, sans-serif'; // Smaller font
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(segmentLabel.textContent.toUpperCase(), leftPadding, currentY + 2);
+            }
+
+            // Draw speed values in the values container (right side)
+            if (segmentSpeed) {
+                const valuesY = currentY + 14; // Below the label
+                
+                // Primary speed value (larger)
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 11px JetBrains Mono, monospace'; // Smaller font for compact display
+                ctx.textAlign = 'right';
+                ctx.fillText(segmentSpeed.textContent, rightPadding, valuesY);
+                
+                // Secondary value (pace or speed) - smaller, slightly transparent
+                if (segmentPace && segmentPace.textContent !== segmentSpeed.textContent) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'; // Matches CSS opacity
+                    ctx.font = '400 9px JetBrains Mono, monospace'; // Even smaller font
+                    ctx.fillText(segmentPace.textContent, rightPadding, valuesY - 10); // Above primary value
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper method to draw rounded rectangles
+     */
+    drawRoundedRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
     }
 
     /**
@@ -2678,12 +3026,16 @@ export class VideoExportController {
         const elevationContainer = document.querySelector('.elevation-profile-container');
         if (!elevationContainer || elevationContainer.style.display === 'none') return;
 
-        const rect = elevationContainer.getBoundingClientRect();
-        const containerRect = this.videoCaptureContainer.getBoundingClientRect();
-        
-        // Calculate relative position within the container
-        const x = rect.left - containerRect.left;
-        const y = rect.top - containerRect.top;
+        const { width, height } = this.recordingDimensions;
+        const ctx = this.recordingContext;
+
+        // Use calculated positioning instead of DOM positioning
+        // Position at bottom matching CSS: bottom: 0.75rem, left: 0.75rem, right: 0.75rem
+        const margin = 12; // 0.75rem = 12px
+        const profileHeight = 60; // Fixed height for elevation profile
+        const x = margin;
+        const y = height - profileHeight - margin; // Bottom positioning
+        const profileWidth = width - (margin * 2); // Full width minus margins
 
         // Get current progress for the progress bar - try multiple sources for accuracy
         let progress = this.getAnimationProgress();
@@ -2712,16 +3064,30 @@ export class VideoExportController {
             }
         }
 
-        const { width, height } = this.recordingDimensions;
-
         console.log(`Drawing elevation profile with progress: ${progress.toFixed(3)}`);
 
-        if (progress >= 0) { // Show even at start
-            const ctx = this.recordingContext;
-            const barWidth = Math.min(rect.width, width * 0.9);
+        // Try to capture the actual SVG elements from the browser first
+        const elevationPath = document.getElementById('elevationPath');
+        const progressPath = document.getElementById('progressPath');
+        
+        if (elevationPath && progressPath) {
+            // Get the actual SVG paths that are being displayed
+            const elevationPathData = elevationPath.getAttribute('d');
+            const progressPathData = progressPath.getAttribute('d');
+            
+            if (elevationPathData && progressPathData) {
+                // Draw the elevation profile by parsing the SVG path with calculated positioning
+                this.drawSVGPath(ctx, elevationPathData, x, y, profileWidth, profileHeight, '#4CAF50', 'rgba(76, 175, 80, 0.3)');
+                
+                // Draw the progress overlay
+                this.drawSVGPath(ctx, progressPathData, x, y, profileWidth, profileHeight, '#C1652F', 'rgba(193, 101, 47, 0.8)');
+            }
+        } else if (progress >= 0) {
+            // Fallback to simple progress bar
+            const barWidth = profileWidth;
             const barHeight = 8; // Slightly thicker for better visibility
             const barX = x;
-            const barY = y + rect.height - 25; // Adjusted position
+            const barY = y + profileHeight - 20; // Position within the profile area
 
             // Draw elevation profile background
             ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
@@ -2736,6 +3102,166 @@ export class VideoExportController {
             ctx.fillStyle = '#C1652F';
             const progressWidth = Math.max(2, barWidth * progress); // Minimum 2px width
             ctx.fillRect(barX, barY, progressWidth, barHeight);
+        }
+
+        // Draw elevation labels (min, max, live) with calculated positioning
+        await this.drawElevationLabelsCalculated(ctx, x, y, profileWidth, profileHeight);
+    }
+
+    /**
+     * Draw elevation labels with calculated positioning (for bottom-positioned elevation profile)
+     */
+    async drawElevationLabelsCalculated(ctx, profileX, profileY, profileWidth, profileHeight) {
+        // Get the text content from DOM elements
+        const minElevationLabel = document.getElementById('minElevationLabel');
+        const maxElevationLabel = document.getElementById('maxElevationLabel');
+        const liveElevationMarker = document.getElementById('liveElevationMarker');
+
+        // Draw min elevation label (left side)
+        if (minElevationLabel && minElevationLabel.style.display !== 'none') {
+            const minText = minElevationLabel.querySelector('.elevation-value')?.textContent || minElevationLabel.textContent;
+            if (minText) {
+                const labelWidth = 40;
+                const labelHeight = 16;
+                const labelX = profileX;
+                const labelY = profileY - labelHeight - 4; // Above the profile
+
+                // Draw background
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(minText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+            }
+        }
+
+        // Draw max elevation label (right side)
+        if (maxElevationLabel && maxElevationLabel.style.display !== 'none') {
+            const maxText = maxElevationLabel.querySelector('.elevation-value')?.textContent || maxElevationLabel.textContent;
+            if (maxText) {
+                const labelWidth = 40;
+                const labelHeight = 16;
+                const labelX = profileX + profileWidth - labelWidth;
+                const labelY = profileY - labelHeight - 4; // Above the profile
+
+                // Draw background
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(maxText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+            }
+        }
+
+        // Draw live elevation marker (moves with progress)
+        if (liveElevationMarker && liveElevationMarker.style.display !== 'none') {
+            const liveText = liveElevationMarker.textContent;
+            if (liveText) {
+                const progress = this.getAnimationProgress();
+                const labelWidth = 50;
+                const labelHeight = 18;
+                const labelX = profileX + (profileWidth * progress) - (labelWidth / 2); // Center on progress
+                const labelY = profileY - labelHeight - 8; // Above the profile, slightly higher
+
+                // Draw background
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 6);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 11px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(liveText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+            }
+        }
+    }
+
+    /**
+     * Draw elevation labels (min, max, live altitude)
+     */
+    async drawElevationLabels(ctx, containerRect) {
+        // Draw min elevation label
+        const minElevationLabel = document.getElementById('minElevationLabel');
+        if (minElevationLabel && minElevationLabel.style.display !== 'none') {
+            const minRect = minElevationLabel.getBoundingClientRect();
+            if (minRect.width > 0 && minRect.height > 0) {
+                const minX = minRect.left - containerRect.left;
+                const minY = minRect.top - containerRect.top;
+                const minText = minElevationLabel.querySelector('.elevation-value')?.textContent || minElevationLabel.textContent;
+
+                // Draw background (matches .elevation-label styles)
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, minX, minY, minRect.width, minRect.height, 4);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(minText, minX + minRect.width / 2, minY + minRect.height / 2);
+            }
+        }
+
+        // Draw max elevation label
+        const maxElevationLabel = document.getElementById('maxElevationLabel');
+        if (maxElevationLabel && maxElevationLabel.style.display !== 'none') {
+            const maxRect = maxElevationLabel.getBoundingClientRect();
+            if (maxRect.width > 0 && maxRect.height > 0) {
+                const maxX = maxRect.left - containerRect.left;
+                const maxY = maxRect.top - containerRect.top;
+                const maxText = maxElevationLabel.querySelector('.elevation-value')?.textContent || maxElevationLabel.textContent;
+
+                // Draw background (matches .elevation-label styles)
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, maxX, maxY, maxRect.width, maxRect.height, 4);
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '600 10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(maxText, maxX + maxRect.width / 2, maxY + maxRect.height / 2);
+            }
+        }
+
+        // Draw live elevation marker (current altitude)
+        const liveLabel = document.getElementById('liveElevationMarker');
+        if (liveLabel && liveLabel.style.display !== 'none') {
+            const labelRect = liveLabel.getBoundingClientRect();
+            const labelWidth = labelRect.width;
+            const labelHeight = labelRect.height;
+
+            if (labelWidth > 0 && labelHeight > 0) {
+                const labelX = labelRect.left - containerRect.left;
+                const labelY = labelRect.top - containerRect.top;
+                const labelText = liveLabel.textContent || '';
+
+                // Draw background (matches .elevation-live-label styles)
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 6);
+                ctx.fill();
+
+                // Draw text
+                ctx.font = `600 ${Math.max(10, Math.round(labelHeight - 2))}px JetBrains Mono, monospace`;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center';
+                ctx.fillText(labelText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+            }
         }
     }
 

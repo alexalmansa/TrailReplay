@@ -23,6 +23,7 @@ export class TrailReplayApp {
             isPlaying: false,
             gpxOnlyStats: DEFAULT_SETTINGS.GPX_ONLY_STATS,
             showSegmentSpeeds: DEFAULT_SETTINGS.SHOW_SEGMENT_SPEEDS,
+            showLiveElevationLabel: DEFAULT_SETTINGS.SHOW_LIVE_ELEVATION_LABEL,
             speedDisplayMode: DEFAULT_SETTINGS.SPEED_DISPLAY_MODE,
             totalAnimationTime: DEFAULT_SETTINGS.TOTAL_ANIMATION_TIME,
             currentIcon: DEFAULT_SETTINGS.DEFAULT_ICON,
@@ -62,6 +63,13 @@ export class TrailReplayApp {
         this.elevationProfile = null;
         this.cachedElevationProfiles = {};
         this.frameCount = 0;
+
+        this.liveElevationLabelElement = null;
+        this.elevationProfileSvgElement = null;
+        this.lastLiveElevationValue = null;
+        this.lastLiveElevationLeft = null;
+        this.lastLiveElevationProgress = null;
+        this.liveElevationUpdateThreshold = 0.0025;
 
         // Keep references to icon data for compatibility
         this.iconCategories = ICON_CATEGORIES;
@@ -382,20 +390,23 @@ export class TrailReplayApp {
         }
     }
 
-    updateElevationProgress(progress) {
+    updateElevationProgress(progress, options = {}) {
+        const { force = false } = options;
+
         // Skip expensive operations during clean recording, but allow updates during overlay recording (manual mode)
-        if (this.recordingMode && !this.overlayRecordingMode) {
+        if (!force && this.recordingMode && !this.overlayRecordingMode) {
             return;
         }
         
         // Throttle elevation updates during animation for better performance
         const now = performance.now();
-        if (this.state.isPlaying && this.lastElevationUpdate && (now - this.lastElevationUpdate) < 50) {
+        if (!force && this.state.isPlaying && this.lastElevationUpdate && (now - this.lastElevationUpdate) < 50) {
             return; // Skip if updated less than 50ms ago during animation
         }
         this.lastElevationUpdate = now;
         
         if (!this.elevationProfile) {
+            this.hideLiveElevationLabel();
             // Fallback to flat progress bar behavior - cache DOM element
             if (!this.progressFillElement) {
                 this.progressFillElement = document.getElementById('progressFill');
@@ -471,6 +482,92 @@ export class TrailReplayApp {
                 this.progressPathElement.setAttribute('d', progressPathData);
             }
         }
+
+        this.updateLiveElevationMarker({ progress, currentX, svgWidth, force });
+    }
+
+    ensureLiveElevationLabelElement() {
+        if (!this.liveElevationLabelElement) {
+            this.liveElevationLabelElement = document.getElementById('liveElevationMarker');
+        }
+        return this.liveElevationLabelElement;
+    }
+
+    hideLiveElevationLabel() {
+        const labelEl = this.ensureLiveElevationLabelElement();
+        if (labelEl) {
+            labelEl.style.display = 'none';
+        }
+        this.lastLiveElevationValue = null;
+        this.lastLiveElevationLeft = null;
+        this.lastLiveElevationProgress = null;
+    }
+
+    updateLiveElevationMarker({ progress, currentX, svgWidth, force = false }) {
+        if (!this.state.showLiveElevationLabel) {
+            this.hideLiveElevationLabel();
+            return;
+        }
+
+        const labelEl = this.ensureLiveElevationLabelElement();
+        if (!labelEl) return;
+
+        const svgElement = this.elevationProfileSvgElement || (this.elevationProfileSvgElement = document.getElementById('elevationProfileSvg'));
+        const containerWidth = svgElement?.clientWidth || svgWidth || 0;
+        if (!containerWidth) {
+            this.hideLiveElevationLabel();
+            return;
+        }
+
+        if (labelEl.style.display !== 'block') {
+            labelEl.style.display = 'block';
+        }
+
+        const percent = svgWidth ? currentX / svgWidth : progress;
+        let left = percent * containerWidth;
+        const labelWidth = labelEl.offsetWidth || 0;
+        const halfWidth = labelWidth / 2;
+        if (containerWidth > 0) {
+            left = Math.max(halfWidth, Math.min(containerWidth - halfWidth, left));
+        }
+
+        const leftValue = `${left}px`;
+        const progressDelta = Math.abs((this.lastLiveElevationProgress ?? progress) - progress);
+        const shouldUpdatePosition = force || this.lastLiveElevationLeft !== leftValue;
+        const shouldUpdateProgress = force || this.lastLiveElevationProgress === null || progressDelta >= this.liveElevationUpdateThreshold;
+
+        if (!shouldUpdatePosition && !shouldUpdateProgress) {
+            return;
+        }
+
+        if (shouldUpdatePosition) {
+            labelEl.style.left = leftValue;
+            this.lastLiveElevationLeft = leftValue;
+        }
+
+        if (shouldUpdateProgress) {
+            const parser = this.mapRenderer?.gpxParser || this.gpxParser;
+            if (!parser?.getInterpolatedPoint || !parser?.trackPoints || parser.trackPoints.length === 0) {
+                this.hideLiveElevationLabel();
+                return;
+            }
+
+            const clampedProgress = Math.max(0, Math.min(1, progress));
+            const point = parser.getInterpolatedPoint(clampedProgress);
+            const elevationValue = point?.elevation;
+
+            let formatted = '–';
+            if (typeof elevationValue === 'number' && !Number.isNaN(elevationValue)) {
+                formatted = parser.formatElevation ? parser.formatElevation(elevationValue) : `${Math.round(elevationValue)} m`;
+            }
+
+            if (force || this.lastLiveElevationValue !== formatted) {
+                labelEl.textContent = formatted;
+                this.lastLiveElevationValue = formatted;
+            }
+
+            this.lastLiveElevationProgress = clampedProgress;
+        }
     }
 
     // Generate elevation profile SVG path
@@ -503,9 +600,25 @@ export class TrailReplayApp {
         // Check if we already have a cached profile for this exact journey composition
         if (this.cachedElevationProfiles && this.cachedElevationProfiles[trackId]) {
             this.elevationProfile = this.cachedElevationProfiles[trackId];
-            document.getElementById('elevationPath').setAttribute('d', this.elevationProfile.pathData);
+            const elevationPathEl = document.getElementById('elevationPath');
+            if (elevationPathEl && this.elevationProfile?.pathData) {
+                elevationPathEl.setAttribute('d', this.elevationProfile.pathData);
+            }
+
+            this.elevationProfileSvgElement = document.getElementById('elevationProfileSvg');
+            this.lastLiveElevationLeft = null;
+            this.lastLiveElevationValue = null;
+            this.lastLiveElevationProgress = null;
 
             this.updateElevationLabels();
+
+            if (this.state.showLiveElevationLabel) {
+                const currentProgress = this.mapRenderer?.getAnimationProgress?.() ?? 0;
+                this.updateElevationProgress(currentProgress, { force: true });
+            } else {
+                this.hideLiveElevationLabel();
+            }
+
             return;
         }
 
@@ -638,6 +751,11 @@ export class TrailReplayApp {
             timeAtPoint: timeAtPoint,
         };
 
+        this.elevationProfileSvgElement = document.getElementById('elevationProfileSvg');
+        this.lastLiveElevationLeft = null;
+        this.lastLiveElevationValue = null;
+        this.lastLiveElevationProgress = null;
+
         // Cache the profile for future use
         if (!this.cachedElevationProfiles) {
             this.cachedElevationProfiles = {};
@@ -657,6 +775,13 @@ export class TrailReplayApp {
         
         // Update elevation labels
         this.updateElevationLabels();
+
+        if (this.state.showLiveElevationLabel) {
+            const currentProgress = this.mapRenderer?.getAnimationProgress?.() ?? 0;
+            this.updateElevationProgress(currentProgress, { force: true });
+        } else {
+            this.hideLiveElevationLabel();
+        }
     }
 
     // Update elevation labels with start and peak elevation values
@@ -1882,6 +2007,23 @@ export class TrailReplayApp {
                 this.stats.updateSpeedDisplayMode?.();
             }
         }
+    }
+
+    setShowLiveElevationLabel(enabled) {
+        const normalized = Boolean(enabled);
+        this.state.showLiveElevationLabel = normalized;
+
+        if (!normalized) {
+            this.hideLiveElevationLabel();
+            return;
+        }
+
+        this.lastLiveElevationLeft = null;
+        this.lastLiveElevationValue = null;
+        this.lastLiveElevationProgress = null;
+
+        const currentProgress = this.mapRenderer?.getAnimationProgress?.() ?? 0;
+        this.updateElevationProgress(currentProgress, { force: true });
     }
 
     setSpeedDisplayMode(mode) {
