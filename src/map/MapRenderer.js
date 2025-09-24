@@ -812,17 +812,45 @@ export class MapRenderer {
             this.map.getSource('trail-line').setData(trailLineData);
         }
 
-        // Fit map to trail bounds
-        // Center the map on the track without changing zoom
+        // Fit map to trail bounds with proper zoom level
         if (trackData.bounds && 
             !isNaN(trackData.bounds.west) && !isNaN(trackData.bounds.south) && 
             !isNaN(trackData.bounds.east) && !isNaN(trackData.bounds.north)) {
             
-            const centerLon = (trackData.bounds.west + trackData.bounds.east) / 2;
-            const centerLat = (trackData.bounds.south + trackData.bounds.north) / 2;
+            // Use fitBounds to properly set both center and zoom level
+            const bounds = [
+                [trackData.bounds.west, trackData.bounds.south], // Southwest corner
+                [trackData.bounds.east, trackData.bounds.north]  // Northeast corner
+            ];
             
-            // Only center the map, preserve current zoom level
-            this.map.setCenter([centerLon, centerLat]);
+            // Calculate appropriate padding based on track size
+            const latDiff = trackData.bounds.north - trackData.bounds.south;
+            const lonDiff = trackData.bounds.east - trackData.bounds.west;
+            const maxDiff = Math.max(latDiff, lonDiff);
+            
+            // Adjust padding based on track size - smaller tracks need more padding
+            let padding = 50; // Default padding
+            if (maxDiff < 0.01) padding = 100;      // Very small track
+            else if (maxDiff < 0.05) padding = 80;  // Small track
+            else if (maxDiff < 0.1) padding = 60;   // Medium track
+            
+            const fitOptions = {
+                padding: padding,
+                duration: 1000, // Smooth animation to new bounds
+                maxZoom: 16 // Prevent zooming in too much for very small tracks
+            };
+            
+            // Wait a moment for map to be fully initialized before fitting bounds
+            setTimeout(() => {
+                if (this.map && this.map.isStyleLoaded()) {
+                    this.map.fitBounds(bounds, fitOptions);
+                } else {
+                    // If map isn't ready, wait for it
+                    this.map.once('load', () => {
+                        this.map.fitBounds(bounds, fitOptions);
+                    });
+                }
+            }, 100);
         }
 
         // Reset animation 
@@ -831,6 +859,11 @@ export class MapRenderer {
             this.iconChanges.iconChanges = [];
         }
         this.annotations.annotations = [];
+        
+        // Initialize camera positioning after track is loaded
+        setTimeout(() => {
+            this.initializeTrackCameraPosition(trackData);
+        }, 200);
         
         // Reset follow-behind camera for new track
         this.followBehindCamera.reset();
@@ -2775,6 +2808,65 @@ export class MapRenderer {
         } else {
             console.warn('🎬 No track bounds available for zoom-out');
         }
+    }
+
+    /**
+     * Initialize camera position after track data is loaded
+     */
+    initializeTrackCameraPosition(trackData) {
+        console.log('🎬 Initializing camera position for loaded track');
+        
+        if (!this.map || !trackData) {
+            console.warn('🎬 Cannot initialize camera position: missing map or track data');
+            return;
+        }
+        
+        // Ensure GPX parser is ready
+        if (!this.ensureGPXParserReady()) {
+            console.warn('🎬 GPX parser not ready for camera initialization');
+            return;
+        }
+        
+        // Initialize based on camera mode
+        if (this.cameraMode === 'followBehind') {
+            // Initialize follow-behind camera with terrain-aware settings
+            this.followBehindCamera.initializeTerrainAwareSettings();
+            
+            // Set the starting position for follow-behind mode
+            this.followBehindCamera.setStartingPosition(true); // instant = true for initial load
+            
+        } else {
+            // Standard mode - ensure proper zoom level is set
+            const startPoint = this.gpxParser.getInterpolatedPoint(0);
+            if (startPoint && trackData.bounds) {
+                // Calculate appropriate zoom based on track size and elevation
+                const latDiff = trackData.bounds.north - trackData.bounds.south;
+                const lonDiff = trackData.bounds.east - trackData.bounds.west;
+                const maxDiff = Math.max(latDiff, lonDiff);
+                
+                let appropriateZoom = 12; // Default zoom
+                if (maxDiff < 0.01) appropriateZoom = 15;      // Very small track
+                else if (maxDiff < 0.05) appropriateZoom = 13;  // Small track
+                else if (maxDiff < 0.1) appropriateZoom = 12;   // Medium track
+                else appropriateZoom = 10;                      // Large track
+                
+                // Adjust zoom based on elevation if available
+                const elevation = startPoint.elevation || 0;
+                if (elevation > 1000) appropriateZoom -= 1; // Higher elevation = zoom out more
+                else if (elevation > 2000) appropriateZoom -= 2;
+                
+                // Apply the calculated zoom with smooth transition
+                this.map.easeTo({
+                    center: [startPoint.lon, startPoint.lat],
+                    zoom: Math.max(8, Math.min(16, appropriateZoom)), // Clamp to reasonable range
+                    pitch: 0,
+                    bearing: 0,
+                    duration: 1000
+                });
+            }
+        }
+        
+        console.log('🎬 Camera position initialized for camera mode:', this.cameraMode);
     }
 
     initializeCameraMode() {

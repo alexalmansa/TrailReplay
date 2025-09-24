@@ -3,8 +3,32 @@ import { AnalyticsTracker } from './utils/analytics.js';
 import { GA4_MEASUREMENT_ID, shouldEnableAnalytics, ANALYTICS_CONFIG } from './config/analytics.js';
 import { CookieConsentManager } from './ui/cookieConsent.js';
 import { setupFeedbackForm } from './ui/feedback.js';
+import { initializeTranslations, setLanguage } from './translations.js';
+
+// Global language initialization function
+function initializeLanguageSwitcher() {
+  const languageSelect = document.getElementById('languageSelect');
+  if (languageSelect) {
+    // Set current language as selected
+    const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
+    languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
+
+    // Add event listener for language changes
+    languageSelect.addEventListener('change', (e) => {
+      setLanguage(e.target.value);
+    });
+  }
+}
+
+// Make language functions globally accessible
+window.initializeLanguageSwitcher = initializeLanguageSwitcher;
+window.setLanguage = setLanguage;
+window.initializeTranslations = initializeTranslations;
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Initialize translations first
+  initializeTranslations();
+  
   // Initialize Google Analytics 4 if enabled
   if (shouldEnableAnalytics()) {
     AnalyticsTracker.init(GA4_MEASUREMENT_ID);
@@ -27,4 +51,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   
   // Wire feedback form after header/footer load
   setupFeedbackForm();
+  
+  // Initialize language switcher after a small delay to ensure footer is loaded
+  setTimeout(initializeLanguageSwitcher, 100);
 }); 

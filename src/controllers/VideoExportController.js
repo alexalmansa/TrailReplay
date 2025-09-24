@@ -2228,7 +2228,7 @@ export class VideoExportController {
         if (!elevationContainer || elevationContainer.style.display === 'none') return;
 
         const { width, height } = this.recordingDimensions;
-
+        
         // Use calculated positioning instead of DOM positioning
         // Position at bottom matching CSS: bottom: 0.75rem, left: 0.75rem, right: 0.75rem
         const margin = 12; // 0.75rem = 12px
@@ -2870,7 +2870,7 @@ export class VideoExportController {
         const startX = x + 12; // Match CSS padding-left: 0.75rem
         const labelValueGap = 30; // Increased gap between label and value
 
-        // Draw distance
+            // Draw distance
         if (distanceElement) {
             // Draw label and value on same line (matches CSS flex layout)
             ctx.font = '600 13px Arial, sans-serif'; // Reduced font size for better fit
@@ -2879,7 +2879,7 @@ export class VideoExportController {
             currentY += lineHeight;
         }
 
-        // Draw elevation
+            // Draw elevation
         if (elevationElement) {
             // Draw label and value on same line
             ctx.font = '600 13px Arial, sans-serif';
@@ -3239,27 +3239,27 @@ export class VideoExportController {
         }
 
         // Draw live elevation marker (current altitude)
-        const liveLabel = document.getElementById('liveElevationMarker');
+            const liveLabel = document.getElementById('liveElevationMarker');
         if (liveLabel && liveLabel.style.display !== 'none') {
-            const labelRect = liveLabel.getBoundingClientRect();
-            const labelWidth = labelRect.width;
-            const labelHeight = labelRect.height;
+                const labelRect = liveLabel.getBoundingClientRect();
+                const labelWidth = labelRect.width;
+                const labelHeight = labelRect.height;
 
-            if (labelWidth > 0 && labelHeight > 0) {
-                const labelX = labelRect.left - containerRect.left;
-                const labelY = labelRect.top - containerRect.top;
-                const labelText = liveLabel.textContent || '';
+                if (labelWidth > 0 && labelHeight > 0) {
+                    const labelX = labelRect.left - containerRect.left;
+                    const labelY = labelRect.top - containerRect.top;
+                    const labelText = liveLabel.textContent || '';
 
                 // Draw background (matches .elevation-live-label styles)
-                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                    ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
                 this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 6);
-                ctx.fill();
+                    ctx.fill();
 
                 // Draw text
                 ctx.font = `600 ${Math.max(10, Math.round(labelHeight - 2))}px JetBrains Mono, monospace`;
-                ctx.fillStyle = '#FFFFFF';
-                ctx.textBaseline = 'middle';
-                ctx.textAlign = 'center';
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = 'center';
                 ctx.fillText(labelText, labelX + labelWidth / 2, labelY + labelHeight / 2);
             }
         }

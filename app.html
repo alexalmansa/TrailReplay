@@ -937,25 +937,22 @@
     <script type="module" src="./src/index.js"></script>
     
     <!-- Language Switcher Initialization -->
-    <script type="module">
-        import { initializeTranslations, setLanguage } from './src/translations.js';
-
-        // Initialize translations
-        initializeTranslations();
-
-        // Setup language switcher functionality on DOM ready
+    <script>
+        // Initialize language switcher after footer is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            const languageSelect = document.getElementById('languageSelect');
-            if (languageSelect) {
-                // Set current language as selected
-                const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
-                languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
-
-                // Add event listener for language changes
-                languageSelect.addEventListener('change', (e) => {
-                    setLanguage(e.target.value);
-                });
-            }
+            // Wait for footer to load, then initialize language switcher
+            setTimeout(() => {
+                if (window.initializeLanguageSwitcher) {
+                    window.initializeLanguageSwitcher();
+                } else {
+                    // Fallback if main app hasn't loaded yet
+                    setTimeout(() => {
+                        if (window.initializeLanguageSwitcher) {
+                            window.initializeLanguageSwitcher();
+                        }
+                    }, 500);
+                }
+            }, 200);
         });
     </script>
     <script>

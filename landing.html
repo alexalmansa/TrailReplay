@@ -241,19 +241,25 @@
     <script type="module">
         import { initializeTranslations, setLanguage } from './src/translations.js';
         
+        // Make functions globally available
+        window.initializeTranslations = initializeTranslations;
+        window.setLanguage = setLanguage;
+        
+        // Initialize translations
+        initializeTranslations();
+        
         // Setup language switcher functionality on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
-            const languageSelect = document.getElementById('languageSelect');
-            if (languageSelect) {
-                // Set current language as selected
-                const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
-                languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
-                
-                // Add event listener for language changes
-                languageSelect.addEventListener('change', (e) => {
-                    setLanguage(e.target.value);
-                });
-            }
+            setTimeout(() => {
+                const languageSelect = document.getElementById('languageSelect');
+                if (languageSelect) {
+                    const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
+                    languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
+                    languageSelect.addEventListener('change', (e) => {
+                        setLanguage(e.target.value);
+                    });
+                }
+            }, 200);
         });
     </script>
     <script>

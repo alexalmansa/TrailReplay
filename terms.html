@@ -52,17 +52,18 @@
 
     <script type="module">
         import { initializeTranslations, setLanguage } from './src/translations.js';
+        
+        // Make functions globally available
+        window.initializeTranslations = initializeTranslations;
+        window.setLanguage = setLanguage;
         document.addEventListener('DOMContentLoaded', () => {
             Promise.all([
                 fetch('header.html').then(r => r.text()).then(html => { document.getElementById('header').innerHTML = html; }),
                 fetch('footer.html').then(r => r.text()).then(html => { document.getElementById('footer').innerHTML = html; })
             ]).then(() => {
                 initializeTranslations();
-                const languageSelect = document.getElementById('languageSelect');
-                if (languageSelect) {
-                    const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
-                    languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
-                    languageSelect.addEventListener('change', (e) => setLanguage(e.target.value));
+                if (window.initializeLanguageSwitcher) {
+                    window.initializeLanguageSwitcher();
                 }
             });
         });

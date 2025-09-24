@@ -512,6 +512,10 @@
     <!-- Include translations -->
     <script type="module">
         import { initializeTranslations, setLanguage } from './src/translations.js';
+        
+        // Make functions globally available
+        window.initializeTranslations = initializeTranslations;
+        window.setLanguage = setLanguage;
         import { AnalyticsTracker } from './src/utils/analytics.js';
         import { GA4_MEASUREMENT_ID, shouldEnableAnalytics } from './src/config/analytics.js';
         
@@ -538,14 +542,8 @@
             initializeTranslations();
             
             // Setup language switcher functionality
-            const languageSelect = document.getElementById('languageSelect');
-            if (languageSelect) {
-                // Set current language as selected
-                const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0,2) || 'en';
-                languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
-                languageSelect.addEventListener('change', (e) => {
-                    setLanguage(e.target.value);
-                });
+            if (window.initializeLanguageSwitcher) {
+                window.initializeLanguageSwitcher();
             }
         });
     </script>

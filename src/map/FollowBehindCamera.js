@@ -367,21 +367,27 @@ export class FollowBehindCamera {
         }
         
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
-        if (!startPoint || typeof startPoint.lat === 'undefined' || typeof startPoint.elevation === 'undefined') {
+        if (!startPoint || typeof startPoint.lat === 'undefined') {
             console.warn('🎬 No valid start point available for terrain initialization');
             return;
         }
         
         const startElevation = startPoint.elevation || 0;
         
-        // Calculate base terrain-aware settings directly without smoothing
+        // Calculate base terrain-aware settings with proper bounds checking
         let baseZoom = FOLLOW_BEHIND_SETTINGS.BASE_ZOOM;
         let basePitch = FOLLOW_BEHIND_SETTINGS.BASE_PITCH;
         
-        // Apply elevation-based adjustments
-        const elevationFactor = Math.min(startElevation * FOLLOW_BEHIND_SETTINGS.ELEVATION_SENSITIVITY, TERRAIN_CONSTANTS.ELEVATION_FACTOR_MAX);
-        baseZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM, 
-                           Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, baseZoom - elevationFactor));
+        // Apply elevation-based adjustments with safety checks
+        if (startElevation > 0) {
+            const elevationFactor = Math.min(startElevation * FOLLOW_BEHIND_SETTINGS.ELEVATION_SENSITIVITY, TERRAIN_CONSTANTS.ELEVATION_FACTOR_MAX);
+            baseZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM, 
+                               Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, baseZoom - elevationFactor));
+        }
+        
+        // Ensure zoom level is within reasonable bounds for initial view
+        baseZoom = Math.max(10, Math.min(18, baseZoom)); // Clamp to reasonable range
+        basePitch = Math.max(30, Math.min(60, basePitch)); // Clamp pitch to reasonable range
         
         // Initialize the tracking variables with consistent values
         this.lastCameraZoom = baseZoom;
@@ -389,6 +395,19 @@ export class FollowBehindCamera {
         this.lastElevation = startElevation;
         
         console.log(`🎬 Initialized terrain-aware settings: zoom=${baseZoom.toFixed(1)}, pitch=${basePitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
+        
+        // Force update the camera position to apply these settings immediately
+        if (this.map && this.mapRenderer.trackData) {
+            const currentPoint = this.gpxParser.getInterpolatedPoint(0);
+            if (currentPoint) {
+                this.map.jumpTo({
+                    center: [currentPoint.lon, currentPoint.lat],
+                    zoom: baseZoom,
+                    pitch: basePitch,
+                    bearing: 0
+                });
+            }
+        }
     }
     
     /**
