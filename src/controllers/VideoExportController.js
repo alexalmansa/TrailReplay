@@ -16,6 +16,11 @@ export class VideoExportController {
         this.cachedLogoImage = null;
         this.logoCache = new Map();
         
+        // Track segment changes for pulse effect
+        this.lastSegmentIndex = -1;
+        this.segmentChangeTime = null;
+        this.pulseDuration = 600; // 0.6 seconds in milliseconds
+        
         // Export mode configurations
         this.exportModes = {
             webm: {
@@ -1301,6 +1306,10 @@ export class VideoExportController {
      * Record animation frames similar to MapDirector's approach
      */
     async recordAnimationFrames() {
+        // Reset segment tracking for new recording
+        this.lastSegmentIndex = -1;
+        this.segmentChangeTime = null;
+        
         return new Promise((resolve, reject) => {
             let frameCount = 0;
             let lastProgressUpdate = 0;
@@ -2084,6 +2093,12 @@ export class VideoExportController {
         context.textBaseline = 'middle';
         context.fillStyle = '#FFFFFF'; // matches color: #fff from CSS
         
+        // Add stronger text shadow for better visibility over light backgrounds
+        context.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        context.shadowOffsetX = 2;
+        context.shadowOffsetY = 2;
+        context.shadowBlur = 6;
+        
         let currentY = y + 8; // Start with small padding to match CSS padding: 0.25rem 0.75rem
         const lineHeight = 18; // Increased line height for better spacing
         const startX = x + 12; // Match CSS padding-left: 0.75rem
@@ -2115,6 +2130,9 @@ export class VideoExportController {
             context.fillText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
             currentY += lineHeight;
         }
+
+        // Reset shadow for other elements
+        context.shadowColor = 'transparent';
 
         // Draw segment speed overlay if visible
         await this.drawHighQualitySegmentSpeedOverlay(context);
@@ -2161,8 +2179,8 @@ export class VideoExportController {
             const segmentSpeed = segmentItem.querySelector('.speed-segment-speed');
             const segmentPace = segmentItem.querySelector('.speed-segment-pace');
 
-            // Check if this segment is currently pulsing (has segment-change class)
-            const isChanging = segmentItem.classList.contains('segment-change');
+            // Check if segment is currently in pulse state using time-based tracking
+            const isInPulse = this.updateSegmentPulseState();
 
             let currentY = y + 25; // Below title
             const itemPadding = 4; // Reduced padding for compact display
@@ -2171,11 +2189,14 @@ export class VideoExportController {
             const itemWidth = overlayWidth - 8; // Full width minus margins
 
             // Draw segment item background with blur effect (matches .speed-segment-item styles)
-            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default background
+            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default white blurred background
             
-            // Apply orange pulse effect if segment is changing
-            if (isChanging) {
+            // Apply orange pulse effect ONLY during the 0.6s pulse window after segment change
+            if (isInPulse) {
                 backgroundColor = 'rgba(193, 101, 47, 0.55)'; // Orange background during pulse
+                console.log('🟠 HIGH-QUALITY: APPLYING ORANGE BACKGROUND');
+            } else {
+                console.log('⚪ HIGH-QUALITY: Using white background');
             }
 
             // Draw background with rounded corners (matches border-radius: 10px)
@@ -2197,6 +2218,11 @@ export class VideoExportController {
                 context.font = '600 10px Arial, sans-serif'; // Smaller font
                 context.textAlign = 'left';
                 context.textBaseline = 'middle';
+                // Add stronger text shadow for better visibility
+                context.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                context.shadowOffsetX = 2;
+                context.shadowOffsetY = 2;
+                context.shadowBlur = 4;
                 context.fillText(segmentLabel.textContent.toUpperCase(), leftPadding, currentY + 2);
             }
 
@@ -2208,6 +2234,11 @@ export class VideoExportController {
                 context.fillStyle = '#FFFFFF';
                 context.font = '600 11px JetBrains Mono, monospace'; // Smaller font for compact display
                 context.textAlign = 'right';
+                // Add stronger text shadow for better visibility
+                context.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                context.shadowOffsetX = 2;
+                context.shadowOffsetY = 2;
+                context.shadowBlur = 4;
                 context.fillText(segmentSpeed.textContent, rightPadding, valuesY);
                 
                 // Secondary value (pace or speed) - smaller, slightly transparent
@@ -2216,6 +2247,9 @@ export class VideoExportController {
                     context.font = '400 9px JetBrains Mono, monospace'; // Even smaller font
                     context.fillText(segmentPace.textContent, rightPadding, valuesY - 10); // Above primary value
                 }
+                
+                // Reset shadow
+                context.shadowColor = 'transparent';
             }
         }
     }
@@ -2472,19 +2506,24 @@ export class VideoExportController {
                 const boxWidth = statWidth - (boxPadding * 2);
                 const boxHeight = 50; // Fixed height for mobile
 
-                // Draw stat box background with proper blur effect simulation (matches .final-stat-box)
-                // First layer: base background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                // Draw stat box background with enhanced blur effect for better text visibility
+                // First layer: darker base background for better contrast
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.fill();
 
-                // Second layer: simulate backdrop-filter blur with additional transparency
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                // Second layer: white overlay for blur effect
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.fill();
 
-                // Draw stat box border (matches .final-stat-box)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                // Third layer: additional blur simulation
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
+
+                // Draw stat box border with better visibility
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                 ctx.lineWidth = 1;
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.stroke();
@@ -2516,19 +2555,24 @@ export class VideoExportController {
                 const boxWidth = statWidth - (boxPadding * 2);
                 const boxHeight = statHeight - (boxPadding * 2);
 
-                // Draw stat box background with proper blur effect simulation (matches .final-stat-box)
-                // First layer: base background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                // Draw stat box background with enhanced blur effect for better text visibility
+                // First layer: darker base background for better contrast
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.fill();
 
-                // Second layer: simulate backdrop-filter blur with additional transparency
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                // Second layer: white overlay for blur effect
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.fill();
 
-                // Draw stat box border (matches .final-stat-box)
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                // Third layer: additional blur simulation
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
+                ctx.fill();
+
+                // Draw stat box border with better visibility
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                 ctx.lineWidth = 1;
                 this.drawRoundedRect(ctx, statX + boxPadding, statY + boxPadding, boxWidth, boxHeight, 6);
                 ctx.stroke();
@@ -2865,12 +2909,18 @@ export class VideoExportController {
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#FFFFFF'; // matches color: #fff from CSS
         
+        // Add stronger text shadow for better visibility over light backgrounds
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.shadowBlur = 6;
+        
         let currentY = y + 8; // Start with small padding to match CSS padding: 0.25rem 0.75rem
         const lineHeight = 18; // Increased line height for better spacing
         const startX = x + 12; // Match CSS padding-left: 0.75rem
         const labelValueGap = 30; // Increased gap between label and value
 
-            // Draw distance
+        // Draw distance
         if (distanceElement) {
             // Draw label and value on same line (matches CSS flex layout)
             ctx.font = '600 13px Arial, sans-serif'; // Reduced font size for better fit
@@ -2879,7 +2929,7 @@ export class VideoExportController {
             currentY += lineHeight;
         }
 
-            // Draw elevation
+        // Draw elevation
         if (elevationElement) {
             // Draw label and value on same line
             ctx.font = '600 13px Arial, sans-serif';
@@ -2896,6 +2946,9 @@ export class VideoExportController {
             ctx.fillText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
             currentY += lineHeight;
         }
+
+        // Reset shadow for other elements
+        ctx.shadowColor = 'transparent';
 
         // Draw segment speed overlay if visible
         await this.drawSegmentSpeedOverlay();
@@ -2943,8 +2996,8 @@ export class VideoExportController {
             const segmentSpeed = segmentItem.querySelector('.speed-segment-speed');
             const segmentPace = segmentItem.querySelector('.speed-segment-pace');
 
-            // Check if this segment is currently pulsing (has segment-change class)
-            const isChanging = segmentItem.classList.contains('segment-change');
+            // Check if segment is currently in pulse state using time-based tracking
+            const isInPulse = this.updateSegmentPulseState();
 
             let currentY = y + 25; // Below title
             const itemPadding = 4; // Reduced padding for compact display
@@ -2953,11 +3006,14 @@ export class VideoExportController {
             const itemWidth = overlayWidth - 8; // Full width minus margins
 
             // Draw segment item background with blur effect (matches .speed-segment-item styles)
-            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default background
+            let backgroundColor = 'rgba(255, 255, 255, 0.12)'; // Default white blurred background
             
-            // Apply orange pulse effect if segment is changing
-            if (isChanging) {
+            // Apply orange pulse effect ONLY during the 0.6s pulse window after segment change
+            if (isInPulse) {
                 backgroundColor = 'rgba(193, 101, 47, 0.55)'; // Orange background during pulse
+                console.log('🟠 REGULAR: APPLYING ORANGE BACKGROUND');
+            } else {
+                console.log('⚪ REGULAR: Using white background');
             }
 
             // Draw background with rounded corners (matches border-radius: 10px)
@@ -2979,6 +3035,11 @@ export class VideoExportController {
                 ctx.font = '600 10px Arial, sans-serif'; // Smaller font
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
+                // Add stronger text shadow for better visibility
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                ctx.shadowBlur = 4;
                 ctx.fillText(segmentLabel.textContent.toUpperCase(), leftPadding, currentY + 2);
             }
 
@@ -2990,6 +3051,11 @@ export class VideoExportController {
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = '600 11px JetBrains Mono, monospace'; // Smaller font for compact display
                 ctx.textAlign = 'right';
+                // Add stronger text shadow for better visibility
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                ctx.shadowBlur = 4;
                 ctx.fillText(segmentSpeed.textContent, rightPadding, valuesY);
                 
                 // Secondary value (pace or speed) - smaller, slightly transparent
@@ -2998,8 +3064,30 @@ export class VideoExportController {
                     ctx.font = '400 9px JetBrains Mono, monospace'; // Even smaller font
                     ctx.fillText(segmentPace.textContent, rightPadding, valuesY - 10); // Above primary value
                 }
+                
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
             }
         }
+    }
+
+    /**
+     * Check if segment is currently in pulse state - simplified approach
+     */
+    updateSegmentPulseState() {
+        // Check if we have a segment element to get current segment info
+        const segmentItem = document.querySelector('.speed-segment-item');
+        if (!segmentItem) {
+            console.log('❌ No segment item found in DOM');
+            return false;
+        }
+
+        // Simple approach: if the segment has the segment-change class, show orange
+        const hasSegmentChangeClass = segmentItem.classList.contains('segment-change');
+        
+        console.log(`🔍 Segment change class present: ${hasSegmentChangeClass}`);
+        
+        return hasSegmentChangeClass;
     }
 
     /**
@@ -3117,17 +3205,17 @@ export class VideoExportController {
         const maxElevationLabel = document.getElementById('maxElevationLabel');
         const liveElevationMarker = document.getElementById('liveElevationMarker');
 
-        // Draw min elevation label (left side)
+        // Draw min elevation label (bottom left of profile)
         if (minElevationLabel && minElevationLabel.style.display !== 'none') {
             const minText = minElevationLabel.querySelector('.elevation-value')?.textContent || minElevationLabel.textContent;
             if (minText) {
-                const labelWidth = 40;
-                const labelHeight = 16;
-                const labelX = profileX;
-                const labelY = profileY - labelHeight - 4; // Above the profile
+                const labelWidth = 45;
+                const labelHeight = 18;
+                const labelX = profileX + 8; // Small margin from left edge
+                const labelY = profileY + profileHeight - labelHeight - 8; // Bottom of profile with margin
 
                 // Draw background
-                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.85)';
                 this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
                 ctx.fill();
 
@@ -3140,17 +3228,17 @@ export class VideoExportController {
             }
         }
 
-        // Draw max elevation label (right side)
+        // Draw max elevation label (top left of profile)
         if (maxElevationLabel && maxElevationLabel.style.display !== 'none') {
             const maxText = maxElevationLabel.querySelector('.elevation-value')?.textContent || maxElevationLabel.textContent;
             if (maxText) {
-                const labelWidth = 40;
-                const labelHeight = 16;
-                const labelX = profileX + profileWidth - labelWidth;
-                const labelY = profileY - labelHeight - 4; // Above the profile
+                const labelWidth = 45;
+                const labelHeight = 18;
+                const labelX = profileX + 8; // Small margin from left edge (same as min)
+                const labelY = profileY + 8; // Top of profile with margin
 
                 // Draw background
-                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.85)';
                 this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
                 ctx.fill();
 
@@ -3163,18 +3251,18 @@ export class VideoExportController {
             }
         }
 
-        // Draw live elevation marker (moves with progress)
+        // Draw live elevation marker (moves with progress, positioned in middle vertically)
         if (liveElevationMarker && liveElevationMarker.style.display !== 'none') {
             const liveText = liveElevationMarker.textContent;
             if (liveText) {
                 const progress = this.getAnimationProgress();
-                const labelWidth = 50;
-                const labelHeight = 18;
-                const labelX = profileX + (profileWidth * progress) - (labelWidth / 2); // Center on progress
-                const labelY = profileY - labelHeight - 8; // Above the profile, slightly higher
+                const labelWidth = 55;
+                const labelHeight = 20;
+                const labelX = profileX + (profileWidth * progress) - (labelWidth / 2); // Center horizontally on progress
+                const labelY = profileY + (profileHeight / 2) - (labelHeight / 2); // Center vertically in profile
 
-                // Draw background
-                ctx.fillStyle = 'rgba(14, 35, 27, 0.78)';
+                // Draw background with stronger opacity for live marker
+                ctx.fillStyle = 'rgba(14, 35, 27, 0.9)';
                 this.drawRoundedRect(ctx, labelX, labelY, labelWidth, labelHeight, 6);
                 ctx.fill();
 
