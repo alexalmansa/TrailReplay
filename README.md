@@ -2,7 +2,13 @@
 
 TrailReplay turns raw GPX files into polished, shareable trail stories. The entire pipeline—track ingestion, 3D map playback, journey authoring, and video export—runs in the browser, so nothing leaves the user’s machine unless they explicitly share it. A production build of this repo powers [trailreplay.com](https://trailreplay.com).
 
-📹 **Demo**: [media/video/demo.mp4](media/video/demo.mp4)
+📹 **Demo Videos**
+
+<video controls src="media/video/trailreplay-segment-builder.mp4" title="TrailReplay Capture - Segment Builder" style="max-width: 100%;"></video>
+
+<video controls src="media/video/trailreplay-export-flow.mp4" title="TrailReplay Capture - Export Flow" style="max-width: 100%;"></video>
+
+If inline playback does not appear on GitHub, use the download links instead: [segment builder](media/video/trailreplay-segment-builder.mp4), [export flow](media/video/trailreplay-export-flow.mp4).
 
 ## Highlights
 - **In-browser GPX studio**: Drag-and-drop one or many GPX files, paste links from Strava or Wikiloc to open their download pages, and attach local images that become picture-in-picture annotations.

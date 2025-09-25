@@ -6,6 +6,30 @@ let currentLanguage = 'en';
 
 export const translations = {
     en: {
+        modes: {
+            mapMode: "Map Mode",
+            staticMode: "Static Mode"
+        },
+        staticMode: {
+            title: "Static Mode",
+            subtitle: "Create beautiful animated videos with your own background images",
+            uploadImage: "Upload Background Image",
+            imageHint: "Choose a thematic image (bike, landscape, runner, etc.)",
+            chooseImage: "Choose Image",
+            uploadGpx: "Upload GPX File", 
+            gpxHint: "Your trail data for stats and elevation",
+            chooseGpx: "Choose GPX",
+            preview: "Preview",
+            previewAnimation: "Preview Animation",
+            exportVideo: "Export Video",
+            customization: "Customization",
+            exportFormat: "Export Format",
+            trailVisualization: "Trail Visualization",
+            statsPosition: "Stats Position",
+            colorTheme: "Color Theme",
+            animationDuration: "Animation Duration",
+            showElevationProfile: "Show Elevation Profile"
+        },
         controls: {
             pathColor: "Trail Color:",
             track1Letters: "Track Letters",
@@ -71,9 +95,13 @@ export const translations = {
             
             // Demo video section
             demoVideoTitle: "See What You Can Create",
-            demoVideoSubtitle: "Example of a 3D trail animation made with TrailReplay",
-            demoCaption: "This example showcases the kind of immersive 3D trail animation you can create from your own GPX data using TrailReplay's powerful features.",
+            demoVideoSubtitle: "Examples of TrailReplay in action",
+            demoCaption: "These demos highlight the segment builder workflow and the export flow recorded directly in TrailReplay.",
             videoNotSupported: "Your browser doesn't support video playback. You can download the example video instead.",
+            segmentBuilderCaption: "Segment builder workflow showcasing multi-activity journeys.",
+            segmentBuilderDownload: "Download segment builder demo",
+            exportFlowCaption: "Export flow demonstrating capture options and output.",
+            exportFlowDownload: "Download export flow demo",
             
             // Core features
             coreFeatures: "Core Features Overview",
@@ -1018,9 +1046,13 @@ export const translations = {
             
             // Demo video section
             demoVideoTitle: "Ve Lo Que Puedes Crear",
-            demoVideoSubtitle: "Ejemplo de una animación de sendero 3D hecha con TrailReplay",
-            demoCaption: "Este ejemplo muestra el tipo de animación inmersiva de senderos 3D que puedes crear con tus propios datos GPX usando las potentes funciones de TrailReplay.",
+            demoVideoSubtitle: "Ejemplos de TrailReplay en acción",
+            demoCaption: "Estas demostraciones destacan el flujo del constructor de segmentos y el proceso de exportación grabados directamente en TrailReplay.",
             videoNotSupported: "Tu navegador no soporta reproducción de video. Puedes descargar el video de ejemplo en su lugar.",
+            segmentBuilderCaption: "Flujo del constructor de segmentos con varios tracks y conectores.",
+            segmentBuilderDownload: "Descargar demo del constructor de segmentos",
+            exportFlowCaption: "Proceso de exportación que muestra las opciones de captura y resultados.",
+            exportFlowDownload: "Descargar demo del flujo de exportación",
             
             // Core features
             coreFeatures: "Resumen de Funciones Principales",
@@ -1936,9 +1968,13 @@ export const translations = {
                 
                 // Demo video section
                 demoVideoTitle: "Vegeu el Que Podeu Crear",
-                demoVideoSubtitle: "Exemple d'una animació 3D de sender feta amb TrailReplay",
-                demoCaption: "Aquest exemple mostra el tipus d'animació immersiva de camins 3D que pots crear amb les teves pròpies dades GPX utilitzant les funcions potents de TrailReplay.",
+                demoVideoSubtitle: "Exemples de TrailReplay en acció",
+                demoCaption: "Aquests demostratius destaquen el flux del constructor de segments i el procés d'exportació enregistrats directament a TrailReplay.",
                 videoNotSupported: "El teu navegador no suporta reproducció de vídeo. Pots descarregar el vídeo d'exemple en el seu lloc.",
+                segmentBuilderCaption: "Flux del constructor de segments amb múltiples activitats i connectors.",
+                segmentBuilderDownload: "Descarrega la demo del constructor de segments",
+                exportFlowCaption: "Procés d'exportació que mostra les opcions de captura i el resultat.",
+                exportFlowDownload: "Descarrega la demo del flux d'exportació",
                 
                 // Core features
                 coreFeatures: "Resum de Funcions Principals",

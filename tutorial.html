@@ -179,8 +179,15 @@
         }
         
         .demo-video-container {
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            align-items: center;
             margin: 2rem 0;
+        }
+        
+        .demo-video-block {
+            text-align: center;
         }
         
         .demo-video {
@@ -200,6 +207,18 @@
             margin-left: auto;
             margin-right: auto;
             line-height: 1.6;
+        }
+
+        .demo-download {
+            display: inline-block;
+            margin-top: 0.5rem;
+            color: var(--evergreen);
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        .demo-download:hover {
+            text-decoration: none;
         }
         
         @media (max-width: 768px) {
@@ -240,19 +259,30 @@
                         <div class="tutorial-icon">🎬</div>
                         <div>
                             <h2 data-i18n="tutorial.demoVideoTitle">See What You Can Create</h2>
-                            <p data-i18n="tutorial.demoVideoSubtitle">Example of a stunning 3D trail animation made with TrailReplay</p>
+                            <p data-i18n="tutorial.demoVideoSubtitle">Examples of TrailReplay in action</p>
                         </div>
                     </div>
                     
+                    <p class="demo-caption" data-i18n="tutorial.demoCaption">These demos highlight the segment builder workflow and the export flow recorded directly in TrailReplay.</p>
+
                     <div class="demo-video-container">
-                        <video controls class="demo-video" preload="metadata">
-                            <source src="media/video/demo.mp4" type="video/mp4">
-                            <source src="media/video/demo.mov" type="video/quicktime">
-                            <p data-i18n="tutorial.videoNotSupported">Your browser doesn't support video playback. You can <a href="media/video/demo.mp4" download>download the demo video</a> instead.</p>
-                        </video>
-                        <p class="demo-caption" data-i18n="tutorial.demoCaption">
-                            <em>This example showcases the kind of immersive 3D trail animation you can create from your own GPX data using TrailReplay's powerful features.</em>
-                        </p>
+                        <figure class="demo-video-block">
+                            <video controls class="demo-video" preload="metadata">
+                                <source src="media/video/trailreplay-segment-builder.mp4" type="video/mp4">
+                                <p data-i18n="tutorial.videoNotSupported">Your browser doesn't support video playback. You can download the example video instead.</p>
+                            </video>
+                            <figcaption class="demo-caption" data-i18n="tutorial.segmentBuilderCaption">Segment builder workflow showcasing multi-activity journeys.</figcaption>
+                            <a class="demo-download" href="media/video/trailreplay-segment-builder.mp4" download data-i18n="tutorial.segmentBuilderDownload">Download segment builder demo</a>
+                        </figure>
+
+                        <figure class="demo-video-block">
+                            <video controls class="demo-video" preload="metadata">
+                                <source src="media/video/trailreplay-export-flow.mp4" type="video/mp4">
+                                <p data-i18n="tutorial.videoNotSupported">Your browser doesn't support video playback. You can download the example video instead.</p>
+                            </video>
+                            <figcaption class="demo-caption" data-i18n="tutorial.exportFlowCaption">Export flow demonstrating capture options and output.</figcaption>
+                            <a class="demo-download" href="media/video/trailreplay-export-flow.mp4" download data-i18n="tutorial.exportFlowDownload">Download export flow demo</a>
+                        </figure>
                     </div>
                 </section>
 
