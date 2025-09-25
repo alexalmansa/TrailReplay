@@ -6,11 +6,11 @@ TrailReplay turns raw GPX files into polished, shareable trail stories. The enti
 
 **Path Export with Stats** - Export a trail with detailed statistics and elevation data
 
-[trailreplay-segment-builder.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/trailreplay-segment-builder.mp4)
+[path-export-with-stats.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/path-export-with-stats.mp4)
 
 **Comparison Mode** - Compare two GPX files from the same timeframe to see where each person was at any moment
 
-[trailreplay-export-flow.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/trailreplay-export-flow.mp4)
+[comparison-mode-demo.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/comparison-mode-demo.mp4)
 
 > **Note**: Click the video links above to view them in GitHub's media player. You can also [browse all videos in the media folder](https://github.com/alexalmansa/TrailReplay/tree/main/public/media/video).
 
