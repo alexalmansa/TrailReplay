@@ -4,11 +4,15 @@ TrailReplay turns raw GPX files into polished, shareable trail stories. The enti
 
 📹 **Demo Videos**
 
-<video controls src="media/video/trailreplay-segment-builder.mp4" title="TrailReplay Capture - Segment Builder" style="max-width: 100%;"></video>
+**Path Export with Stats** - Export a trail with detailed statistics and elevation data
 
-<video controls src="media/video/trailreplay-export-flow.mp4" title="TrailReplay Capture - Export Flow" style="max-width: 100%;"></video>
+[trailreplay-segment-builder.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/trailreplay-segment-builder.mp4)
 
-If inline playback does not appear on GitHub, use the download links instead: [segment builder](media/video/trailreplay-segment-builder.mp4), [export flow](media/video/trailreplay-export-flow.mp4).
+**Comparison Mode** - Compare two GPX files from the same timeframe to see where each person was at any moment
+
+[trailreplay-export-flow.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/trailreplay-export-flow.mp4)
+
+> **Note**: Click the video links above to view them in GitHub's media player. You can also [browse all videos in the media folder](https://github.com/alexalmansa/TrailReplay/tree/main/public/media/video).
 
 ## Highlights
 - **In-browser GPX studio**: Drag-and-drop one or many GPX files, paste links from Strava or Wikiloc to open their download pages, and attach local images that become picture-in-picture annotations.
@@ -74,7 +78,7 @@ npm run dev
 Issues and pull requests are welcome. Helpful contributions include bug fixes, new journey-building tools, camera presets, translations, or documentation enhancements. Please explain any new dependencies and add usage notes when you change user-facing behaviour.
 
 ## License
-This project is released under the MIT License. See [LICENSE](LICENSE) for details.
+This project is released under the MIT License with Attribution Requirement. Any use of this software must include prominent attribution to TrailReplay. See [LICENSE](LICENSE) for complete details.
 
 ## Support the Project
 If TrailReplay is useful to you, consider supporting development on Ko-fi: <https://ko-fi.com/alexalmansa>
