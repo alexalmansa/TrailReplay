@@ -6,13 +6,13 @@ TrailReplay turns raw GPX files into polished, shareable trail stories. The enti
 
 **Path Export with Stats** - Export a trail with detailed statistics and elevation data
 
-[path-export-with-stats.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/path-export-with-stats.mp4)
+[▶️ Watch Path Export Demo](https://trailreplay.com/tutorial.html#demo-videos)
 
 **Comparison Mode** - Compare two GPX files from the same timeframe to see where each person was at any moment
 
-[comparison-mode-demo.mp4](https://github.com/alexalmansa/TrailReplay/blob/main/public/media/video/comparison-mode-demo.mp4)
+[▶️ Watch Comparison Mode Demo](https://trailreplay.com/tutorial.html#demo-videos)
 
-> **Note**: Click the video links above to view them in GitHub's media player. You can also [browse all videos in the media folder](https://github.com/alexalmansa/TrailReplay/tree/main/public/media/video).
+> **Note**: Click the links above to view the videos in the interactive tutorial. You can also [browse all videos in the repository](https://github.com/alexalmansa/TrailReplay/tree/main/public/media/video).
 
 ## Highlights
 - **In-browser GPX studio**: Drag-and-drop one or many GPX files, paste links from Strava or Wikiloc to open their download pages, and attach local images that become picture-in-picture annotations.
