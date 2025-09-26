@@ -96,12 +96,14 @@ export const translations = {
             // Demo video section
             demoVideoTitle: "See What You Can Create",
             demoVideoSubtitle: "Examples of TrailReplay in action",
-            demoCaption: "These demos highlight the segment builder workflow and the export flow recorded directly in TrailReplay.",
+            demoCaption: "These demos highlight a single segment with detailed statistics and the comparison mode workflow recorded directly in TrailReplay.",
             videoNotSupported: "Your browser doesn't support video playback. You can download the example video instead.",
-            segmentBuilderCaption: "Segment builder workflow showcasing multi-activity journeys.",
-            segmentBuilderDownload: "Download segment builder demo",
-            exportFlowCaption: "Export flow demonstrating capture options and output.",
-            exportFlowDownload: "Download export flow demo",
+            segmentBuilderCaption: "Path export with detailed statistics and elevation data.",
+            segmentBuilderDownload: "Download path export demo",
+            exportFlowCaption: "Comparison mode showing two GPX files from the same timeframe.",
+            exportFlowDownload: "Download comparison mode demo",
+            instagramExamples: "Want to see more examples? Check out our Instagram for inspiration:",
+            instagramLink: "Follow @trailreplay on Instagram",
             
             // Core features
             coreFeatures: "Core Features Overview",
@@ -1047,12 +1049,14 @@ export const translations = {
             // Demo video section
             demoVideoTitle: "Ve Lo Que Puedes Crear",
             demoVideoSubtitle: "Ejemplos de TrailReplay en acción",
-            demoCaption: "Estas demostraciones destacan el flujo del constructor de segmentos y el proceso de exportación grabados directamente en TrailReplay.",
+            demoCaption: "Estas demostraciones destacan un segmento individual con estadísticas detalladas y el flujo de modo de comparación grabados directamente en TrailReplay.",
             videoNotSupported: "Tu navegador no soporta reproducción de video. Puedes descargar el video de ejemplo en su lugar.",
-            segmentBuilderCaption: "Flujo del constructor de segmentos con varios tracks y conectores.",
-            segmentBuilderDownload: "Descargar demo del constructor de segmentos",
-            exportFlowCaption: "Proceso de exportación que muestra las opciones de captura y resultados.",
-            exportFlowDownload: "Descargar demo del flujo de exportación",
+            segmentBuilderCaption: "Exportación de ruta con estadísticas detalladas y datos de elevación.",
+            segmentBuilderDownload: "Descargar demo de exportación de ruta",
+            exportFlowCaption: "Modo de comparación mostrando dos archivos GPX del mismo período de tiempo.",
+            exportFlowDownload: "Descargar demo del modo de comparación",
+            instagramExamples: "¿Quieres ver más ejemplos? Echa un vistazo a nuestro Instagram para inspiración:",
+            instagramLink: "Sigue a @trailreplay en Instagram",
             
             // Core features
             coreFeatures: "Resumen de Funciones Principales",
@@ -1969,12 +1973,14 @@ export const translations = {
                 // Demo video section
                 demoVideoTitle: "Vegeu el Que Podeu Crear",
                 demoVideoSubtitle: "Exemples de TrailReplay en acció",
-                demoCaption: "Aquests demostratius destaquen el flux del constructor de segments i el procés d'exportació enregistrats directament a TrailReplay.",
+                demoCaption: "Aquests demostratius destaquen un segment individual amb estadístiques detallades i el flux del mode de comparació enregistrats directament a TrailReplay.",
                 videoNotSupported: "El teu navegador no suporta reproducció de vídeo. Pots descarregar el vídeo d'exemple en el seu lloc.",
-                segmentBuilderCaption: "Flux del constructor de segments amb múltiples activitats i connectors.",
-                segmentBuilderDownload: "Descarrega la demo del constructor de segments",
-                exportFlowCaption: "Procés d'exportació que mostra les opcions de captura i el resultat.",
-                exportFlowDownload: "Descarrega la demo del flux d'exportació",
+                segmentBuilderCaption: "Exportació de ruta amb estadístiques detallades i dades d'elevació.",
+                segmentBuilderDownload: "Descarrega la demo d'exportació de ruta",
+                exportFlowCaption: "Mode de comparació mostrant dos fitxers GPX del mateix període de temps.",
+                exportFlowDownload: "Descarrega la demo del mode de comparació",
+                instagramExamples: "Vols veure més exemples? Fes un cop d'ull al nostre Instagram per inspiració:",
+                instagramLink: "Segueix @trailreplay a Instagram",
                 
                 // Core features
                 coreFeatures: "Resum de Funcions Principals",

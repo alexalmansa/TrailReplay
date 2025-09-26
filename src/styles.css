@@ -160,7 +160,7 @@ body {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    color: var(--canvas);
+    color: var(--evergreen);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -200,6 +200,7 @@ body {
     font-weight: 500 !important;
     font-size: 0.95rem !important;
     white-space: nowrap !important;
+    transition: color 200ms ease-out;
 }
 
 .logo {
