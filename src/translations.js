@@ -452,6 +452,12 @@ export const translations = {
             terrain: "Terrain Style:",
             totalTime: "Total Time:",
             pathColor: "Trail Color",
+            
+            // Map Style Options
+            mapStyleSatelliteWithNames: "🛰️🗺️ Satellite with Names",
+            mapStyleSatellite: "🛰️ Satellite", 
+            mapStyleTerrain: "🗻 Terrain (OpenTopoMap)",
+            mapStyleStreet: "🗺️ Street",
             markerSize: "Marker Size",
             currentIcon: "Current Icon",
             changeIcon: "Change",
@@ -1405,6 +1411,12 @@ export const translations = {
             terrain: "Estilo de Terreno:",
             totalTime: "Tiempo Total:",
             pathColor: "Color del Sendero",
+            
+            // Map Style Options
+            mapStyleSatelliteWithNames: "🛰️🗺️ Satélite con Nombres",
+            mapStyleSatellite: "🛰️ Satélite", 
+            mapStyleTerrain: "🗻 Terreno (OpenTopoMap)",
+            mapStyleStreet: "🗺️ Calles",
             showMarker: "Mostrar Marcador",
             markerSize: "Tamaño del Marcador",
             currentIcon: "Icono Actual",
@@ -2329,6 +2341,12 @@ export const translations = {
                 terrain: "Estil de Terreny:",
                 totalTime: "Temps Total:",
                 pathColor: "Color del Camí",
+                
+                // Map Style Options
+                mapStyleSatelliteWithNames: "🛰️🗺️ Satèl·lit amb Noms",
+                mapStyleSatellite: "🛰️ Satèl·lit", 
+                mapStyleTerrain: "🗻 Terreny (OpenTopoMap)",
+                mapStyleStreet: "🗺️ Carrers",
                 showMarker: "Mostrar Marcador",
                 markerSize: "Mida del Marcador",
                 currentIcon: "Icona Actual",

@@ -384,10 +384,10 @@
                         <div class="control-group">
                             <label for="terrainStyle">Map Style:</label>
                             <select id="terrainStyle">
-                                <option value="hybrid">🛰️🗺️ Hybrid</option>
-                                <option value="satellite" selected>🛰️ Satellite</option>
-                                <option value="opentopomap">🗻 Terrain (OpenTopoMap)</option>
-                                <option value="street">🗺️ Street</option>
+                                <option value="hybrid" data-i18n="controls.mapStyleSatelliteWithNames">🛰️🗺️ Satellite with Names</option>
+                                <option value="satellite" selected data-i18n="controls.mapStyleSatellite">🛰️ Satellite</option>
+                                <option value="opentopomap" data-i18n="controls.mapStyleTerrain">🗻 Terrain (OpenTopoMap)</option>
+                                <option value="street" data-i18n="controls.mapStyleStreet">🗺️ Street</option>
                             </select>
                         </div>
 
@@ -669,7 +669,9 @@
                             
                             <!-- Logo Watermark - removed DOM element, using programmatic drawing only -->
                             
-
+                            <div class="map-watermark" aria-hidden="true">
+                                <img src="public/media/images/logohorizontal.svg" alt="" loading="lazy">
+                            </div>
 
                             <!-- Elevation Profile (stays in map) -->
                             <div class="elevation-profile-container">

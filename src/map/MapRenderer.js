@@ -176,6 +176,15 @@ export class MapRenderer {
                         ],
                         tileSize: 256,
                         attribution: '© CartoDB'
+                    },
+                    // --- Enhanced mountain terrain source ---
+                    'enhanced-hillshade': {
+                        type: 'raster',
+                        tiles: [
+                            'https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/ASTER_GDEM/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        attribution: '© OpenTopography/ASTER GDEM'
                     }
                 },
                 layers: [
@@ -204,6 +213,14 @@ export class MapRenderer {
                         type: 'raster',
                         source: 'osm',
                         layout: { visibility: 'none' }
+                    },
+                    // --- Enhanced mountain terrain layer (initially hidden) ---
+                    {
+                        id: 'enhanced-hillshade',
+                        type: 'raster',
+                        source: 'enhanced-hillshade',
+                        layout: { visibility: 'none' },
+                        paint: { 'raster-opacity': 0.6 }
                     }
                 ]
             },
@@ -1834,32 +1851,19 @@ export class MapRenderer {
                 source: 'osm',
                 attribution: '© OpenStreetMap contributors'
             },
-            // New hybrid style: satellite + labels
+            // Mountain satellite style: satellite + enhanced hillshade + labels (replaces hybrid)
             'hybrid': {
-                sources: ['satellite', 'carto-labels'],
-                attribution: '© Esri, © CartoDB'
+                sources: ['satellite', 'enhanced-hillshade', 'carto-labels'],
+                attribution: '© Esri, © OpenTopography/ASTER GDEM, © CartoDB'
             }
         };
 
-        // --- Handle hybrid style ---
+        // --- Handle hybrid style (now mountain satellite with 3D terrain) ---
         if (style === 'hybrid') {
-            // Show both satellite and labels
-            if (this.map.getLayer('background')) {
-                this.map.setLayoutProperty('background', 'visibility', 'visible');
-            }
-            if (this.map.getLayer('carto-labels')) {
-                this.map.setLayoutProperty('carto-labels', 'visibility', 'visible');
-            }
-            // Hide other base layers if present
-            if (this.map.getLayer('opentopomap')) {
-                this.map.setLayoutProperty('opentopomap', 'visibility', 'none');
-            }
-            if (this.map.getLayer('street')) {
-                this.map.setLayoutProperty('street', 'visibility', 'none');
-            }
-            // Always disable 3D terrain in hybrid mode
-            this.disable3DTerrain();
-            // Optionally update attribution UI here
+            // Show satellite, enhanced hillshade, and labels
+            this.showLayers(['background', 'enhanced-hillshade', 'carto-labels']);
+            this.hideLayers(['opentopomap', 'street']);
+            this.enable3DTerrain(); // Enable 3D for better terrain visualization
             return;
         }
 
@@ -1878,8 +1882,30 @@ export class MapRenderer {
             // Show street only if style is street
             this.map.setLayoutProperty('street', 'visibility', style === 'street' ? 'visible' : 'none');
         }
+        // Hide enhanced hillshade for standard styles (except hybrid which uses it)
+        if (style !== 'hybrid' && this.map.getLayer('enhanced-hillshade')) {
+            this.map.setLayoutProperty('enhanced-hillshade', 'visibility', 'none');
+        }
+        
         // Optionally update attribution UI here
         this.currentMapStyle = style; // Track current style for preloading
+    }
+
+    // Helper methods for cleaner layer management
+    showLayers(layerIds) {
+        layerIds.forEach(id => {
+            if (this.map.getLayer(id)) {
+                this.map.setLayoutProperty(id, 'visibility', 'visible');
+            }
+        });
+    }
+
+    hideLayers(layerIds) {
+        layerIds.forEach(id => {
+            if (this.map.getLayer(id)) {
+                this.map.setLayoutProperty(id, 'visibility', 'none');
+            }
+        });
     }
 
     // Journey segments handling

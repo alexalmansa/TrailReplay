@@ -1419,6 +1419,31 @@ input:checked + .toggle-slider:before {
     pointer-events: none;
 }
 
+.map-watermark {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.map-watermark img {
+    display: block;
+    height: clamp(28px, 5vw, 40px);
+    width: auto;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+}
+
+@media (max-width: 640px) {
+    .map-watermark {
+        top: 0.5rem;
+        left: 0.5rem;
+    }
+}
+
 /* Map Controls Overlay */
 .map-controls-overlay {
     position: absolute;
