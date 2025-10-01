@@ -384,23 +384,94 @@
                         <div class="control-group">
                             <label for="terrainStyle">Map Style:</label>
                             <select id="terrainStyle">
-                                <option value="hybrid">🛰️🗺️ Hybrid</option>
-                                <option value="satellite" selected>🛰️ Satellite</option>
-                                <option value="opentopomap">🗻 Terrain (OpenTopoMap)</option>
-                                <option value="street">🗺️ Street</option>
+                                <option value="hybrid" data-i18n="controls.mapStyleSatelliteWithNames">🛰️🗺️ Satellite with Names</option>
+                                <option value="satellite" selected data-i18n="controls.mapStyleSatellite">🛰️ Satellite</option>
+                                <option value="opentopomap" data-i18n="controls.mapStyleTerrain">🗻 Terrain (OpenTopoMap)</option>
+                                <option value="street" data-i18n="controls.mapStyleStreet">🗺️ Street</option>
                             </select>
                         </div>
 
                         <!-- Row 2: Visual Customization -->
                         <div class="control-group">
                             <label data-i18n="controls.pathColor">Trail Color:</label>
-                            <div class="color-input-group">
-                                <input type="color" id="pathColor" value="#C1652F">
-                                <span class="color-preset" data-color="#C1652F" title="Trail Orange">🟠</span>
-                                <span class="color-preset" data-color="#28a745" title="Green">🟢</span>
-                                <span class="color-preset" data-color="#7FB8AD" title="Lake Teal">🔵</span>
-                                <span class="color-preset" data-color="#ffe66d" title="Yellow">🟡</span>
-                                <span class="color-preset" data-color="#dc3545" title="Red">🔴</span>
+                            <div class="color-mode-selection">
+                                <div class="color-mode-toggle">
+                                    <input type="radio" id="colorModeFixed" name="colorMode" value="fixed" checked>
+                                    <label for="colorModeFixed" data-i18n="controls.colorModeFixed">Fixed Color</label>
+                                    
+                                    <input type="radio" id="colorModeHeartRate" name="colorMode" value="heartRate">
+                                    <label for="colorModeHeartRate" data-i18n="controls.colorModeHeartRate">💓 Heart Rate</label>
+                                </div>
+                                
+                                <!-- Fixed Color Controls -->
+                                <div id="fixedColorControls" class="color-input-group">
+                                    <input type="color" id="pathColor" value="#C1652F">
+                                    <span class="color-preset" data-color="#C1652F" title="Trail Orange">🟠</span>
+                                    <span class="color-preset" data-color="#28a745" title="Green">🟢</span>
+                                    <span class="color-preset" data-color="#7FB8AD" title="Lake Teal">🔵</span>
+                                    <span class="color-preset" data-color="#ffe66d" title="Yellow">🟡</span>
+                                    <span class="color-preset" data-color="#dc3545" title="Red">🔴</span>
+                                </div>
+                                
+                                <!-- Heart Rate Zone Controls -->
+                                <div id="heartRateControls" class="heart-rate-controls" style="display: none;">
+                                    <div class="heart-rate-status" id="heartRateStatus">
+                                        <span class="hr-status-text" data-i18n="controls.heartRateNotDetected">No heart rate data detected</span>
+                                    </div>
+                                    
+                                    <div class="heart-rate-zones" id="heartRateZones" style="display: none;">
+                                        <div class="hr-zone-header">
+                                            <span data-i18n="controls.heartRateZones">Heart Rate Zones (BPM)</span>
+                                        </div>
+                                        <div class="hr-zones-grid">
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone1Recovery">Zone 1 (Recovery)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone1Min" placeholder="50" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone1Max" placeholder="120" min="40" max="200">
+                                                    <div class="hr-zone-color" style="background: #4CAF50"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone2Base">Zone 2 (Base)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone2Min" placeholder="121" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone2Max" placeholder="140" min="40" max="200">
+                                                    <div class="hr-zone-color" style="background: #8BC34A"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone3Aerobic">Zone 3 (Aerobic)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone3Min" placeholder="141" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone3Max" placeholder="160" min="40" max="200">
+                                                    <div class="hr-zone-color" style="background: #FFC107"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone4Threshold">Zone 4 (Threshold)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone4Min" placeholder="161" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone4Max" placeholder="180" min="40" max="200">
+                                                    <div class="hr-zone-color" style="background: #FF9800"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone5Anaerobic">Zone 5 (Anaerobic)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone5Min" placeholder="181" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone5Max" placeholder="220" min="40" max="200">
+                                                    <div class="hr-zone-color" style="background: #F44336"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <!-- Main Track Letters (under color picker) -->
                             <div class="track-letters-group" style="margin-top: 8px;">
@@ -669,7 +740,9 @@
                             
                             <!-- Logo Watermark - removed DOM element, using programmatic drawing only -->
                             
-
+                            <div class="map-watermark" aria-hidden="true">
+                                <img src="media/images/logohorizontal.svg" alt="" loading="lazy">
+                            </div>
 
                             <!-- Elevation Profile (stays in map) -->
                             <div class="elevation-profile-container">

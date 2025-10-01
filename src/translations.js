@@ -49,7 +49,17 @@ export const translations = {
             comparisonColorTitle: "Track 2 Color",
             comparisonColorReset: "Reset",
             comparisonNamesTrack1Placeholder: "Track 1",
-            comparisonNamesTrack2Placeholder: "Track 2"
+            comparisonNamesTrack2Placeholder: "Track 2",
+            // Heart Rate Color Mode
+            colorModeFixed: "Fixed Color",
+            colorModeHeartRate: "💓 Heart Rate",
+            heartRateNotDetected: "No heart rate data detected",
+            heartRateZones: "Heart Rate Zones (BPM)",
+            zone1Recovery: "Zone 1 (Recovery)",
+            zone2Base: "Zone 2 (Base)",
+            zone3Aerobic: "Zone 3 (Aerobic)",
+            zone4Threshold: "Zone 4 (Threshold)",
+            zone5Anaerobic: "Zone 5 (Anaerobic)"
         },
         subtitle: "Replay the story your trails told",
         support: "Support",
@@ -452,6 +462,12 @@ export const translations = {
             terrain: "Terrain Style:",
             totalTime: "Total Time:",
             pathColor: "Trail Color",
+            
+            // Map Style Options
+            mapStyleSatelliteWithNames: "🛰️🗺️ Satellite with Names",
+            mapStyleSatellite: "🛰️ Satellite", 
+            mapStyleTerrain: "🗻 Terrain (OpenTopoMap)",
+            mapStyleStreet: "🗺️ Street",
             markerSize: "Marker Size",
             currentIcon: "Current Icon",
             changeIcon: "Change",
@@ -1002,7 +1018,17 @@ export const translations = {
             comparisonColorTitle: "Color de la ruta 2",
             comparisonColorReset: "Restablecer",
             comparisonNamesTrack1Placeholder: "Ruta 1",
-            comparisonNamesTrack2Placeholder: "Ruta 2"
+            comparisonNamesTrack2Placeholder: "Ruta 2",
+            // Heart Rate Color Mode
+            colorModeFixed: "Color Fijo",
+            colorModeHeartRate: "💓 Frecuencia Cardíaca",
+            heartRateNotDetected: "No se detectó datos de frecuencia cardíaca",
+            heartRateZones: "Zonas de Frecuencia Cardíaca (PPM)",
+            zone1Recovery: "Zona 1 (Recuperación)",
+            zone2Base: "Zona 2 (Base)",
+            zone3Aerobic: "Zona 3 (Aeróbica)",
+            zone4Threshold: "Zona 4 (Umbral)",
+            zone5Anaerobic: "Zona 5 (Anaeróbica)"
         },
         subtitle: "Revive la historia que contaron tus senderos",
         support: "Apoyar",
@@ -1405,6 +1431,12 @@ export const translations = {
             terrain: "Estilo de Terreno:",
             totalTime: "Tiempo Total:",
             pathColor: "Color del Sendero",
+            
+            // Map Style Options
+            mapStyleSatelliteWithNames: "🛰️🗺️ Satélite con Nombres",
+            mapStyleSatellite: "🛰️ Satélite", 
+            mapStyleTerrain: "🗻 Terreno (OpenTopoMap)",
+            mapStyleStreet: "🗺️ Calles",
             showMarker: "Mostrar Marcador",
             markerSize: "Tamaño del Marcador",
             currentIcon: "Icono Actual",
@@ -2329,6 +2361,12 @@ export const translations = {
                 terrain: "Estil de Terreny:",
                 totalTime: "Temps Total:",
                 pathColor: "Color del Camí",
+                
+                // Map Style Options
+                mapStyleSatelliteWithNames: "🛰️🗺️ Satèl·lit amb Noms",
+                mapStyleSatellite: "🛰️ Satèl·lit", 
+                mapStyleTerrain: "🗻 Terreny (OpenTopoMap)",
+                mapStyleStreet: "🗺️ Carrers",
                 showMarker: "Mostrar Marcador",
                 markerSize: "Mida del Marcador",
                 currentIcon: "Icona Actual",
@@ -2373,6 +2411,17 @@ export const translations = {
                 track2Name: "Nom de la ruta 2",
                 comparisonColorTitle: "Color de Ruta 2",
                 comparisonColorReset: "Restablir",
+                
+                // Heart Rate Color Mode
+                colorModeFixed: "Color Fix",
+                colorModeHeartRate: "💓 Freqüència Cardíaca",
+                heartRateNotDetected: "No es van detectar dades de freqüència cardíaca",
+                heartRateZones: "Zones de Freqüència Cardíaca (PPM)",
+                zone1Recovery: "Zona 1 (Recuperació)",
+                zone2Base: "Zona 2 (Base)",
+                zone3Aerobic: "Zona 3 (Aeròbica)",
+                zone4Threshold: "Zona 4 (Llindar)",
+                zone5Anaerobic: "Zona 5 (Anaeròbica)",
 
                 // Control Section Headers
                 markerSettings: "🎯 Configuració del Marcador",
@@ -2852,9 +2901,14 @@ export const translations = {
 };
 
 export function setLanguage(lang) {
+    console.log('🌍 setLanguage called with:', lang);
+    console.log('🌍 Available languages:', Object.keys(translations));
+    console.log('🌍 Language exists:', !!translations[lang]);
+    
     if (translations[lang]) {
         const previousLanguage = currentLanguage;
         currentLanguage = lang;
+        console.log('🌍 Language set to:', currentLanguage);
         try {
             localStorage.setItem('trailReplayLang', lang);
         } catch (e) {}
@@ -2868,6 +2922,8 @@ export function setLanguage(lang) {
                 // Silently fail if analytics not available
             }
         }
+    } else {
+        console.warn('🌍 Language not found:', lang);
     }
 }
 
@@ -2883,7 +2939,10 @@ export function t(key, params = {}) {
         value = value?.[k];
     }
     
-    if (!value) return key;
+    if (!value) {
+        console.warn(`Translation key not found: ${key} for language: ${currentLanguage}`);
+        return key;
+    }
     
     // Handle parameter interpolation
     if (typeof value === 'string' && Object.keys(params).length > 0) {
@@ -2896,13 +2955,15 @@ export function t(key, params = {}) {
 }
 
 export function updatePageTranslations() {
+    console.log('🔄 updatePageTranslations called, current language:', currentLanguage);
     // Update text content with data-i18n attributes
     const i18nElements = document.querySelectorAll('[data-i18n]');
+    console.log('🔄 Found', i18nElements.length, 'elements with data-i18n attributes');
 
     i18nElements.forEach(element => {
         const key = element.getAttribute('data-i18n');
         const translation = t(key);
-        if (translation) {
+        if (translation && translation !== key) {
             element.innerHTML = translation;
         }
     });
@@ -2942,5 +3003,16 @@ export function initializeTranslations() {
         savedLang = localStorage.getItem('trailReplayLang');
     } catch (e) {}
     const browserLang = navigator.language.slice(0, 2);
-    setLanguage(translations[savedLang] ? savedLang : (translations[browserLang] ? browserLang : 'en'));
+    
+    console.log('🌍 Language detection:', {
+        savedLang,
+        browserLang,
+        navigatorLanguage: navigator.language,
+        availableLanguages: Object.keys(translations)
+    });
+    
+    const selectedLang = translations[savedLang] ? savedLang : (translations[browserLang] ? browserLang : 'en');
+    console.log('🌍 Selected language:', selectedLang);
+    
+    setLanguage(selectedLang);
 } 

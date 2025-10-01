@@ -221,6 +221,55 @@ export function setupEventListeners(app) {
         });
     });
 
+    // Heart Rate Color Mode Controls
+    const colorModeFixed = byId('colorModeFixed');
+    const colorModeHeartRate = byId('colorModeHeartRate');
+    const fixedColorControls = byId('fixedColorControls');
+    const heartRateControls = byId('heartRateControls');
+    const heartRateStatus = byId('heartRateStatus');
+    const heartRateZones = byId('heartRateZones');
+
+    // Color mode toggle handlers
+    if (colorModeFixed && colorModeHeartRate) {
+        const handleColorModeChange = () => {
+            const isHeartRateMode = colorModeHeartRate.checked;
+            
+            // Show/hide appropriate controls
+            if (fixedColorControls) fixedColorControls.style.display = isHeartRateMode ? 'none' : 'flex';
+            if (heartRateControls) heartRateControls.style.display = isHeartRateMode ? 'block' : 'none';
+            
+            if (isHeartRateMode) {
+                // Check for heart rate data and update UI
+                app.checkHeartRateData();
+            }
+            
+            // Update map renderer color mode
+            if (app.map && app.map.mapRenderer) {
+                app.map.mapRenderer.setColorMode(isHeartRateMode ? 'heartRate' : 'fixed');
+            }
+        };
+
+        colorModeFixed.addEventListener('change', handleColorModeChange);
+        colorModeHeartRate.addEventListener('change', handleColorModeChange);
+    }
+
+    // Heart rate zone input handlers
+    const heartRateZoneInputs = ['zone1Min', 'zone1Max', 'zone2Min', 'zone2Max', 
+                                'zone3Min', 'zone3Max', 'zone4Min', 'zone4Max', 
+                                'zone5Min', 'zone5Max'];
+    
+    heartRateZoneInputs.forEach(inputId => {
+        const input = byId(inputId);
+        if (input) {
+            input.addEventListener('input', () => {
+                // Update heart rate zones when user changes values
+                if (app.map && app.map.mapRenderer) {
+                    app.map.mapRenderer.updateHeartRateZones();
+                }
+            });
+        }
+    });
+
     // Marker size slider
     const markerSizeSlider = byId('markerSize');
     if (markerSizeSlider) {

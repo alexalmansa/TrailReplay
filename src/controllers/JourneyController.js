@@ -142,14 +142,14 @@ export class JourneyController {
             // but preserve segment information for icon changes and visual transitions
             let trackPoints = [];
             
-            // Try to preserve original trackPoints with speed/time data if available
-            if (journeyData.segments && journeyData.segments.length === 1 && 
-                journeyData.segments[0].type === 'track' &&
-                journeyData.segments[0].data && 
-                journeyData.segments[0].data.data &&
-                journeyData.segments[0].data.data.trackPoints) {
-                
-                // Single track journey - use original trackPoints with full data
+                // Try to preserve original trackPoints with speed/time data if available
+                if (journeyData.segments && journeyData.segments.length === 1 &&
+                    journeyData.segments[0].type === 'track' &&
+                    journeyData.segments[0].data &&
+                    journeyData.segments[0].data.data &&
+                    journeyData.segments[0].data.data.trackPoints) {
+
+                // Single track journey - use original trackPoints with full data (including heart rate)
                 trackPoints = journeyData.segments[0].data.data.trackPoints;
                 
             } else {
@@ -201,7 +201,11 @@ export class JourneyController {
                         index: index,
                         distance: 0, // Will be calculated if needed
                         speed: speed,
-                        time: time
+                        time: time,
+                        // Preserve heart rate data from original track points
+                        heartRate: segment.type === 'track' && segment.data && segment.data.data &&
+                                 segment.data.data.trackPoints && segment.data.data.trackPoints[pointInSegment - 1] ?
+                                 segment.data.data.trackPoints[pointInSegment - 1].heartRate || null : null
                     };
                 });
 
@@ -216,7 +220,9 @@ export class JourneyController {
                 segments: journeyData.segments,
                 isJourney: true,
                 // Add segment timing information
-                segmentTiming: segmentTiming
+                segmentTiming: segmentTiming,
+                // Preserve original track data for heart rate detection
+                originalTrackData: journeyData.segments?.[0]?.data?.data || null
             };
 
             // CRITICAL: Synchronize all timing sources from the start

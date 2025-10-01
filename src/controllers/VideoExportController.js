@@ -4399,6 +4399,7 @@ export class VideoExportController {
             '.journey-timeline-container',
             '.language-switcher',
             '#toast-container',
+            '.map-watermark',
             'footer'
         ];
 
