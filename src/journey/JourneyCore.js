@@ -31,7 +31,9 @@ export class JourneyCore {
             filename,
             data: {
                 ...trackData,
-                coordinates: coordinates
+                coordinates: coordinates,
+                // Preserve original trackPoints with heart rate data
+                trackPoints: trackData.trackPoints
             },
             type: 'gpx',
             startPoint: coordinates[0],

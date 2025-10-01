@@ -78,6 +78,37 @@ export class GPXParser {
             const eleElement = trkpt.querySelector('ele');
             const timeElement = trkpt.querySelector('time');
             
+            // Extract heart rate data from GPX trackpoint
+            let heartRate = null;
+
+            // Try different heart rate formats commonly found in GPX files
+            // 1. Check for direct <hr> element in trackpoint (common in some GPS devices)
+            const hrElement = trkpt.querySelector('hr') ||
+                            trkpt.querySelector('heartrate');
+
+            // 2. Check in extensions (Garmin/Strava format)
+            const extensions = trkpt.querySelector('extensions');
+            const hrElementExtensions = extensions ? (
+                extensions.querySelector('hr') ||
+                extensions.querySelector('heartrate') ||
+                extensions.querySelector('gpxtpx\\:hr') ||
+                extensions.querySelector('TrackPointExtension hr') ||
+                extensions.querySelector('ns3\\:TrackPointExtension hr')
+            ) : null;
+
+            const finalHrElement = hrElement || hrElementExtensions;
+
+            if (finalHrElement) {
+                const hrValue = parseFloat(finalHrElement.textContent);
+                if (!isNaN(hrValue) && hrValue > 0 && hrValue < 300) { // Reasonable heart rate range
+                    heartRate = hrValue;
+                    // Log heart rate detection for debugging
+                    if (index < 10 || index % 100 === 0) { // Log first 10 and every 100th point
+                        console.log(`💓 Found heart rate at point ${index}: ${hrValue} BPM`);
+                    }
+                }
+            }
+            
             const elevation = eleElement ? parseFloat(eleElement.textContent) : 0;
             const timeStr = timeElement ? timeElement.textContent : null;
             let time = null;
@@ -105,7 +136,8 @@ export class GPXParser {
                 time,
                 index,
                 distance: totalDistance,
-                speed: 0
+                speed: 0,
+                heartRate: heartRate // Add heart rate to point data
             };
 
             // Calculate distance from previous point
@@ -151,6 +183,29 @@ export class GPXParser {
             throw new Error('No valid track points found in GPX file');
         }
 
+        // Check for heart rate data availability
+        const pointsWithHeartRate = this.trackPoints.filter(p => p.heartRate && p.heartRate > 0);
+        const hasHeartRateData = pointsWithHeartRate.length > 0;
+        let avgHeartRate = 0;
+        let minHeartRate = null;
+        let maxHeartRate = null;
+
+        if (hasHeartRateData) {
+            const heartRates = pointsWithHeartRate.map(p => p.heartRate);
+            avgHeartRate = heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length;
+            minHeartRate = Math.min(...heartRates);
+            maxHeartRate = Math.max(...heartRates);
+
+            console.log(`💓 Heart Rate Data Found: ${pointsWithHeartRate.length}/${this.trackPoints.length} points`, {
+                avg: avgHeartRate.toFixed(1),
+                min: minHeartRate,
+                max: maxHeartRate,
+                range: `${minHeartRate}-${maxHeartRate} BPM`,
+                sample: heartRates.slice(0, 5), // Show first 5 heart rate values
+                distribution: this.getHeartRateDistribution(heartRates)
+            });
+        }
+
         // Calculate final statistics
         let duration = startTime && endTime ? (endTime - startTime) / 1000 / 3600 : 0; // hours
         
@@ -193,8 +248,22 @@ export class GPXParser {
             maxElevation: this.stats.maxElevation === -Infinity ? 0 : this.stats.maxElevation,
             startTime,
             endTime,
-            hasTimeData: !!(startTime && endTime)
+            hasTimeData: !!(startTime && endTime),
+            // Heart rate statistics
+            hasHeartRateData,
+            avgHeartRate: Math.round(avgHeartRate),
+            minHeartRate,
+            maxHeartRate,
+            heartRateDataPoints: pointsWithHeartRate.length
         };
+
+        console.log('💓 Final stats with heart rate:', {
+            hasHeartRateData: this.stats.hasHeartRateData,
+            heartRateDataPoints: this.stats.heartRateDataPoints,
+            avgHeartRate: this.stats.avgHeartRate,
+            minHeartRate: this.stats.minHeartRate,
+            maxHeartRate: this.stats.maxHeartRate
+        });
 
 
 
@@ -293,6 +362,9 @@ export class GPXParser {
             elevation: (currentPoint.elevation || 0) + ((nextPoint.elevation || 0) - (currentPoint.elevation || 0)) * fraction,
             distance: (currentPoint.distance || 0) + ((nextPoint.distance || 0) - (currentPoint.distance || 0)) * fraction,
             speed: (currentPoint.speed || 0) + ((nextPoint.speed || 0) - (currentPoint.speed || 0)) * fraction,
+            heartRate: currentPoint.heartRate && nextPoint.heartRate ? 
+                       Math.round(currentPoint.heartRate + (nextPoint.heartRate - currentPoint.heartRate) * fraction) : 
+                       (currentPoint.heartRate || nextPoint.heartRate || null),
             index: targetIndex
         };
     }
@@ -482,7 +554,7 @@ export class GPXParser {
     interpolateSpeed(index) {
         // Find nearest points with speed data
         let prevIndex = -1, nextIndex = -1;
-        
+
         // Look backwards
         for (let i = index - 1; i >= 0; i--) {
             if (this.trackPoints[i].speed && this.trackPoints[i].speed > 0) {
@@ -490,7 +562,7 @@ export class GPXParser {
                 break;
             }
         }
-        
+
         // Look forwards
         for (let i = index + 1; i < this.trackPoints.length; i++) {
             if (this.trackPoints[i].speed && this.trackPoints[i].speed > 0) {
@@ -498,7 +570,7 @@ export class GPXParser {
                 break;
             }
         }
-        
+
         // Interpolate if we have both neighbors
         if (prevIndex !== -1 && nextIndex !== -1) {
             const prevSpeed = this.trackPoints[prevIndex].speed;
@@ -506,11 +578,31 @@ export class GPXParser {
             const factor = (index - prevIndex) / (nextIndex - prevIndex);
             return prevSpeed + (nextSpeed - prevSpeed) * factor;
         }
-        
+
         // Use single neighbor if available
         if (prevIndex !== -1) return this.trackPoints[prevIndex].speed;
         if (nextIndex !== -1) return this.trackPoints[nextIndex].speed;
-        
+
         return null; // No neighbors found
+    }
+
+    // Get heart rate distribution for analysis
+    getHeartRateDistribution(heartRates) {
+        const zones = [
+            { name: 'Recovery (50-120)', min: 50, max: 120, count: 0 },
+            { name: 'Base (121-140)', min: 121, max: 140, count: 0 },
+            { name: 'Aerobic (141-160)', min: 141, max: 160, count: 0 },
+            { name: 'Threshold (161-180)', min: 161, max: 180, count: 0 },
+            { name: 'Anaerobic (181+)', min: 181, max: 300, count: 0 }
+        ];
+
+        heartRates.forEach(hr => {
+            const zone = zones.find(z => hr >= z.min && hr <= z.max);
+            if (zone) {
+                zone.count++;
+            }
+        });
+
+        return zones.map(z => ({ name: z.name, count: z.count }));
     }
 } 

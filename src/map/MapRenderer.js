@@ -9,6 +9,7 @@ import { MapIconChanges } from './MapIconChanges.js';
 import { MapPictureAnnotations } from './MapPictureAnnotations.js';
 import { FollowBehindCamera } from './FollowBehindCamera.js';
 import { DEFAULT_SETTINGS } from '../utils/constants.js';
+import { heartRateColorMapper } from '../utils/heartRateColors.js';
 // TODO: Import other modules as they are created
 
 export class MapRenderer {
@@ -24,6 +25,12 @@ export class MapRenderer {
         this.currentActivityType = 'running';
         this.pathColor = '#C1652F';
         this.markerSize = DEFAULT_SETTINGS.DEFAULT_MARKER_SIZE;
+        
+        // Heart rate color mode properties
+        this.colorMode = 'fixed'; // 'fixed' or 'heartRate'
+        this.heartRateColors = null; // Will store color array for heart rate mode
+        this.heartRateSegments = [];
+        this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
         this.autoZoom = true;
         this.showCircle = true;
         this.showMarker = false; // Disabled by default for more professional look
@@ -381,7 +388,7 @@ export class MapRenderer {
             }
         });
 
-        // Add completed trail layer
+        // Add completed trail layer (should be above trail-line for visibility during animation)
         this.map.addLayer({
             id: 'trail-completed',
             type: 'line',
@@ -392,8 +399,8 @@ export class MapRenderer {
             },
             paint: {
                 'line-color': this.pathColor,
-                'line-width': 5,
-                'line-opacity': 0.8
+                'line-width': 6,
+                'line-opacity': 1.0
             }
         });
 
@@ -638,6 +645,582 @@ export class MapRenderer {
         this.updateElevationGradient(color);
     }
 
+    /**
+     * Set color mode and update visualization
+     * @param {string} mode - 'fixed' or 'heartRate'
+     */
+    setColorMode(mode) {
+        console.log(`🎨 Setting color mode to: ${mode}`, {
+            hasTrackData: !!this.trackData,
+            trackPointsCount: this.trackData?.trackPoints?.length || 0,
+            hasOriginalData: !!this.trackData?.originalTrackData,
+            hasHeartRateData: this.trackData?.stats?.hasHeartRateData,
+            hasHeartRateColors: !!this.heartRateColors,
+            heartRateColorsLength: this.heartRateColors?.length || 0
+        });
+
+        this.colorMode = mode;
+
+        if (mode === 'heartRate') {
+            this.generateHeartRateColors();
+            if (this.heartRateColors && this.heartRateColors.length > 0) {
+                this.updateTrailWithHeartRateColors();
+            }
+        } else {
+            // Fixed color mode
+            this.updateMapColors();
+        }
+    }
+
+    /**
+     * Generate heart rate colors for the current track
+     */
+    generateHeartRateColors() {
+        if (!this.trackData) {
+            console.warn('No track data available for heart rate colors');
+            return;
+        }
+
+        // Use original track data if available (for journeys), otherwise use current track points
+        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+
+        if (!trackPoints || trackPoints.length === 0) {
+            console.warn('No track points available for heart rate colors');
+            return;
+        }
+
+        console.log('💓 Generating heart rate colors for track', {
+            trackPointsCount: trackPoints.length,
+            hasOriginalData: !!this.trackData.originalTrackData,
+            colorMode: this.colorMode
+        });
+
+        this.heartRateColors = heartRateColorMapper.generateColorsForTrack(trackPoints);
+
+        // Log statistics
+        const analysis = heartRateColorMapper.analyzeHeartRateData(trackPoints);
+        console.log('💓 Heart rate color analysis:', analysis);
+
+        if (this.trackData?.stats) {
+            this.trackData.stats.hasHeartRateData = analysis.hasData;
+            this.trackData.stats.heartRateDataPoints = analysis.pointsWithData;
+            this.trackData.stats.avgHeartRate = analysis.avgHeartRate;
+            this.trackData.stats.minHeartRate = analysis.minHeartRate;
+            this.trackData.stats.maxHeartRate = analysis.maxHeartRate;
+        }
+
+        if (this.heartRateColors && this.heartRateColors.length > 0) {
+            console.log('💓 Generated heart rate colors:', this.heartRateColors.length, 'colors');
+            console.log('💓 Sample colors:', this.heartRateColors.slice(0, 10));
+            console.log('💓 Heart rate colors array length matches track points:', this.heartRateColors.length === trackPoints.length);
+
+            // Check if colors are being generated correctly
+            const validColors = this.heartRateColors.filter(color => color !== '#808080' && color !== this.pathColor);
+            console.log('💓 Valid heart rate colors:', validColors.length, 'out of', this.heartRateColors.length);
+
+            this.prepareHeartRateSegments(trackPoints);
+        } else {
+            console.warn('💓 No heart rate colors generated!');
+            this.heartRateSegments = [];
+            this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
+        }
+    }
+
+    prepareHeartRateSegments(trackPoints) {
+        if (!Array.isArray(trackPoints) || trackPoints.length < 2 || !this.heartRateColors) {
+            this.heartRateSegments = [];
+            this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
+            return;
+        }
+
+        const segments = [];
+        const segmentSize = 10;
+
+        for (let start = 0; start < trackPoints.length - 1; start += segmentSize) {
+            const end = Math.min(start + segmentSize, trackPoints.length - 1);
+            const coordinates = trackPoints.slice(start, end + 1).map(pt => [pt.lon, pt.lat]);
+            if (coordinates.length < 2) continue;
+
+            const colorIndex = Math.min(Math.floor((start + end) / 2), this.heartRateColors.length - 1);
+            const color = this.heartRateColors[colorIndex] || this.pathColor;
+
+            segments.push({
+                type: 'Feature',
+                properties: {
+                    color,
+                    startIndex: start,
+                    endIndex: end
+                },
+                geometry: {
+                    type: 'LineString',
+                    coordinates
+                }
+            });
+        }
+
+        this.heartRateSegments = segments;
+        this.heartRateSegmentCollection = { type: 'FeatureCollection', features: segments };
+        console.log('💓 Prepared heart rate segments:', segments.length);
+    }
+
+    /**
+     * Update heart rate zones from user input
+     */
+    updateHeartRateZones() {
+        const zones = heartRateColorMapper.getZonesFromUI();
+        if (zones.length > 0) {
+            heartRateColorMapper.setZones(zones);
+            
+            // Regenerate colors if in heart rate mode
+            if (this.colorMode === 'heartRate') {
+                this.generateHeartRateColors();
+                this.updateMapColors();
+            }
+        }
+    }
+
+    /**
+     * Update map colors based on current color mode
+     */
+    updateMapColors() {
+        if (!this.map || !this.map.loaded()) {
+            return;
+        }
+
+        // Set colors for trail-line source (but don't override trail-completed during animation)
+        this.map.setPaintProperty('trail-line', 'line-color', this.pathColor);
+        this.map.setPaintProperty('trail-line', 'line-opacity', 0.3); // Make it more transparent
+
+        // Only set trail-completed color if not animating (to avoid overriding heart rate colors)
+        if (!this.isAnimating) {
+            this.map.setPaintProperty('trail-completed', 'line-color', this.pathColor);
+        }
+    }
+
+    /**
+     * Update completed trail with heart rate colored segments during animation
+     */
+    updateCompletedTrailWithHeartRateAnimation(currentPoint) {
+        if (!this.trackData || !this.heartRateColors || !this.map.loaded()) {
+            return;
+        }
+
+        try {
+            // Use original track data if available (for journeys), otherwise use current track points
+            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+
+            if (!trackPoints || trackPoints.length === 0) {
+                return;
+            }
+
+            // Get completed points up to current position
+            const completedIndex = Math.floor(currentPoint.index);
+
+            if (completedIndex < 1) {
+                // No completed trail yet
+                this.map.getSource('trail-completed').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: []
+                    }
+                });
+                return;
+            }
+
+            // Create a single LineString with all completed coordinates
+            const completedCoordinates = trackPoints
+                .slice(0, completedIndex + 1)
+                .map(point => [point.lon, point.lat]);
+
+            // Create colored segments for the completed trail (group every 10 points)
+            const completedSegments = [];
+            const SEGMENT_SIZE = 10; // Group points into segments of 10
+
+            for (let segmentStart = 0; segmentStart < completedIndex; segmentStart += SEGMENT_SIZE) {
+                const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, completedIndex);
+                const segmentPoints = trackPoints.slice(segmentStart, segmentEnd);
+
+                if (segmentPoints.length >= 2) {
+                    // Calculate average heart rate for this segment
+                    const heartRates = segmentPoints
+                        .map(p => p.heartRate || 0)
+                        .filter(hr => hr > 0);
+
+                    const avgHeartRate = heartRates.length > 0 ?
+                        heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length : 0;
+
+                    // Get color for the average heart rate (use the color of the middle point)
+                    const middleIndex = Math.floor((segmentStart + segmentEnd) / 2);
+                    const color = middleIndex < this.heartRateColors.length ?
+                        (this.heartRateColors[middleIndex] || this.pathColor) : this.pathColor;
+
+                    // Create a single segment for this group of points
+                    const segmentCoordinates = segmentPoints.map(point => [point.lon, point.lat]);
+
+                    completedSegments.push({
+                        type: 'Feature',
+                        properties: {
+                            color: color,
+                            heartRate: avgHeartRate,
+                            segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE)
+                        },
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: segmentCoordinates
+                        }
+                    });
+                }
+            }
+
+            // Update the completed trail source with colored segments
+            if (this.map.getSource('trail-completed')) {
+                if (completedSegments.length > 0) {
+                    console.log('🎬 Displaying', completedSegments.length, 'colored segments for heart rate animation');
+                    this.map.getSource('trail-completed').setData({
+                        type: 'FeatureCollection',
+                        features: completedSegments
+                    });
+
+                    // Update paint property to use feature colors
+                    this.map.setPaintProperty('trail-completed', 'line-color', ['get', 'color']);
+                    this.map.setPaintProperty('trail-completed', 'line-width', 6);
+                    this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
+                } else {
+                    // Empty completed trail
+                    this.map.getSource('trail-completed').setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: []
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error updating completed trail with heart rate animation:', error);
+            // Fallback to simple trail update
+            const completedIndex = Math.floor(currentPoint.index);
+            const completedCoordinates = this.trackData.trackPoints
+                .slice(0, completedIndex + 1)
+                .map(point => [point.lon, point.lat]);
+
+            this.map.getSource('trail-completed').setData({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: completedCoordinates
+                }
+            });
+        }
+    }
+
+    /**
+     * Update trail with multi-segment colored trail during animation
+     */
+    updateMultiSegmentTrailAnimation(currentPoint) {
+        if (!this.trackData || !this.map.loaded()) {
+            return;
+        }
+
+        try {
+            // Use original track data if available (for journeys), otherwise use current track points
+            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+
+            if (!trackPoints || trackPoints.length === 0) {
+                return;
+            }
+
+            // Get completed points up to current position
+            const completedIndex = Math.floor(currentPoint.index);
+
+            console.log('🎬 Animation update:', {
+                completedIndex,
+                totalPoints: trackPoints.length,
+                colorMode: this.colorMode,
+                hasHeartRateColors: !!this.heartRateColors,
+                heartRateColorsLength: this.heartRateColors?.length || 0
+            });
+
+            if (completedIndex < 1) {
+                // No completed trail yet
+                this.map.getSource('trail-completed').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: []
+                    }
+                });
+                return;
+            }
+
+            // Create colored segments (each segment is 10 points long)
+            const completedSegments = [];
+            const SEGMENT_SIZE = 10; // Each segment is 10 points long
+
+            for (let segmentStart = 0; segmentStart < completedIndex; segmentStart += SEGMENT_SIZE) {
+                const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, completedIndex);
+                const segmentPoints = trackPoints.slice(segmentStart, segmentEnd);
+
+                if (segmentPoints.length >= 2) {
+                    // Each segment gets its own color based on heart rate
+                    let color = this.pathColor; // Default color
+
+                    if (this.colorMode === 'heartRate' && this.heartRateColors && this.heartRateColors.length > 0) {
+                    // Use heart rate color for this segment
+                    const segmentIndex = Math.floor(segmentStart / SEGMENT_SIZE);
+                    const colorIndex = Math.min(segmentIndex, this.heartRateColors.length - 1);
+                    color = this.heartRateColors[colorIndex] || this.pathColor;
+
+                    console.log('🎨 Segment color:', {
+                        segmentIndex,
+                        colorIndex,
+                        color,
+                        segmentStart,
+                        segmentEnd,
+                        heartRates: heartRates.length > 0 ? heartRates.slice(0, 3) : 'none'
+                    });
+                    }
+
+                    // Create a single LineString for this group of points
+                    const segmentCoordinates = segmentPoints.map(point => [point.lon, point.lat]);
+
+                    completedSegments.push({
+                        type: 'Feature',
+                        properties: {
+                            color: color,
+                            segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE),
+                            pointCount: segmentPoints.length
+                        },
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: segmentCoordinates
+                        }
+                    });
+
+                    console.log('🎨 Created segment:', {
+                        segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE),
+                        pointCount: segmentPoints.length,
+                        color: color,
+                        coordinates: segmentCoordinates.length
+                    });
+                }
+            }
+
+            // Update the completed trail source with colored segments
+            if (this.map.getSource('trail-completed')) {
+                if (completedSegments.length > 0) {
+                    console.log('🎬 Displaying', completedSegments.length, 'colored segments');
+                    this.map.getSource('trail-completed').setData({
+                        type: 'FeatureCollection',
+                        features: completedSegments
+                    });
+
+                    // Update paint property to use feature colors
+                    this.map.setPaintProperty('trail-completed', 'line-color', ['get', 'color']);
+                    this.map.setPaintProperty('trail-completed', 'line-width', 6);
+                    this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
+                } else {
+                    // Empty completed trail
+                    this.map.getSource('trail-completed').setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: []
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error updating multi-segment trail animation:', error);
+            // Fallback to simple trail update
+            const completedIndex = Math.floor(currentPoint.index);
+            const completedCoordinates = this.trackData.trackPoints
+                .slice(0, completedIndex + 1)
+                .map(point => [point.lon, point.lat]);
+
+            this.map.getSource('trail-completed').setData({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: completedCoordinates
+                }
+            });
+        }
+    }
+
+
+
+    /**
+     * Update trail line during animation with heart rate colors
+     */
+    updateTrailLineForAnimation(currentPoint) {
+        if (!this.trackData || !this.map.loaded()) {
+            return;
+        }
+
+        try {
+            // Use original track data if available (for journeys), otherwise use current track points
+            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+
+            if (!trackPoints || trackPoints.length === 0) {
+                return;
+            }
+
+            // Get completed points up to current position
+            const completedIndex = Math.floor(currentPoint.index);
+
+            console.log('🎬 Animation update:', {
+                completedIndex,
+                totalPoints: trackPoints.length,
+                colorMode: this.colorMode,
+                hasHeartRateColors: !!this.heartRateColors,
+                heartRateColorsLength: this.heartRateColors?.length || 0
+            });
+
+            // Update trail-line source to show full track (dimmed during animation)
+            if (this.colorMode === 'heartRate' && this.heartRateSegmentCollection.features.length > 0) {
+                // Show full track with heart rate colors but dimmed
+                this.map.getSource('trail-line').setData(this.heartRateSegmentCollection);
+                this.map.setPaintProperty('trail-line', 'line-color', ['get', 'color']);
+                this.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
+            } else {
+                // Show full track with fixed color but dimmed
+                const allCoordinates = trackPoints.map(point => [point.lon, point.lat]);
+                this.map.getSource('trail-line').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: allCoordinates
+                    }
+                });
+                this.map.setPaintProperty('trail-line', 'line-color', this.pathColor);
+                this.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
+            }
+
+            // Update trail-completed source with completed portion
+            if (completedIndex < 1) {
+                // No completed trail yet
+                this.map.getSource('trail-completed').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: []
+                    }
+                });
+                return;
+            }
+
+            this.drawCompletedTrail(trackPoints, completedIndex);
+        } catch (error) {
+            console.error('Error updating trail line for animation:', error);
+        }
+    }
+
+    drawCompletedTrail(trackPoints, completedIndex) {
+        let features = [];
+
+        console.log('🎬 drawCompletedTrail called:', {
+            colorMode: this.colorMode,
+            heartRateSegmentsLength: this.heartRateSegments.length,
+            completedIndex,
+            totalPoints: trackPoints.length
+        });
+
+        if (this.colorMode === 'heartRate' && this.heartRateSegments.length > 0) {
+            features = this.heartRateSegments.flatMap(segment => {
+                const { startIndex, endIndex } = segment.properties;
+
+                if (endIndex < completedIndex) {
+                    return segment;
+                }
+
+                if (startIndex > completedIndex) {
+                    return [];
+                }
+
+                const pointsCompleted = Math.max(0, completedIndex - startIndex);
+                const coords = segment.geometry.coordinates.slice(0, Math.min(pointsCompleted + 2, segment.geometry.coordinates.length));
+                if (coords.length < 2) return [];
+
+                return {
+                    type: 'Feature',
+                    properties: segment.properties,
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: coords
+                    }
+                };
+            });
+        } else {
+            const completedCoordinates = trackPoints
+                .slice(0, Math.max(completedIndex + 1, 2))
+                .map(point => [point.lon, point.lat]);
+
+            features = [{
+                type: 'Feature',
+                properties: { color: this.pathColor },
+                geometry: {
+                    type: 'LineString',
+                    coordinates: completedCoordinates
+                }
+            }];
+        }
+
+        console.log('🎬 Generated features:', features.length);
+
+        if (this.map.getSource('trail-completed')) {
+            this.map.getSource('trail-completed').setData({
+                type: 'FeatureCollection',
+                features
+            });
+            this.map.setPaintProperty('trail-completed', 'line-color', [
+                'case',
+                ['has', 'color'],
+                ['to-color', ['get', 'color']],
+                this.pathColor
+            ]);
+            this.map.setPaintProperty('trail-completed', 'line-width', 6);
+            this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
+        }
+    }
+
+    /**
+     * Update trail visualization with heart rate colors (for static display)
+     */
+    updateTrailWithHeartRateColors() {
+        if (!this.trackData || !this.heartRateColors || !this.map.loaded()) {
+            return;
+        }
+
+        // Use original track data if available (for journeys), otherwise use current track points
+        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+
+        if (!trackPoints || trackPoints.length === 0) {
+            return;
+        }
+
+        console.log('🎨 Static display - heart rate segments available:', this.heartRateSegments.length);
+
+        if (this.map.getSource('trail-line')) {
+            if (this.heartRateSegmentCollection.features.length > 0) {
+                this.map.getSource('trail-line').setData(this.heartRateSegmentCollection);
+                this.map.setPaintProperty('trail-line', 'line-color', ['get', 'color']);
+                this.map.setPaintProperty('trail-line', 'line-opacity', 0.8);
+            } else {
+                const coordinates = trackPoints.map(point => [point.lon, point.lat]);
+                this.map.getSource('trail-line').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: coordinates
+                    }
+                });
+            }
+        }
+    }
+
+
     // Toggle visibility of the main track label ("Track 1" letters)
     setShowTrackLabel(enabled) {
         this.showTrackLabel = !!enabled;
@@ -796,11 +1379,21 @@ export class MapRenderer {
 
     loadTrack(trackData) {
         this.trackData = trackData;
-        
+
+        this.heartRateSegments = [];
+        this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
+
         // Use optimized track data if available, otherwise fall back to original
         const trackPoints = trackData.trackPoints || [];
         if (trackPoints.length === 0) {
             return;
+        }
+
+        // Generate heart rate colors when needed (either data available or heart-rate mode active)
+        const shouldGenerateHeartRateColors = this.colorMode === 'heartRate' || trackData.stats?.hasHeartRateData;
+        if (shouldGenerateHeartRateColors) {
+            console.log('💓 Preparing heart rate colors during track load');
+            this.generateHeartRateColors();
         }
 
         // Create GeoJSON for the trail with elevation data
@@ -977,18 +1570,15 @@ export class MapRenderer {
         // Update any additional overlapping tracks
         this.updateAdditionalComparisons();
 
-        // Update completed trail
-        const completedCoordinates = this.trackData.trackPoints
-            .slice(0, Math.floor(currentPoint.index) + 1)
-            .map(point => [point.lon, point.lat]);
-
-        this.map.getSource('trail-completed').setData({
-            type: 'Feature',
-            geometry: {
-                type: 'LineString',
-                coordinates: completedCoordinates
-            }
-        });
+        // Update trail for animation - use unified approach
+        const completedIndex = Math.floor(currentPoint.index);
+        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
+        
+        // Update trail-line source to show full track (dimmed during animation)
+        this.updateTrailLineForAnimation(currentPoint);
+        
+        // Update trail-completed source with completed portion
+        this.drawCompletedTrail(trackPoints, completedIndex);
 
         // Check for icon changes - ensure method is properly bound
         if (this.iconChanges && typeof this.iconChanges.checkIconChanges === 'function') {

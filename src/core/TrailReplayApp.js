@@ -15,6 +15,7 @@ import { URLController } from '../controllers/URLController.js';
 import { setupEventListeners } from '../ui/eventListeners.js';
 import { setupModals } from '../ui/modalController.js';
 import { DEFAULT_SETTINGS, ICON_CATEGORIES, AVAILABLE_ICONS } from '../utils/constants.js';
+import { heartRateColorMapper } from '../utils/heartRateColors.js';
 
 export class TrailReplayApp {
     constructor() {
@@ -476,15 +477,17 @@ export class TrailReplayApp {
             if (progressPoints.length > 0) {
                 // Add current interpolated position with reduced precision
                 progressPoints.push(`${currentX.toFixed(1)},${currentY.toFixed(1)}`);
-                
+
                 // Create filled area from bottom to elevation profile
                 const progressPathData = `M0,${svgHeight} L${progressPoints.join(' L')} L${currentX.toFixed(1)},${svgHeight} Z`;
                 this.progressPathElement.setAttribute('d', progressPathData);
+
             }
         }
 
         this.updateLiveElevationMarker({ progress, currentX, svgWidth, force });
     }
+
 
     ensureLiveElevationLabelElement() {
         if (!this.liveElevationLabelElement) {
@@ -704,11 +707,25 @@ export class TrailReplayApp {
         const pointCount = trackPoints.length;
         
         // More aggressive optimization for large tracks to improve performance
+        // BUT preserve heart rate data by checking if it exists first
+        const hasHeartRateData = trackPoints.some(p => p.heartRate && p.heartRate > 0);
         let step = 1;
-        if (pointCount > 2000) {
-            step = Math.ceil(pointCount / 600); // Reduce to max 600 points for very large tracks
-        } else if (pointCount > 1000) {
-            step = Math.ceil(pointCount / 800); // Reduce to max 800 points for large tracks
+        
+        if (hasHeartRateData) {
+            // If heart rate data exists, be more conservative with optimization
+            // to preserve heart rate information
+            if (pointCount > 3000) {
+                step = Math.ceil(pointCount / 1000); // Reduce to max 1000 points for very large tracks with HR
+            } else if (pointCount > 1500) {
+                step = Math.ceil(pointCount / 1200); // Reduce to max 1200 points for large tracks with HR
+            }
+        } else {
+            // No heart rate data - can be more aggressive with optimization
+            if (pointCount > 2000) {
+                step = Math.ceil(pointCount / 600); // Reduce to max 600 points for very large tracks
+            } else if (pointCount > 1000) {
+                step = Math.ceil(pointCount / 800); // Reduce to max 800 points for large tracks
+            }
         }
         
         for (let i = 0; i < pointCount; i += step) {
@@ -1212,6 +1229,156 @@ export class TrailReplayApp {
         // Initialize live stats and generate elevation profile
         this.stats.resetLiveStats();
         this.generateElevationProfile();
+        
+        // Preserve heart rate data and check availability
+        this.preserveHeartRateData();
+        this.checkHeartRateData();
+    }
+
+    /**
+     * Check for heart rate data availability and update UI accordingly
+     */
+    checkHeartRateData() {
+        const heartRateStatus = document.getElementById('heartRateStatus');
+        const heartRateZones = document.getElementById('heartRateZones');
+        const colorModeHeartRate = document.getElementById('colorModeHeartRate');
+        
+        if (!this.currentTrackData || !this.currentTrackData.stats) {
+            return;
+        }
+
+        // Check both stats and actual track points for heart rate data
+        const stats = this.currentTrackData.stats;
+        const trackPoints = this.currentTrackData.trackPoints || [];
+        const originalTrackData = this.currentTrackData.originalTrackData;
+
+        // Check multiple sources for heart rate data
+        const hasHeartRateData = stats.hasHeartRateData ||
+                                trackPoints.some(p => p.heartRate && p.heartRate > 0) ||
+                                (originalTrackData && originalTrackData.trackPoints && originalTrackData.trackPoints.some(p => p.heartRate && p.heartRate > 0));
+
+        // Count actual heart rate points from current track data
+        let actualHeartRatePoints = trackPoints.filter(p => p.heartRate && p.heartRate > 0).length;
+        let actualAvgHeartRate = actualHeartRatePoints > 0 ?
+            Math.round(trackPoints.filter(p => p.heartRate && p.heartRate > 0).reduce((sum, p) => sum + p.heartRate, 0) / actualHeartRatePoints) : 0;
+
+        // If no heart rate data in current track points, check original data
+        if (actualHeartRatePoints === 0 && originalTrackData && originalTrackData.trackPoints) {
+            actualHeartRatePoints = originalTrackData.trackPoints.filter(p => p.heartRate && p.heartRate > 0).length;
+            actualAvgHeartRate = actualHeartRatePoints > 0 ?
+                Math.round(originalTrackData.trackPoints.filter(p => p.heartRate && p.heartRate > 0).reduce((sum, p) => sum + p.heartRate, 0) / actualHeartRatePoints) : 0;
+        }
+
+        console.log('💓 Heart rate data check:', {
+            hasData: hasHeartRateData,
+            pointsWithData: actualHeartRatePoints,
+            totalPoints: trackPoints.length,
+            avgHeartRate: actualAvgHeartRate,
+            statsHasData: stats.hasHeartRateData,
+            statsPointsWithData: stats.heartRateDataPoints || 0,
+            source: originalTrackData ? 'originalTrackData' : 'currentTrackData'
+        });
+
+        if (heartRateStatus) {
+            const statusText = heartRateStatus.querySelector('.hr-status-text');
+            if (hasHeartRateData) {
+                heartRateStatus.className = 'heart-rate-status has-data';
+                if (statusText) {
+                    statusText.textContent = `Heart rate data found: ${actualHeartRatePoints} points (${actualAvgHeartRate} avg BPM)`;
+                }
+                
+                // Show heart rate zones for user input
+                if (heartRateZones) {
+                    heartRateZones.style.display = 'block';
+                    this.initializeHeartRateZones();
+                    // Update translations for the newly visible elements
+                    setTimeout(() => {
+                        if (typeof updatePageTranslations === 'function') {
+                            updatePageTranslations();
+                        }
+                    }, 10);
+                }
+                
+                // Enable heart rate color mode option
+                if (colorModeHeartRate) {
+                    colorModeHeartRate.disabled = false;
+                }
+                
+                // Show the heart rate option when data is available
+                const colorModeHeartRateContainer = document.querySelector('input[name="colorMode"][value="heartRate"]').closest('.color-mode-toggle');
+                if (colorModeHeartRateContainer) {
+                    colorModeHeartRateContainer.style.display = 'flex';
+                    // Update translations for the newly visible elements
+                    setTimeout(() => {
+                        if (typeof updatePageTranslations === 'function') {
+                            updatePageTranslations();
+                        }
+                    }, 10);
+                }
+            } else {
+                heartRateStatus.className = 'heart-rate-status';
+                if (statusText) {
+                    statusText.textContent = 'No heart rate data detected in this GPX file';
+                }
+                
+                // Hide heart rate zones
+                if (heartRateZones) {
+                    heartRateZones.style.display = 'none';
+                }
+                
+                // Disable heart rate color mode and switch to fixed
+                if (colorModeHeartRate) {
+                    colorModeHeartRate.disabled = true;
+                    const colorModeFixed = document.getElementById('colorModeFixed');
+                    if (colorModeFixed) {
+                        colorModeFixed.checked = true;
+                        // Trigger change event to update UI
+                        colorModeFixed.dispatchEvent(new Event('change'));
+                    }
+                }
+                
+                // Hide the heart rate option entirely if no data
+                const colorModeHeartRateContainer = document.querySelector('input[name="colorMode"][value="heartRate"]').closest('.color-mode-toggle');
+                if (colorModeHeartRateContainer) {
+                    colorModeHeartRateContainer.style.display = 'none';
+                }
+            }
+        }
+    }
+
+    /**
+     * Initialize heart rate zones with default values
+     */
+    initializeHeartRateZones() {
+        const defaults = heartRateColorMapper.getDefaultZoneValues();
+        
+        Object.keys(defaults).forEach(key => {
+            const input = document.getElementById(key);
+            if (input && !input.value) {
+                input.value = defaults[key];
+            }
+        });
+    }
+
+    /**
+     * Ensure heart rate data is preserved in track data
+     * This method should be called after any data transformations
+     */
+    preserveHeartRateData() {
+        if (!this.currentTrackData || !this.currentTrackData.trackPoints) {
+            return;
+        }
+
+        // Check if we have heart rate data in the current track
+        const hasHeartRateData = this.currentTrackData.trackPoints.some(p => p.heartRate && p.heartRate > 0);
+        
+        if (hasHeartRateData) {
+            console.log('💓 Heart rate data preserved in track data');
+            // Update stats to reflect heart rate data availability
+            if (this.currentTrackData.stats) {
+                this.currentTrackData.stats.hasHeartRateData = true;
+            }
+        }
     }
 
     updateStats(stats) {

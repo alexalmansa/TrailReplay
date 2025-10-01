@@ -5250,3 +5250,145 @@ select.footer-link:hover {
 .footer-strava-logo:hover {
     opacity: 1;
 }
+
+/* Heart Rate Controls Styles */
+.color-mode-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.color-mode-toggle {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.color-mode-toggle input[type="radio"] {
+    margin: 0;
+    margin-right: 6px;
+}
+
+.color-mode-toggle label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--evergreen);
+    transition: color 0.2s ease;
+}
+
+.color-mode-toggle label:hover {
+    color: var(--trail-orange);
+}
+
+.color-mode-toggle input[type="radio"]:checked + label {
+    color: var(--trail-orange);
+}
+
+.heart-rate-controls {
+    background: rgba(27, 42, 32, 0.05);
+    border: 1px solid rgba(27, 42, 32, 0.1);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+}
+
+.heart-rate-status {
+    text-align: center;
+    padding: 12px;
+    border-radius: 6px;
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    margin-bottom: 12px;
+}
+
+.heart-rate-status.has-data {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.hr-status-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--evergreen);
+}
+
+.hr-zone-header {
+    text-align: center;
+    margin-bottom: 16px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--evergreen);
+}
+
+.hr-zones-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.hr-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hr-zone label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--evergreen);
+}
+
+.hr-zone-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hr-zone-inputs input[type="number"] {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid rgba(27, 42, 32, 0.2);
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: var(--font-family-mono);
+    background: white;
+    width: 60px;
+}
+
+.hr-zone-inputs input[type="number"]:focus {
+    outline: none;
+    border-color: var(--trail-orange);
+    box-shadow: 0 0 0 2px rgba(193, 101, 47, 0.1);
+}
+
+.hr-zone-inputs span {
+    font-size: 12px;
+    color: var(--evergreen-40);
+    font-weight: 500;
+}
+
+.hr-zone-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid rgba(27, 42, 32, 0.2);
+    flex-shrink: 0;
+}
+
+/* Responsive adjustments for heart rate controls */
+@media (max-width: 768px) {
+    .hr-zones-grid {
+        gap: 10px;
+    }
+    
+    .hr-zone-inputs input[type="number"] {
+        width: 50px;
+        padding: 4px 6px;
+    }
+    
+    .heart-rate-controls {
+        padding: 12px;
+    }
+}
