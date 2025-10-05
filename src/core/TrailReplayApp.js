@@ -1351,13 +1351,16 @@ export class TrailReplayApp {
      */
     initializeHeartRateZones() {
         const defaults = heartRateColorMapper.getDefaultZoneValues();
-        
+
         Object.keys(defaults).forEach(key => {
             const input = document.getElementById(key);
             if (input && !input.value) {
                 input.value = defaults[key];
             }
         });
+
+        // Initialize color pickers after zones are set up
+        heartRateColorMapper.initializeColorPickers();
     }
 
     /**
