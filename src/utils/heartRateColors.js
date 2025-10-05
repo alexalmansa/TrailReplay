@@ -7,8 +7,8 @@ export class HeartRateColorMapper {
     constructor() {
         // Default heart rate zones (can be overridden by user)
         this.zones = [
-            { min: 50, max: 120, color: '#4CAF50', name: 'Zone 1 (Recovery)' },      // Green
-            { min: 121, max: 140, color: '#8BC34A', name: 'Zone 2 (Base)' },        // Light Green  
+            { min: 50, max: 120, color: '#8BC34A', name: 'Zone 1 (Recovery)' },      // Light Green
+            { min: 121, max: 140, color: '#4CAF50', name: 'Zone 2 (Base)' },        // Green
             { min: 141, max: 160, color: '#FFC107', name: 'Zone 3 (Aerobic)' },     // Yellow
             { min: 161, max: 180, color: '#FF9800', name: 'Zone 4 (Threshold)' },   // Orange
             { min: 181, max: 220, color: '#F44336', name: 'Zone 5 (Anaerobic)' }    // Red
@@ -44,31 +44,37 @@ export class HeartRateColorMapper {
     }
 
     /**
-     * Get zones from UI inputs
+     * Get zones from UI inputs including custom colors
      */
     getZonesFromUI() {
         const zones = [];
-        
+
         for (let i = 1; i <= 5; i++) {
             const minInput = document.getElementById(`zone${i}Min`);
             const maxInput = document.getElementById(`zone${i}Max`);
-            
+            const colorInput = document.getElementById(`zone${i}Color`);
+
             if (minInput && maxInput && minInput.value && maxInput.value) {
                 const min = parseInt(minInput.value);
                 const max = parseInt(maxInput.value);
-                
+
                 if (!isNaN(min) && !isNaN(max) && min < max) {
-                    const colors = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336'];
+                    // Use custom color if available, otherwise use default
+                    let color = this.zones[i - 1]?.color; // Fallback to current zone color
+                    if (colorInput && colorInput.value) {
+                        color = colorInput.value;
+                    }
+
                     zones.push({
                         min: min,
                         max: max,
-                        color: colors[i - 1],
+                        color: color,
                         name: `Zone ${i}`
                     });
                 }
             }
         }
-        
+
         return zones;
     }
 
@@ -194,6 +200,87 @@ export class HeartRateColorMapper {
     generateZoneGradient() {
         const colors = this.zones.map(zone => zone.color);
         return `linear-gradient(90deg, ${colors.join(', ')})`;
+    }
+
+    /**
+     * Update a specific zone's color
+     * @param {number} zoneIndex - Zone index (0-4)
+     * @param {string} color - New hex color
+     */
+    updateZoneColor(zoneIndex, color) {
+        if (zoneIndex >= 0 && zoneIndex < this.zones.length && color) {
+            this.zones[zoneIndex].color = color;
+            console.log(`💓 Updated zone ${zoneIndex + 1} color to ${color}`);
+
+            // Update UI color display
+            this.updateZoneColorDisplay(zoneIndex + 1, color);
+        }
+    }
+
+    /**
+     * Update the color display in the UI for a specific zone
+     * @param {number} zoneNumber - Zone number (1-5)
+     * @param {string} color - Hex color
+     */
+    updateZoneColorDisplay(zoneNumber, color) {
+        const colorDiv = document.querySelector(`[data-zone="${zoneNumber}"]`);
+        if (colorDiv) {
+            colorDiv.style.backgroundColor = color;
+        }
+
+        // Update color picker value
+        const colorInput = document.getElementById(`zone${zoneNumber}Color`);
+        if (colorInput) {
+            colorInput.value = color;
+        }
+    }
+
+    /**
+     * Initialize color picker event listeners
+     */
+    initializeColorPickers() {
+        // Add click listeners to color divs
+        for (let i = 1; i <= 5; i++) {
+            const colorDiv = document.querySelector(`[data-zone="${i}"]`);
+            const colorInput = document.getElementById(`zone${i}Color`);
+
+            if (colorDiv && colorInput) {
+                // Click handler for color div
+                colorDiv.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    colorInput.click();
+                });
+
+                // Change handler for color input
+                colorInput.addEventListener('change', (e) => {
+                    const newColor = e.target.value;
+                    this.updateZoneColor(i - 1, newColor);
+
+                    // Trigger zone update in map renderer if available
+                    if (window.app && window.app.map && window.app.map.mapRenderer) {
+                        window.app.map.mapRenderer.updateHeartRateZones();
+                    }
+                });
+
+                // Set initial color display
+                this.updateZoneColorDisplay(i, this.zones[i - 1].color);
+            }
+        }
+
+        console.log('💓 Color pickers initialized');
+    }
+
+    /**
+     * Sync color pickers with current zone colors
+     */
+    syncColorPickersWithZones() {
+        for (let i = 1; i <= 5; i++) {
+            const color = this.zones[i - 1]?.color;
+            if (color) {
+                this.updateZoneColorDisplay(i, color);
+            }
+        }
     }
 
     /**
