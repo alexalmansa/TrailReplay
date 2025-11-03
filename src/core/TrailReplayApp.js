@@ -829,14 +829,14 @@ export class TrailReplayApp {
             }
         });
         
-        // Update start elevation label
+        // Update min elevation label (bottom of profile)
         const minLabel = document.getElementById('minElevationLabel');
         if (minLabel) {
             minLabel.style.display = 'flex';
             minLabel.style.visibility = 'visible';
             const valueSpan = minLabel.querySelector('.elevation-value');
             if (valueSpan) {
-                valueSpan.textContent = `${Math.round(startElevation)} m`;
+                valueSpan.textContent = `${Math.round(minElevation)} m`;
             }
         }
         
