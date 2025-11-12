@@ -1,22 +1,34 @@
 /**
  * MapRenderer - Main map rendering class (refactored for modularity)
  */
+import { MapManager } from './MapManager.js';
+import { TrackManager } from './TrackManager.js';
+import { AnimationController } from './AnimationController.js';
+import { UIMapController } from './UIMapController.js';
+import { HeartRateController } from './HeartRateController.js';
 import maplibregl from 'maplibre-gl';
 import { GPXParser } from '../gpxParser.js';
 import { MapUtils } from './MapUtils.js';
 import { MapAnnotations } from './MapAnnotations.js';
 import { MapIconChanges } from './MapIconChanges.js';
 import { MapPictureAnnotations } from './MapPictureAnnotations.js';
-import { FollowBehindCamera } from './FollowBehindCamera.js';
+import { CameraController } from './CameraController.js';
 import { DEFAULT_SETTINGS } from '../utils/constants.js';
 import { heartRateColorMapper } from '../utils/heartRateColors.js';
+import { TerrainController } from './TerrainController.js';
+import { ComparisonController } from './ComparisonController.js';
+import { StatsController } from './StatsController.js';
+import { FollowBehindCamera } from './FollowBehindCamera.js';
 // TODO: Import other modules as they are created
 
 export class MapRenderer {
     constructor(container, app = null) {
         this.container = container;
         this.app = app;
-        this.map = null;
+        
+        this.mapManager = new MapManager(container, this);
+        this.map = this.mapManager.map;
+
         this.trackData = null;
         this.animationMarker = null;
         this.isAnimating = false;
@@ -34,21 +46,14 @@ export class MapRenderer {
         this.autoZoom = true;
         this.showCircle = true;
         this.showMarker = false; // Disabled by default for more professional look
-        this.showEndStats = true;
         this.showTrackLabel = false; // Hide "Track 1" letters by default
         
-        // Comparison mode properties
-        this.comparisonTrackData = null;
-        this.comparisonGpxParser = null;
-        this.timeOverlap = null;
-        this.additionalComparisons = []; // extra overlapping tracks
-
-        // Track colors for comparison mode
-        this.mainTrackColor = '#2563EB'; // Blue for main track
-        this.comparisonTrackColor = '#DC2626'; // Red for comparison track
+        this.comparisonController = new ComparisonController(this);
+        this.statsController = new StatsController(this);
         this.currentIcon = '🏃‍♂️';
         this.userSelectedBaseIcon = null; // Stores user's custom base icon choice
-        this.gpxParser = new GPXParser();
+        this.trackManager = new TrackManager(this);
+        this.gpxParser = this.trackManager.gpxParser;
         
         // Segment-aware animation properties
         this.segmentTimings = null;
@@ -56,10 +61,6 @@ export class MapRenderer {
         this.segmentProgress = 0;
         this.lastAnimationTime = 0;
         this.journeyElapsedTime = 0;
-        
-        // Track 3D mode state
-        this.is3DMode = false;
-        this.currentTerrainSource = 'mapzen';
         
         // Camera mode properties
         this.cameraMode = 'followBehind'; // 'standard' or 'followBehind' - followBehind is default
@@ -71,6 +72,11 @@ export class MapRenderer {
         this.annotations = new MapAnnotations(this);
         this.iconChanges = new MapIconChanges(this);
         this.pictureAnnotations = new MapPictureAnnotations(this);
+        this.cameraController = new CameraController(this);
+        this.animationController = new AnimationController(this);
+        this.uiMapController = new UIMapController(this);
+        this.heartRateController = new HeartRateController(this);
+        this.terrainController = new TerrainController(this);
         this.followBehindCamera = new FollowBehindCamera(this);
         
         // Ensure proper method binding for icon changes
@@ -78,8 +84,6 @@ export class MapRenderer {
             // Explicitly bind the method to ensure it's available
             this.iconChanges.checkIconChanges = this.iconChanges.checkIconChanges.bind(this.iconChanges);
         }
-        
-        this.initializeMap();
 
         // Add resize event listener for dynamic layout detection
         this.setupResizeListener();
@@ -95,6 +99,76 @@ export class MapRenderer {
         this.preloadedTiles = new Set(); // Track preloaded tile URLs
         this.currentMapStyle = 'satellite'; // Track current style for preloading
     }
+
+    // Delegated Terrain Methods
+    enable3DTerrain() {
+        this.terrainController.enable3DTerrain();
+    }
+
+    disable3DTerrain() {
+        this.terrainController.disable3DTerrain();
+    }
+
+    setTerrainSource(provider) {
+        this.terrainController.setTerrainSource(provider);
+    }
+
+    setTerrainExaggeration(exaggeration) {
+        this.terrainController.setTerrainExaggeration(exaggeration);
+    }
+
+    isTerrainSupported() {
+        return this.terrainController.isTerrainSupported();
+    }
+
+    // Delegated Comparison Methods
+    updateComparisonPosition() {
+        this.comparisonController.updateComparisonPosition();
+    }
+
+    updateAdditionalComparisons() {
+        this.comparisonController.updateAdditionalComparisons();
+    }
+
+    calculateDualMarkerCenter(currentPoint) {
+        return this.comparisonController.calculateDualMarkerCenter(currentPoint);
+    }
+
+    applyOverlapLineVisibilityDuringAnimation(hide) {
+        this.comparisonController.applyOverlapLineVisibilityDuringAnimation(hide);
+    }
+
+    // Delegated Stats Methods
+    triggerStatsEndAnimation() {
+        this.statsController.triggerStatsEndAnimation();
+    }
+
+    populateFinalStats() {
+        this.statsController.populateFinalStats();
+    }
+
+    resetStatsEndAnimation() {
+        this.statsController.resetStatsEndAnimation();
+    }
+
+    getCurrentDistance() {
+        return this.statsController.getCurrentDistance();
+    }
+
+    getCurrentElevation() {
+        return this.statsController.getCurrentElevation();
+    }
+
+    getCurrentSpeed() {
+        return this.statsController.getCurrentSpeed();
+    }
+
+    getElevationData() {
+        return this.statsController.getElevationData();
+    }
+
+
+
 
     // Safely compute interpolated time (ms since epoch) at a given progress for a track's points
     getTimeAtProgressMs(trackData, progress) {
@@ -143,331 +217,9 @@ export class MapRenderer {
         return { start: null, end: null };
     }
 
-    initializeMap() {
-        // Initialize MapLibre GL JS with free tile sources
-        this.map = new maplibregl.Map({
-            container: this.container,
-            style: {
-                version: 8,
-                glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-                sources: {
-                    'osm': {
-                        type: 'raster',
-                        tiles: [
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: '© OpenStreetMap contributors'
-                    },
-                    // --- OpenTopoMap (topographic/terrain) ---
-                    'opentopomap': {
-                        type: 'raster',
-                        tiles: [
-                            'https://a.tile.opentopomap.org/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: '© OpenTopoMap (CC-BY-SA)'
-                    },
-                    'satellite': {
-                        type: 'raster',
-                        tiles: [
-                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                        ],
-                        tileSize: 256,
-                        attribution: '© Esri'
-                    },
-                    'carto-labels': {
-                        type: 'raster',
-                        tiles: [
-                            'https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: '© CartoDB'
-                    },
-                    // --- Enhanced mountain terrain source ---
-                    'enhanced-hillshade': {
-                        type: 'raster',
-                        tiles: [
-                            'https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/ASTER_GDEM/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: '© OpenTopography/ASTER GDEM'
-                    }
-                },
-                layers: [
-                    {
-                        id: 'background',
-                        type: 'raster',
-                        source: 'satellite'
-                    },
-                    // CartoDB labels above satellite (initially hidden)
-                    {
-                        id: 'carto-labels',
-                        type: 'raster',
-                        source: 'carto-labels',
-                        layout: { visibility: 'none' }
-                    },
-                    // --- OpenTopoMap layer (initially hidden) ---
-                    {
-                        id: 'opentopomap',
-                        type: 'raster',
-                        source: 'opentopomap',
-                        layout: { visibility: 'none' }
-                    },
-                    // OSM street layer (initially hidden)
-                    {
-                        id: 'street',
-                        type: 'raster',
-                        source: 'osm',
-                        layout: { visibility: 'none' }
-                    },
-                    // --- Enhanced mountain terrain layer (initially hidden) ---
-                    {
-                        id: 'enhanced-hillshade',
-                        type: 'raster',
-                        source: 'enhanced-hillshade',
-                        layout: { visibility: 'none' },
-                        paint: { 'raster-opacity': 0.6 }
-                    }
-                ]
-            },
-            center: [0, 0],
-            zoom: 2,
-            pitch: 0,
-            bearing: 0,
-            maxPitch: 85,
-            antialias: true,
-            preserveDrawingBuffer: true,
-            // Improve cache behavior to reduce tile thrash across zooms
-            maxTileCacheZoomLevels: 10,
-            // Keep label fade minimal; raster fade is set per-layer below
-            fadeDuration: 150
-        });
 
-        this.map.on('load', () => {
-            this.setupMapLayers();
-            // Reduce raster cross-fade to avoid visible washout during fast moves
-            try {
-                ['background','opentopomap','street','carto-labels'].forEach(layerId => {
-                    if (this.map.getLayer(layerId)) {
-                        this.map.setPaintProperty(layerId, 'raster-fade-duration', 100);
-                    }
-                });
-            } catch (_) {}
-            // Allow zooming before animation starts in follow-behind mode
-            if (this.cameraMode === 'followBehind' && !this.isAnimating) {
-                this.enableZoomOnlyInteractions();
-            }
-            // Initialize marker-dependent controls state
-            this.updateMarkerDependentControls(this.showMarker);
-            
-            // Initialize elevation profile color
-            const progressPath = document.getElementById('progressPath');
-            if (progressPath) {
-                progressPath.setAttribute('stroke', this.pathColor);
-            }
-            
-            // Initialize elevation profile gradient
-            this.updateElevationGradient(this.pathColor);
-        });
 
-        // Add click handler for annotations and icon changes
-        this.map.on('click', (e) => {
-            if (this.isAnnotationMode) {
-                this.annotations.handleAnnotationClick(e);
-            } else if (this.isIconChangeMode) {
-                // Stop event propagation to prevent modal from closing immediately
-                e.originalEvent?.stopPropagation();
-                this.iconChanges.handleIconChangeClick(e);
-            }
-        });
 
-        // Change cursor when in special modes
-        this.map.on('mouseenter', () => {
-            if (this.isAnnotationMode || this.isIconChangeMode) {
-                this.map.getCanvas().style.cursor = 'crosshair';
-            } else {
-                this.map.getCanvas().style.cursor = '';
-            }
-        });
-
-        // Also update cursor on mousemove to ensure it stays correct
-        this.map.on('mousemove', () => {
-            if (this.isAnnotationMode || this.isIconChangeMode) {
-                if (this.map.getCanvas().style.cursor !== 'crosshair') {
-                    this.map.getCanvas().style.cursor = 'crosshair';
-                }
-            } else {
-                if (this.map.getCanvas().style.cursor === 'crosshair') {
-                    this.map.getCanvas().style.cursor = '';
-                }
-            }
-        });
-    }
-
-    setupMapLayers() {
-        // Add sources for trail visualization
-        this.map.addSource('trail-line', {
-            type: 'geojson',
-            data: {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: []
-                }
-            }
-        });
-
-        this.map.addSource('trail-completed', {
-            type: 'geojson',
-            data: {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: []
-                }
-            }
-        });
-
-        this.map.addSource('current-position', {
-            type: 'geojson',
-            data: {
-                type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [0, 0]
-                }
-            }
-        });
-
-        this.map.addSource('annotations', {
-            type: 'geojson',
-            data: {
-                type: 'FeatureCollection',
-                features: []
-            }
-        });
-
-        // Add trail line layer with data-driven styling for segments
-        this.map.addLayer({
-            id: 'trail-line',
-            type: 'line',
-            source: 'trail-line',
-            layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-            },
-            paint: {
-                'line-color': [
-                    'case',
-                    ['==', ['get', 'isTransportation'], true],
-                    [
-                        'case',
-                        ['==', ['get', 'segmentMode'], 'car'], '#ff6b6b',
-                        ['==', ['get', 'segmentMode'], 'driving'], '#ff6b6b',
-                        ['==', ['get', 'segmentMode'], 'boat'], '#4ecdc4',
-                        ['==', ['get', 'segmentMode'], 'plane'], '#ffe66d',
-                        ['==', ['get', 'segmentMode'], 'train'], '#a8e6cf',
-                        ['==', ['get', 'segmentMode'], 'walk'], '#ff9f43',
-                        ['==', ['get', 'segmentMode'], 'cycling'], '#48cae4',
-                        '#ff6b6b' // default transportation color
-                    ],
-                    this.pathColor // default color for GPX tracks
-                ],
-                'line-width': [
-                    'case',
-                    ['==', ['get', 'isTransportation'], true], 6,
-                    4
-                ],
-                'line-opacity': [
-                    'case',
-                    ['==', ['get', 'isTransportation'], true], 0.7,
-                    0.4
-                ],
-                'line-dasharray': [1, 0]
-            }
-        });
-
-        // Add completed trail layer (should be above trail-line for visibility during animation)
-        this.map.addLayer({
-            id: 'trail-completed',
-            type: 'line',
-            source: 'trail-completed',
-            layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-            },
-            paint: {
-                'line-color': this.pathColor,
-                'line-width': 6,
-                'line-opacity': 1.0
-            }
-        });
-
-        // Add current position glow
-        this.map.addLayer({
-            id: 'current-position-glow',
-            type: 'circle',
-            source: 'current-position',
-            paint: {
-                'circle-radius': 15 * this.markerSize,
-                'circle-color': this.pathColor,
-                'circle-opacity': 0.3
-            }
-        });
-
-        // Create and add activity icon layer
-        this.createAndAddActivityIcon();
-
-        // Add track label for main track
-        this.map.addSource('main-track-label', {
-            type: 'geojson',
-            data: {
-                type: 'Feature',
-                properties: {
-                    label: 'Track 1'
-                },
-                geometry: {
-                    type: 'Point',
-                    coordinates: [0, 0]
-                }
-            }
-        });
-
-        this.map.addLayer({
-            id: 'main-track-label',
-            type: 'symbol',
-            source: 'main-track-label',
-            layout: {
-                'text-field': 'Track 1',
-                'text-size': 10,
-                'text-offset': [0, 2.5], // Position above the marker
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-                'text-anchor': 'center',
-                'visibility': this.showTrackLabel ? 'visible' : 'none'
-            },
-            paint: {
-                'text-color': this.pathColor,
-                'text-halo-color': '#FFFFFF',
-                'text-halo-width': 2
-            }
-        });
-
-        // Add annotations layer (hidden initially)
-        this.map.addLayer({
-            id: 'annotations',
-            type: 'circle',
-            source: 'annotations',
-            paint: {
-                'circle-radius': 8,
-                'circle-color': '#4ecdc4',
-                'circle-stroke-color': '#ffffff',
-                'circle-stroke-width': 2,
-                'circle-opacity': 0
-            }
-        });
-    }
 
     // Delegate annotation methods to the annotations module
     enableAnnotationMode() {
@@ -584,641 +336,11 @@ export class MapRenderer {
         }
     }
 
-    // Activity type and icon management
-    setActivityType(activityType) {
-        this.currentActivityType = activityType;
-        this.currentIcon = this.getBaseIcon();
-        
-        if (this.map && this.map.loaded()) {
-            this.updateActivityIcon();
-        }
-    }
 
-    setCurrentIcon(icon) {
-        this.currentIcon = icon;
-        
-        // If not currently animating/playing, save this as the user's preferred base icon
-        // This ensures it persists when playback starts
-        if (!this.isAnimating) {
 
-            this.userSelectedBaseIcon = icon;
-        }
-        
-        if (this.map && this.map.loaded()) {
-            this.updateActivityIcon();
-        }
-        
-        const iconUpdateEvent = new CustomEvent('currentIconUpdated', {
-            detail: { icon }
-        });
-        document.dispatchEvent(iconUpdateEvent);
-    }
 
-    // Clear user's custom base icon and return to activity-based icon
-    clearUserBaseIcon() {
 
-        this.userSelectedBaseIcon = null;
-        const activityIcon = this.getBaseIcon(); // Will now return activity-based icon
-        this.setCurrentIcon(activityIcon);
-    }
 
-    // Map styling methods
-    setPathColor(color) {
-        this.pathColor = color;
-        
-        if (this.map.loaded()) {
-            this.map.setPaintProperty('trail-line', 'line-color', color);
-            this.map.setPaintProperty('trail-completed', 'line-color', color);
-            this.map.setPaintProperty('current-position-glow', 'circle-color', color);
-            if (this.map.getLayer('main-track-label')) {
-                this.map.setPaintProperty('main-track-label', 'text-color', color);
-            }
-        }
-        
-        // Update elevation profile progress color
-        const progressPath = document.getElementById('progressPath');
-        if (progressPath) {
-            progressPath.setAttribute('stroke', color);
-        }
-        
-        // Update elevation profile gradient colors
-        this.updateElevationGradient(color);
-    }
-
-    /**
-     * Set color mode and update visualization
-     * @param {string} mode - 'fixed' or 'heartRate'
-     */
-    setColorMode(mode) {
-        console.log(`🎨 Setting color mode to: ${mode}`, {
-            hasTrackData: !!this.trackData,
-            trackPointsCount: this.trackData?.trackPoints?.length || 0,
-            hasOriginalData: !!this.trackData?.originalTrackData,
-            hasHeartRateData: this.trackData?.stats?.hasHeartRateData,
-            hasHeartRateColors: !!this.heartRateColors,
-            heartRateColorsLength: this.heartRateColors?.length || 0
-        });
-
-        this.colorMode = mode;
-
-        if (mode === 'heartRate') {
-            this.generateHeartRateColors();
-            if (this.heartRateColors && this.heartRateColors.length > 0) {
-                this.updateTrailWithHeartRateColors();
-            }
-        } else {
-            // Fixed color mode
-            this.updateMapColors();
-        }
-    }
-
-    /**
-     * Generate heart rate colors for the current track
-     */
-    generateHeartRateColors() {
-        if (!this.trackData) {
-            console.warn('No track data available for heart rate colors');
-            return;
-        }
-
-        // Use original track data if available (for journeys), otherwise use current track points
-        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-
-        if (!trackPoints || trackPoints.length === 0) {
-            console.warn('No track points available for heart rate colors');
-            return;
-        }
-
-        console.log('💓 Generating heart rate colors for track', {
-            trackPointsCount: trackPoints.length,
-            hasOriginalData: !!this.trackData.originalTrackData,
-            colorMode: this.colorMode
-        });
-
-        this.heartRateColors = heartRateColorMapper.generateColorsForTrack(trackPoints);
-
-        // Log statistics
-        const analysis = heartRateColorMapper.analyzeHeartRateData(trackPoints);
-        console.log('💓 Heart rate color analysis:', analysis);
-
-        if (this.trackData?.stats) {
-            this.trackData.stats.hasHeartRateData = analysis.hasData;
-            this.trackData.stats.heartRateDataPoints = analysis.pointsWithData;
-            this.trackData.stats.avgHeartRate = analysis.avgHeartRate;
-            this.trackData.stats.minHeartRate = analysis.minHeartRate;
-            this.trackData.stats.maxHeartRate = analysis.maxHeartRate;
-        }
-
-        if (this.heartRateColors && this.heartRateColors.length > 0) {
-            console.log('💓 Generated heart rate colors:', this.heartRateColors.length, 'colors');
-            console.log('💓 Sample colors:', this.heartRateColors.slice(0, 10));
-            console.log('💓 Heart rate colors array length matches track points:', this.heartRateColors.length === trackPoints.length);
-
-            // Check if colors are being generated correctly
-            const validColors = this.heartRateColors.filter(color => color !== '#808080' && color !== this.pathColor);
-            console.log('💓 Valid heart rate colors:', validColors.length, 'out of', this.heartRateColors.length);
-
-            this.prepareHeartRateSegments(trackPoints);
-        } else {
-            console.warn('💓 No heart rate colors generated!');
-            this.heartRateSegments = [];
-            this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
-        }
-    }
-
-    prepareHeartRateSegments(trackPoints) {
-        if (!Array.isArray(trackPoints) || trackPoints.length < 2 || !this.heartRateColors) {
-            this.heartRateSegments = [];
-            this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
-            return;
-        }
-
-        const segments = [];
-        const segmentSize = 10;
-
-        for (let start = 0; start < trackPoints.length - 1; start += segmentSize) {
-            const end = Math.min(start + segmentSize, trackPoints.length - 1);
-            const coordinates = trackPoints.slice(start, end + 1).map(pt => [pt.lon, pt.lat]);
-            if (coordinates.length < 2) continue;
-
-            const colorIndex = Math.min(Math.floor((start + end) / 2), this.heartRateColors.length - 1);
-            const color = this.heartRateColors[colorIndex] || this.pathColor;
-
-            segments.push({
-                type: 'Feature',
-                properties: {
-                    color,
-                    startIndex: start,
-                    endIndex: end
-                },
-                geometry: {
-                    type: 'LineString',
-                    coordinates
-                }
-            });
-        }
-
-        this.heartRateSegments = segments;
-        this.heartRateSegmentCollection = { type: 'FeatureCollection', features: segments };
-        console.log('💓 Prepared heart rate segments:', segments.length);
-    }
-
-    /**
-     * Update heart rate zones from user input
-     */
-    updateHeartRateZones() {
-        const zones = heartRateColorMapper.getZonesFromUI();
-        if (zones.length > 0) {
-            heartRateColorMapper.setZones(zones);
-            
-            // Regenerate colors if in heart rate mode
-            if (this.colorMode === 'heartRate') {
-                this.generateHeartRateColors();
-                this.updateMapColors();
-            }
-        }
-    }
-
-    /**
-     * Update map colors based on current color mode
-     */
-    updateMapColors() {
-        if (!this.map || !this.map.loaded()) {
-            return;
-        }
-
-        // Set colors for trail-line source (but don't override trail-completed during animation)
-        this.map.setPaintProperty('trail-line', 'line-color', this.pathColor);
-        this.map.setPaintProperty('trail-line', 'line-opacity', 0.3); // Make it more transparent
-
-        // Only set trail-completed color if not animating (to avoid overriding heart rate colors)
-        if (!this.isAnimating) {
-            this.map.setPaintProperty('trail-completed', 'line-color', this.pathColor);
-        }
-    }
-
-    /**
-     * Update completed trail with heart rate colored segments during animation
-     */
-    updateCompletedTrailWithHeartRateAnimation(currentPoint) {
-        if (!this.trackData || !this.heartRateColors || !this.map.loaded()) {
-            return;
-        }
-
-        try {
-            // Use original track data if available (for journeys), otherwise use current track points
-            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-
-            if (!trackPoints || trackPoints.length === 0) {
-                return;
-            }
-
-            // Get completed points up to current position
-            const completedIndex = Math.floor(currentPoint.index);
-
-            if (completedIndex < 1) {
-                // No completed trail yet
-                this.map.getSource('trail-completed').setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: []
-                    }
-                });
-                return;
-            }
-
-            // Create a single LineString with all completed coordinates
-            const completedCoordinates = trackPoints
-                .slice(0, completedIndex + 1)
-                .map(point => [point.lon, point.lat]);
-
-            // Create colored segments for the completed trail (group every 10 points)
-            const completedSegments = [];
-            const SEGMENT_SIZE = 10; // Group points into segments of 10
-
-            for (let segmentStart = 0; segmentStart < completedIndex; segmentStart += SEGMENT_SIZE) {
-                const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, completedIndex);
-                const segmentPoints = trackPoints.slice(segmentStart, segmentEnd);
-
-                if (segmentPoints.length >= 2) {
-                    // Calculate average heart rate for this segment
-                    const heartRates = segmentPoints
-                        .map(p => p.heartRate || 0)
-                        .filter(hr => hr > 0);
-
-                    const avgHeartRate = heartRates.length > 0 ?
-                        heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length : 0;
-
-                    // Get color for the average heart rate (use the color of the middle point)
-                    const middleIndex = Math.floor((segmentStart + segmentEnd) / 2);
-                    const color = middleIndex < this.heartRateColors.length ?
-                        (this.heartRateColors[middleIndex] || this.pathColor) : this.pathColor;
-
-                    // Create a single segment for this group of points
-                    const segmentCoordinates = segmentPoints.map(point => [point.lon, point.lat]);
-
-                    completedSegments.push({
-                        type: 'Feature',
-                        properties: {
-                            color: color,
-                            heartRate: avgHeartRate,
-                            segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE)
-                        },
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: segmentCoordinates
-                        }
-                    });
-                }
-            }
-
-            // Update the completed trail source with colored segments
-            if (this.map.getSource('trail-completed')) {
-                if (completedSegments.length > 0) {
-                    console.log('🎬 Displaying', completedSegments.length, 'colored segments for heart rate animation');
-                    this.map.getSource('trail-completed').setData({
-                        type: 'FeatureCollection',
-                        features: completedSegments
-                    });
-
-                    // Update paint property to use feature colors
-                    this.map.setPaintProperty('trail-completed', 'line-color', ['get', 'color']);
-                    this.map.setPaintProperty('trail-completed', 'line-width', 6);
-                    this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
-                } else {
-                    // Empty completed trail
-                    this.map.getSource('trail-completed').setData({
-                        type: 'Feature',
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: []
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Error updating completed trail with heart rate animation:', error);
-            // Fallback to simple trail update
-            const completedIndex = Math.floor(currentPoint.index);
-            const completedCoordinates = this.trackData.trackPoints
-                .slice(0, completedIndex + 1)
-                .map(point => [point.lon, point.lat]);
-
-            this.map.getSource('trail-completed').setData({
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: completedCoordinates
-                }
-            });
-        }
-    }
-
-    /**
-     * Update trail with multi-segment colored trail during animation
-     */
-    updateMultiSegmentTrailAnimation(currentPoint) {
-        if (!this.trackData || !this.map.loaded()) {
-            return;
-        }
-
-        try {
-            // Use original track data if available (for journeys), otherwise use current track points
-            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-
-            if (!trackPoints || trackPoints.length === 0) {
-                return;
-            }
-
-            // Get completed points up to current position
-            const completedIndex = Math.floor(currentPoint.index);
-
-            console.log('🎬 Animation update:', {
-                completedIndex,
-                totalPoints: trackPoints.length,
-                colorMode: this.colorMode,
-                hasHeartRateColors: !!this.heartRateColors,
-                heartRateColorsLength: this.heartRateColors?.length || 0
-            });
-
-            if (completedIndex < 1) {
-                // No completed trail yet
-                this.map.getSource('trail-completed').setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: []
-                    }
-                });
-                return;
-            }
-
-            // Create colored segments (each segment is 10 points long)
-            const completedSegments = [];
-            const SEGMENT_SIZE = 10; // Each segment is 10 points long
-
-            for (let segmentStart = 0; segmentStart < completedIndex; segmentStart += SEGMENT_SIZE) {
-                const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, completedIndex);
-                const segmentPoints = trackPoints.slice(segmentStart, segmentEnd);
-
-                if (segmentPoints.length >= 2) {
-                    // Each segment gets its own color based on heart rate
-                    let color = this.pathColor; // Default color
-
-                    if (this.colorMode === 'heartRate' && this.heartRateColors && this.heartRateColors.length > 0) {
-                    // Use heart rate color for this segment
-                    const segmentIndex = Math.floor(segmentStart / SEGMENT_SIZE);
-                    const colorIndex = Math.min(segmentIndex, this.heartRateColors.length - 1);
-                    color = this.heartRateColors[colorIndex] || this.pathColor;
-
-                    console.log('🎨 Segment color:', {
-                        segmentIndex,
-                        colorIndex,
-                        color,
-                        segmentStart,
-                        segmentEnd,
-                        heartRates: heartRates.length > 0 ? heartRates.slice(0, 3) : 'none'
-                    });
-                    }
-
-                    // Create a single LineString for this group of points
-                    const segmentCoordinates = segmentPoints.map(point => [point.lon, point.lat]);
-
-                    completedSegments.push({
-                        type: 'Feature',
-                        properties: {
-                            color: color,
-                            segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE),
-                            pointCount: segmentPoints.length
-                        },
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: segmentCoordinates
-                        }
-                    });
-
-                    console.log('🎨 Created segment:', {
-                        segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE),
-                        pointCount: segmentPoints.length,
-                        color: color,
-                        coordinates: segmentCoordinates.length
-                    });
-                }
-            }
-
-            // Update the completed trail source with colored segments
-            if (this.map.getSource('trail-completed')) {
-                if (completedSegments.length > 0) {
-                    console.log('🎬 Displaying', completedSegments.length, 'colored segments');
-                    this.map.getSource('trail-completed').setData({
-                        type: 'FeatureCollection',
-                        features: completedSegments
-                    });
-
-                    // Update paint property to use feature colors
-                    this.map.setPaintProperty('trail-completed', 'line-color', ['get', 'color']);
-                    this.map.setPaintProperty('trail-completed', 'line-width', 6);
-                    this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
-                } else {
-                    // Empty completed trail
-                    this.map.getSource('trail-completed').setData({
-                        type: 'Feature',
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: []
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Error updating multi-segment trail animation:', error);
-            // Fallback to simple trail update
-            const completedIndex = Math.floor(currentPoint.index);
-            const completedCoordinates = this.trackData.trackPoints
-                .slice(0, completedIndex + 1)
-                .map(point => [point.lon, point.lat]);
-
-            this.map.getSource('trail-completed').setData({
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: completedCoordinates
-                }
-            });
-        }
-    }
-
-
-
-    /**
-     * Update trail line during animation with heart rate colors
-     */
-    updateTrailLineForAnimation(currentPoint) {
-        if (!this.trackData || !this.map.loaded()) {
-            return;
-        }
-
-        try {
-            // Use original track data if available (for journeys), otherwise use current track points
-            const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-
-            if (!trackPoints || trackPoints.length === 0) {
-                return;
-            }
-
-            // Get completed points up to current position
-            const completedIndex = Math.floor(currentPoint.index);
-
-            console.log('🎬 Animation update:', {
-                completedIndex,
-                totalPoints: trackPoints.length,
-                colorMode: this.colorMode,
-                hasHeartRateColors: !!this.heartRateColors,
-                heartRateColorsLength: this.heartRateColors?.length || 0
-            });
-
-            // Update trail-line source to show full track (dimmed during animation)
-            if (this.colorMode === 'heartRate' && this.heartRateSegmentCollection.features.length > 0) {
-                // Show full track with heart rate colors but dimmed
-                this.map.getSource('trail-line').setData(this.heartRateSegmentCollection);
-                this.map.setPaintProperty('trail-line', 'line-color', ['get', 'color']);
-                this.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
-            } else {
-                // Show full track with fixed color but dimmed
-                const allCoordinates = trackPoints.map(point => [point.lon, point.lat]);
-                this.map.getSource('trail-line').setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: allCoordinates
-                    }
-                });
-                this.map.setPaintProperty('trail-line', 'line-color', this.pathColor);
-                this.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
-            }
-
-            // Update trail-completed source with completed portion
-            if (completedIndex < 1) {
-                // No completed trail yet
-                this.map.getSource('trail-completed').setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: []
-                    }
-                });
-                return;
-            }
-
-            this.drawCompletedTrail(trackPoints, completedIndex);
-        } catch (error) {
-            console.error('Error updating trail line for animation:', error);
-        }
-    }
-
-    drawCompletedTrail(trackPoints, completedIndex) {
-        let features = [];
-
-        console.log('🎬 drawCompletedTrail called:', {
-            colorMode: this.colorMode,
-            heartRateSegmentsLength: this.heartRateSegments.length,
-            completedIndex,
-            totalPoints: trackPoints.length
-        });
-
-        if (this.colorMode === 'heartRate' && this.heartRateSegments.length > 0) {
-            features = this.heartRateSegments.flatMap(segment => {
-                const { startIndex, endIndex } = segment.properties;
-
-                if (endIndex < completedIndex) {
-                    return segment;
-                }
-
-                if (startIndex > completedIndex) {
-                    return [];
-                }
-
-                const pointsCompleted = Math.max(0, completedIndex - startIndex);
-                const coords = segment.geometry.coordinates.slice(0, Math.min(pointsCompleted + 2, segment.geometry.coordinates.length));
-                if (coords.length < 2) return [];
-
-                return {
-                    type: 'Feature',
-                    properties: segment.properties,
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: coords
-                    }
-                };
-            });
-        } else {
-            const completedCoordinates = trackPoints
-                .slice(0, Math.max(completedIndex + 1, 2))
-                .map(point => [point.lon, point.lat]);
-
-            features = [{
-                type: 'Feature',
-                properties: { color: this.pathColor },
-                geometry: {
-                    type: 'LineString',
-                    coordinates: completedCoordinates
-                }
-            }];
-        }
-
-        console.log('🎬 Generated features:', features.length);
-
-        if (this.map.getSource('trail-completed')) {
-            this.map.getSource('trail-completed').setData({
-                type: 'FeatureCollection',
-                features
-            });
-            this.map.setPaintProperty('trail-completed', 'line-color', [
-                'case',
-                ['has', 'color'],
-                ['to-color', ['get', 'color']],
-                this.pathColor
-            ]);
-            this.map.setPaintProperty('trail-completed', 'line-width', 6);
-            this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
-        }
-    }
-
-    /**
-     * Update trail visualization with heart rate colors (for static display)
-     */
-    updateTrailWithHeartRateColors() {
-        if (!this.trackData || !this.heartRateColors || !this.map.loaded()) {
-            return;
-        }
-
-        // Use original track data if available (for journeys), otherwise use current track points
-        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-
-        if (!trackPoints || trackPoints.length === 0) {
-            return;
-        }
-
-        console.log('🎨 Static display - heart rate segments available:', this.heartRateSegments.length);
-
-        if (this.map.getSource('trail-line')) {
-            if (this.heartRateSegmentCollection.features.length > 0) {
-                this.map.getSource('trail-line').setData(this.heartRateSegmentCollection);
-                this.map.setPaintProperty('trail-line', 'line-color', ['get', 'color']);
-                this.map.setPaintProperty('trail-line', 'line-opacity', 0.8);
-            } else {
-                const coordinates = trackPoints.map(point => [point.lon, point.lat]);
-                this.map.getSource('trail-line').setData({
-                    type: 'Feature',
-                    geometry: {
-                        type: 'LineString',
-                        coordinates: coordinates
-                    }
-                });
-            }
-        }
-    }
 
 
     // Toggle visibility of the main track label ("Track 1" letters)
@@ -1292,49 +414,7 @@ export class MapRenderer {
         }
     }
 
-    setMarkerSize(size) {
-        this.markerSize = size;
-        
-        if (this.map.loaded()) {
-            this.map.setPaintProperty('current-position-glow', 'circle-radius', 15 * size);
-            if (this.map.getLayer('activity-icon') && this.showMarker) {
-                this.map.setLayoutProperty('activity-icon', 'icon-size', size);
-            }
-            this.updateActivityIcon();
-        }
-    }
 
-    setAutoZoom(enabled) {
-        this.autoZoom = enabled;
-    }
-
-    setShowCircle(enabled) {
-        this.showCircle = enabled;
-        
-        if (this.map && this.map.loaded()) {
-            this.updateActivityIcon();
-        }
-    }
-
-    setShowMarker(enabled) {
-        this.showMarker = enabled;
-        
-        if (this.map && this.map.loaded()) {
-            this.updateMarkerVisibility();
-        }
-        
-        // Update UI controls that depend on marker visibility
-        this.updateMarkerDependentControls(enabled);
-    }
-
-    setShowEndStats(enabled) {
-        this.showEndStats = enabled;
-
-    }
-
-    setAnimationSpeed(speed) {
-        this.animationSpeed = speed;
-    }
 
     getBaseIcon() {
         // If user has selected a custom base icon, use that
@@ -1377,510 +457,21 @@ export class MapRenderer {
         return true;
     }
 
-    loadTrack(trackData) {
-        this.trackData = trackData;
-
-        this.heartRateSegments = [];
-        this.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
-
-        // Use optimized track data if available, otherwise fall back to original
-        const trackPoints = trackData.trackPoints || [];
-        if (trackPoints.length === 0) {
-            return;
-        }
-
-        // Generate heart rate colors when needed (either data available or heart-rate mode active)
-        const shouldGenerateHeartRateColors = this.colorMode === 'heartRate' || trackData.stats?.hasHeartRateData;
-        if (shouldGenerateHeartRateColors) {
-            console.log('💓 Preparing heart rate colors during track load');
-            this.generateHeartRateColors();
-        }
-
-        // Create GeoJSON for the trail with elevation data
-        const coordinates = trackPoints.map(point => {
-            const elevation = point.elevation || 0;
-            return [point.lon, point.lat, elevation];
-        });
-        
-        // Handle journey segments if available
-        if (trackData.isJourney && trackData.segments) {
-            this.loadJourneySegments(trackData, coordinates);
-        } else {
-            // Standard single track
-            const trailLineData = {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: coordinates
-                },
-                properties: {
-                    distance: trackData.stats.totalDistance,
-                    elevation: trackData.stats.elevationGain
-                }
-            };
-
-            this.map.getSource('trail-line').setData(trailLineData);
-        }
-
-        // Fit map to trail bounds with proper zoom level
-        if (trackData.bounds && 
-            !isNaN(trackData.bounds.west) && !isNaN(trackData.bounds.south) && 
-            !isNaN(trackData.bounds.east) && !isNaN(trackData.bounds.north)) {
-            
-            // Use fitBounds to properly set both center and zoom level
-            const bounds = [
-                [trackData.bounds.west, trackData.bounds.south], // Southwest corner
-                [trackData.bounds.east, trackData.bounds.north]  // Northeast corner
-            ];
-            
-            // Calculate appropriate padding based on track size
-            const latDiff = trackData.bounds.north - trackData.bounds.south;
-            const lonDiff = trackData.bounds.east - trackData.bounds.west;
-            const maxDiff = Math.max(latDiff, lonDiff);
-            
-            // Adjust padding based on track size - smaller tracks need more padding
-            let padding = 50; // Default padding
-            if (maxDiff < 0.01) padding = 100;      // Very small track
-            else if (maxDiff < 0.05) padding = 80;  // Small track
-            else if (maxDiff < 0.1) padding = 60;   // Medium track
-            
-            const fitOptions = {
-                padding: padding,
-                duration: 1000, // Smooth animation to new bounds
-                maxZoom: 16 // Prevent zooming in too much for very small tracks
-            };
-            
-            // Wait a moment for map to be fully initialized before fitting bounds
-            setTimeout(() => {
-                if (this.map && this.map.isStyleLoaded()) {
-                    this.map.fitBounds(bounds, fitOptions);
-                } else {
-                    // If map isn't ready, wait for it
-                    this.map.once('load', () => {
-                        this.map.fitBounds(bounds, fitOptions);
-                    });
-                }
-            }, 100);
-        }
-
-        // Reset animation 
-        this.animationProgress = 0;
-        if (!trackData.isJourney) {
-            this.iconChanges.iconChanges = [];
-        }
-        this.annotations.annotations = [];
-        
-        // Initialize camera positioning after track is loaded
-        setTimeout(() => {
-            this.initializeTrackCameraPosition(trackData);
-        }, 200);
-        
-        // Reset follow-behind camera for new track
-        this.followBehindCamera.reset();
-        
-        // Set current icon to the activity icon if present, otherwise base icon
-        if (trackData.activityIcon) {
-            this.setCurrentIcon(trackData.activityIcon);
-        } else {
-            this.currentIcon = this.getBaseIcon();
-        }
-        
-        // Initialize icon if map is loaded
-        if (this.map.loaded()) {
-            this.updateActivityIcon();
-        } else {
-            this.map.once('load', () => {
-                this.updateActivityIcon();
-            });
-        }
-        
-        this.updateCurrentPosition();
-        
-        // Apply 3D rendering if in 3D mode
-        if (this.is3DMode) {
-            this.update3DTrailRendering();
-        }
-        
-        // If in follow-behind mode, automatically set up the camera for this track
-        if (this.cameraMode === 'followBehind') {
-
-            setTimeout(() => {
-                this.followBehindCamera.initialize();
-            }, 1500); // Wait for map bounds fitting to complete
-        }
-
-        // Detect and apply proper map layout based on aspect ratio
-        setTimeout(() => {
-            this.detectAndSetMapLayout();
-        }, 200); // Small delay to ensure map container is properly sized
-    }
-
     updateCurrentPosition() {
-        // Debug: Track animation calls
-        if (this.animationProgress > 0 && this.animationProgress < 0.01) {
-            console.log('🎬 updateCurrentPosition called at animation start');
-        }
-
-        // Ensure GPX parser is ready
-        if (!this.ensureGPXParserReady()) {
-            return;
-        }
-        // --- Per-segment progress calculation ---
-        let globalProgress = 0;
-        if (this.segmentTimings && this.segmentTimings.segments && this.segmentTimings.segments.length > 0) {
-            const { segmentIndex, segmentProgress } = this.getSegmentAndLocalProgress(this.journeyElapsedTime);
-            const seg = this.segmentTimings.segments[segmentIndex];
-            if (this.trackData && this.trackData.trackPoints && typeof seg.startIndex === 'number' && typeof seg.endIndex === 'number') {
-                const segStart = seg.startIndex;
-                const segEnd = seg.endIndex;
-                const segLength = segEnd - segStart;
-                globalProgress = (segStart + segmentProgress * segLength) / (this.trackData.trackPoints.length - 1);
-            } else {
-                globalProgress = Math.min(this.journeyElapsedTime / this.segmentTimings.totalDuration, 1);
-            }
-        } else {
-            globalProgress = this.animationProgress;
-        }
-        const currentPoint = this.gpxParser.getInterpolatedPoint(globalProgress);
-        
-        if (isNaN(currentPoint.lat) || isNaN(currentPoint.lon)) {
-            console.error('NaN coordinates from interpolated point:', currentPoint, 'Progress:', globalProgress);
-            return;
-        }
-        
-        // Update current position marker
-        this.map.getSource('current-position').setData({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: [currentPoint.lon, currentPoint.lat]
-            },
-            properties: {
-                elevation: currentPoint.elevation,
-                speed: currentPoint.speed,
-                distance: currentPoint.distance
-            }
-        });
-
-        // Update comparison position if in comparison mode
-        if (this.comparisonMode && this.animationProgress < 0.01) {
-            console.log('🔄 Calling updateComparisonPosition from animation loop');
-        }
-        this.updateComparisonPosition();
-        // Update any additional overlapping tracks
-        this.updateAdditionalComparisons();
-
-        // Update trail for animation - use unified approach
-        const completedIndex = Math.floor(currentPoint.index);
-        const trackPoints = this.trackData.originalTrackData?.trackPoints || this.trackData.trackPoints;
-        
-        // Update trail-line source to show full track (dimmed during animation)
-        this.updateTrailLineForAnimation(currentPoint);
-        
-        // Update trail-completed source with completed portion
-        this.drawCompletedTrail(trackPoints, completedIndex);
-
-        // Check for icon changes - ensure method is properly bound
-        if (this.iconChanges && typeof this.iconChanges.checkIconChanges === 'function') {
-            try {
-                this.iconChanges.checkIconChanges(globalProgress);
-                } catch (error) {
-                console.error('Error calling checkIconChanges:', error);
-            }
-        }
-
-        // Check for annotations
-        if (this.annotations && typeof this.annotations.checkAnnotations === 'function') {
-        this.annotations.checkAnnotations(globalProgress);
-        }
-
-        // Check for picture annotations
-        if (this.pictureAnnotations && typeof this.pictureAnnotations.checkPictureAnnotations === 'function') {
-            this.pictureAnnotations.checkPictureAnnotations(globalProgress);
-        }
-
-        // Auto zoom to follow the marker (always if auto zoom is enabled and we're animating)
-        if (this.autoZoom && this.isAnimating) {
-            // Calculate center point for dual marker centering in comparison mode
-            const centerPoint = this.calculateDualMarkerCenter(currentPoint);
-
-            if (this.cameraMode === 'followBehind') {
-                // Follow-behind camera mode: delegate to FollowBehindCamera
-                this.followBehindCamera.updateCameraPosition();
-            } else if (this.is3DMode) {
-                // Standard 3D mode, maintain the camera angle while following
-                this.map.easeTo({
-                    center: [centerPoint.lon, centerPoint.lat],
-                    duration: this.performanceMode ? 50 : 100, // Faster transitions during recording
-                    pitch: this.map.getPitch(), // Maintain current pitch
-                    bearing: this.map.getBearing() // Maintain current bearing
-                });
-            } else {
-                // Normal 2D following with dual marker centering
-                this.map.easeTo({
-                    center: [centerPoint.lon, centerPoint.lat],
-                    duration: this.performanceMode ? 50 : 100 // Faster transitions during recording
-                });
-            }
-        }
-
-        // Update main track label position
-        if (this.map.getSource('main-track-label')) {
-            this.map.getSource('main-track-label').setData({
-                type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [currentPoint.lon, currentPoint.lat]
-                },
-                properties: {
-                    label: 'Track 1'
-                }
-            });
-        }
-
-        // Ensure activity icon layer exists and is visible
-        this.ensureActivityIconLayer();
+        this.animationController.updateCurrentPosition();
     }
 
-    async startAnimation() {
-        if (!this.trackData || this.isAnimating || !this.segmentTimings) {
-            return;
-        }
 
-        // Ensure visible tiles are loaded before starting to avoid flicker
-        if (this.map && typeof this.map.loaded === 'function' && !this.map.loaded()) {
-            try {
-                await new Promise((resolve) => {
-                    const onIdle = () => resolve();
-                    this.map.once('idle', onIdle);
-                });
-            } catch (_) {
-                // Non-fatal: proceed even if waiting fails
-            }
-        }
-        
-        if (this.segmentTimings && this.segmentTimings.totalDuration && this.journeyElapsedTime === 0) {
-            this.journeyElapsedTime = this.animationProgress * this.segmentTimings.totalDuration;
-        }
-        
-        // Reset picture annotation triggered states for a clean start
-        if (this.pictureAnnotations && this.pictureAnnotations.resetTriggeredStates) {
-            this.pictureAnnotations.resetTriggeredStates();
-        }
-        
-        // If in follow-behind mode and should trigger cinematic start
-        if (this.cameraMode === 'followBehind' && this.followBehindCamera.shouldTriggerCinematic() && this.animationProgress <= 0.05) {
 
-            this.followBehindCamera.setCinematicStart(false); // Prevent multiple triggers
-            
-            // Wait for cinematic zoom-in to complete BEFORE starting trail animation
-            // Use video export-specific method if available (for consistent timing)
-            if (this.followBehindCamera.startCinematicSequenceForVideoExport) {
-                await this.followBehindCamera.startCinematicSequenceForVideoExport();
-            } else {
-                await this.followBehindCamera.startCinematicSequence();
-            }
 
-        }
-        
-        // Now start the actual trail animation
-        this.isAnimating = true;
-        
-        // Hide the full track line during animation - only show completed portion
-        if (this.map.getLayer('trail-line')) {
-            this.map.setPaintProperty('trail-line', 'line-opacity', 0);
-        }
-        // Hide the full comparison line during animation - only show its completed portion
-        if (this.map.getLayer('comparison-trail-line')) {
-            this.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0);
-        }
-        // Hide all overlapping tracks full lines during animation
-        this.applyOverlapLineVisibilityDuringAnimation(true);
-        
-        // If in follow-behind mode, disable all map interactions during animation
-        if (this.cameraMode === 'followBehind') {
-            this.disableMapInteractions();
-        }
-        this.lastAnimationTime = 0;
-        this.updateCurrentPosition();
-        this.animate();
-    }
 
-    animate() {
-        if (!this.isAnimating || !this.segmentTimings) return;
 
-        const currentTime = performance.now();
-        if (this.lastAnimationTime === 0) {
-            this.lastAnimationTime = currentTime;
-        }
-        
-        const deltaTime = (currentTime - this.lastAnimationTime) / 1000;
-        this.lastAnimationTime = currentTime;
 
-        const timeIncrement = deltaTime * this.animationSpeed;
-        this.journeyElapsedTime += timeIncrement;
 
-        // --- Per-segment progress calculation ---
-        let globalProgress = 0;
-        if (this.segmentTimings.segments && this.segmentTimings.segments.length > 0) {
-            const { segmentIndex, segmentProgress } = this.getSegmentAndLocalProgress(this.journeyElapsedTime);
-            const seg = this.segmentTimings.segments[segmentIndex];
-            // Map to global progress (index in trackPoints)
-            if (this.trackData && this.trackData.trackPoints && typeof seg.startIndex === 'number' && typeof seg.endIndex === 'number') {
-                const segStart = seg.startIndex;
-                const segEnd = seg.endIndex;
-                const segLength = segEnd - segStart;
-                globalProgress = (segStart + segmentProgress * segLength) / (this.trackData.trackPoints.length - 1);
-            } else {
-                // Fallback: use time proportion
-                globalProgress = Math.min(this.journeyElapsedTime / this.segmentTimings.totalDuration, 1);
-            }
-        } else if (this.segmentTimings.totalDuration > 0) {
-            // Single GPX fallback
-            globalProgress = Math.min(this.journeyElapsedTime / this.segmentTimings.totalDuration, 1);
-        }
-        this.animationProgress = globalProgress;
 
-        if (this.journeyElapsedTime >= this.segmentTimings.totalDuration) {
-            this.animationProgress = 1;
-            this.journeyElapsedTime = this.segmentTimings.totalDuration;
-            this.isAnimating = false;
-            
-            // Show the full track line again when animation completes
-            if (this.map.getLayer('trail-line')) {
-                this.map.setPaintProperty('trail-line', 'line-opacity', [
-                    'case',
-                    ['==', ['get', 'isTransportation'], true], 0.9,
-                    0.8
-                ]);
-            }
-            // Show the full comparison line again when animation completes
-            if (this.map.getLayer('comparison-trail-line')) {
-                this.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);
-            }
-            // Show overlapping tracks full lines again when animation completes
-            this.applyOverlapLineVisibilityDuringAnimation(false);
-            
-            // Trigger stats end animation
-            this.triggerStatsEndAnimation();
-            
-            // If in follow-behind mode, trigger zoom-out to show whole track after a brief pause
-            if (this.cameraMode === 'followBehind') {
 
-                setTimeout(() => {
-                    this.followBehindCamera.zoomOutToWholeTrack();
-                }, this.followBehindCamera.getZoomOutDelay());
-            }
-        }
 
-        this.updateCurrentPosition();
 
-        // Preload tiles 2 seconds ahead in follow-behind mode
-        if (this.cameraMode === 'followBehind' && this.autoZoom && this.trackData && this.gpxParser) {
-            const lookAheadSeconds = 2;
-            const totalDuration = this.segmentTimings.totalDuration || 1;
-            const lookAheadTime = Math.min(this.journeyElapsedTime + lookAheadSeconds, totalDuration);
-            let lookAheadProgress = 0;
-            if (this.segmentTimings.segments && this.segmentTimings.segments.length > 0) {
-                const { segmentIndex, segmentProgress } = this.getSegmentAndLocalProgress(lookAheadTime);
-                const seg = this.segmentTimings.segments[segmentIndex];
-                if (this.trackData && this.trackData.trackPoints && typeof seg.startIndex === 'number' && typeof seg.endIndex === 'number') {
-                    const segStart = seg.startIndex;
-                    const segEnd = seg.endIndex;
-                    const segLength = segEnd - segStart;
-                    lookAheadProgress = (segStart + segmentProgress * segLength) / (this.trackData.trackPoints.length - 1);
-                } else {
-                    lookAheadProgress = lookAheadTime / totalDuration;
-                }
-            } else {
-                lookAheadProgress = lookAheadTime / totalDuration;
-            }
-            const lookAheadPoint = this.gpxParser.getInterpolatedPoint(lookAheadProgress);
-            let lookAheadZoom = 14; // Default
-            if (typeof this.followBehindCamera?.getCurrentPresetSettings === 'function') {
-                lookAheadZoom = this.followBehindCamera.getCurrentPresetSettings().ZOOM || 14;
-            }
-            if (lookAheadPoint && lookAheadPoint.lat && lookAheadPoint.lon) {
-                const pitch = this.map.getPitch ? this.map.getPitch() : 0;
-                const bufferScale = 1.25 + Math.min(pitch, 60) / 120; // widen with pitch
-                this.preloadTilesAtPosition(lookAheadPoint.lat, lookAheadPoint.lon, Math.round(lookAheadZoom), this.currentMapStyle, { bufferScale });
-            }
-        }
-
-        if (this.isAnimating) {
-            requestAnimationFrame(() => this.animate());
-        }
-    }
-
-    stopAnimation() {
-        this.isAnimating = false;
-        
-        // Show the full track line again when animation stops
-        if (this.map.getLayer('trail-line')) {
-            this.map.setPaintProperty('trail-line', 'line-opacity', [
-                'case',
-                ['==', ['get', 'isTransportation'], true], 0.9,
-                0.8
-            ]);
-        }
-        // Show the full comparison line again when animation stops
-        if (this.map.getLayer('comparison-trail-line')) {
-            this.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);
-        }
-        // Show overlapping tracks full lines when animation stops
-        this.applyOverlapLineVisibilityDuringAnimation(false);
-        
-        // If in follow-behind mode, allow zooming when paused
-        if (this.cameraMode === 'followBehind') {
-            this.enableZoomOnlyInteractions();
-        }
-    }
-
-    resetAnimation() {
-        this.isAnimating = false;
-        this.animationProgress = 0;
-        this.currentSegmentIndex = 0;
-        this.segmentProgress = 0;
-        this.lastAnimationTime = 0;
-        this.journeyElapsedTime = 0;
-        this.annotations.hideActiveAnnotation();
-        
-        // Reset picture annotation triggered states
-        if (this.pictureAnnotations && this.pictureAnnotations.resetTriggeredStates) {
-            this.pictureAnnotations.resetTriggeredStates();
-        }
-        
-        // Reset stats end animation
-        this.resetStatsEndAnimation();
-        
-        // Reset follow-behind specific flags for next animation
-        this.followBehindCamera.setCinematicStart(true);
-        
-        // Show the full track line when animation is reset
-        if (this.map.getLayer('trail-line')) {
-            this.map.setPaintProperty('trail-line', 'line-opacity', [
-                'case',
-                ['==', ['get', 'isTransportation'], true], 0.9,
-                0.8
-            ]);
-        }
-        // Show the full comparison line when animation is reset
-        if (this.map.getLayer('comparison-trail-line')) {
-            this.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);
-        }
-        // Show overlapping tracks full lines when animation is reset
-        this.applyOverlapLineVisibilityDuringAnimation(false);
-        
-        this.updateCurrentPosition();
-        
-        // If in follow-behind mode, reset camera to starting position (instantly, no animation)
-        if (this.cameraMode === 'followBehind') {
-
-            setTimeout(() => {
-                this.followBehindCamera.setStartingPosition(true); // true = instant, no animation
-            }, 100);
-        }
-    }
 
     // Enhanced activity icon creation and management
     createAndAddActivityIcon() {
@@ -2194,109 +785,9 @@ export class MapRenderer {
         }
     }
 
-    triggerStatsEndAnimation() {
-        const overlay = document.getElementById('liveStatsOverlay');
-        if (!overlay || !this.showEndStats) {
-            return;
-        }
 
-        // Populate final stats with selected values
-        this.populateFinalStats();
 
-        // Use the new layout detection function
-        this.detectAndSetMapLayout();
 
-        const liveSpeedSegments = document.getElementById('liveSpeedSegments');
-        if (liveSpeedSegments) {
-            liveSpeedSegments.style.display = 'none';
-        }
-
-        const liveSpeedItem = document.getElementById('liveSpeedItem');
-        if (liveSpeedItem) {
-            liveSpeedItem.style.display = 'none';
-        }
-
-        // Add the end animation class to trigger the CSS transition
-        overlay.classList.add('end-animation');
-
-        // Remove the animation after 10 seconds to return to normal state
-        setTimeout(() => {
-            overlay.classList.remove('end-animation', 'mobile-layout', 'square-layout', 'horizontal-layout', 'with-speed');
-        }, 10000);
-    }
-
-    populateFinalStats() {
-        // Get selected stats from the app
-        const selectedStats = this.app.getSelectedEndStats ? this.app.getSelectedEndStats() : ['distance', 'elevation'];
-        console.log('populateFinalStats - selectedStats:', selectedStats);
-
-        // Get the final stat elements
-        const finalStatsElements = {
-            distance: document.getElementById('finalDistance'),
-            elevation: document.getElementById('finalElevation'),
-            duration: document.getElementById('finalDuration'),
-            speed: document.getElementById('finalSpeed'),
-            pace: document.getElementById('finalPace'),
-            maxelevation: document.getElementById('finalMaxElevation'),
-            minelevation: document.getElementById('finalMinElevation')
-        };
-
-        // Get source elements
-        const sourceElements = {
-            distance: document.getElementById('totalDistance'),
-            elevation: document.getElementById('elevationGain'),
-            duration: document.getElementById('duration'),
-            speed: document.getElementById('averageSpeed'),
-            pace: document.getElementById('averagePace'),
-            maxelevation: document.getElementById('maxElevation'),
-            minelevation: document.getElementById('minElevation')
-        };
-
-        // Hide all final stat boxes first
-        const allBoxes = document.querySelectorAll('.final-stat-box');
-        allBoxes.forEach(box => {
-            box.style.display = 'none';
-        });
-
-        // Show and populate only selected stats
-        selectedStats.forEach(statKey => {
-            const finalElement = finalStatsElements[statKey];
-            const sourceElement = sourceElements[statKey];
-            const box = document.querySelector(`.final-stat-box[data-stat="${statKey}"]`);
-
-            if (finalElement && sourceElement && box) {
-                finalElement.textContent = sourceElement.textContent;
-                box.style.display = 'block';
-            }
-        });
-    }
-
-    resetStatsEndAnimation() {
-        const overlay = document.getElementById('liveStatsOverlay');
-        if (!overlay) return;
-
-        // Remove the end animation class and layout classes to return to normal state
-        overlay.classList.remove('end-animation', 'mobile-layout', 'square-layout', 'horizontal-layout', 'with-speed');
-
-        // Hide final stats content when animation ends
-        const finalStatsContent = overlay.querySelector('.final-stats-content');
-        if (finalStatsContent) {
-            finalStatsContent.style.display = 'none';
-        }
-    }
-
-    // Toggle all overlapping tracks full-line visibility (hide during animation)
-    applyOverlapLineVisibilityDuringAnimation(hide) {
-        if (!this.additionalComparisons) return;
-        for (let i = 0; i < this.additionalComparisons.length; i++) {
-            const entry = this.additionalComparisons[i];
-            if (!entry) continue;
-            const layerId = `overlap-${entry.index}-trail-line`;
-            if (this.map.getLayer(layerId)) {
-                this.map.setPaintProperty(layerId, 'line-opacity', hide ? 0 : 0.8);
-            }
-        }
-    }
 
     destroy() {
         if (this.map) {
@@ -2588,222 +1079,7 @@ export class MapRenderer {
         }
     }
 
-    // 3D Terrain functionality
-    enable3DTerrain() {
-        if (!this.map || this.is3DMode) return;
 
-        const wasAnimating = this.isAnimating;
-        const currentProgress = this.animationProgress;
-
-        try {
-            // 1) Ensure DEM source exists
-            if (!this.map.getSource('terrain-dem')) {
-                this.addTerrainSource(this.currentTerrainSource);
-            }
-
-            // 2) Apply terrain immediately
-            try {
-                this.map.setTerrain({ source: 'terrain-dem', exaggeration: 0.8 });
-            } catch (terrainError) {
-                console.warn('Could not apply terrain elevation immediately:', terrainError);
-            }
-
-            // 3) Preload DEM around current center at current zoom to reduce flashes
-            try {
-                const center = this.map.getCenter();
-                const z = Math.round(this.map.getZoom());
-                this.preloadTerrainTilesAtPosition(center.lat, center.lng, z);
-            } catch (_) {}
-
-            // 4) After the map goes idle (or short delay), pitch up
-            const pitchUp = () => {
-                this.map.easeTo({ pitch: 30, duration: 500 });
-            };
-
-            // Prefer idle, but fall back to timeout if it doesn't fire soon
-            let pitched = false;
-            const onIdle = () => { if (!pitched) { pitched = true; pitchUp(); } };
-            try {
-                this.map.once('idle', onIdle);
-                setTimeout(() => { if (!pitched) { pitched = true; pitchUp(); } }, 400);
-            } catch (_) {
-                setTimeout(pitchUp, 300);
-            }
-
-            this.is3DMode = true;
-
-            // Restore animation state if needed
-            if (wasAnimating && currentProgress !== undefined) {
-                setTimeout(() => {
-                    this.setAnimationProgress(currentProgress);
-                    if (wasAnimating) this.startAnimation();
-                }, 200);
-            }
-        } catch (error) {
-            console.error('Error enabling 3D terrain:', error);
-            this.is3DMode = false;
-        }
-    }
-
-    setupTerrainSourceMinimal() {
-        try {
-            if (!this.map.getSource('terrain-dem')) {
-                this.addTerrainSource(this.currentTerrainSource);
-            }
-            
-            setTimeout(() => {
-                try {
-                    this.map.setTerrain({
-                        source: 'terrain-dem',
-                        exaggeration: 0.8
-                    });
-                } catch (terrainError) {
-                    console.warn('Could not apply terrain elevation:', terrainError);
-                }
-            }, 300);
-            
-        } catch (error) {
-            console.warn('Could not setup terrain source:', error);
-        }
-    }
-
-    addTerrainSource(provider) {
-        const sources = {
-            'mapzen': {
-                type: 'raster-dem',
-                tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                encoding: 'terrarium',
-                maxzoom: 15
-            },
-            'opentopo': {
-                type: 'raster-dem',
-                tiles: ['https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/SRTM_GL1/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                encoding: 'mapbox',
-                maxzoom: 14
-            }
-        };
-
-        const sourceConfig = sources[provider] || sources['mapzen'];
-        this.map.addSource('terrain-dem', sourceConfig);
-    }
-
-    setTerrainSource(provider) {
-        if (!this.map || !this.is3DMode) {
-            this.currentTerrainSource = provider;
-            return;
-        }
-
-        try {
-            const wasAnimating = this.isAnimating;
-            const currentProgress = this.animationProgress;
-            
-            if (this.map.getSource('terrain-dem')) {
-                this.map.setTerrain(null);
-                this.map.removeSource('terrain-dem');
-            }
-            
-            this.addTerrainSource(provider);
-            this.currentTerrainSource = provider;
-            
-            setTimeout(() => {
-                try {
-                    this.map.setTerrain({
-                        source: 'terrain-dem',
-                        exaggeration: 0.8
-                    });
-                    
-                    if (wasAnimating && currentProgress !== undefined) {
-                        setTimeout(() => {
-                            this.setAnimationProgress(currentProgress);
-                            if (wasAnimating) {
-                                this.startAnimation();
-                            }
-                        }, 200);
-                    }
-                } catch (terrainError) {
-                    console.warn(`Could not apply ${provider} terrain:`, terrainError);
-                }
-            }, 300);
-            
-        } catch (error) {
-            console.error(`Error switching terrain source to ${provider}:`, error);
-        }
-    }
-
-    disable3DTerrain() {
-        if (!this.map || !this.is3DMode) return;
-        
-        this.is3DMode = false;
-        
-        try {
-            const wasAnimating = this.isAnimating;
-            const currentProgress = this.animationProgress;
-            
-            this.map.setTerrain(null);
-            
-            this.map.easeTo({
-                pitch: 0,
-                duration: 500
-            });
-            
-            if (wasAnimating && currentProgress !== undefined) {
-                setTimeout(() => {
-                    this.setAnimationProgress(currentProgress);
-                    if (wasAnimating) {
-                        this.startAnimation();
-                    }
-                }, 600);
-            }
-        } catch (error) {
-            console.error('Error disabling 3D terrain:', error);
-        }
-    }
-
-    update3DTrailRendering() {
-        if (!this.trackData || !this.map.getLayer('trail-line')) {
-            return;
-        }
-        
-        this.map.setPaintProperty('trail-line', 'line-width', [
-            'case',
-            ['==', ['get', 'isTransportation'], true], 8,
-            6
-        ]);
-        
-        if (this.map.getLayer('trail-completed')) {
-            this.map.setPaintProperty('trail-completed', 'line-width', 7);
-            this.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
-        }
-        
-        this.map.setPaintProperty('trail-line', 'line-opacity', [
-            'case',
-            ['==', ['get', 'isTransportation'], true], 0.9,
-            0.8
-        ]);
-        
-        if (this.map.getLayer('current-position-glow')) {
-            this.map.setPaintProperty('current-position-glow', 'circle-radius', 20 * this.markerSize);
-        }
-    }
-
-    setTerrainExaggeration(exaggeration) {
-        if (this.is3DMode && this.map.getSource('terrain-dem')) {
-            try {
-                this.map.setTerrain({
-                    source: 'terrain-dem',
-                    exaggeration: exaggeration
-                });
-            } catch (error) {
-                console.error('Error setting terrain exaggeration:', error);
-            }
-        }
-    }
-
-    isTerrainSupported() {
-        return typeof this.map.setTerrain === 'function' && typeof this.map.addSource === 'function';
-    }
 
     // Stats methods for video export
     getCurrentDistance() {
@@ -3445,11 +1721,14 @@ export class MapRenderer {
         
         // Initialize based on camera mode
         if (this.cameraMode === 'followBehind') {
-            // Initialize follow-behind camera with terrain-aware settings
+            // For follow-behind mode, don't override the fitBounds overview
+            // The fitBounds in TrackManager.loadTrack already shows the route overview
+            // The cinematic sequence will zoom in when animation starts
+            // Just initialize terrain-aware settings without changing camera position
             this.followBehindCamera.initializeTerrainAwareSettings();
             
-            // Set the starting position for follow-behind mode
-            this.followBehindCamera.setStartingPosition(true); // instant = true for initial load
+            // Don't call setStartingPosition here - let fitBounds show the route overview
+            // The cinematic sequence will handle the zoom-in when play is clicked
             
         } else {
             // Standard mode - ensure proper zoom level is set
@@ -4468,4 +2747,104 @@ export class MapRenderer {
             console.warn(`⚠️ Failed to update track ${trackNumber} label:`, error.message);
         }
     }
-} 
+
+    generateHeartRateColors() {
+        this.heartRateController.generateHeartRateColors();
+    }
+
+    prepareHeartRateSegments(trackPoints) {
+        this.heartRateController.prepareHeartRateSegments(trackPoints);
+    }
+
+    updateCompletedTrailWithHeartRateAnimation(currentPoint) {
+        this.heartRateController.updateCompletedTrailWithHeartRateAnimation(currentPoint);
+    }
+
+    updateTrailWithHeartRateColors() {
+        this.heartRateController.updateTrailWithHeartRateColors();
+    }
+
+    updateMapColors() {
+        // Update trail colors to use the standard path color when not in heart rate mode
+        if (this.map && this.map.loaded()) {
+            const color = this.pathColor || '#C1652F';
+            
+            if (this.map.getLayer('trail-line')) {
+                this.map.setPaintProperty('trail-line', 'line-color', color);
+            }
+            if (this.map.getLayer('trail-completed')) {
+                this.map.setPaintProperty('trail-completed', 'line-color', color);
+            }
+            if (this.map.getLayer('current-position-glow')) {
+                this.map.setPaintProperty('current-position-glow', 'circle-color', color);
+            }
+            if (this.map.getLayer('main-track-label')) {
+                this.map.setPaintProperty('main-track-label', 'text-color', color);
+            }
+        }
+    }
+
+    setPathColor(color) {
+        this.uiMapController.setPathColor(color);
+    }
+
+    setMarkerSize(size) {
+        this.uiMapController.setMarkerSize(size);
+    }
+
+    setAutoZoom(enabled) {
+        this.uiMapController.setAutoZoom(enabled);
+    }
+
+    setShowCircle(enabled) {
+        this.uiMapController.setShowCircle(enabled);
+    }
+
+    setShowMarker(enabled) {
+        this.uiMapController.setShowMarker(enabled);
+    }
+
+    setShowEndStats(enabled) {
+        this.uiMapController.setShowEndStats(enabled);
+    }
+
+    setAnimationSpeed(speed) {
+        this.uiMapController.setAnimationSpeed(speed);
+    }
+
+    setActivityType(activityType) {
+        this.uiMapController.setActivityType(activityType);
+    }
+
+    setCurrentIcon(icon) {
+        this.uiMapController.setCurrentIcon(icon);
+    }
+
+    clearUserBaseIcon() {
+        this.uiMapController.clearUserBaseIcon();
+    }
+
+    setColorMode(mode) {
+        this.uiMapController.setColorMode(mode);
+    }
+
+    updateHeartRateZones() {
+        this.uiMapController.updateHeartRateZones();
+    }
+
+    startAnimation() {
+        this.animationController.startAnimation();
+    }
+
+    stopAnimation() {
+        this.animationController.stopAnimation();
+    }
+
+    resetAnimation() {
+        this.animationController.resetAnimation();
+    }
+
+    loadTrack(trackData) {
+        this.trackManager.loadTrack(trackData);
+    }
+}

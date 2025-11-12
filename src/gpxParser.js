@@ -369,6 +369,29 @@ export class GPXParser {
         };
     }
 
+    getTrackPointsToProgress(progress) {
+        if (!this.trackPoints || this.trackPoints.length === 0) {
+            return [];
+        }
+
+        const totalPoints = this.trackPoints.length;
+        const targetIndex = progress * (totalPoints - 1);
+        const lastCompletedPointIndex = Math.floor(targetIndex);
+
+        const completedCoordinates = this.trackPoints
+            .slice(0, lastCompletedPointIndex + 1)
+            .map(p => [p.lon, p.lat]);
+
+        if (progress < 1) {
+            const interpolatedPoint = this.getInterpolatedPoint(progress);
+            if (interpolatedPoint) {
+                completedCoordinates.push([interpolatedPoint.lon, interpolatedPoint.lat]);
+            }
+        }
+
+        return completedCoordinates;
+    }
+
     // Get activity segments for triathlon or multi-sport activities
     detectActivitySegments() {
         if (this.trackPoints.length === 0) return [];
