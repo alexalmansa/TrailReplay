@@ -107,8 +107,18 @@ export class UIMapController {
             if (this.renderer.heartRateColors && this.renderer.heartRateColors.length > 0) {
                 this.renderer.updateTrailWithHeartRateColors();
             }
+            
+            // If animating, update trail-line opacity to show heart rate colors
+            if (this.renderer.isAnimating && this.renderer.map.getLayer('trail-line')) {
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
+            }
         } else {
             this.renderer.updateMapColors();
+            
+            // If animating, hide trail-line in fixed color mode
+            if (this.renderer.isAnimating && this.renderer.map.getLayer('trail-line')) {
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0);
+            }
         }
     }
 
@@ -119,7 +129,9 @@ export class UIMapController {
             
             if (this.renderer.colorMode === 'heartRate') {
                 this.renderer.generateHeartRateColors();
-                this.renderer.updateMapColors();
+                if (this.renderer.heartRateColors && this.renderer.heartRateColors.length > 0) {
+                    this.renderer.updateTrailWithHeartRateColors();
+                }
             }
         }
     }

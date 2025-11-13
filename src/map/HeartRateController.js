@@ -32,6 +32,10 @@ export class HeartRateController {
 
         if (this.renderer.heartRateColors && this.renderer.heartRateColors.length > 0) {
             this.prepareHeartRateSegments(trackPoints);
+            // If in heart rate mode and map is loaded, update the trail immediately
+            if (this.renderer.colorMode === 'heartRate' && this.renderer.map && this.renderer.map.loaded()) {
+                this.updateTrailWithHeartRateColors();
+            }
         } else {
             this.renderer.heartRateSegments = [];
             this.renderer.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };

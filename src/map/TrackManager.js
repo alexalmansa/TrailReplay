@@ -25,6 +25,10 @@ export class TrackManager {
         const shouldGenerateHeartRateColors = this.renderer.colorMode === 'heartRate' || trackData.stats?.hasHeartRateData;
         if (shouldGenerateHeartRateColors) {
             this.renderer.generateHeartRateColors();
+            // If already in heart rate mode, update the trail with heart rate colors
+            if (this.renderer.colorMode === 'heartRate' && this.renderer.heartRateColors && this.renderer.heartRateColors.length > 0) {
+                this.renderer.updateTrailWithHeartRateColors();
+            }
         }
 
         const coordinates = trackPoints.map(point => {
@@ -94,6 +98,10 @@ export class TrackManager {
         setTimeout(() => {
             this.renderer.initializeTrackCameraPosition(trackData);
         }, 200);
+        
+        if (typeof this.renderer.scheduleZoomNudge === 'function') {
+            this.renderer.scheduleZoomNudge(1800);
+        }
         
         this.renderer.followBehindCamera.reset();
         
