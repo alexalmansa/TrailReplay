@@ -25,7 +25,8 @@ https://github.com/user-attachments/assets/c42e5efd-6c08-4591-ab66-92cc16484f24
 ## Highlights
 - **In-browser GPX studio**: Drag-and-drop one or many GPX files, paste links from Strava or Wikiloc to open their download pages, and attach local images that become picture-in-picture annotations.
 - **Journey builder**: Merge activities into a single route, reorder segments, add transportation hops with realistic timing, or sketch connector routes directly on the map. OSRM routing is used by default; bring your own OpenRouteService/Mapbox key for premium routing.
-- **Immersive 3D maps**: MapLibre GL powers satellite, topo, and street styles with optional 3D terrain (Mapzen Terrarium and OpenTopography). A follow-behind camera, auto zoom, and layout-aware UI keep the action framed.
+- **Immersive 3D maps**: MapLibre GL powers satellite, topo, and street styles with optional 3D terrain (Mapzen Terrarium and OpenTopography). A terrain-aware follow-behind camera, synthetic zoom unsticking, and layout-aware UI keep the action framed without diving into mountains.
+- **Heart-rate storytelling**: Toggle heart-rate mode to recolor the entire trail, completed-path overlay, and stats widget using adaptive zones. Colors load automatically with Strava exports and stay visible during playback.
 - **Storytelling timeline**: Manage annotations, icon swaps, and photo overlays from one timeline. Events appear in the playback, on the progress bar, and in exports without blocking the animation.
 - **Playback & comparison tools**: Scrub with mouse or touch, review kilometre splits, toggle live speed vs pace metrics, and load a second GPX file for side-by-side comparison with independent colouring.
 - **Video export built in**: Auto recording supports WebM and browser-powered MP4 via `MediaRecorder`. Manual mode highlights the capture window for external tools, and aspect ratio presets keep overlays pixel perfect.
@@ -53,6 +54,10 @@ npm run dev
 - **Journey authoring**: The journey builder (right-hand panel) lets you reorder tracks, insert transportation segments, draw connectors, and control segment duration. Timings sync automatically with the map animation, stats, and elevation chart.
 - **Annotations & icons**: Use the add-annotation and add-icon-change buttons or click directly on the progress bar/map when in selection mode. Picture annotations use the images you uploaded earlier and fade in/out without pausing playback.
 - **Stats & comparison**: Toggle kilometre splits, choose speed or pace units, and enable comparison mode to overlay a second GPX file with its own colour and name.
+- **Camera modes**:
+  - *Standard*: Locks the map while the marker pans across the trail. Scroll/drag is always available.
+  - *Follow-behind*: Runs a cinematic zoom-in before playback and then tracks the marker from behind. Terrain-aware guards keep the camera above ridges, and a synthetic “zoom nudge” fires automatically on load so you no longer have to touch the mouse wheel before controls unlock.
+- **Heart-rate mode**: Switch on the HR palette to recolor the base trail, live “completed” line, and stats. Trail opacity adjusts automatically while animating so you can see the full gradient even with the marker in motion.
 - **Video export**: Pick WebM, MP4, or manual recording. Auto modes hide non-essential UI, enforce aspect ratios, and use `MediaRecorder` with tuned bitrate defaults. Manual mode gives on-screen guidance for OS-level capture utilities.
 
 ## Repository Layout
@@ -75,6 +80,7 @@ npm run dev
 ## Development Tips
 - Inspect console logs—the controllers emit verbose traces (especially journey and export flows) to aid debugging.
 - The app stores runtime state on `window.app`; use DevTools to trigger helpers like `window.setTrackColors()` or `window.forceSyntheticTimeData()`.
+- Zoom controls are “unlocked” via `renderer.scheduleZoomNudge()` right after a GPX loads. If you add a new loading path, call that helper so MapLibre always receives the synthetic wheel event.
 - Because everything is client-side, any network failures you see in dev usually come from tile servers or rate-limited routing APIs; exports and playback continue to work offline once the map tiles are cached.
 
 ## Privacy & Data

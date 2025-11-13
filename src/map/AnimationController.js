@@ -37,8 +37,16 @@ export class AnimationController {
         
         this.renderer.isAnimating = true;
         
+        // In heart rate mode, keep trail-line visible with reduced opacity to show heart rate colors
+        // In fixed color mode, hide trail-line and show only trail-completed
         if (this.renderer.map.getLayer('trail-line')) {
-            this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0);
+            if (this.renderer.colorMode === 'heartRate') {
+                // Keep trail-line visible in heart rate mode so users can see the full colored trail
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0.3);
+            } else {
+                // Hide trail-line in fixed color mode
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0);
+            }
         }
         if (this.renderer.map.getLayer('comparison-trail-line')) {
             this.renderer.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0);
@@ -96,11 +104,18 @@ export class AnimationController {
             this.renderer.isAnimating = false;
             
             if (this.renderer.map.getLayer('trail-line')) {
-                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
-                    'case',
-                    ['==', ['get', 'isTransportation'], true], 0.9,
-                    0.8
-                ]);
+                // Restore trail-line opacity based on color mode
+                if (this.renderer.colorMode === 'heartRate') {
+                    // In heart rate mode, keep it visible with full opacity
+                    this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0.8);
+                } else {
+                    // In fixed color mode, restore normal opacity
+                    this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
+                        'case',
+                        ['==', ['get', 'isTransportation'], true], 0.9,
+                        0.8
+                    ]);
+                }
             }
             if (this.renderer.map.getLayer('comparison-trail-line')) {
                 this.renderer.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);
@@ -158,11 +173,18 @@ export class AnimationController {
         this.renderer.isAnimating = false;
         
         if (this.renderer.map.getLayer('trail-line')) {
-            this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
-                'case',
-                ['==', ['get', 'isTransportation'], true], 0.9,
-                0.8
-            ]);
+            // Restore trail-line opacity based on color mode
+            if (this.renderer.colorMode === 'heartRate') {
+                // In heart rate mode, keep it visible with full opacity
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0.8);
+            } else {
+                // In fixed color mode, restore normal opacity
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
+                    'case',
+                    ['==', ['get', 'isTransportation'], true], 0.9,
+                    0.8
+                ]);
+            }
         }
         if (this.renderer.map.getLayer('comparison-trail-line')) {
             this.renderer.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);
@@ -192,11 +214,18 @@ export class AnimationController {
         this.renderer.followBehindCamera.setCinematicStart(true);
         
         if (this.renderer.map.getLayer('trail-line')) {
-            this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
-                'case',
-                ['==', ['get', 'isTransportation'], true], 0.9,
-                0.8
-            ]);
+            // Restore trail-line opacity based on color mode
+            if (this.renderer.colorMode === 'heartRate') {
+                // In heart rate mode, keep it visible with full opacity
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', 0.8);
+            } else {
+                // In fixed color mode, restore normal opacity
+                this.renderer.map.setPaintProperty('trail-line', 'line-opacity', [
+                    'case',
+                    ['==', ['get', 'isTransportation'], true], 0.9,
+                    0.8
+                ]);
+            }
         }
         if (this.renderer.map.getLayer('comparison-trail-line')) {
             this.renderer.map.setPaintProperty('comparison-trail-line', 'line-opacity', 0.8);

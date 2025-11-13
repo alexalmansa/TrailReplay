@@ -98,6 +98,7 @@ export class MapRenderer {
         }, 100);
         this.preloadedTiles = new Set(); // Track preloaded tile URLs
         this.currentMapStyle = 'satellite'; // Track current style for preloading
+        this.pendingZoomNudgeTimeout = null;
     }
 
     // Delegated Terrain Methods
@@ -119,6 +120,59 @@ export class MapRenderer {
 
     isTerrainSupported() {
         return this.terrainController.isTerrainSupported();
+    }
+
+    scheduleZoomNudge(delay = 1500) {
+        if (this.pendingZoomNudgeTimeout) {
+            clearTimeout(this.pendingZoomNudgeTimeout);
+        }
+        this.pendingZoomNudgeTimeout = setTimeout(() => {
+            this.simulateZoomNudge();
+        }, delay);
+    }
+
+    simulateZoomNudge() {
+        if (!this.map || typeof this.map.getCanvas !== 'function') {
+            return;
+        }
+
+        const canvas = this.map.getCanvas();
+        if (!canvas) {
+            return;
+        }
+
+        try {
+            canvas.focus();
+            const wheelEvent = new WheelEvent('wheel', {
+                deltaY: 0.01,
+                deltaMode: WheelEvent.DOM_DELTA_LINE,
+                bubbles: true,
+                cancelable: true
+            });
+            canvas.dispatchEvent(wheelEvent);
+        } catch (error) {
+            console.warn('simulateZoomNudge wheel dispatch failed, falling back to jumpTo workaround', error);
+            try {
+                const center = this.map.getCenter();
+                const zoom = this.map.getZoom();
+                const pitch = this.map.getPitch();
+                const bearing = this.map.getBearing();
+                this.map.jumpTo({
+                    center,
+                    zoom: zoom + 0.001,
+                    pitch,
+                    bearing
+                });
+                this.map.jumpTo({
+                    center,
+                    zoom,
+                    pitch,
+                    bearing
+                });
+            } catch (_) {}
+        } finally {
+            this.pendingZoomNudgeTimeout = null;
+        }
     }
 
     // Delegated Comparison Methods
@@ -2766,11 +2820,25 @@ export class MapRenderer {
 
     updateMapColors() {
         // Update trail colors to use the standard path color when not in heart rate mode
+        // Only update if not in heart rate mode (heart rate mode uses its own color system)
+        if (this.colorMode === 'heartRate') {
+            // Don't override heart rate colors
+            return;
+        }
+        
         if (this.map && this.map.loaded()) {
             const color = this.pathColor || '#C1652F';
             
             if (this.map.getLayer('trail-line')) {
                 this.map.setPaintProperty('trail-line', 'line-color', color);
+                // Reset opacity if not animating (during animation it's handled by AnimationController)
+                if (!this.isAnimating) {
+                    this.map.setPaintProperty('trail-line', 'line-opacity', [
+                        'case',
+                        ['==', ['get', 'isTransportation'], true], 0.9,
+                        0.8
+                    ]);
+                }
             }
             if (this.map.getLayer('trail-completed')) {
                 this.map.setPaintProperty('trail-completed', 'line-color', color);

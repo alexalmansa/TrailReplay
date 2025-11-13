@@ -35,8 +35,17 @@ const FOLLOW_BEHIND_SETTINGS = {
     BASE_PITCH: 35,
     MIN_ZOOM: 10,
     MAX_ZOOM: 18,
-    ELEVATION_SENSITIVITY: 0.001,
-    SMOOTHING: 0.1
+    LOOK_AHEAD_SEGMENT: 0.02,        // % of track to sample ahead/behind for gradients
+    MIN_PITCH: 25,
+    MAX_PITCH: 65,
+    MAX_DYNAMIC_ZOOM_OUT: 1.2,
+    MAX_DYNAMIC_PITCH_ADJUST: 8,
+    MAX_ZOOM_DROP_FROM_PRESET: 0.8,
+    MAX_ZOOM_GAIN_FROM_PRESET: 0.3,
+    MAX_PITCH_DROP_FROM_PRESET: 6,
+    MAX_PITCH_GAIN_FROM_PRESET: 4,
+    ELEVATION_RISK_METERS: 1200,
+    STEEPNESS_RISK_FACTOR: 18
 };
 
 // Terrain constants for calculations
@@ -45,6 +54,13 @@ const TERRAIN_CONSTANTS = {
     EARTH_RADIUS_METERS: 6371000
 };
 
+const MARKER_SCALING = {
+    BASE: 1.0,
+    MIN: 0.4,
+    MAX: 1.3,
+    SENSITIVITY: 0.15,
+    UPDATE_THRESHOLD: 0.05
+};
 
 export class FollowBehindCamera {
     constructor(mapRenderer) {
@@ -57,6 +73,9 @@ export class FollowBehindCamera {
         this.currentPreset = 'MEDIUM';
         this.lastBearing = 0;
         this.targetBearing = 0;
+        const preset = this.getCurrentPresetSettings();
+        this.followZoom = preset.ZOOM;
+        this.followPitch = preset.PITCH;
     }
     
     /**
@@ -152,24 +171,17 @@ export class FollowBehindCamera {
             console.warn('🎬 No valid start point available');
             return Promise.resolve();
         }
+        
 
-        // Get current preset settings
+        this.updateFollowViewIfNeeded(0, { force: true });
         const preset = this.getCurrentPresetSettings();
-
-        // Calculate elevation-adjusted zoom for the initial cinematic zoom-in
-        let adjustedZoom = preset.ZOOM;
-
-        // If we have elevation data, adjust the zoom based on the starting elevation
-        if (startPoint.elevation !== undefined && startPoint.elevation !== null) {
-            const startElevation = startPoint.elevation;
-
-            // Apply elevation-based zoom adjustment (same logic as terrain-aware settings)
-            const elevationFactor = Math.min(startElevation * FOLLOW_BEHIND_SETTINGS.ELEVATION_SENSITIVITY, TERRAIN_CONSTANTS.ELEVATION_FACTOR_MAX);
-            adjustedZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM,
-                                   Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, preset.ZOOM - elevationFactor));
-
-            console.log(`🎬 Elevation-adjusted zoom: base=${preset.ZOOM}, elevation=${startElevation}m, factor=${elevationFactor.toFixed(2)}, adjusted=${adjustedZoom.toFixed(1)}`);
-        }
+        const targetZoom = this.followZoom || preset.ZOOM;
+        const targetPitch = this.followPitch || preset.PITCH;
+        const startElevation = typeof startPoint.elevation === 'number' ? startPoint.elevation : 0;
+        console.log(`🎬 Terrain-aware cinematic target: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
+        this.lastCameraZoom = targetZoom;
+        this.lastCameraPitch = targetPitch;
+        this.lastElevation = startElevation;
 
         // Get current map state (zoom, pitch, bearing)
         const currentZoom = this.map.getZoom();
@@ -181,13 +193,13 @@ export class FollowBehindCamera {
         const bearing = this.calculateBearing(0);
         this.lastBearing = bearing;
 
-        console.log(`🎬 Starting smooth zoom from current zoom ${currentZoom.toFixed(1)} to ${preset.name}: zoom=${adjustedZoom.toFixed(1)}, pitch=${preset.PITCH}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
+        console.log(`🎬 Starting smooth zoom from current zoom ${currentZoom.toFixed(1)} to ${preset.name}: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
 
         // Proactively preload tiles for the target view to avoid white flashes
         try {
             const pitch = this.map.getPitch();
             const bufferScale = 1.3 + Math.min(pitch, 60) / 120; // ~1.3..1.8
-            this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, adjustedZoom, this.mapRenderer.currentMapStyle, { bufferScale });
+            this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, targetZoom, this.mapRenderer.currentMapStyle, { bufferScale });
         } catch (_) {}
 
         // Return promise that resolves when zoom-in completes
@@ -197,8 +209,8 @@ export class FollowBehindCamera {
             // Smooth transition from current position to animation position with elevation-adjusted zoom
             this.map.easeTo({
                 center: [startPoint.lon, startPoint.lat],
-                zoom: adjustedZoom,
-                pitch: preset.PITCH,
+                zoom: targetZoom,
+                pitch: targetPitch,
                 bearing: bearing,
                 duration: FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION,
                 easing: (t) => 1 - Math.pow(1 - t, 3) // Smooth ease-out cubic
@@ -208,6 +220,10 @@ export class FollowBehindCamera {
             // Resolve when zoom-in completes
             setTimeout(() => {
                 console.log('🎬 Pre-animation zoom-in completed, ready to start trail animation');
+                // After cinematic zoom, stay near the safe zoom but allow user preset bias
+                this.followZoom = targetZoom;
+                this.followPitch = targetPitch;
+                this.forceZoomRefresh([startPoint.lon, startPoint.lat], targetZoom, targetPitch, bearing);
                 resolve();
             }, FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION);
         });
@@ -226,9 +242,8 @@ export class FollowBehindCamera {
             return;
         }
         
-        // Get current preset settings
         const preset = this.getCurrentPresetSettings();
-        
+
         // Calculate target bearing
         this.targetBearing = this.calculateBearing(this.mapRenderer.animationProgress);
         
@@ -254,19 +269,22 @@ export class FollowBehindCamera {
         try {
             const pitch = this.map.getPitch();
             const bufferScale = 1.25 + Math.min(pitch, 60) / 120; // scale with pitch for horizon coverage
-            this.mapRenderer.preloadTilesAtPosition(currentPoint.lat, currentPoint.lon, preset.ZOOM, this.mapRenderer.currentMapStyle, { bufferScale });
+            this.mapRenderer.preloadTilesAtPosition(currentPoint.lat, currentPoint.lon, this.followZoom || preset.ZOOM, this.mapRenderer.currentMapStyle, { bufferScale });
         } catch (_) {}
 
         // Use smooth easeTo instead of instant jumpTo for smoother movement
         this.map.easeTo({
             center: [currentPoint.lon, currentPoint.lat],
-            zoom: preset.ZOOM,
-            pitch: preset.PITCH,
+            zoom: this.followZoom || preset.ZOOM,
+            pitch: this.followPitch || preset.PITCH,
             bearing: smoothedBearing,
             duration: this.getCameraUpdateDuration(),
             easing: (t) => t * (2 - t) // Smooth easing function (ease-out)
         });
         
+        this.updateMarkerScaleForZoom(this.calculateMarkerScale(this.followZoom || preset.ZOOM));
+        this.lastCameraZoom = this.followZoom || preset.ZOOM;
+        this.lastCameraPitch = this.followPitch || preset.PITCH;
         this.lastBearing = smoothedBearing;
     }
     
@@ -386,32 +404,150 @@ export class FollowBehindCamera {
             return;
         }
         
-        const startElevation = startPoint.elevation || 0;
-        
-        // Calculate base terrain-aware settings with proper bounds checking
-        let baseZoom = FOLLOW_BEHIND_SETTINGS.BASE_ZOOM;
-        let basePitch = FOLLOW_BEHIND_SETTINGS.BASE_PITCH;
-        
-        // Apply elevation-based adjustments with safety checks
-        if (startElevation > 0) {
-            const elevationFactor = Math.min(startElevation * FOLLOW_BEHIND_SETTINGS.ELEVATION_SENSITIVITY, TERRAIN_CONSTANTS.ELEVATION_FACTOR_MAX);
-            baseZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM, 
-                               Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, baseZoom - elevationFactor));
-        }
-        
-        // Ensure zoom level is within reasonable bounds for initial view
-        baseZoom = Math.max(10, Math.min(18, baseZoom)); // Clamp to reasonable range
-        basePitch = Math.max(30, Math.min(60, basePitch)); // Clamp pitch to reasonable range
+        this.updateFollowViewIfNeeded(0, { force: true });
         
         // Initialize the tracking variables with consistent values
-        this.lastCameraZoom = baseZoom;
-        this.lastCameraPitch = basePitch;
-        this.lastElevation = startElevation;
+        this.lastCameraZoom = this.followZoom;
+        this.lastCameraPitch = this.followPitch;
+        this.lastElevation = typeof startPoint.elevation === 'number' ? startPoint.elevation : 0;
         
-        console.log(`🎬 Initialized terrain-aware settings: zoom=${baseZoom.toFixed(1)}, pitch=${basePitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
+        console.log(`🎬 Initialized terrain-aware settings: zoom=${this.followZoom.toFixed(1)}, pitch=${this.followPitch.toFixed(1)}, elevation=${this.lastElevation.toFixed(0)}m`);
         
         // Don't update camera position here - let fitBounds show the route overview
         // The cinematic sequence will apply these settings when animation starts
+    }
+
+    /**
+     * Update follow zoom/pitch targets based on terrain while keeping motion smooth
+     */
+    updateFollowViewIfNeeded(progress, { force = false } = {}) {
+        if (!force) {
+            return;
+        }
+        
+        const safeProgress = typeof progress === 'number' ? Math.min(Math.max(progress, 0), 1) : 0;
+        const preset = this.getCurrentPresetSettings();
+        const view = this.calculateTerrainAwareView(safeProgress) || { zoom: preset.ZOOM, pitch: preset.PITCH };
+        
+        this.followZoom = this.clampZoomToPreset(view.zoom, preset.ZOOM);
+        this.followPitch = this.clampPitchToPreset(view.pitch, preset.PITCH);
+    }
+
+    /**
+     * Calculate a terrain-aware camera suggestion for a given progress
+     */
+    calculateTerrainAwareView(progress) {
+        if (!this.mapRenderer.trackData || !this.gpxParser) {
+            return null;
+        }
+
+        const currentPoint = this.gpxParser.getInterpolatedPoint(progress);
+        if (!currentPoint || typeof currentPoint.lat === 'undefined' || typeof currentPoint.lon === 'undefined') {
+            return null;
+        }
+
+        const preset = this.getCurrentPresetSettings();
+        const baseZoom = preset?.ZOOM ?? FOLLOW_BEHIND_PRESETS.MEDIUM.ZOOM;
+        const basePitch = preset?.PITCH ?? FOLLOW_BEHIND_PRESETS.MEDIUM.PITCH;
+        const currentElevation = Math.max(0, typeof currentPoint.elevation === 'number' ? currentPoint.elevation : 0);
+        
+        const lookAheadProgress = Math.min(progress + FOLLOW_BEHIND_SETTINGS.LOOK_AHEAD_SEGMENT, 1);
+        const lookBehindProgress = Math.max(progress - FOLLOW_BEHIND_SETTINGS.LOOK_AHEAD_SEGMENT, 0);
+        const futurePoint = this.gpxParser.getInterpolatedPoint(lookAheadProgress);
+        const pastPoint = this.gpxParser.getInterpolatedPoint(lookBehindProgress);
+        
+        let elevationChange = 0;
+        let slope = 0;
+        
+        if (futurePoint && pastPoint && typeof futurePoint.elevation === 'number' && typeof pastPoint.elevation === 'number') {
+            elevationChange = futurePoint.elevation - pastPoint.elevation;
+            const distance = this.calculateDistanceBetweenPoints(
+                pastPoint.lat, pastPoint.lon,
+                futurePoint.lat, futurePoint.lon
+            );
+            slope = distance > 0 ? Math.abs(elevationChange) / distance : 0;
+        }
+        
+        const elevationRisk = Math.min(currentElevation / FOLLOW_BEHIND_SETTINGS.ELEVATION_RISK_METERS, 1);
+        const steepnessRisk = Math.min(slope * FOLLOW_BEHIND_SETTINGS.STEEPNESS_RISK_FACTOR, 1);
+        const combinedRisk = Math.max(elevationRisk, steepnessRisk);
+        
+        const zoomOffset = combinedRisk * FOLLOW_BEHIND_SETTINGS.MAX_DYNAMIC_ZOOM_OUT;
+        let adjustedZoom = baseZoom - zoomOffset;
+        adjustedZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM, Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, adjustedZoom));
+        
+        let adjustedPitch = basePitch - (combinedRisk * FOLLOW_BEHIND_SETTINGS.MAX_DYNAMIC_PITCH_ADJUST);
+        if (elevationChange < -25) {
+            adjustedPitch = Math.min(adjustedPitch + 6, FOLLOW_BEHIND_SETTINGS.MAX_PITCH);
+        } else if (elevationChange > 35) {
+            adjustedPitch = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_PITCH, adjustedPitch - 4);
+        }
+        adjustedPitch = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_PITCH, Math.min(FOLLOW_BEHIND_SETTINGS.MAX_PITCH, adjustedPitch));
+        
+        return {
+            zoom: adjustedZoom,
+            pitch: adjustedPitch,
+            elevation: currentElevation
+        };
+    }
+
+    lerp(start, end, alpha) {
+        if (typeof start !== 'number') {
+            return end;
+        }
+        return start + (end - start) * alpha;
+    }
+
+    clampZoomToPreset(value, presetZoom) {
+        const minZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM, presetZoom - FOLLOW_BEHIND_SETTINGS.MAX_ZOOM_DROP_FROM_PRESET);
+        const maxZoom = Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, presetZoom + FOLLOW_BEHIND_SETTINGS.MAX_ZOOM_GAIN_FROM_PRESET);
+        return Math.max(minZoom, Math.min(maxZoom, value));
+    }
+
+    clampPitchToPreset(value, presetPitch) {
+        const minPitch = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_PITCH, presetPitch - FOLLOW_BEHIND_SETTINGS.MAX_PITCH_DROP_FROM_PRESET);
+        const maxPitch = Math.min(FOLLOW_BEHIND_SETTINGS.MAX_PITCH, presetPitch + FOLLOW_BEHIND_SETTINGS.MAX_PITCH_GAIN_FROM_PRESET);
+        return Math.max(minPitch, Math.min(maxPitch, value));
+    }
+
+    /**
+     * Work around a MapLibre quirk where the first zoom after enabling terrain sometimes ignores elevation
+     * until the user nudges the zoom manually. We emulate that tiny nudge programmatically right after
+     * the cinematic completes so the camera always stabilizes at the correct altitude.
+     */
+    forceZoomRefresh(center, zoom, pitch, bearing) {
+        if (!this.map || !center) {
+            return;
+        }
+        
+        const delta = 0.001;
+        try {
+            this.map.jumpTo({
+                center,
+                zoom: zoom + delta,
+                pitch,
+                bearing
+            });
+            this.map.jumpTo({
+                center,
+                zoom,
+                pitch,
+                bearing
+            });
+        } catch (error) {
+            console.warn('🎬 FollowBehindCamera: forceZoomRefresh failed', error);
+        }
+    }
+
+    /**
+     * Determine marker scale for the current zoom
+     */
+    calculateMarkerScale(currentZoom) {
+        const baseZoom = FOLLOW_BEHIND_SETTINGS.BASE_ZOOM;
+        const zoomDifference = currentZoom - baseZoom;
+        let markerScale = MARKER_SCALING.BASE - (zoomDifference * MARKER_SCALING.SENSITIVITY);
+        markerScale = Math.max(MARKER_SCALING.MIN, Math.min(MARKER_SCALING.MAX, markerScale));
+        return markerScale;
     }
     
     /**
@@ -529,6 +665,9 @@ export class FollowBehindCamera {
         this.lastCameraZoom = FOLLOW_BEHIND_SETTINGS.BASE_ZOOM;
         this.lastCameraPitch = FOLLOW_BEHIND_SETTINGS.BASE_PITCH;
         this.originalMarkerSize = null;
+        const preset = this.getCurrentPresetSettings();
+        this.followZoom = preset.ZOOM;
+        this.followPitch = preset.PITCH;
         console.log('🎬 FollowBehindCamera reset completed');
     }
     
@@ -567,6 +706,10 @@ export class FollowBehindCamera {
         if (FOLLOW_BEHIND_PRESETS[presetName]) {
             this.currentPreset = presetName;
             console.log(`🎬 Follow-behind zoom preset changed to: ${FOLLOW_BEHIND_PRESETS[presetName].name}`);
+            this.followZoom = FOLLOW_BEHIND_PRESETS[presetName].ZOOM;
+            this.followPitch = FOLLOW_BEHIND_PRESETS[presetName].PITCH;
+            const progress = this.mapRenderer?.animationProgress ?? 0;
+            this.updateFollowViewIfNeeded(progress, { force: true });
         }
     }
     
@@ -635,6 +778,7 @@ export class FollowBehindCamera {
             console.warn('🎬 No valid start point available for video export');
             return Promise.resolve();
         }
+        
 
         // For video export, always start from a fixed overview position for consistent timing
         console.log('🎬 Setting fixed overview starting position for video export');
@@ -645,35 +789,28 @@ export class FollowBehindCamera {
             bearing: 0
         });
 
-        // Get current preset settings
         const preset = this.getCurrentPresetSettings();
+        this.updateFollowViewIfNeeded(0, { force: true });
 
-        // Calculate elevation-adjusted zoom for video export consistency
-        let adjustedZoom = preset.ZOOM;
-
-        // If we have elevation data, adjust the zoom based on the starting elevation
-        if (startPoint.elevation !== undefined && startPoint.elevation !== null) {
-            const startElevation = startPoint.elevation;
-
-            // Apply elevation-based zoom adjustment (same logic as terrain-aware settings)
-            const elevationFactor = Math.min(startElevation * FOLLOW_BEHIND_SETTINGS.ELEVATION_SENSITIVITY, TERRAIN_CONSTANTS.ELEVATION_FACTOR_MAX);
-            adjustedZoom = Math.max(FOLLOW_BEHIND_SETTINGS.MIN_ZOOM,
-                                   Math.min(FOLLOW_BEHIND_SETTINGS.MAX_ZOOM, preset.ZOOM - elevationFactor));
-
-            console.log(`🎬 Video export elevation-adjusted zoom: base=${preset.ZOOM}, elevation=${startElevation}m, factor=${elevationFactor.toFixed(2)}, adjusted=${adjustedZoom.toFixed(1)}`);
-        }
+        const targetZoom = this.followZoom || preset.ZOOM;
+        const targetPitch = this.followPitch || preset.PITCH;
+        const startElevation = typeof startPoint.elevation === 'number' ? startPoint.elevation : 0;
+        console.log(`🎬 Video export terrain-aware target: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
+        this.lastCameraZoom = targetZoom;
+        this.lastCameraPitch = targetPitch;
+        this.lastElevation = startElevation;
 
         // Calculate bearing for start position
         const bearing = this.calculateBearing(0);
         this.lastBearing = bearing;
 
-        console.log(`🎬 Video export: zooming from overview (zoom 5) to ${preset.name}: zoom=${adjustedZoom.toFixed(1)}, pitch=${preset.PITCH}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
+        console.log(`🎬 Video export: zooming from overview (zoom 5) to ${preset.name}: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
 
         // Preload tiles for target zoom and DEM if needed
         try {
             const pitch = this.map.getPitch();
             const bufferScale = 1.3 + Math.min(pitch, 60) / 120;
-            this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, adjustedZoom, this.mapRenderer.currentMapStyle, { bufferScale });
+            this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, targetZoom, this.mapRenderer.currentMapStyle, { bufferScale });
         } catch (_) {}
 
         // Return promise that resolves when zoom-in completes
@@ -682,8 +819,8 @@ export class FollowBehindCamera {
             setTimeout(() => {
                 this.map.easeTo({
                     center: [startPoint.lon, startPoint.lat],
-                    zoom: adjustedZoom,
-                    pitch: preset.PITCH,
+                    zoom: targetZoom,
+                    pitch: targetPitch,
                     bearing: bearing,
                     duration: FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION,
                     easing: (t) => 1 - Math.pow(1 - t, 3) // Smooth ease-out cubic
@@ -692,6 +829,9 @@ export class FollowBehindCamera {
                 // Resolve when zoom-in completes
                 setTimeout(() => {
                     console.log('🎬 Video export: pre-animation zoom-in completed, ready to start trail animation');
+                    this.followZoom = targetZoom;
+                    this.followPitch = targetPitch;
+                    this.forceZoomRefresh([startPoint.lon, startPoint.lat], targetZoom, targetPitch, bearing);
                     resolve();
                 }, FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION);
             }, 100); // Short delay to ensure overview position is applied
