@@ -33,7 +33,7 @@ export class MapPictureAnnotations {
     /**
      * Check for picture annotations during animation
      */
-    checkPictureAnnotations(progress) {
+    checkAnnotations(progress) {
         // Skip if we're already showing a picture annotation
         if (this.activePictureAnnotation) return;
 

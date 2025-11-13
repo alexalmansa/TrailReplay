@@ -1,4 +1,3 @@
-
 // Simplified Follow-Behind Camera Presets
 const FOLLOW_BEHIND_PRESETS = {
     VERY_CLOSE: {
@@ -46,10 +45,10 @@ const TERRAIN_CONSTANTS = {
 };
 
 
-export class FollowBehindCamera {
+export class CameraController {
     constructor(mapRenderer) {
         this.mapRenderer = mapRenderer;
-        // Don't store gpxParser - always get it from mapRenderer to ensure it's current
+        this.gpxParser = mapRenderer.gpxParser;
         
         // Simple state variables
         this.isInitialized = false;
@@ -57,13 +56,6 @@ export class FollowBehindCamera {
         this.currentPreset = 'MEDIUM';
         this.lastBearing = 0;
         this.targetBearing = 0;
-    }
-    
-    /**
-     * Get gpxParser from mapRenderer (always current)
-     */
-    get gpxParser() {
-        return this.mapRenderer.gpxParser;
     }
 
     /**
@@ -139,12 +131,6 @@ export class FollowBehindCamera {
         }
 
         console.log('🎬 Starting pre-animation zoom-in sequence');
-
-        // Ensure gpxParser is available
-        if (!this.gpxParser) {
-            console.warn('🎬 Cannot start cinematic sequence: gpxParser not available');
-            return Promise.resolve();
-        }
 
         // Get start point (marker should be at position 0 before animation starts)
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
@@ -410,8 +396,18 @@ export class FollowBehindCamera {
         
         console.log(`🎬 Initialized terrain-aware settings: zoom=${baseZoom.toFixed(1)}, pitch=${basePitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
         
-        // Don't update camera position here - let fitBounds show the route overview
-        // The cinematic sequence will apply these settings when animation starts
+        // Force update the camera position to apply these settings immediately
+        if (this.map && this.mapRenderer.trackData) {
+            const currentPoint = this.gpxParser.getInterpolatedPoint(0);
+            if (currentPoint) {
+                this.map.jumpTo({
+                    center: [currentPoint.lon, currentPoint.lat],
+                    zoom: baseZoom,
+                    pitch: basePitch,
+                    bearing: 0
+                });
+            }
+        }
     }
     
     /**
@@ -623,12 +619,6 @@ export class FollowBehindCamera {
 
         console.log('🎬 Starting pre-animation zoom-in sequence for video export');
 
-        // Ensure gpxParser is available
-        if (!this.gpxParser) {
-            console.warn('🎬 Cannot start cinematic sequence for video export: gpxParser not available');
-            return Promise.resolve();
-        }
-
         // Get start point (marker should be at position 0 before animation starts)
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
         if (!startPoint || typeof startPoint.lat === 'undefined' || typeof startPoint.lon === 'undefined') {
@@ -697,4 +687,4 @@ export class FollowBehindCamera {
             }, 100); // Short delay to ensure overview position is applied
         });
     }
-}
+} 
