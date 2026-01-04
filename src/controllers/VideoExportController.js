@@ -1,6 +1,7 @@
 import { t } from '../translations.js';
 import { MP4Utils } from '../utils/MP4Utils.js';
 import { AnalyticsTracker } from '../utils/analytics.js';
+import { revenueManager } from '../utils/RevenueManager.js';
 
 export class VideoExportController {
     constructor(app) {
@@ -817,10 +818,13 @@ export class VideoExportController {
      * Export video in WebM format (canvas capture)
      */
     async exportAutoWebM() {
+        console.log('🎬 exportAutoWebM started');
 
-        
         this.createProgressModal();
+        console.log('✅ Progress modal created');
+
         this.updateProgress(5, 'Preparing for WebM export...');
+        console.log('✅ Progress updated to 5%');
 
         try {
             // Step 1: Prepare the environment
@@ -854,7 +858,10 @@ export class VideoExportController {
             await this.startRecording();
 
         } catch (error) {
-            console.error('WebM export failed:', error);
+            console.error('❌ WebM export failed:', error);
+            console.error('Error stack:', error.stack);
+            this.app.showMessage(`Export failed: ${error.message}`, 'error');
+            this.cleanup();
             throw error;
         }
     }
@@ -4534,6 +4541,8 @@ export class VideoExportController {
                         </button>
                     </div>
                 </div>
+                <!-- Ad Container -->
+                <div id="videoProgressAdContainer" style="margin-top: 1.5rem; text-align: center;"></div>
             </div>
         `;
         document.body.appendChild(this.progressModal);
@@ -4545,6 +4554,12 @@ export class VideoExportController {
                 this.cleanup();
                 this.app.showMessage(t('videoExport.exportCancelled'), 'info');
             });
+        }
+
+        // Load ad in the progress modal
+        const adContainer = document.getElementById('videoProgressAdContainer');
+        if (adContainer) {
+            revenueManager.showAd(adContainer, 'videoProgress');
         }
     }
 
@@ -4832,6 +4847,9 @@ export class VideoExportController {
             this.progressModal.remove();
             this.progressModal = null;
         }
+
+        // Clean up ads
+        revenueManager.removeAllAds();
 
         // Show UI elements
         this.showUIAfterRecording();

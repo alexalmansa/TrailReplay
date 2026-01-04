@@ -40,7 +40,7 @@ export class TrailReplayApp {
         this.gpxOnlyStats = DEFAULT_SETTINGS.GPX_ONLY_STATS;
         this.recordingMode = false;
         this.overlayRecordingMode = false;
-        
+
         // Comparison mode properties
         this.comparisonMode = false;
         this.comparisonTrackData = null;
@@ -53,7 +53,7 @@ export class TrailReplayApp {
         // Bind methods
         this.getSelectedEndStats = this.getSelectedEndStats.bind(this);
         this.updateSelectedStats = this.updateSelectedStats.bind(this);
-        
+
 
 
         // Data properties
@@ -125,7 +125,7 @@ export class TrailReplayApp {
         // Set legacy compatibility references
         this.mapController = this.map;
         this.gpxParser = this.file.gpxParser;
-        
+
         // Add direct mapRenderer reference for consistent access
         this.mapRenderer = this.map.mapRenderer;
 
@@ -135,22 +135,22 @@ export class TrailReplayApp {
 
         // Initialize stats selection
         this.initializeStatsSelection();
-        
+
         // Initialize progress bar interactions after DOM is ready
         this.progress.initialize();
-        
+
         // Initialize journey functionality
         this.journey.initialize();
-        
+
         // Initialize icon functionality
         this.icon.initialize();
-        
+
         // Initialize video export functionality
         this.videoExporter.initialize();
-        
+
         // Set up timing synchronization for journeys
         this.setupTimingSynchronization();
-        
+
         // Initialize other features
         this.addLanguageSwitcher();
 
@@ -158,16 +158,16 @@ export class TrailReplayApp {
         document.addEventListener('annotationClick', (e) => {
             const progress = e.detail.progress;
 
-            
+
             // Initialize currentAnnotation if not exists
             if (!this.currentAnnotation) {
                 this.currentAnnotation = {};
             }
-            
+
             // Set progress and default icon
             this.currentAnnotation.progress = progress;
             this.currentAnnotation.icon = this.currentAnnotation.icon || '📍';
-            
+
             // Show annotation modal
             this.notes.showAnnotationModal();
         });
@@ -267,7 +267,7 @@ export class TrailReplayApp {
             animation: slideIn 0.3s ease-out;
             background-color: ${type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#4caf50'};
         `;
-        
+
         // Add animation styles if not already present
         if (!document.getElementById('messageStyles')) {
             const style = document.createElement('style');
@@ -303,7 +303,7 @@ export class TrailReplayApp {
 
     clearElevationProfileCache(trackId = null) {
         if (!this.cachedElevationProfiles) return;
-        
+
         if (trackId) {
             delete this.cachedElevationProfiles[trackId];
 
@@ -317,16 +317,16 @@ export class TrailReplayApp {
         let lastUpdateTime = 0;
         const targetFPS = 30; // Limit to 30fps for better performance
         const frameInterval = 1000 / targetFPS;
-        
+
         const updateProgress = (currentTime) => {
             if (!this.state.isPlaying || !this.mapRenderer) return;
-            
+
             // Throttle updates to target FPS for better performance
             if (currentTime - lastUpdateTime >= frameInterval) {
                 this.updateProgressDisplay();
                 lastUpdateTime = currentTime;
             }
-            
+
             const progress = this.mapRenderer.getAnimationProgress();
             if (progress < 1 && this.state.isPlaying) {
                 requestAnimationFrame(updateProgress);
@@ -342,7 +342,7 @@ export class TrailReplayApp {
                 }
             }
         };
-        
+
         requestAnimationFrame(updateProgress);
     }
 
@@ -351,27 +351,27 @@ export class TrailReplayApp {
         if (this.recordingMode && !this.overlayRecordingMode) {
             return;
         }
-        
+
         const progress = this.mapRenderer.getAnimationProgress();
-        
+
         // Update the elevation profile progress (throttled)
         this.updateElevationProgress(progress);
-        
+
         // Update live stats with throttling
         this.stats.updateLiveStats();
-        
 
-        
+
+
         // For journeys, ensure timing is synchronized
         if (this.currentTrackData && this.currentTrackData.isJourney && this.mapRenderer.getJourneyElapsedTime() !== undefined) {
             const currentTimeSeconds = Math.floor(this.mapRenderer.getJourneyElapsedTime());
-            
+
             // Update current time display
             const currentTimeElement = document.getElementById('currentTime');
             if (currentTimeElement) {
                 currentTimeElement.textContent = this.formatTimeInSeconds(currentTimeSeconds);
             }
-            
+
             // Update total time display with journey timing
             if (this.currentTrackData.segmentTiming && this.currentTrackData.segmentTiming.totalDuration) {
                 const totalTimeElement = document.getElementById('totalTime');
@@ -379,12 +379,12 @@ export class TrailReplayApp {
                     totalTimeElement.textContent = this.formatTimeInSeconds(this.currentTrackData.segmentTiming.totalDuration);
                 }
             }
-            
+
             // Check for timing mismatches during animation
             const journeyTime = this.mapRenderer.getJourneyElapsedTime();
             const expectedProgress = this.convertSegmentTimeToLinearProgress(journeyTime);
             const actualProgress = progress;
-            
+
             if (expectedProgress !== null && Math.abs(expectedProgress - actualProgress) > 0.05) {
 
             }
@@ -398,14 +398,14 @@ export class TrailReplayApp {
         if (!force && this.recordingMode && !this.overlayRecordingMode) {
             return;
         }
-        
+
         // Throttle elevation updates during animation for better performance
         const now = performance.now();
         if (!force && this.state.isPlaying && this.lastElevationUpdate && (now - this.lastElevationUpdate) < 50) {
             return; // Skip if updated less than 50ms ago during animation
         }
         this.lastElevationUpdate = now;
-        
+
         if (!this.elevationProfile) {
             this.hideLiveElevationLabel();
             // Fallback to flat progress bar behavior - cache DOM element
@@ -422,7 +422,7 @@ export class TrailReplayApp {
         let currentX = 0;
         let currentY = svgHeight / 2; // Default middle
         let currentPointIndex = 0;
-        
+
         // --- Time-based progress for journeys ---
         if (this.currentTrackData && this.currentTrackData.isJourney && timeAtPoint && timeAtPoint.length === points.length) {
             // Get current journey time
@@ -439,7 +439,7 @@ export class TrailReplayApp {
                 }
             }
             currentPointIndex = low;
-            
+
             // Use the x/y from the SVG points
             if (points.length > 0 && currentPointIndex < points.length) {
                 const [x, y] = points[currentPointIndex].split(',').map(Number);
@@ -450,12 +450,12 @@ export class TrailReplayApp {
             // Fallback: linear progress (optimized)
             const exactIndex = progress * (points.length - 1);
             currentPointIndex = Math.min(Math.floor(exactIndex), points.length - 1);
-            
+
             if (points.length > 0 && currentPointIndex < points.length) {
                 const [x, y] = points[currentPointIndex].split(',').map(Number);
                 currentX = x;
                 currentY = y;
-                
+
                 // Interpolate between points if we're between indices
                 const fraction = exactIndex - currentPointIndex;
                 if (fraction > 0 && currentPointIndex < points.length - 1) {
@@ -646,7 +646,7 @@ export class TrailReplayApp {
         if (elevationRange === 0) {
             const flatY = svgHeight / 2;
             const pathData = `M0,${flatY} L${svgWidth},${flatY} L${svgWidth},${svgHeight} L0,${svgHeight} Z`;
-            
+
             const elevationPath = document.getElementById('elevationPath');
             if (elevationPath) {
                 elevationPath.setAttribute('d', pathData);
@@ -654,7 +654,7 @@ export class TrailReplayApp {
             } else {
                 console.error('❌ Could not find elevationPath element for flat profile');
             }
-            
+
             // Cache the flat profile
             this.elevationProfile = {
                 points: [`0,${flatY}`, `${svgWidth},${flatY}`],
@@ -666,7 +666,7 @@ export class TrailReplayApp {
                 padding,
                 pathData
             };
-            
+
             // Ensure elevation profile container is visible
             const elevationContainer = document.querySelector('.elevation-profile-container');
             if (elevationContainer) {
@@ -675,7 +675,7 @@ export class TrailReplayApp {
             } else {
                 console.error('❌ Could not find elevation profile container for flat profile');
             }
-            
+
 
             this.updateElevationLabels();
             return;
@@ -705,12 +705,12 @@ export class TrailReplayApp {
         // Generate path points with optimization for large datasets
         const pathPoints = [];
         const pointCount = trackPoints.length;
-        
+
         // More aggressive optimization for large tracks to improve performance
         // BUT preserve heart rate data by checking if it exists first
         const hasHeartRateData = trackPoints.some(p => p.heartRate && p.heartRate > 0);
         let step = 1;
-        
+
         if (hasHeartRateData) {
             // If heart rate data exists, be more conservative with optimization
             // to preserve heart rate information
@@ -727,7 +727,7 @@ export class TrailReplayApp {
                 step = Math.ceil(pointCount / 800); // Reduce to max 800 points for large tracks
             }
         }
-        
+
         for (let i = 0; i < pointCount; i += step) {
             const actualIndex = Math.min(i, pointCount - 1);
             // --- Use time-based x for journeys ---
@@ -744,16 +744,16 @@ export class TrailReplayApp {
 
         // Create SVG path - filled area under the curve
         const pathData = `M0,${svgHeight} L${pathPoints.join(' L')} L${svgWidth},${svgHeight} Z`;
-        
+
         // Update the elevation path
         const elevationPath = document.getElementById('elevationPath');
         if (elevationPath) {
             elevationPath.setAttribute('d', pathData);
-            
+
         } else {
             console.error('❌ Could not find elevationPath element');
         }
-        
+
         // Store elevation data for progress updates with caching
         this.elevationProfile = {
             points: pathPoints,
@@ -780,7 +780,7 @@ export class TrailReplayApp {
         this.cachedElevationProfiles[trackId] = this.elevationProfile;
 
 
-        
+
         // Ensure elevation profile container is visible
         const elevationContainer = document.querySelector('.elevation-profile-container');
         if (elevationContainer) {
@@ -789,7 +789,7 @@ export class TrailReplayApp {
         } else {
             console.error('❌ Could not find elevation profile container');
         }
-        
+
         // Update elevation labels
         this.updateElevationLabels();
 
@@ -814,21 +814,21 @@ export class TrailReplayApp {
 
         const { minElevation, maxElevation } = this.elevationProfile;
         const trackPoints = this.currentTrackData.trackPoints;
-        
+
         // Find the starting elevation (first point)
         const startElevation = trackPoints.length > 0 ? (trackPoints[0].elevation || 0) : minElevation;
-        
+
         // Find the position of the maximum elevation point
         let maxElevationIndex = 0;
         let currentMaxElevation = startElevation;
-        
+
         trackPoints.forEach((point, index) => {
             if (point.elevation && point.elevation > currentMaxElevation) {
                 currentMaxElevation = point.elevation;
                 maxElevationIndex = index;
             }
         });
-        
+
         // Update min elevation label (bottom of profile)
         const minLabel = document.getElementById('minElevationLabel');
         if (minLabel) {
@@ -839,7 +839,7 @@ export class TrailReplayApp {
                 valueSpan.textContent = `${Math.round(minElevation)} m`;
             }
         }
-        
+
         // Update peak elevation label  
         const maxLabel = document.getElementById('maxElevationLabel');
         if (maxLabel) {
@@ -850,7 +850,7 @@ export class TrailReplayApp {
                 valueSpan.textContent = `${Math.round(maxElevation)} m`;
             }
         }
-        
+
 
     }
 
@@ -871,33 +871,33 @@ export class TrailReplayApp {
         // Find which segment this linear progress falls into
         for (let i = 0; i < segments.length; i++) {
             const segment = segments[i];
-            
+
             // Validate segment data
             if (typeof segment.progressStartRatio !== 'number' || typeof segment.progressEndRatio !== 'number' ||
                 typeof segment.startTime !== 'number' || typeof segment.duration !== 'number') {
                 console.warn(`Invalid segment data at index ${i}:`, segment);
                 continue;
             }
-            
+
             // Check if the linear progress falls within this segment's coordinate range
             if (linearProgress >= segment.progressStartRatio && linearProgress <= segment.progressEndRatio) {
                 // Calculate the relative position within this segment
                 const segmentProgressRange = segment.progressEndRatio - segment.progressStartRatio;
                 let relativeProgressInSegment = 0;
-                
+
                 if (segmentProgressRange > 0) {
                     relativeProgressInSegment = (linearProgress - segment.progressStartRatio) / segmentProgressRange;
                 }
-                
+
                 // Convert to time within this segment
                 const timeInSegment = relativeProgressInSegment * segment.duration;
                 const totalTime = segment.startTime + timeInSegment;
-                
+
                 if (isNaN(totalTime)) {
                     console.warn(`Invalid time calculation for segment ${i}:`, { timeInSegment, totalTime, segment });
                     break; // Fall through to fallback
                 }
-                
+
                 return totalTime;
             }
         }
@@ -927,7 +927,7 @@ export class TrailReplayApp {
         // Find which segment this time falls into
         for (let i = 0; i < segments.length; i++) {
             const segment = segments[i];
-            
+
             // Validate segment data
             if (typeof segment.startTime !== 'number' || typeof segment.endTime !== 'number' ||
                 typeof segment.duration !== 'number' || typeof segment.progressStartRatio !== 'number' ||
@@ -935,21 +935,21 @@ export class TrailReplayApp {
                 console.warn(`Invalid segment data for time conversion at index ${i}:`, segment);
                 continue;
             }
-            
+
             if (segmentTime >= segment.startTime && segmentTime <= segment.endTime) {
                 // Calculate relative position within this segment's time
                 const relativeTimeInSegment = segmentTime - segment.startTime;
                 const relativeProgressInSegment = segment.duration > 0 ? relativeTimeInSegment / segment.duration : 0;
-                
+
                 // Convert to linear progress
                 const segmentProgressRange = segment.progressEndRatio - segment.progressStartRatio;
                 const linearProgress = segment.progressStartRatio + (relativeProgressInSegment * segmentProgressRange);
-                
+
                 if (isNaN(linearProgress)) {
                     console.warn(`Invalid progress calculation for segment ${i}:`, { relativeProgressInSegment, linearProgress, segment });
                     break; // Fall through to fallback
                 }
-                
+
                 return Math.max(0, Math.min(1, linearProgress));
             }
         }
@@ -1017,10 +1017,10 @@ export class TrailReplayApp {
 
             const segmentLength = (segment.endIndex - segment.startIndex + 1);
             const currentSegmentLength = (isNaN(segmentLength) || segmentLength < 0) ? 0 : segmentLength;
-            
+
             // Ensure progress ratios are always valid numbers between 0 and 1
-            const progressStartRatio = totalCoordinates > 1 ? currentCoordIndex / (totalCoordinates -1) : 0;
-            const progressEndRatio = totalCoordinates > 1 ? (currentCoordIndex + Math.max(0, currentSegmentLength -1)) / (totalCoordinates -1) : 1;
+            const progressStartRatio = totalCoordinates > 1 ? currentCoordIndex / (totalCoordinates - 1) : 0;
+            const progressEndRatio = totalCoordinates > 1 ? (currentCoordIndex + Math.max(0, currentSegmentLength - 1)) / (totalCoordinates - 1) : 1;
 
             detailedSegmentTimings.push({
                 ...segment, // Pass through original segment data (type, data, mode, route, etc.)
@@ -1031,7 +1031,7 @@ export class TrailReplayApp {
                 progressStartRatio: Math.max(0, Math.min(1, progressStartRatio)),
                 progressEndRatio: Math.max(0, Math.min(1, progressEndRatio)),
                 startCoordIndex: currentCoordIndex,
-                endCoordIndex: currentCoordIndex + Math.max(0, currentSegmentLength -1)
+                endCoordIndex: currentCoordIndex + Math.max(0, currentSegmentLength - 1)
             });
 
             totalDuration += segmentTime;
@@ -1059,7 +1059,7 @@ export class TrailReplayApp {
 
         // Calculate detailed timing for MapRenderer
         const detailedSegmentTimingForMapRenderer = this.calculateSegmentTiming(updateData.segments);
-        
+
 
 
         // Update all timing-related state
@@ -1092,7 +1092,7 @@ export class TrailReplayApp {
 
 
         const formattedTime = this.formatTimeInSeconds(segmentTiming.totalDuration);
-        
+
         // Update total time displays
         const totalTimeElements = document.querySelectorAll('#totalTime, .total-time-display');
         totalTimeElements.forEach(element => {
@@ -1106,7 +1106,7 @@ export class TrailReplayApp {
 
         // Validate all displays are synchronized
         this.validateAllTimingDisplaysSync(segmentTiming);
-        
+
 
     }
 
@@ -1147,31 +1147,31 @@ export class TrailReplayApp {
 
         const progress = this.mapRenderer.getCurrentProgress();
         const journeyTime = this.mapRenderer.getJourneyElapsedTime();
-        
+
         // Convert progress to expected time
         const expectedTime = this.convertLinearProgressToSegmentTime(progress);
-        
+
         // Convert time to expected progress  
         const expectedProgress = this.convertSegmentTimeToLinearProgress(journeyTime);
-        
+
         const timeDiff = Math.abs(expectedTime - journeyTime);
         const progressDiff = Math.abs(expectedProgress - progress);
-        
+
         console.log('🔍 Journey Synchronization Status:');
         console.log(`   Current Progress: ${progress.toFixed(3)}`);
         console.log(`   Current Journey Time: ${journeyTime?.toFixed(1)}s`);
         console.log(`   Expected Time from Progress: ${expectedTime?.toFixed(1)}s (diff: ${timeDiff?.toFixed(1)}s)`);
         console.log(`   Expected Progress from Time: ${expectedProgress?.toFixed(3)} (diff: ${progressDiff?.toFixed(3)})`);
-        
+
         const isTimeSynced = timeDiff < 2; // 2 second tolerance
         const isProgressSynced = progressDiff < 0.02; // 2% tolerance
         const isFullySynced = isTimeSynced && isProgressSynced;
-        
+
         console.log(`   Time Sync: ${isTimeSynced ? '✅' : '❌'}, Progress Sync: ${isProgressSynced ? '✅' : '❌'}, Overall: ${isFullySynced ? '✅' : '❌'}`);
-        
+
         if (!isFullySynced) {
             console.log('⚠️  Synchronization issues detected - this may cause position/time mismatches');
-            
+
             // Suggest fixes
             if (!isTimeSynced) {
                 console.log(`   💡 Consider calling: app.mapRenderer.setJourneyElapsedTime(${expectedTime?.toFixed(1)})`);
@@ -1180,7 +1180,7 @@ export class TrailReplayApp {
                 console.log(`   💡 Consider calling: app.mapRenderer.setAnimationProgress(${expectedProgress?.toFixed(3)})`);
             }
         }
-        
+
         return isFullySynced;
     }
 
@@ -1193,9 +1193,9 @@ export class TrailReplayApp {
 
         const progress = this.mapRenderer.getCurrentProgress();
         const expectedTime = this.convertLinearProgressToSegmentTime(progress);
-        
+
         console.log(`🔧 Forcing synchronization: progress=${progress.toFixed(3)} → time=${expectedTime?.toFixed(1)}s`);
-        
+
         if (expectedTime !== null) {
             this.mapRenderer.setJourneyElapsedTime(expectedTime);
             this.updateProgressDisplay();
@@ -1217,19 +1217,31 @@ export class TrailReplayApp {
         const statsSection = document.getElementById('statsSection');
 
         if (uploadSection) uploadSection.style.display = 'none';
+
         if (visualizationSection) {
             visualizationSection.style.display = 'block';
+            // Force visibility in case it was hidden by other means
+            visualizationSection.style.visibility = 'visible';
+            visualizationSection.style.opacity = '1';
             visualizationSection.classList.add('fade-in');
+
+            // Scroll to top to ensure user sees the map
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            console.error('Visualization section element not found!');
         }
+
         if (statsSection) {
             statsSection.style.display = 'block';
             statsSection.classList.add('fade-in');
         }
 
         // Initialize live stats and generate elevation profile
-        this.stats.resetLiveStats();
+        if (this.stats) {
+            this.stats.resetLiveStats();
+        }
         this.generateElevationProfile();
-        
+
         // Preserve heart rate data and check availability
         this.preserveHeartRateData();
         this.checkHeartRateData();
@@ -1242,7 +1254,7 @@ export class TrailReplayApp {
         const heartRateStatus = document.getElementById('heartRateStatus');
         const heartRateZones = document.getElementById('heartRateZones');
         const colorModeHeartRate = document.getElementById('colorModeHeartRate');
-        
+
         if (!this.currentTrackData || !this.currentTrackData.stats) {
             return;
         }
@@ -1254,8 +1266,8 @@ export class TrailReplayApp {
 
         // Check multiple sources for heart rate data
         const hasHeartRateData = stats.hasHeartRateData ||
-                                trackPoints.some(p => p.heartRate && p.heartRate > 0) ||
-                                (originalTrackData && originalTrackData.trackPoints && originalTrackData.trackPoints.some(p => p.heartRate && p.heartRate > 0));
+            trackPoints.some(p => p.heartRate && p.heartRate > 0) ||
+            (originalTrackData && originalTrackData.trackPoints && originalTrackData.trackPoints.some(p => p.heartRate && p.heartRate > 0));
 
         // Count actual heart rate points from current track data
         let actualHeartRatePoints = trackPoints.filter(p => p.heartRate && p.heartRate > 0).length;
@@ -1286,7 +1298,7 @@ export class TrailReplayApp {
                 if (statusText) {
                     statusText.textContent = `Heart rate data found: ${actualHeartRatePoints} points (${actualAvgHeartRate} avg BPM)`;
                 }
-                
+
                 // Show heart rate zones for user input
                 if (heartRateZones) {
                     heartRateZones.style.display = 'block';
@@ -1298,12 +1310,12 @@ export class TrailReplayApp {
                         }
                     }, 10);
                 }
-                
+
                 // Enable heart rate color mode option
                 if (colorModeHeartRate) {
                     colorModeHeartRate.disabled = false;
                 }
-                
+
                 // Show the heart rate option when data is available
                 const colorModeHeartRateContainer = document.querySelector('input[name="colorMode"][value="heartRate"]').closest('.color-mode-toggle');
                 if (colorModeHeartRateContainer) {
@@ -1320,12 +1332,12 @@ export class TrailReplayApp {
                 if (statusText) {
                     statusText.textContent = 'No heart rate data detected in this GPX file';
                 }
-                
+
                 // Hide heart rate zones
                 if (heartRateZones) {
                     heartRateZones.style.display = 'none';
                 }
-                
+
                 // Disable heart rate color mode and switch to fixed
                 if (colorModeHeartRate) {
                     colorModeHeartRate.disabled = true;
@@ -1336,7 +1348,7 @@ export class TrailReplayApp {
                         colorModeFixed.dispatchEvent(new Event('change'));
                     }
                 }
-                
+
                 // Hide the heart rate option entirely if no data
                 const colorModeHeartRateContainer = document.querySelector('input[name="colorMode"][value="heartRate"]').closest('.color-mode-toggle');
                 if (colorModeHeartRateContainer) {
@@ -1374,7 +1386,7 @@ export class TrailReplayApp {
 
         // Check if we have heart rate data in the current track
         const hasHeartRateData = this.currentTrackData.trackPoints.some(p => p.heartRate && p.heartRate > 0);
-        
+
         if (hasHeartRateData) {
             console.log('💓 Heart rate data preserved in track data');
             // Update stats to reflect heart rate data availability
@@ -1413,14 +1425,14 @@ export class TrailReplayApp {
 
     updateStatsDisplay() {
         if (!this.currentTrackData) return;
-        
+
         let stats = this.currentTrackData.stats;
-        
+
         // If GPX-only stats is enabled and this is a journey, recalculate stats
         if (this.state.gpxOnlyStats && this.currentTrackData.isJourney && this.currentTrackData.segments) {
             stats = this.calculateGpxOnlyStats(this.currentTrackData);
         }
-        
+
         this.updateStats(stats);
     }
 
@@ -1428,7 +1440,7 @@ export class TrailReplayApp {
     calculateGpxOnlyStats(journeyData) {
         let totalDistance = 0;
         let totalElevationGain = 0;
-        
+
         if (journeyData.segments) {
             journeyData.segments.forEach(segment => {
                 // Only include track segments, skip transportation segments
@@ -1438,7 +1450,7 @@ export class TrailReplayApp {
                 }
             });
         }
-        
+
         return {
             totalDistance,
             elevationGain: totalElevationGain
@@ -1507,7 +1519,7 @@ export class TrailReplayApp {
             if (this.currentTrackData && this.currentTrackData.isJourney && this.currentTrackData.segmentTiming) {
                 const progress = e.detail.progress;
                 const segmentTime = this.convertLinearProgressToSegmentTime(progress);
-                
+
                 if (segmentTime !== null) {
                     this.mapRenderer.setJourneyElapsedTime(segmentTime);
                     console.log(`🔄 Progress seek: Updated journey time to ${segmentTime.toFixed(1)}s for progress ${progress.toFixed(3)}`);
@@ -1520,13 +1532,13 @@ export class TrailReplayApp {
             if (this.currentTrackData && this.currentTrackData.isJourney && this.currentTrackData.segmentTiming && this.state.isPlaying) {
                 const progress = this.mapRenderer.getCurrentProgress();
                 const journeyTime = this.mapRenderer.getJourneyElapsedTime();
-                
+
                 if (journeyTime !== undefined) {
                     const expectedTime = this.convertLinearProgressToSegmentTime(progress);
-                    
+
                     if (expectedTime !== null && !isNaN(expectedTime)) {
                         const timeDiff = Math.abs(journeyTime - expectedTime);
-                        
+
                         // If timing drift is significant (>1 second), correct it
                         if (timeDiff > 1) {
                             console.log(`🔄 Auto-correction: journey time ${journeyTime.toFixed(1)}s → ${expectedTime.toFixed(1)}s`);
@@ -1543,12 +1555,12 @@ export class TrailReplayApp {
     // Video export support methods
     async enhancedTilePreloading(progressCallback) {
         if (!this.mapRenderer || !this.currentTrackData) return;
-        
+
         const trackPoints = this.currentTrackData.trackPoints;
         if (!trackPoints || trackPoints.length === 0) return;
-        
+
         console.log('Starting enhanced tile preloading for video export');
-        
+
         // Use basic tile preloading for now - can be enhanced later
         if (progressCallback) {
             for (let i = 0; i <= 100; i += 10) {
@@ -1556,7 +1568,7 @@ export class TrailReplayApp {
                 progressCallback(i);
             }
         }
-        
+
         console.log('Enhanced tile preloading completed');
     }
 
@@ -1600,10 +1612,10 @@ export class TrailReplayApp {
 
             // Create a new GPX parser for the comparison track
             this.comparisonGpxParser = new (await import('../gpxParser.js')).GPXParser();
-            
+
             // Parse the comparison track
             this.comparisonTrackData = await this.comparisonGpxParser.parseFile(file);
-            
+
             console.log('✅ Comparison track loaded successfully:', this.comparisonTrackData.stats);
 
             // Check if comparison track has time data
@@ -1665,13 +1677,13 @@ export class TrailReplayApp {
                 console.log('🔍 overlapResult type:', typeof overlapResult);
                 console.log('🔍 overlapResult value:', overlapResult);
             }
-            
+
             // Enable comparison mode
             console.log('🔧 Enabling comparison mode...');
             this.enableComparisonMode();
-            
+
             console.log('🎉 Comparison mode setup complete!');
-            
+
         } catch (error) {
             console.error('❌ Error loading comparison track:', error);
             alert('Error loading comparison track: ' + error.message);
@@ -2209,16 +2221,16 @@ export class TrailReplayApp {
     disableComparisonMode() {
         console.log('🔄 Disabling comparison mode...');
         this.comparisonMode = false;
-        
+
         // Remove comparison track from map
         if (this.mapRenderer) {
             this.mapRenderer.removeComparisonTrack();
         }
-        
+
         // Clear comparison data
         this.comparisonTrackData = null;
         this.comparisonGpxParser = null;
-        
+
         // If we have journey data, we might need to reload it
         if (this.journey && this.journey.journeyData) {
             console.log('📋 Journey data exists - comparison mode disabled, journey mode active');

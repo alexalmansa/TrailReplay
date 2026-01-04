@@ -107,61 +107,26 @@ export class HeartRateController {
                 .slice(0, completedIndex + 1)
                 .map(point => [point.lon, point.lat]);
 
-            const completedSegments = [];
-            const SEGMENT_SIZE = 10;
-
-            for (let segmentStart = 0; segmentStart < completedIndex; segmentStart += SEGMENT_SIZE) {
-                const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, completedIndex);
-                const segmentPoints = trackPoints.slice(segmentStart, segmentEnd);
-
-                if (segmentPoints.length >= 2) {
-                    const heartRates = segmentPoints
-                        .map(p => p.heartRate || 0)
-                        .filter(hr => hr > 0);
-
-                    const avgHeartRate = heartRates.length > 0 ?
-                        heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length : 0;
-
-                    const middleIndex = Math.floor((segmentStart + segmentEnd) / 2);
-                    const color = middleIndex < this.renderer.heartRateColors.length ?
-                        (this.renderer.heartRateColors[middleIndex] || this.renderer.pathColor) : this.renderer.pathColor;
-
-                    const segmentCoordinates = segmentPoints.map(point => [point.lon, point.lat]);
-
-                    completedSegments.push({
-                        type: 'Feature',
-                        properties: {
-                            color: color,
-                            heartRate: avgHeartRate,
-                            segmentIndex: Math.floor(segmentStart / SEGMENT_SIZE)
-                        },
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: segmentCoordinates
-                        }
-                    });
-                }
-            }
-
             if (this.renderer.map.getSource('trail-completed')) {
-                if (completedSegments.length > 0) {
-                    this.renderer.map.getSource('trail-completed').setData({
-                        type: 'FeatureCollection',
-                        features: completedSegments
-                    });
+                this.renderer.map.getSource('trail-completed').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: completedCoordinates
+                    }
+                });
 
-                    this.renderer.map.setPaintProperty('trail-completed', 'line-color', ['get', 'color']);
-                    this.renderer.map.setPaintProperty('trail-completed', 'line-width', 6);
-                    this.renderer.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
-                } else {
-                    this.renderer.map.getSource('trail-completed').setData({
-                        type: 'Feature',
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: []
-                        }
-                    });
-                }
+                const colors = this.renderer.heartRateColors.slice(0, completedIndex + 1);
+                const colorExpression = [
+                    'case',
+                    ['>', ['line-progress'], 0],
+                    ['interpolate', ['linear'], ['line-progress'], ...this.createGradientStops(colors)],
+                    this.renderer.pathColor
+                ];
+
+                this.renderer.map.setPaintProperty('trail-completed', 'line-gradient', colorExpression);
+                this.renderer.map.setPaintProperty('trail-completed', 'line-width', 6);
+                this.renderer.map.setPaintProperty('trail-completed', 'line-opacity', 1.0);
             }
         } catch (error) {
             console.error('Error updating completed trail with heart rate animation:', error);
@@ -179,6 +144,16 @@ export class HeartRateController {
             });
         }
     }
+
+    createGradientStops(colors) {
+        const stops = [];
+        const step = 1 / (colors.length - 1);
+        for (let i = 0; i < colors.length; i++) {
+            stops.push(i * step, colors[i]);
+        }
+        return stops;
+    }
+
 
     updateTrailWithHeartRateColors() {
         if (!this.renderer.trackData || !this.renderer.heartRateColors || !this.renderer.map.loaded()) {
