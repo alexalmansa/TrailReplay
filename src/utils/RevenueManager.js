@@ -1,8 +1,11 @@
 /**
- * AdManager - Handles Google AdSense integration for TrailReplay
+ * RevenueManager - Handles Google AdSense integration for TrailReplay
  *
  * This class manages ad display during video generation to monetize
  * the waiting time while providing a good user experience.
+ *
+ * Note: File is named "RevenueManager" instead of "AdManager" to avoid
+ * being blocked by ad blockers, which filter files with "Ad" in the name.
  *
  * Features:
  * - Delayed ad loading (only after video generation starts)
@@ -54,6 +57,12 @@ export class RevenueManager {
             return;
         }
 
+        // If ad is already active, don't load it again
+        if (this.activeAds.has(adUnitKey)) {
+            console.log(`[AdManager] Ad already loaded: ${adUnitKey}`);
+            return;
+        }
+
         // Delay ad loading to avoid showing ads immediately
         const delay = (adUnit.delaySeconds || 3) * 1000;
 
@@ -66,6 +75,9 @@ export class RevenueManager {
      * Internal method to load and display an ad
      */
     _loadAd(container, adUnitKey, adUnit) {
+        // Clear container to prevent duplicate ads
+        container.innerHTML = '';
+
         // Create ad container
         const adContainer = document.createElement('div');
         adContainer.className = 'ad-container';
@@ -121,13 +133,16 @@ export class RevenueManager {
      * Create a real Google AdSense ad
      */
     _createRealAd(container, adUnit) {
-        // Create AdSense ins element
+        // Create AdSense ins element with unique identifier
         const adElement = document.createElement('ins');
         adElement.className = 'adsbygoogle';
         adElement.style.display = 'block';
         adElement.setAttribute('data-ad-client', this.config.publisherId);
         adElement.setAttribute('data-ad-slot', adUnit.slot);
         adElement.setAttribute('data-ad-format', adUnit.format);
+
+        // Add unique identifier to prevent AdSense duplicate element errors
+        adElement.setAttribute('data-ad-instance', `${Date.now()}-${Math.random()}`);
 
         if (adUnit.fullWidthResponsive) {
             adElement.setAttribute('data-full-width-responsive', 'true');
@@ -141,11 +156,13 @@ export class RevenueManager {
         container.appendChild(label);
         container.appendChild(adElement);
 
-        // Push ad to AdSense
+        // Push ad to AdSense - use requestAnimationFrame to ensure DOM is ready
         try {
-            if (window.adsbygoogle) {
-                (window.adsbygoogle = window.adsbygoogle || []).push({});
-            }
+            requestAnimationFrame(() => {
+                if (window.adsbygoogle && adElement.isConnected) {
+                    (window.adsbygoogle = window.adsbygoogle || []).push({});
+                }
+            });
         } catch (error) {
             console.error('[AdManager] Error loading ad:', error);
         }

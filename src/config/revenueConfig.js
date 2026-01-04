@@ -21,7 +21,7 @@ export const ADS_CONFIG = {
         // Ad shown during video generation progress
         videoProgress: {
             // Ad slot ID from your AdSense dashboard
-            slot: 'XXXXXXXXXX', // Replace with your ad unit ID
+            slot: '4179772714', // Your actual ad unit ID
             format: 'auto',
             fullWidthResponsive: true,
             // Ad will be shown after this many seconds of video generation
@@ -39,7 +39,8 @@ export const ADS_CONFIG = {
     // Ad refresh settings
     refresh: {
         // Refresh ads during long video generation (in seconds)
-        enabled: true,
+        // Note: Disabled to prevent AdSense duplicate element errors
+        enabled: false,
         interval: 45 // Refresh every 45 seconds during video generation
     },
 
@@ -50,7 +51,7 @@ export const ADS_CONFIG = {
     },
 
     // Development mode (shows placeholder instead of real ads)
-    devMode: true // Set to false when you have real AdSense approval
+    devMode: false // Set to false when you have real AdSense approval - NOW LIVE!
 };
 
 /**
