@@ -10,26 +10,26 @@ export class FileController {
 
     async handleFiles(files) {
         if (!files || files.length === 0) return;
-        
+
         // Separate GPX files and image files
-        const gpxFiles = Array.from(files).filter(file => 
+        const gpxFiles = Array.from(files).filter(file =>
             file.name.toLowerCase().endsWith('.gpx')
         );
-        
-        const imageFiles = Array.from(files).filter(file => 
+
+        const imageFiles = Array.from(files).filter(file =>
             file.type.startsWith('image/')
         );
-        
+
         // Handle GPX files first
         if (gpxFiles.length > 0) {
             await this.handleGPXFiles(gpxFiles);
         }
-        
+
         // Handle image files for annotations
         if (imageFiles.length > 0) {
             await this.handleImageFiles(imageFiles);
         }
-        
+
         // If no valid files
         if (gpxFiles.length === 0 && imageFiles.length === 0) {
             console.error('Please select GPX or image files');
@@ -47,7 +47,7 @@ export class FileController {
 
         try {
             // No global loading overlay; proceed immediately
-            
+
             if (gpxFiles.length === 1) {
                 // Single file - load directly
                 const file = gpxFiles[0];
@@ -57,10 +57,22 @@ export class FileController {
                     this.app.currentTrackData = trackData;
 
                     // Load track data to map
-                    this.app.map.loadTrackData(trackData);
+                    try {
+                        this.app.map.loadTrackData(trackData);
+                    } catch (mapError) {
+                        console.error('Error loading track to map:', mapError);
+                        this.app.showMessage?.('Warning: Map loading encountered an issue, but track data was parsed.', 'warning');
+                    }
 
-                    // Show visualization section
-                    this.app.showVisualizationSection();
+                    // Show visualization section - ensure this happens even if map has minor issues
+                    if (this.app.showVisualizationSection) {
+                        this.app.showVisualizationSection();
+                    } else {
+                        console.warn('showVisualizationSection method not found on app');
+                        // Fallback: try to find element directly
+                        const vizSection = document.getElementById('visualizationSection');
+                        if (vizSection) vizSection.style.display = 'block';
+                    }
 
                     // Update stats
                     this.app.updateStats(trackData.stats);
@@ -70,7 +82,7 @@ export class FileController {
 
                     // Update stats again after elevation profile generation (may have recalculated elevation stats)
                     this.app.updateStats(trackData.stats);
-                    
+
                     console.log('GPX file loaded successfully');
 
                     // Only add to journey builder if NOT in comparison mode
@@ -143,10 +155,16 @@ export class FileController {
                 this.app.currentTrackData = firstTrackData;
 
                 // Load track data to map
-                this.app.map.loadTrackData(firstTrackData);
+                try {
+                    this.app.map.loadTrackData(firstTrackData);
+                } catch (mapError) {
+                    console.error('Error loading first track to map:', mapError);
+                }
 
                 // Show visualization section
-                this.app.showVisualizationSection();
+                if (this.app.showVisualizationSection) {
+                    this.app.showVisualizationSection();
+                }
 
                 // Update stats
                 this.app.updateStats(firstTrackData.stats);
@@ -181,12 +199,12 @@ export class FileController {
 
         try {
             console.log(`Processing ${imageFiles.length} image files for annotations...`);
-            
+
             // Store images for later use in annotations
             if (!this.app.uploadedImages) {
                 this.app.uploadedImages = [];
             }
-            
+
             for (const file of imageFiles) {
                 // Create object URL for the image
                 const imageUrl = URL.createObjectURL(file);
@@ -199,30 +217,30 @@ export class FileController {
                     size: file.size,
                     uploaded: new Date()
                 };
-                
+
                 this.app.uploadedImages.push(imageData);
                 console.log('Image processed:', imageData.name);
             }
-            
+
             // Show message about images being ready for annotations
             this.app.showMessage?.(`${imageFiles.length} images ready for annotation. Click "Add Annotation" to place them on your route.`, 'success');
-            
+
             // Update the annotation modal to show available images
             if (this.app.notes && this.app.notes.updateImageLibrary) {
                 this.app.notes.updateImageLibrary(this.app.uploadedImages);
             }
-            
+
         } catch (error) {
             console.error('Error processing image files:', error);
             this.app.showMessage?.('Error processing image files: ' + error.message, 'error');
         }
     }
-    
+
     // Show guidance for journey planning
     showJourneyPlanningGuidance() {
         // Multiple files - guide user to journey builder
         this.app.showMessage?.('Multiple GPX files loaded! Use the Journey Planning section below to arrange tracks and add transportation between them.', 'info');
-        
+
         // Auto-scroll to journey builder
         const journeySection = document.getElementById('journeyPlanningSection');
         if (journeySection) {
