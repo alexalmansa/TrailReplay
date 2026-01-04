@@ -818,13 +818,8 @@ export class VideoExportController {
      * Export video in WebM format (canvas capture)
      */
     async exportAutoWebM() {
-        console.log('🎬 exportAutoWebM started');
-
         this.createProgressModal();
-        console.log('✅ Progress modal created');
-
         this.updateProgress(5, 'Preparing for WebM export...');
-        console.log('✅ Progress updated to 5%');
 
         try {
             // Step 1: Prepare the environment
