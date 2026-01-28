@@ -995,7 +995,6 @@ export class StatsController {
     resetLiveStats() {
         const labels = getUnitLabels(this.app.state.unitSystem);
         document.getElementById('liveDistance').textContent = `0.0 ${labels.distance}`;
-        const labels = getUnitLabels(this.app.state.unitSystem);
         document.getElementById('liveElevation').textContent = `0 ${labels.elevation || (this.app.state.unitSystem === 'imperial' ? 'ft' : 'm')}`;
         const avgSpeedElement = document.getElementById('liveAverageSpeed');
         if (avgSpeedElement) {
