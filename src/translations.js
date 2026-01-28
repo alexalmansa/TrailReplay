@@ -490,9 +490,13 @@ export const translations = {
         elevation: "Elevation",
         avgSpeed: "Average Speed",
     showEndStats: "Show End Stats",
-    showSegmentSpeeds: "Show Segment Speeds",
-    showLiveElevation: "Show Live Elevation",
-    speedAsPace: "Show pace (min/km)",
+            showSegmentSpeeds: "Show Segment Speeds",
+            showLiveElevation: "Show Live Elevation",
+            speedAsPace: "Show pace (min/km)",
+            showPace: "Show pace",
+            unitsLabel: "Units",
+            unitsMetric: "Metric (km)",
+            unitsImperial: "Imperial (mi)",
             
             // Comparison Mode
             comparisonSettings: "🏃‍♂️ Comparison Mode",
@@ -568,6 +572,7 @@ export const translations = {
             cameraMode: "Camera Mode",
             cameraStandard: "🎥 Manual Mode",
             cameraFollowBehind: "🎬 Follow Behind",
+            cameraOverview: "🌍 Overview",
             followBehindZoom: "Follow Distance",
             followBehindVeryClose: "🔍 Very Close",
             followBehindMedium: "📍 Medium",
@@ -1457,6 +1462,10 @@ export const translations = {
     showSegmentSpeeds: "Mostrar velocidades por segmento",
             showLiveElevation: "Mostrar altitud en vivo",
     speedAsPace: "Mostrar ritmo (min/km)",
+    showPace: "Mostrar ritmo",
+    unitsLabel: "Unidades",
+    unitsMetric: "Métrico (km)",
+    unitsImperial: "Imperial (mi)",
             
             // Comparison Mode
             comparisonSettings: "🏃‍♂️ Modo Comparación",
@@ -1538,6 +1547,7 @@ export const translations = {
             cameraMode: "Modo de Cámara",
             cameraStandard: "🎥 Modo Manual",
             cameraFollowBehind: "🎬 Seguir Detrás",
+            cameraOverview: "🌍 Vista General",
             followBehindZoom: "Distancia de Seguimiento",
             followBehindVeryClose: "🔍 Muy Cerca",
             followBehindMedium: "📍 Medio",
@@ -2389,6 +2399,10 @@ export const translations = {
                 showSegmentSpeeds: "Mostrar velocitats per segment",
                 showLiveElevation: "Mostrar altitud en viu",
                 speedAsPace: "Mostrar ritme (min/km)",
+                showPace: "Mostrar ritme",
+                unitsLabel: "Unitats",
+                unitsMetric: "Mètric (km)",
+                unitsImperial: "Imperial (mi)",
 
                 // Comparison Mode
                 comparisonSettings: "🏃‍♂️ Mode Comparació",
@@ -2481,6 +2495,7 @@ export const translations = {
                 cameraMode: "Mode de Càmera",
                 cameraStandard: "🎥 Mode Manual",
                 cameraFollowBehind: "🎬 Seguir Darrere",
+                cameraOverview: "🌍 Vista General",
                 followBehindZoom: "Distància de Seguiment",
                 followBehindVeryClose: "🔍 Molt A prop",
                 followBehindMedium: "📍 Mitjà",
@@ -2995,6 +3010,10 @@ export function updatePageTranslations() {
             element.title = translation;
         }
     });
+
+    if (window.app && typeof window.app.updateUnitUI === 'function') {
+        window.app.updateUnitUI();
+    }
 }
 
 // Make updatePageTranslations available globally

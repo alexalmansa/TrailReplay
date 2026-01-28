@@ -290,15 +290,20 @@ export class RoutingService {
     formatRoute(route) {
         const distanceKm = route.distance / 1000;
         const durationHours = route.duration / 3600;
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        const distanceDisplay = useImperial
+            ? `${(distanceKm * 0.621371).toFixed(1)}mi`
+            : (distanceKm < 1 ? `${route.distance.toFixed(0)}m` : `${distanceKm.toFixed(1)}km`);
         
         return {
             ...route,
-            formattedDistance: distanceKm < 1 ? 
-                `${route.distance.toFixed(0)}m` : 
-                `${distanceKm.toFixed(1)}km`,
+            formattedDistance: distanceDisplay,
             formattedDuration: durationHours < 1 ?
                 `${Math.round(route.duration / 60)}min` :
                 `${durationHours.toFixed(1)}h`
         };
     }
-} 
+}

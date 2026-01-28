@@ -199,6 +199,14 @@ export class JourneyTracksUI {
 
     // Format distance for display
     formatDistance(distanceKm) {
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        if (useImperial) {
+            const miles = distanceKm * 0.621371;
+            return `${miles.toFixed(1)} mi`;
+        }
         if (distanceKm < 1) {
             return `${Math.round(distanceKm * 1000)}m`;
         }

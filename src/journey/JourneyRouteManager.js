@@ -285,7 +285,7 @@ export class JourneyRouteManager {
                 <p>${t('journeyBuilder.clickMapToAddPoints')}</p>
                 <div class="drawing-stats">
                     <span id="routePointCount">0 ${t('journeyBuilder.points')}</span>
-                    <span id="routeDistance">0 km</span>
+                    <span id="routeDistance">${this.formatDistance(0)}</span>
                 </div>
             </div>
             <div class="drawing-controls">
@@ -308,6 +308,21 @@ export class JourneyRouteManager {
         finishBtn.addEventListener('click', () => this.finishRouteDrawing());
         cancelBtn.addEventListener('click', () => this.cancelRouteDrawing());
         undoBtn.addEventListener('click', () => this.undoLastPoint());
+    }
+
+    formatDistance(distanceKm) {
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        if (useImperial) {
+            const miles = distanceKm * 0.621371;
+            return `${miles.toFixed(2)} mi`;
+        }
+        if (distanceKm < 1) {
+            return `${Math.round(distanceKm * 1000)} m`;
+        }
+        return `${distanceKm.toFixed(2)} km`;
     }
 
     // Setup route drawing listeners
@@ -427,7 +442,7 @@ export class JourneyRouteManager {
 
         if (distanceEl && this.currentDrawnRoute.length > 1) {
             const distance = this.calculateRouteDistance(this.currentDrawnRoute);
-            distanceEl.textContent = `${distance.toFixed(2)} km`;
+            distanceEl.textContent = this.formatDistance(distance);
         }
     }
 

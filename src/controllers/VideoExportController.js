@@ -3827,9 +3827,9 @@ export class VideoExportController {
             }
 
             return {
-                distance: this.app.gpxParser ? this.app.gpxParser.formatDistance(currentDistance) : currentDistance.toFixed(1) + ' km',
-                elevation: this.app.gpxParser ? this.app.gpxParser.formatElevation(currentElevationGain) : currentElevationGain.toFixed(0) + ' m',
-                speed: currentSpeed > 0 ? currentSpeed.toFixed(1) + ' km/h' : '0 km/h'
+                distance: this.app.formatDistance ? this.app.formatDistance(currentDistance) : (this.app.gpxParser ? this.app.gpxParser.formatDistance(currentDistance) : `${currentDistance.toFixed(1)} km`),
+                elevation: this.app.gpxParser ? this.app.gpxParser.formatElevation(currentElevationGain) : `${currentElevationGain.toFixed(0)} m`,
+                speed: this.app.formatSpeed ? this.app.formatSpeed(currentSpeed) : (currentSpeed > 0 ? `${currentSpeed.toFixed(1)} km/h` : '0 km/h')
             };
         } catch (error) {
             console.warn('Error getting current stats:', error);

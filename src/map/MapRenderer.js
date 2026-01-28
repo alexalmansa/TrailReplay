@@ -1145,6 +1145,50 @@ export class MapRenderer {
             if (!this.isAnimating) {
                 this.enableZoomOnlyInteractions();
             }
+        } else if (mode === 'overview') {
+            console.log('📹 Entering overview camera mode');
+
+            // Reset follow-behind camera to allow re-initialization
+            this.followBehindCamera.reset();
+
+            // Disable map interactions during animation
+            this.disableMapInteractions();
+
+            // Disable auto-follow in overview
+            const autoFollowToggle = document.getElementById('autoZoom');
+            if (autoFollowToggle) {
+                autoFollowToggle.checked = false;
+                autoFollowToggle.disabled = true;
+            }
+            this.autoZoom = false;
+
+            // Fit the full track in view with a neutral pitch/bearing
+            if (this.trackData && this.trackData.bounds) {
+                const bounds = [
+                    [this.trackData.bounds.west, this.trackData.bounds.south],
+                    [this.trackData.bounds.east, this.trackData.bounds.north]
+                ];
+                this.map.fitBounds(bounds, {
+                    padding: 80,
+                    duration: 800,
+                    bearing: 0,
+                    pitch: 0,
+                    maxZoom: 12
+                });
+            }
+
+            if (!this.isAnimating) {
+                this.enableZoomOnlyInteractions();
+            }
+
+            // Restore original marker size when switching to overview
+            if (this.followBehindCamera.originalMarkerSize) {
+                this.markerSize = this.followBehindCamera.originalMarkerSize;
+                this.createAndAddActivityIcon();
+                if (this.map.getLayer('activity-icon-layer')) {
+                    this.forceIconUpdate();
+                }
+            }
         } else {
             console.log('📹 Entering standard camera mode');
 
@@ -1732,7 +1776,20 @@ export class MapRenderer {
 
             // Don't call setStartingPosition here - let fitBounds show the route overview
             // The cinematic sequence will handle the zoom-in when play is clicked
-
+        
+        } else if (this.cameraMode === 'overview') {
+            if (trackData.bounds) {
+                this.map.fitBounds([
+                    [trackData.bounds.west, trackData.bounds.south],
+                    [trackData.bounds.east, trackData.bounds.north]
+                ], {
+                    padding: 80,
+                    duration: 800,
+                    bearing: 0,
+                    pitch: 0,
+                    maxZoom: 12
+                });
+            }
         } else {
             // Standard mode - ensure proper zoom level is set
             const startPoint = this.gpxParser.getInterpolatedPoint(0);
@@ -1783,6 +1840,17 @@ export class MapRenderer {
             }
 
             console.log('🎬 Follow-behind mode initialized as default');
+        } else if (this.cameraMode === 'overview') {
+            this.disableMapInteractions();
+
+            const autoFollowToggle = document.getElementById('autoZoom');
+            if (autoFollowToggle) {
+                autoFollowToggle.checked = false;
+                autoFollowToggle.disabled = true;
+            }
+            this.autoZoom = false;
+
+            console.log('🎬 Overview camera mode initialized as default');
         } else {
             // Standard mode - ensure map interactions are enabled
             this.enableMapInteractions();
@@ -2594,9 +2662,11 @@ export class MapRenderer {
 
         let speedComparisonText = '';
         if (isFaster) {
-            speedComparisonText = `+${speedDifference.toFixed(1)} km/h faster`;
+            const diffText = this.app?.formatSpeed ? this.app.formatSpeed(Math.abs(speedDifference)) : `${Math.abs(speedDifference).toFixed(1)} km/h`;
+            speedComparisonText = `+${diffText} faster`;
         } else if (isSlower) {
-            speedComparisonText = `${speedDifference.toFixed(1)} km/h slower`;
+            const diffText = this.app?.formatSpeed ? this.app.formatSpeed(Math.abs(speedDifference)) : `${Math.abs(speedDifference).toFixed(1)} km/h`;
+            speedComparisonText = `${diffText} slower`;
         } else {
             speedComparisonText = 'Similar pace';
         }
