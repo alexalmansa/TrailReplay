@@ -222,6 +222,9 @@ export class TrailReplayApp {
         if (this.stats?.updateSpeedDisplayMode) {
             this.stats.updateSpeedDisplayMode();
         }
+        if (typeof this.updateElevationLabels === 'function') {
+            this.updateElevationLabels();
+        }
     }
 
     updateUnitUI() {
