@@ -25,7 +25,7 @@ export class MapRenderer {
     constructor(container, app = null) {
         this.container = container;
         this.app = app;
-        
+
         this.mapManager = new MapManager(container, this);
         this.map = this.mapManager.map;
 
@@ -37,7 +37,7 @@ export class MapRenderer {
         this.currentActivityType = 'running';
         this.pathColor = '#C1652F';
         this.markerSize = DEFAULT_SETTINGS.DEFAULT_MARKER_SIZE;
-        
+
         // Heart rate color mode properties
         this.colorMode = 'fixed'; // 'fixed' or 'heartRate'
         this.heartRateColors = null; // Will store color array for heart rate mode
@@ -47,27 +47,27 @@ export class MapRenderer {
         this.showCircle = true;
         this.showMarker = false; // Disabled by default for more professional look
         this.showTrackLabel = false; // Hide "Track 1" letters by default
-        
+
         this.comparisonController = new ComparisonController(this);
         this.statsController = new StatsController(this);
         this.currentIcon = '🏃‍♂️';
         this.userSelectedBaseIcon = null; // Stores user's custom base icon choice
         this.trackManager = new TrackManager(this);
         this.gpxParser = this.trackManager.gpxParser;
-        
+
         // Segment-aware animation properties
         this.segmentTimings = null;
         this.currentSegmentIndex = 0;
         this.segmentProgress = 0;
         this.lastAnimationTime = 0;
         this.journeyElapsedTime = 0;
-        
+
         // Camera mode properties
         this.cameraMode = 'followBehind'; // 'standard' or 'followBehind' - followBehind is default
-        
+
         // Performance mode for video recording
         this.performanceMode = false;
-        
+
         // Initialize modular components AFTER other properties are set
         this.annotations = new MapAnnotations(this);
         this.iconChanges = new MapIconChanges(this);
@@ -78,7 +78,7 @@ export class MapRenderer {
         this.heartRateController = new HeartRateController(this);
         this.terrainController = new TerrainController(this);
         this.followBehindCamera = new FollowBehindCamera(this);
-        
+
         // Ensure proper method binding for icon changes
         if (this.iconChanges && typeof this.iconChanges.checkIconChanges === 'function') {
             // Explicitly bind the method to ensure it's available
@@ -98,7 +98,7 @@ export class MapRenderer {
         }, 100);
         this.preloadedTiles = new Set(); // Track preloaded tile URLs
         this.currentMapStyle = 'satellite'; // Track current style for preloading
-        this.pendingZoomNudgeTimeout = null;
+
     }
 
     // Delegated Terrain Methods
@@ -122,58 +122,7 @@ export class MapRenderer {
         return this.terrainController.isTerrainSupported();
     }
 
-    scheduleZoomNudge(delay = 1500) {
-        if (this.pendingZoomNudgeTimeout) {
-            clearTimeout(this.pendingZoomNudgeTimeout);
-        }
-        this.pendingZoomNudgeTimeout = setTimeout(() => {
-            this.simulateZoomNudge();
-        }, delay);
-    }
 
-    simulateZoomNudge() {
-        if (!this.map || typeof this.map.getCanvas !== 'function') {
-            return;
-        }
-
-        const canvas = this.map.getCanvas();
-        if (!canvas) {
-            return;
-        }
-
-        try {
-            canvas.focus();
-            const wheelEvent = new WheelEvent('wheel', {
-                deltaY: 0.01,
-                deltaMode: WheelEvent.DOM_DELTA_LINE,
-                bubbles: true,
-                cancelable: true
-            });
-            canvas.dispatchEvent(wheelEvent);
-        } catch (error) {
-            console.warn('simulateZoomNudge wheel dispatch failed, falling back to jumpTo workaround', error);
-            try {
-                const center = this.map.getCenter();
-                const zoom = this.map.getZoom();
-                const pitch = this.map.getPitch();
-                const bearing = this.map.getBearing();
-                this.map.jumpTo({
-                    center,
-                    zoom: zoom + 0.001,
-                    pitch,
-                    bearing
-                });
-                this.map.jumpTo({
-                    center,
-                    zoom,
-                    pitch,
-                    bearing
-                });
-            } catch (_) {}
-        } finally {
-            this.pendingZoomNudgeTimeout = null;
-        }
-    }
 
     // Delegated Comparison Methods
     updateComparisonPosition() {
@@ -267,7 +216,7 @@ export class MapRenderer {
                 const end = Math.max(...times);
                 if (end > start) return { start, end };
             }
-        } catch (e) {}
+        } catch (e) { }
         return { start: null, end: null };
     }
 
@@ -278,7 +227,7 @@ export class MapRenderer {
     // Delegate annotation methods to the annotations module
     enableAnnotationMode() {
         if (this.annotations && typeof this.annotations.enableAnnotationMode === 'function') {
-        return this.annotations.enableAnnotationMode();
+            return this.annotations.enableAnnotationMode();
         } else {
             console.error('annotations.enableAnnotationMode not available');
         }
@@ -286,7 +235,7 @@ export class MapRenderer {
 
     disableAnnotationMode() {
         if (this.annotations && typeof this.annotations.disableAnnotationMode === 'function') {
-        return this.annotations.disableAnnotationMode();
+            return this.annotations.disableAnnotationMode();
         } else {
             console.error('annotations.disableAnnotationMode not available');
         }
@@ -294,7 +243,7 @@ export class MapRenderer {
 
     addAnnotation(progress, title, description, icon = '📍') {
         if (this.annotations && typeof this.annotations.addAnnotation === 'function') {
-        return this.annotations.addAnnotation(progress, title, description, icon);
+            return this.annotations.addAnnotation(progress, title, description, icon);
         } else {
             console.error('annotations.addAnnotation not available');
             return null;
@@ -303,7 +252,7 @@ export class MapRenderer {
 
     removeAnnotation(id) {
         if (this.annotations && typeof this.annotations.removeAnnotation === 'function') {
-        return this.annotations.removeAnnotation(id);
+            return this.annotations.removeAnnotation(id);
         } else {
             console.error('annotations.removeAnnotation not available');
         }
@@ -348,19 +297,19 @@ export class MapRenderer {
     // Delegate icon change methods to the iconChanges module
     enableIconChangeMode() {
         if (this.iconChanges && typeof this.iconChanges.enableIconChangeMode === 'function') {
-        return this.iconChanges.enableIconChangeMode();
+            return this.iconChanges.enableIconChangeMode();
         }
     }
 
     disableIconChangeMode() {
         if (this.iconChanges && typeof this.iconChanges.disableIconChangeMode === 'function') {
-        return this.iconChanges.disableIconChangeMode();
+            return this.iconChanges.disableIconChangeMode();
         }
     }
 
     addIconChange(progress, icon) {
         if (this.iconChanges && typeof this.iconChanges.addIconChange === 'function') {
-        return this.iconChanges.addIconChange(progress, icon);
+            return this.iconChanges.addIconChange(progress, icon);
         } else {
             console.error('iconChanges.addIconChange not available');
             return null;
@@ -369,7 +318,7 @@ export class MapRenderer {
 
     removeIconChange(id) {
         if (this.iconChanges && typeof this.iconChanges.removeIconChange === 'function') {
-        return this.iconChanges.removeIconChange(id);
+            return this.iconChanges.removeIconChange(id);
         } else {
             console.error('iconChanges.removeIconChange not available');
         }
@@ -475,7 +424,7 @@ export class MapRenderer {
         if (this.userSelectedBaseIcon) {
             return this.userSelectedBaseIcon;
         }
-        
+
         // Otherwise, return activity-based icon
         const icons = {
             'running': '🏃‍♂️',
@@ -500,14 +449,14 @@ export class MapRenderer {
             console.error('No track data available for GPX parser');
             return false;
         }
-        
+
         // Use original track data
         let trackPoints = this.trackData.trackPoints;
-        
+
         if (!this.gpxParser.trackPoints || this.gpxParser.trackPoints !== trackPoints) {
             this.gpxParser.trackPoints = trackPoints;
         }
-        
+
         return true;
     }
 
@@ -535,50 +484,50 @@ export class MapRenderer {
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext('2d');
-            
+
             ctx.clearRect(0, 0, size, size);
-            
+
             // Draw background circle if enabled
             if (this.showCircle) {
                 const circleRadius = size * 0.45;
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.beginPath();
-                ctx.arc(size/2, size/2, circleRadius, 0, 2 * Math.PI);
+                ctx.arc(size / 2, size / 2, circleRadius, 0, 2 * Math.PI);
                 ctx.fill();
-                
+
                 ctx.strokeStyle = '#333333';
                 ctx.lineWidth = 2;
                 ctx.stroke();
             }
-            
+
             // Draw the emoji - make it fill most of the marker
             const fontSize = Math.floor(size * 0.9 * this.markerSize);
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#000000';
-            
+
             if (!this.showCircle) {
                 ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                 ctx.shadowBlur = 6;
                 ctx.shadowOffsetX = 2;
                 ctx.shadowOffsetY = 2;
             }
-            
-            ctx.fillText(this.currentIcon, size/2, size/2);
-            
+
+            ctx.fillText(this.currentIcon, size / 2, size / 2);
+
             const imageData = ctx.getImageData(0, 0, size, size);
-            
+
             if (this.map.hasImage && this.map.hasImage('activity-icon')) {
                 this.map.removeImage('activity-icon');
             }
-            
+
             this.map.addImage('activity-icon', {
                 width: size,
                 height: size,
                 data: imageData.data
             });
-            
+
         } catch (error) {
             console.error('Error creating activity icon:', error);
         }
@@ -588,13 +537,13 @@ export class MapRenderer {
         if (!this.map.loaded() || !this.map.hasImage) {
             return;
         }
-        
+
         this.createAndAddActivityIcon();
-        
+
         if (this.map.getLayer('activity-icon')) {
             const visibility = this.showMarker ? 'visible' : 'none';
             const opacity = this.showMarker ? 1 : 0;
-            
+
             this.map.setLayoutProperty('activity-icon', 'visibility', visibility);
             this.map.setLayoutProperty('activity-icon', 'icon-size', this.markerSize);
             this.map.setPaintProperty('activity-icon', 'icon-opacity', opacity);
@@ -608,10 +557,10 @@ export class MapRenderer {
         if (!this.map.loaded()) {
             return;
         }
-        
+
         const visibility = this.showMarker ? 'visible' : 'none';
         const opacity = this.showMarker ? 1 : 0;
-        
+
         if (this.map.getLayer('activity-icon')) {
             this.map.setLayoutProperty('activity-icon', 'visibility', visibility);
             this.map.setPaintProperty('activity-icon', 'icon-opacity', opacity);
@@ -623,40 +572,40 @@ export class MapRenderer {
         const markerSizeGroup = document.getElementById('markerSize')?.closest('.control-group');
         const currentIconGroup = document.getElementById('currentIconDisplay')?.closest('.control-group');
         const showCircleGroup = document.getElementById('showCircle')?.closest('.control-group');
-        
+
         // Disable/enable marker size slider
         const markerSizeSlider = document.getElementById('markerSize');
         if (markerSizeSlider) {
             markerSizeSlider.disabled = !enabled;
             markerSizeSlider.style.opacity = enabled ? '1' : '0.5';
         }
-        
+
         // Disable/enable marker size value display
         const markerSizeValue = document.getElementById('markerSizeValue');
         if (markerSizeValue) {
             markerSizeValue.style.opacity = enabled ? '1' : '0.5';
         }
-        
+
         // Disable/enable current icon display
         const currentIconDisplay = document.getElementById('currentIconDisplay');
         if (currentIconDisplay) {
             currentIconDisplay.style.opacity = enabled ? '1' : '0.5';
         }
-        
+
         // Disable/enable change icon button
         const changeIconBtn = document.getElementById('changeIconBtn');
         if (changeIconBtn) {
             changeIconBtn.disabled = !enabled;
             changeIconBtn.style.opacity = enabled ? '1' : '0.5';
         }
-        
+
         // Disable/enable show circle toggle (since it only affects the marker)
         const showCircleToggle = document.getElementById('showCircle');
         if (showCircleToggle) {
             showCircleToggle.disabled = !enabled;
             showCircleToggle.style.opacity = enabled ? '1' : '0.5';
         }
-        
+
         // Update control group classes for visual feedback
         if (markerSizeGroup) {
             markerSizeGroup.classList.toggle('disabled', !enabled);
@@ -675,10 +624,10 @@ export class MapRenderer {
         } else {
             const visibility = this.showMarker ? 'visible' : 'none';
             const opacity = this.showMarker ? 1 : 0;
-            
+
             this.map.setLayoutProperty('activity-icon', 'visibility', visibility);
             this.map.setPaintProperty('activity-icon', 'icon-opacity', opacity);
-            
+
             if (!this.map.hasImage('activity-icon')) {
                 this.createAndAddActivityIcon();
             }
@@ -688,36 +637,36 @@ export class MapRenderer {
     createAndAddActivityIconLayer(immediate = false) {
         try {
             this.createAndAddActivityIcon();
-            
+
             const delay = immediate ? 10 : 100;
             setTimeout(() => {
                 try {
-            if (!this.map.getLayer('activity-icon')) {
-                const visibility = this.showMarker ? 'visible' : 'none';
-                const opacity = this.showMarker ? 1 : 0;
-                
-                this.map.addLayer({
-                    id: 'activity-icon',
-                    type: 'symbol',
-                    source: 'current-position',
-                    layout: {
-                        'icon-image': 'activity-icon',
-                        'icon-size': this.markerSize,
-                        'icon-allow-overlap': true,
-                        'icon-ignore-placement': true,
-                        'icon-anchor': 'center',
-                        'visibility': visibility
-                    },
-                    paint: {
-                        'icon-opacity': opacity
+                    if (!this.map.getLayer('activity-icon')) {
+                        const visibility = this.showMarker ? 'visible' : 'none';
+                        const opacity = this.showMarker ? 1 : 0;
+
+                        this.map.addLayer({
+                            id: 'activity-icon',
+                            type: 'symbol',
+                            source: 'current-position',
+                            layout: {
+                                'icon-image': 'activity-icon',
+                                'icon-size': this.markerSize,
+                                'icon-allow-overlap': true,
+                                'icon-ignore-placement': true,
+                                'icon-anchor': 'center',
+                                'visibility': visibility
+                            },
+                            paint: {
+                                'icon-opacity': opacity
+                            }
+                        });
                     }
-                });
-            }
                 } catch (layerError) {
                     console.error('Error adding activity icon layer:', layerError);
                 }
             }, delay);
-            
+
         } catch (error) {
             console.error('Error creating activity icon layer:', error);
         }
@@ -728,19 +677,19 @@ export class MapRenderer {
             if (this.map.getLayer('activity-icon')) {
                 this.map.removeLayer('activity-icon');
             }
-            
+
             if (this.map.hasImage('activity-icon')) {
                 this.map.removeImage('activity-icon');
             }
-            
+
             setTimeout(() => {
                 this.createAndAddActivityIcon();
-                
+
                 setTimeout(() => {
                     if (!this.map.getLayer('activity-icon')) {
                         const visibility = this.showMarker ? 'visible' : 'none';
                         const opacity = this.showMarker ? 1 : 0;
-                        
+
                         this.map.addLayer({
                             id: 'activity-icon',
                             type: 'symbol',
@@ -760,7 +709,7 @@ export class MapRenderer {
                     }
                 }, 50);
             }, 10);
-            
+
         } catch (error) {
             console.error('Error in forceIconUpdate:', error);
         }
@@ -780,7 +729,7 @@ export class MapRenderer {
             // Calculate center point of the track
             const centerLon = (this.trackData.bounds.west + this.trackData.bounds.east) / 2;
             const centerLat = (this.trackData.bounds.south + this.trackData.bounds.north) / 2;
-            
+
             // Only center the map, don't change zoom
             this.map.setCenter([centerLon, centerLat]);
         }
@@ -854,15 +803,15 @@ export class MapRenderer {
     setupSegmentAnimation(segments, segmentTiming) {
         const previousProgress = this.animationProgress || 0;
         const wasAnimating = this.isAnimating;
-        
+
         this.segmentTimings = null;
         this.currentSegmentIndex = 0;
         this.segmentProgress = 0;
         this.journeyElapsedTime = 0;
         this.lastAnimationTime = 0;
-        
+
         this.segmentTimings = segmentTiming;
-        
+
         if (previousProgress > 0 && segmentTiming && segmentTiming.totalDuration > 0) {
             this.journeyElapsedTime = previousProgress * segmentTiming.totalDuration;
             this.animationProgress = previousProgress;
@@ -871,18 +820,18 @@ export class MapRenderer {
             this.animationProgress = 0;
             this.journeyElapsedTime = 0;
         }
-        
+
         this.updateCurrentPosition();
     }
 
     setAnimationProgress(progress) {
         this.animationProgress = Math.max(0, Math.min(1, progress));
-        
+
         // Reset stats animation if seeking away from the end
         if (progress < 0.98) {
             this.resetStatsEndAnimation();
         }
-        
+
         // --- Per-segment time calculation ---
         if (this.segmentTimings && this.segmentTimings.segments && this.segmentTimings.segments.length > 0) {
             // Map global progress to journeyElapsedTime
@@ -953,10 +902,10 @@ export class MapRenderer {
 
     updateSegmentProgress(globalProgress) {
         if (!this.segmentTimings || !this.segmentTimings.segments) return;
-        
+
         const totalDuration = this.segmentTimings.totalDuration;
         const currentTime = globalProgress * totalDuration;
-        
+
         for (let i = 0; i < this.segmentTimings.segments.length; i++) {
             const segment = this.segmentTimings.segments[i];
             if (currentTime >= segment.startTime && currentTime <= segment.endTime) {
@@ -1021,7 +970,7 @@ export class MapRenderer {
         if (style !== 'hybrid' && this.map.getLayer('enhanced-hillshade')) {
             this.map.setLayoutProperty('enhanced-hillshade', 'visibility', 'none');
         }
-        
+
         // Optionally update attribution UI here
         this.currentMapStyle = style; // Track current style for preloading
     }
@@ -1052,9 +1001,9 @@ export class MapRenderer {
 
         trackData.segments.forEach((segment, index) => {
             const segmentCoords = coordinates.slice(segment.startIndex, segment.endIndex + 1);
-            
+
             if (segmentCoords.length < 2) return;
-            
+
             const feature = {
                 type: 'Feature',
                 geometry: {
@@ -1069,7 +1018,7 @@ export class MapRenderer {
                     isTransportation: segment.type === 'transportation'
                 }
             };
-            
+
             trailLineData.features.push(feature);
         });
 
@@ -1079,15 +1028,15 @@ export class MapRenderer {
 
     addSegmentTransitionMarkers(segments, coordinates) {
         const transitionFeatures = [];
-        
+
         for (let i = 1; i < segments.length; i++) {
             const prevSegment = segments[i - 1];
             const currentSegment = segments[i];
             const transitionIndex = currentSegment.startIndex;
-            
+
             if (transitionIndex < coordinates.length) {
                 const coord = coordinates[transitionIndex];
-                
+
                 transitionFeatures.push({
                     type: 'Feature',
                     geometry: {
@@ -1103,7 +1052,7 @@ export class MapRenderer {
                 });
             }
         }
-        
+
         if (!this.map.getSource('segment-transitions')) {
             this.map.addSource('segment-transitions', {
                 type: 'geojson',
@@ -1112,7 +1061,7 @@ export class MapRenderer {
                     features: transitionFeatures
                 }
             });
-            
+
             this.map.addLayer({
                 id: 'segment-transitions',
                 type: 'circle',
@@ -1138,28 +1087,28 @@ export class MapRenderer {
     // Stats methods for video export
     getCurrentDistance() {
         if (!this.gpxParser || !this.trackData) return 0;
-        
+
         const currentPoint = this.gpxParser.getInterpolatedPoint(this.animationProgress);
         return currentPoint ? currentPoint.distance : 0;
     }
 
     getCurrentElevation() {
         if (!this.gpxParser || !this.trackData) return 0;
-        
+
         const currentPoint = this.gpxParser.getInterpolatedPoint(this.animationProgress);
         return currentPoint ? currentPoint.elevation : 0;
     }
 
     getCurrentSpeed() {
         if (!this.gpxParser || !this.trackData) return 0;
-        
+
         const currentPoint = this.gpxParser.getInterpolatedPoint(this.animationProgress);
         return currentPoint ? currentPoint.speed : 0;
     }
 
     getElevationData() {
         if (!this.trackData || !this.trackData.trackPoints) return [];
-        
+
         return this.trackData.trackPoints.map(point => point.elevation || 0);
     }
 
@@ -1167,13 +1116,13 @@ export class MapRenderer {
     setCameraMode(mode) {
 
 
-        
+
         this.cameraMode = mode;
-        
+
         if (mode === 'followBehind') {
             // Disable map interactions when in follow-behind mode
             this.disableMapInteractions();
-            
+
             // Force auto-follow to be enabled
             const autoFollowToggle = document.getElementById('autoZoom');
             if (autoFollowToggle && !autoFollowToggle.checked) {
@@ -1181,17 +1130,17 @@ export class MapRenderer {
                 this.autoZoom = true;
 
             }
-            
+
             // Disable the auto-follow toggle to prevent user from turning it off
             if (autoFollowToggle) {
                 autoFollowToggle.disabled = true;
                 console.log('📹 Auto-follow toggle disabled');
             }
-            
+
             // Initialize the follow-behind camera
             console.log('📹 Initializing follow-behind camera');
             this.followBehindCamera.initialize();
-            
+
             // If paused, allow zooming
             if (!this.isAnimating) {
                 this.enableZoomOnlyInteractions();
@@ -1242,25 +1191,25 @@ export class MapRenderer {
             }
         } else {
             console.log('📹 Entering standard camera mode');
-            
+
             // Reset follow-behind camera to allow re-initialization
             this.followBehindCamera.reset();
-            
+
             // Re-enable map interactions for standard mode
             this.enableMapInteractions();
-            
+
             // Re-enable the auto-follow toggle
             const autoFollowToggle = document.getElementById('autoZoom');
             if (autoFollowToggle) {
                 autoFollowToggle.disabled = false;
             }
-            
+
             // Return to a normal overview of the track when switching to standard mode
             if (this.trackData && this.trackData.bounds) {
                 console.log('📹 Switching to standard mode - showing track overview');
                 this.centerOnTrail();
             }
-            
+
             // Restore original marker size when switching to standard mode
             if (this.followBehindCamera.originalMarkerSize) {
                 this.markerSize = this.followBehindCamera.originalMarkerSize;
@@ -1280,26 +1229,26 @@ export class MapRenderer {
             is3DMode: this.is3DMode,
             alreadyInitialized: this.followBehindInitialized
         });
-        
+
         if (!this.trackData || !this.map) {
             console.warn('🎬 Cannot initialize follow-behind camera: missing prerequisites');
             return;
         }
-        
+
         // Prevent multiple initializations
         if (this.followBehindInitialized) {
             console.log('🎬 Follow-behind camera already initialized, skipping');
             return;
         }
-        
+
         console.log('🎬 Initializing follow-behind camera mode');
         this.followBehindInitialized = true;
-        
+
         // Enable 3D if not already enabled for better cinematic effect
         if (!this.is3DMode) {
             console.log('🎬 Enabling 3D terrain for cinematic effect');
             this.enable3DTerrain();
-            
+
             // Wait longer for terrain to actually load
             this.waitForTerrainToLoad().then(() => {
                 console.log('🎬 Terrain loaded, initializing terrain-aware settings');
@@ -1313,7 +1262,7 @@ export class MapRenderer {
                 this.setFollowBehindStartingPosition();
             }, 500);
         }
-        
+
         console.log('🎬 Follow-behind camera mode initialized');
     }
 
@@ -1322,41 +1271,41 @@ export class MapRenderer {
             console.warn('🎬 Cannot initialize follow-behind start: missing trackData or map');
             return;
         }
-        
+
         console.log('🎬 Starting follow-behind camera cinematic sequence');
-        
+
         // Ensure terrain is loaded before starting cinematic sequence
         if (this.is3DMode && (!this.map.getTerrain || !this.map.getTerrain())) {
             console.log('🎬 Waiting for terrain before starting cinematic sequence');
             await this.waitForTerrainToLoad();
         }
-        
+
         // Get the CURRENT marker position (not start point) since animation may have already started
         const currentPoint = this.gpxParser.getInterpolatedPoint(this.animationProgress);
         if (!currentPoint) {
             console.warn('🎬 No current point available for follow-behind camera at progress:', this.animationProgress);
             return;
         }
-        
+
         // Calculate bearing from current position
         const bearing = this.calculateCameraBearing(this.animationProgress);
-        
+
         // Get current zoom to use as starting point (should be the overview zoom we set)
         const currentZoom = this.map.getZoom();
-        
+
         console.log(`🎬 Starting cinematic sequence from zoom ${currentZoom.toFixed(1)} at progress ${this.animationProgress.toFixed(3)}`);
         console.log(`🎬 Location: [${currentPoint.lon.toFixed(6)}, ${currentPoint.lat.toFixed(6)}] with bearing ${bearing.toFixed(1)}`);
-        
+
         // Get terrain-aware settings for the current position
         const terrainSettings = this.calculateTerrainAwareCameraSettings(this.animationProgress);
-        
+
         // Initialize the terrain-aware tracking variables properly
         this.lastCameraZoom = terrainSettings.zoom;
         this.lastCameraPitch = terrainSettings.pitch;
         this.lastCameraBearing = bearing;
-        
+
         console.log(`🎬 Calculated terrain-aware start settings: zoom=${terrainSettings.zoom.toFixed(1)}, pitch=${terrainSettings.pitch.toFixed(1)}, bearing=${bearing.toFixed(1)}`);
-        
+
         // Start the cinematic zoom-in from current position to terrain-aware follow-behind view
         this.map.easeTo({
             center: [currentPoint.lon, currentPoint.lat],
@@ -1365,7 +1314,7 @@ export class MapRenderer {
             bearing: bearing,
             duration: 3000 // 3 second cinematic zoom-in
         });
-        
+
         this.lastCameraBearing = bearing;
         console.log('🎬 Follow-behind camera cinematic start sequence initialized');
     }
@@ -1375,21 +1324,21 @@ export class MapRenderer {
             console.warn('🎬 Cannot set follow-behind camera: missing trackData or map');
             return;
         }
-        
+
         console.log('🎬 Setting follow-behind camera position for progress:', this.animationProgress);
-        
+
         // Get current position
         const currentPoint = this.gpxParser.getInterpolatedPoint(this.animationProgress);
         if (!currentPoint) {
             console.warn('🎬 No current point for follow-behind camera at progress:', this.animationProgress);
             return;
         }
-        
+
         // Calculate bearing from movement direction
         const bearing = this.calculateCameraBearing(this.animationProgress);
-        
+
         console.log(`🎬 Setting follow-behind camera: center=[${currentPoint.lon.toFixed(6)}, ${currentPoint.lat.toFixed(6)}], zoom=${this.followBehindSettings.zoom}, pitch=${this.followBehindSettings.pitch}, bearing=${bearing.toFixed(1)}`);
-        
+
         // Set camera position with smooth transition
         this.map.easeTo({
             center: [currentPoint.lon, currentPoint.lat],
@@ -1398,7 +1347,7 @@ export class MapRenderer {
             bearing: bearing,
             duration: 1500
         });
-        
+
         this.lastCameraBearing = bearing;
         console.log('🎬 Follow-behind camera position set successfully');
     }
@@ -1407,22 +1356,22 @@ export class MapRenderer {
         if (!this.trackData || !this.trackData.trackPoints || this.trackData.trackPoints.length < 2) {
             return 0;
         }
-        
+
         // Get a larger segment ahead to calculate direction for better stability
         const lookAheadProgress = Math.min(progress + 0.05, 1); // Look ahead by 5%
         const currentPoint = this.gpxParser.getInterpolatedPoint(progress);
         const futurePoint = this.gpxParser.getInterpolatedPoint(lookAheadProgress);
-        
+
         if (!currentPoint || !futurePoint) {
             return this.lastCameraBearing || 0;
         }
-        
+
         // Calculate bearing between current and future point
         const bearing = this.calculateBearingBetweenPoints(
             currentPoint.lat, currentPoint.lon,
             futurePoint.lat, futurePoint.lon
         );
-        
+
         return bearing;
     }
 
@@ -1435,7 +1384,7 @@ export class MapRenderer {
                 markerScale: 1.0
             };
         }
-        
+
         const currentPoint = this.gpxParser.getInterpolatedPoint(progress);
         if (!currentPoint) {
             return {
@@ -1446,20 +1395,20 @@ export class MapRenderer {
         }
 
         const currentElevation = currentPoint.elevation || 0;
-        
+
         // Calculate elevation change and terrain steepness
         const lookAheadProgress = Math.min(progress + 0.02, 1); // Look ahead 2%
         const lookBehindProgress = Math.max(progress - 0.02, 0); // Look behind 2%
-        
+
         const futurePoint = this.gpxParser.getInterpolatedPoint(lookAheadProgress);
         const pastPoint = this.gpxParser.getInterpolatedPoint(lookBehindProgress);
-        
+
         let elevationChange = 0;
         let steepness = 0;
-        
+
         if (futurePoint && pastPoint) {
             elevationChange = futurePoint.elevation - pastPoint.elevation;
-            
+
             // Calculate steepness (elevation change per distance)
             const distance = this.calculateDistanceBetweenPoints(
                 pastPoint.lat, pastPoint.lon,
@@ -1467,67 +1416,67 @@ export class MapRenderer {
             );
             steepness = distance > 0 ? Math.abs(elevationChange) / distance : 0;
         }
-        
+
         // Dynamic zoom based on elevation and steepness
         let dynamicZoom = this.followBehindSettings.baseZoom;
-        
+
         // Zoom out for higher elevations and steep terrain
         const elevationFactor = Math.min(currentElevation * this.followBehindSettings.elevationSensitivity, 2);
         const steepnessFactor = Math.min(steepness * 1000, 1.5); // Scale steepness impact
-        
+
         dynamicZoom = this.followBehindSettings.baseZoom - elevationFactor - steepnessFactor;
-        dynamicZoom = Math.max(this.followBehindSettings.minZoom, 
-                              Math.min(this.followBehindSettings.maxZoom, dynamicZoom));
-        
+        dynamicZoom = Math.max(this.followBehindSettings.minZoom,
+            Math.min(this.followBehindSettings.maxZoom, dynamicZoom));
+
         // Dynamic pitch based on elevation change and steepness
         let dynamicPitch = this.followBehindSettings.basePitch;
-        
+
         // Adjust pitch for terrain
         if (elevationChange > 20) {
             // Ascending: reduce pitch to see more ahead
-            dynamicPitch = Math.max(this.followBehindSettings.minPitch, 
-                                   this.followBehindSettings.basePitch - 15);
+            dynamicPitch = Math.max(this.followBehindSettings.minPitch,
+                this.followBehindSettings.basePitch - 15);
         } else if (elevationChange < -20) {
             // Descending: increase pitch but not too much to avoid going inside terrain
-            dynamicPitch = Math.min(this.followBehindSettings.maxPitch - 10, 
-                                   this.followBehindSettings.basePitch + 5);
+            dynamicPitch = Math.min(this.followBehindSettings.maxPitch - 10,
+                this.followBehindSettings.basePitch + 5);
         }
-        
+
         // For very steep terrain, always use lower pitch to stay above terrain
         if (steepness > 0.1) { // Very steep
             dynamicPitch = Math.max(this.followBehindSettings.minPitch, dynamicPitch - 10);
         }
-        
+
         // Extra smooth transitions for terrain changes with rate limiting
         const maxZoomChangePerFrame = 0.1;
         const maxPitchChangePerFrame = 2;
-        
+
         const zoomDiff = dynamicZoom - this.lastCameraZoom;
         const pitchDiff = dynamicPitch - this.lastCameraPitch;
-        
+
         // Limit rapid changes for ultra-smooth movement
-        const limitedZoomChange = Math.max(-maxZoomChangePerFrame, 
-                                         Math.min(maxZoomChangePerFrame, zoomDiff));
-        const limitedPitchChange = Math.max(-maxPitchChangePerFrame, 
-                                          Math.min(maxPitchChangePerFrame, pitchDiff));
-        
+        const limitedZoomChange = Math.max(-maxZoomChangePerFrame,
+            Math.min(maxZoomChangePerFrame, zoomDiff));
+        const limitedPitchChange = Math.max(-maxPitchChangePerFrame,
+            Math.min(maxPitchChangePerFrame, pitchDiff));
+
         this.lastCameraZoom = this.lastCameraZoom * 0.95 + (this.lastCameraZoom + limitedZoomChange) * 0.05;
         this.lastCameraPitch = this.lastCameraPitch * 0.95 + (this.lastCameraPitch + limitedPitchChange) * 0.05;
         this.lastElevation = currentElevation;
-        
+
         // Calculate marker scale based on zoom level to prevent it from being too large
         // Higher zoom = smaller marker scale to maintain proportion
         const baseZoom = this.followBehindSettings.baseZoom;
         const currentZoom = this.lastCameraZoom;
         const zoomDifference = currentZoom - baseZoom;
-        
+
         // Scale marker inversely with zoom: closer zoom = smaller marker
         // At base zoom (17): scale = 1.0
         // At min zoom (15): scale = 1.4 (larger marker when zoomed out)
         // At max zoom (18): scale = 0.6 (smaller marker when zoomed in)
         let markerScale = 1.0 - (zoomDifference * 0.2);
         markerScale = Math.max(0.3, Math.min(1.5, markerScale)); // Clamp between 0.3 and 1.5
-        
+
         return {
             zoom: this.lastCameraZoom,
             pitch: this.lastCameraPitch,
@@ -1542,10 +1491,10 @@ export class MapRenderer {
         const R = 6371; // Earth's radius in kilometers
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c * 1000; // Return distance in meters
     }
 
@@ -1554,17 +1503,17 @@ export class MapRenderer {
         if (!this.originalMarkerSize) {
             this.originalMarkerSize = this.markerSize;
         }
-        
+
         // Calculate the adjusted marker size
         const adjustedSize = this.originalMarkerSize * targetScale;
-        
+
         // Only update if the change is significant to avoid constant updates
         if (Math.abs(this.markerSize - adjustedSize) > 0.05) {
             this.markerSize = adjustedSize;
-            
+
             // Force marker icon regeneration with new size
             this.createAndAddActivityIcon();
-            
+
             // Update activity icon layer if it exists
             if (this.map.getLayer('activity-icon-layer')) {
                 this.forceIconUpdate();
@@ -1584,10 +1533,10 @@ export class MapRenderer {
                     setTimeout(checkTerrain, 500);
                 }
             };
-            
+
             // Start checking immediately, but with a fallback timeout
             checkTerrain();
-            
+
             // Fallback: resolve after 3 seconds even if terrain check fails
             setTimeout(() => {
                 console.log('🎬 Terrain load timeout, proceeding anyway');
@@ -1598,51 +1547,51 @@ export class MapRenderer {
 
     initializeTerrainAwareSettings() {
         console.log('🎬 Initializing terrain-aware camera settings');
-        
+
         // Ensure we have track data and GPX parser is ready
         if (!this.ensureGPXParserReady()) {
             console.warn('🎬 Cannot initialize terrain-aware settings: GPX parser not ready');
             return;
         }
-        
+
         // Get the starting point elevation for initial calculation
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
         if (!startPoint) {
             console.warn('🎬 No start point available for terrain initialization');
             return;
         }
-        
+
         const startElevation = startPoint.elevation || 0;
-        
+
         // Calculate base terrain-aware settings directly without smoothing
         let baseZoom = this.followBehindSettings.baseZoom;
         let basePitch = this.followBehindSettings.basePitch;
-        
+
         // Apply elevation-based adjustments
         const elevationFactor = Math.min(startElevation * this.followBehindSettings.elevationSensitivity, 2);
-        baseZoom = Math.max(this.followBehindSettings.minZoom, 
-                           Math.min(this.followBehindSettings.maxZoom, baseZoom - elevationFactor));
-        
+        baseZoom = Math.max(this.followBehindSettings.minZoom,
+            Math.min(this.followBehindSettings.maxZoom, baseZoom - elevationFactor));
+
         // Initialize the tracking variables with consistent values
         this.lastCameraZoom = baseZoom;
         this.lastCameraPitch = basePitch;
         this.lastElevation = startElevation;
-        
+
         console.log(`🎬 Initialized terrain-aware settings: zoom=${baseZoom.toFixed(1)}, pitch=${basePitch.toFixed(1)}, elevation=${startElevation.toFixed(0)}m`);
     }
 
     calculateBearingBetweenPoints(lat1, lon1, lat2, lon2) {
         const toRadians = (degrees) => degrees * (Math.PI / 180);
         const toDegrees = (radians) => radians * (180 / Math.PI);
-        
+
         const dLon = toRadians(lon2 - lon1);
         const lat1Rad = toRadians(lat1);
         const lat2Rad = toRadians(lat2);
-        
+
         const y = Math.sin(dLon) * Math.cos(lat2Rad);
-        const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
-                  Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-        
+        const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+            Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
         let bearing = toDegrees(Math.atan2(y, x));
         return (bearing + 360) % 360; // Normalize to 0-360
     }
@@ -1650,13 +1599,13 @@ export class MapRenderer {
     smoothBearing(currentBearing, targetBearing) {
         // Handle bearing wrapping (e.g., 350° -> 10°)
         let diff = targetBearing - currentBearing;
-        
+
         if (diff > 180) {
             diff -= 360;
         } else if (diff < -180) {
             diff += 360;
         }
-        
+
         // Apply smoothing
         const smoothedBearing = currentBearing + (diff * this.followBehindSettings.smoothing);
         return (smoothedBearing + 360) % 360; // Normalize to 0-360
@@ -1664,7 +1613,7 @@ export class MapRenderer {
 
     disableMapInteractions() {
         if (!this.map) return;
-        
+
         // Disable all map interactions for cinematic mode
         this.map.dragPan.disable();
         this.map.scrollZoom.disable();
@@ -1673,16 +1622,16 @@ export class MapRenderer {
         this.map.keyboard.disable();
         this.map.doubleClickZoom.disable();
         this.map.touchZoomRotate.disable();
-        
+
         // Change cursor to indicate no interaction
         this.map.getCanvas().style.cursor = 'default';
-        
+
         console.log('🎬 Map interactions disabled for follow-behind mode');
     }
 
     enableMapInteractions() {
         if (!this.map) return;
-        
+
         // Re-enable all map interactions
         this.map.dragPan.enable();
         this.map.scrollZoom.enable();
@@ -1691,10 +1640,10 @@ export class MapRenderer {
         this.map.keyboard.enable();
         this.map.doubleClickZoom.enable();
         this.map.touchZoomRotate.enable();
-        
+
         // Reset cursor
         this.map.getCanvas().style.cursor = '';
-        
+
         console.log('🎬 Map interactions re-enabled for standard mode');
     }
 
@@ -1720,35 +1669,35 @@ export class MapRenderer {
             console.warn('🎬 Cannot set starting position: missing data');
             return;
         }
-        
+
         console.log(`🎬 Setting consistent starting position for follow-behind mode ${instant ? '(instant)' : '(animated)'}`);
-        
+
         // Get the track start point and ensure it's centered
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
         if (!startPoint) {
             console.warn('🎬 No start point available');
             return;
         }
-        
+
         console.log(`🎬 Centering overview on start point: [${startPoint.lon.toFixed(6)}, ${startPoint.lat.toFixed(6)}]`);
-        
+
         // Calculate ideal overview zoom based on track bounds - start very wide like Spain-level
         let overviewZoom = 5; // Default very wide overview zoom (Spain-level)
-        
+
         if (this.trackData.bounds) {
             const latDiff = this.trackData.bounds.north - this.trackData.bounds.south;
             const lonDiff = this.trackData.bounds.east - this.trackData.bounds.west;
             const maxDiff = Math.max(latDiff, lonDiff);
-            
+
             // Calculate zoom based on track size - keep it wide for dramatic zoom-in effect
             if (maxDiff < 0.01) overviewZoom = 8;       // Very small track - still wide
             else if (maxDiff < 0.05) overviewZoom = 6;  // Small track - wide
             else if (maxDiff < 0.1) overviewZoom = 5;   // Medium track - very wide 
             else overviewZoom = 4;                      // Large track - extremely wide (Europe-level)
         }
-        
+
         console.log(`🎬 Setting overview position: zoom ${overviewZoom} at start point`);
-        
+
         // Set camera to overview position centered on start point
         if (instant) {
             // Instant positioning for reset
@@ -1765,9 +1714,9 @@ export class MapRenderer {
                 zoom: overviewZoom,
                 pitch: 30, // Moderate 3D angle for overview
                 bearing: 0, // North-up for overview
-            duration: 1000
-        });
-    }
+                duration: 1000
+            });
+        }
 
         console.log('🎬 Starting position set successfully');
     }
@@ -1777,9 +1726,9 @@ export class MapRenderer {
             console.warn('🎬 Cannot zoom out to whole track: missing data');
             return;
         }
-        
+
         console.log('🎬 Zooming out to show whole track');
-        
+
         if (this.trackData.bounds) {
             // Calculate a dramatic zoom-out with 3D perspective
             const fitOptions = {
@@ -1788,12 +1737,12 @@ export class MapRenderer {
                 pitch: 45, // Maintain 3D perspective
                 bearing: 0 // Reset bearing to north-up
             };
-            
+
             this.map.fitBounds([
                 [this.trackData.bounds.west, this.trackData.bounds.south],
                 [this.trackData.bounds.east, this.trackData.bounds.north]
             ], fitOptions);
-            
+
             console.log('🎬 Zoom-out to whole track completed');
         } else {
             console.warn('🎬 No track bounds available for zoom-out');
@@ -1805,18 +1754,18 @@ export class MapRenderer {
      */
     initializeTrackCameraPosition(trackData) {
         console.log('🎬 Initializing camera position for loaded track');
-        
+
         if (!this.map || !trackData) {
             console.warn('🎬 Cannot initialize camera position: missing map or track data');
             return;
         }
-        
+
         // Ensure GPX parser is ready
         if (!this.ensureGPXParserReady()) {
             console.warn('🎬 GPX parser not ready for camera initialization');
             return;
         }
-        
+
         // Initialize based on camera mode
         if (this.cameraMode === 'followBehind') {
             // For follow-behind mode, don't override the fitBounds overview
@@ -1824,10 +1773,10 @@ export class MapRenderer {
             // The cinematic sequence will zoom in when animation starts
             // Just initialize terrain-aware settings without changing camera position
             this.followBehindCamera.initializeTerrainAwareSettings();
-            
+
             // Don't call setStartingPosition here - let fitBounds show the route overview
             // The cinematic sequence will handle the zoom-in when play is clicked
-            
+        
         } else if (this.cameraMode === 'overview') {
             if (trackData.bounds) {
                 this.map.fitBounds([
@@ -1849,18 +1798,18 @@ export class MapRenderer {
                 const latDiff = trackData.bounds.north - trackData.bounds.south;
                 const lonDiff = trackData.bounds.east - trackData.bounds.west;
                 const maxDiff = Math.max(latDiff, lonDiff);
-                
+
                 let appropriateZoom = 12; // Default zoom
                 if (maxDiff < 0.01) appropriateZoom = 15;      // Very small track
                 else if (maxDiff < 0.05) appropriateZoom = 13;  // Small track
                 else if (maxDiff < 0.1) appropriateZoom = 12;   // Medium track
                 else appropriateZoom = 10;                      // Large track
-                
+
                 // Adjust zoom based on elevation if available
                 const elevation = startPoint.elevation || 0;
                 if (elevation > 1000) appropriateZoom -= 1; // Higher elevation = zoom out more
                 else if (elevation > 2000) appropriateZoom -= 2;
-                
+
                 // Apply the calculated zoom with smooth transition
                 this.map.easeTo({
                     center: [startPoint.lon, startPoint.lat],
@@ -1871,25 +1820,25 @@ export class MapRenderer {
                 });
             }
         }
-        
+
         console.log('🎬 Camera position initialized for camera mode:', this.cameraMode);
     }
 
     initializeCameraMode() {
         console.log('🎬 Initializing default camera mode:', this.cameraMode);
-        
+
         // Apply default camera mode settings
         if (this.cameraMode === 'followBehind') {
             // Disable map interactions and force auto-zoom for follow-behind
             this.disableMapInteractions();
-            
+
             const autoFollowToggle = document.getElementById('autoZoom');
             if (autoFollowToggle) {
                 autoFollowToggle.checked = true;
                 autoFollowToggle.disabled = true;
                 this.autoZoom = true;
             }
-            
+
             console.log('🎬 Follow-behind mode initialized as default');
         } else if (this.cameraMode === 'overview') {
             this.disableMapInteractions();
@@ -1905,12 +1854,12 @@ export class MapRenderer {
         } else {
             // Standard mode - ensure map interactions are enabled
             this.enableMapInteractions();
-            
+
             const autoFollowToggle = document.getElementById('autoZoom');
             if (autoFollowToggle) {
                 autoFollowToggle.disabled = false;
             }
-            
+
             console.log('🎬 Standard camera mode initialized as default');
         }
     }
@@ -2103,7 +2052,7 @@ export class MapRenderer {
 
         // Add comparison trail line (different color)
         const comparisonCoordinates = this.comparisonTrackData.trackPoints.map(point => [point.lon, point.lat]);
-        
+
         this.map.addSource('comparison-trail', {
             type: 'geojson',
             data: {
@@ -2414,8 +2363,8 @@ export class MapRenderer {
         const base = `overlap-${index}`;
         const layers = [`${base}-label`, `${base}-activity-icon`, `${base}-position-glow`, `${base}-trail-completed`, `${base}-trail-line`];
         const sources = [`${base}-label`, `${base}-activity-icon`, `${base}-position`, `${base}-trail-completed`, `${base}-trail`];
-        layers.forEach(id => { try { if (this.map.getLayer(id)) this.map.removeLayer(id); } catch(e){} });
-        sources.forEach(id => { try { if (this.map.getSource(id)) this.map.removeSource(id); } catch(e){} });
+        layers.forEach(id => { try { if (this.map.getLayer(id)) this.map.removeLayer(id); } catch (e) { } });
+        sources.forEach(id => { try { if (this.map.getSource(id)) this.map.removeSource(id); } catch (e) { } });
         if (this.additionalComparisons) this.additionalComparisons[index] = null;
     }
 
@@ -2776,10 +2725,10 @@ export class MapRenderer {
         const dLat = this.toRadians(lat2 - lat1);
         const dLon = this.toRadians(lon2 - lon1);
         const a =
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
 
@@ -2895,10 +2844,10 @@ export class MapRenderer {
             // Don't override heart rate colors
             return;
         }
-        
+
         if (this.map && this.map.loaded()) {
             const color = this.pathColor || '#C1652F';
-            
+
             if (this.map.getLayer('trail-line')) {
                 this.map.setPaintProperty('trail-line', 'line-color', color);
                 // Reset opacity if not animating (during animation it's handled by AnimationController)

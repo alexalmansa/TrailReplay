@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Revenue Manager Import</title>
+</head>
+<body>
+    <h1>Testing Revenue Manager Import</h1>
+    <div id="status">Loading...</div>
+    <div id="ad-test-container" style="margin-top: 20px; padding: 20px; border: 2px solid #ccc;"></div>
+
+    <script type="module">
+        try {
+            // Test import of config
+            import { ADS_CONFIG } from './src/config/revenueConfig.js';
+            console.log('✅ revenueConfig imported successfully:', ADS_CONFIG);
+
+            // Test import of RevenueManager
+            import { revenueManager } from './src/utils/RevenueManager.js';
+            console.log('✅ RevenueManager imported successfully:', revenueManager);
+
+            // Update status
+            document.getElementById('status').innerHTML = `
+                <p style="color: green; font-weight: bold;">✅ All imports working!</p>
+                <p>Publisher ID: ${ADS_CONFIG.publisherId}</p>
+                <p>Dev Mode: ${ADS_CONFIG.devMode}</p>
+                <p>Ads Enabled: ${ADS_CONFIG.enabled}</p>
+            `;
+
+            // Test showing an ad
+            const container = document.getElementById('ad-test-container');
+            revenueManager.showAd(container, 'videoProgress');
+
+        } catch (error) {
+            console.error('❌ Import error:', error);
+            document.getElementById('status').innerHTML = `
+                <p style="color: red; font-weight: bold;">❌ Import Error:</p>
+                <pre style="background: #f5f5f5; padding: 10px; overflow: auto;">${error.message}\n\n${error.stack}</pre>
+            `;
+        }
+    </script>
+</body>
+</html>

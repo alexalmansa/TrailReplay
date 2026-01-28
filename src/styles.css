@@ -5417,3 +5417,143 @@ select.footer-link:hover {
         padding: 12px;
     }
 }
+
+/* ============================================
+   Advertisement Styles
+   ============================================ */
+
+/* Ad container base styles */
+.ad-container {
+    margin: 1rem auto;
+    padding: 0.5rem;
+    max-width: 728px;
+    text-align: center;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Ad label */
+.ad-label {
+    font-size: 0.75rem;
+    color: rgba(0, 0, 0, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+/* AdSense responsive container */
+.ad-container ins.adsbygoogle {
+    display: block;
+    margin: 0 auto;
+}
+
+/* Development mode placeholder ad */
+.ad-placeholder {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ad-placeholder-content {
+    color: white;
+    text-align: center;
+}
+
+.ad-placeholder-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ad-placeholder-subtitle {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.ad-placeholder-info {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.ad-placeholder-info code {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-family-mono);
+    font-size: 0.8rem;
+}
+
+.ad-placeholder-tips {
+    font-size: 0.8rem;
+    opacity: 0.85;
+    line-height: 1.8;
+    text-align: left;
+    display: inline-block;
+    margin-top: 1rem;
+}
+
+/* Responsive ad sizing */
+@media (max-width: 768px) {
+    .ad-container {
+        max-width: 100%;
+        padding: 0.25rem;
+    }
+
+    .ad-placeholder {
+        padding: 1.5rem 1rem;
+        min-height: 150px;
+    }
+
+    .ad-placeholder-title {
+        font-size: 1rem;
+    }
+
+    .ad-placeholder-subtitle,
+    .ad-placeholder-info,
+    .ad-placeholder-tips {
+        font-size: 0.75rem;
+    }
+}
+
+/* Ad in progress modal specific styles */
+#videoProgressAdContainer {
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#videoProgressAdContainer .ad-container {
+    background: rgba(27, 42, 32, 0.02);
+    border: 1px solid rgba(27, 42, 32, 0.1);
+}
+
+/* Ensure ads don't break modal layout */
+.enhanced-progress-content {
+    overflow-y: auto;
+    max-height: 90vh;
+}
+
+/* Ad loading state */
+.ad-container.loading {
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ad-container.loading::after {
+    content: 'Loading ad...';
+    color: rgba(0, 0, 0, 0.4);
+    font-size: 0.85rem;
+}

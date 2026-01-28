@@ -35,7 +35,7 @@ export class TrackManager {
             const elevation = point.elevation || 0;
             return [point.lon, point.lat, elevation];
         });
-        
+
         if (trackData.isJourney && trackData.segments) {
             this.renderer.loadJourneySegments(trackData, coordinates);
         } else {
@@ -54,30 +54,30 @@ export class TrackManager {
             this.renderer.map.getSource('trail-line').setData(trailLineData);
         }
 
-        if (trackData.bounds && 
-            !isNaN(trackData.bounds.west) && !isNaN(trackData.bounds.south) && 
+        if (trackData.bounds &&
+            !isNaN(trackData.bounds.west) && !isNaN(trackData.bounds.south) &&
             !isNaN(trackData.bounds.east) && !isNaN(trackData.bounds.north)) {
-            
+
             const bounds = [
                 [trackData.bounds.west, trackData.bounds.south],
                 [trackData.bounds.east, trackData.bounds.north]
             ];
-            
+
             const latDiff = trackData.bounds.north - trackData.bounds.south;
             const lonDiff = trackData.bounds.east - trackData.bounds.west;
             const maxDiff = Math.max(latDiff, lonDiff);
-            
+
             let padding = 50;
             if (maxDiff < 0.01) padding = 100;
             else if (maxDiff < 0.05) padding = 80;
             else if (maxDiff < 0.1) padding = 60;
-            
+
             const fitOptions = {
                 padding: padding,
                 duration: 1000,
                 maxZoom: 16
             };
-            
+
             setTimeout(() => {
                 if (this.renderer.map && this.renderer.map.isStyleLoaded()) {
                     this.renderer.map.fitBounds(bounds, fitOptions);
@@ -94,23 +94,21 @@ export class TrackManager {
             this.renderer.iconChanges.iconChanges = [];
         }
         this.renderer.annotations.annotations = [];
-        
+
         setTimeout(() => {
             this.renderer.initializeTrackCameraPosition(trackData);
         }, 200);
-        
-        if (typeof this.renderer.scheduleZoomNudge === 'function') {
-            this.renderer.scheduleZoomNudge(1800);
-        }
-        
+
+
+
         this.renderer.followBehindCamera.reset();
-        
+
         if (trackData.activityIcon) {
             this.renderer.setCurrentIcon(trackData.activityIcon);
         } else {
             this.renderer.currentIcon = this.renderer.getBaseIcon();
         }
-        
+
         if (this.renderer.map.loaded()) {
             this.renderer.updateActivityIcon();
         } else {
@@ -118,13 +116,13 @@ export class TrackManager {
                 this.renderer.updateActivityIcon();
             });
         }
-        
+
         this.renderer.updateCurrentPosition();
-        
+
         if (this.renderer.is3DMode) {
             this.renderer.update3DTrailRendering();
         }
-        
+
         if (this.renderer.cameraMode === 'followBehind') {
             setTimeout(() => {
                 this.renderer.followBehindCamera.initialize();
