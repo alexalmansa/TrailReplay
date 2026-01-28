@@ -215,7 +215,12 @@ export class JourneyTracksUI {
 
     // Format elevation for display
     formatElevation(elevationM) {
-        return `${Math.round(elevationM)}m`;
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        const value = useImperial ? elevationM * 3.28084 : elevationM;
+        return `${Math.round(value)}${useImperial ? 'ft' : 'm'}`;
     }
 
     // Show tracks section

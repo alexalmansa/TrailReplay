@@ -22,7 +22,8 @@ import {
     formatDistance,
     formatSpeed,
     formatPaceFromSpeed,
-    formatPaceValue
+    formatPaceValue,
+    formatElevation
 } from '../utils/units.js';
 import { heartRateColorMapper } from '../utils/heartRateColors.js';
 
@@ -250,6 +251,10 @@ export class TrailReplayApp {
 
     formatPaceValue(paceMinPerKm) {
         return formatPaceValue(paceMinPerKm, this.state.unitSystem);
+    }
+
+    formatElevation(meters) {
+        return formatElevation(meters, this.state.unitSystem);
     }
 
     // Temporary methods to maintain compatibility during refactoring

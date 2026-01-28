@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'trailReplayUnits';
 const KM_TO_MI = 0.621371;
+const M_TO_FT = 3.28084;
 
 export function getUnitPreference() {
     if (typeof localStorage === 'undefined') return 'metric';
@@ -18,13 +19,15 @@ export function getUnitLabels(unit = getUnitPreference()) {
         return {
             distance: 'mi',
             speed: 'mph',
-            pace: 'min/mi'
+            pace: 'min/mi',
+            elevation: 'ft'
         };
     }
     return {
         distance: 'km',
         speed: 'km/h',
-        pace: 'min/km'
+        pace: 'min/km',
+        elevation: 'm'
     };
 }
 
@@ -90,4 +93,10 @@ export function formatPaceValue(paceMinPerKm, unit = getUnitPreference()) {
         seconds = 0;
     }
     return `${adjustedMinutes}:${seconds.toString().padStart(2, '0')} ${getUnitLabels(unit).pace}`;
+}
+
+export function formatElevation(meters, unit = getUnitPreference()) {
+    if (!meters || meters === 0) return unit === 'imperial' ? '0 ft' : '0 m';
+    const value = unit === 'imperial' ? meters * M_TO_FT : meters;
+    return `${Math.round(value)} ${unit === 'imperial' ? 'ft' : 'm'}`;
 }
