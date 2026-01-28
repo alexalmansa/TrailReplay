@@ -1345,6 +1345,20 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.export-confirmation-warning {
+    background: rgba(255, 152, 0, 0.12);
+    border: 1px solid rgba(255, 152, 0, 0.5);
+    color: var(--evergreen);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin: 0.75rem 0 1rem;
+    font-size: 0.9rem;
+}
+
+.export-confirmation-warning ul {
+    margin: 0.5rem 0 0 1rem;
+}
+
 .export-btn.export-manual {
     background: var(--evergreen);
     border-color: var(--evergreen);
@@ -1885,6 +1899,8 @@ input:checked + .toggle-slider:before {
     overflow: hidden;
     border: 2px solid var(--evergreen);
     animation: modalSlideIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 @media (max-width: 768px) {
@@ -1939,6 +1955,7 @@ input:checked + .toggle-slider:before {
     padding: 1.5rem;
     max-height: 60vh;
     overflow-y: auto;
+    flex: 1;
 }
 
 .modal-body input,
