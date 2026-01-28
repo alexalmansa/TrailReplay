@@ -306,8 +306,13 @@ export class GPXParser {
     }
 
     formatElevation(meters) {
-        if (!meters || meters === 0) return '0 m';
-        return `${Math.round(meters)} m`;
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        if (!meters || meters === 0) return useImperial ? '0 ft' : '0 m';
+        const value = useImperial ? meters * 3.28084 : meters;
+        return `${Math.round(value)} ${useImperial ? 'ft' : 'm'}`;
     }
 
     // Fill in missing speed data with estimates

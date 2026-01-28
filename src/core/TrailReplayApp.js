@@ -22,7 +22,8 @@ import {
     formatDistance,
     formatSpeed,
     formatPaceFromSpeed,
-    formatPaceValue
+    formatPaceValue,
+    formatElevation
 } from '../utils/units.js';
 import { heartRateColorMapper } from '../utils/heartRateColors.js';
 
@@ -221,6 +222,9 @@ export class TrailReplayApp {
         if (this.stats?.updateSpeedDisplayMode) {
             this.stats.updateSpeedDisplayMode();
         }
+        if (typeof this.updateElevationLabels === 'function') {
+            this.updateElevationLabels();
+        }
     }
 
     updateUnitUI() {
@@ -250,6 +254,10 @@ export class TrailReplayApp {
 
     formatPaceValue(paceMinPerKm) {
         return formatPaceValue(paceMinPerKm, this.state.unitSystem);
+    }
+
+    formatElevation(meters) {
+        return formatElevation(meters, this.state.unitSystem);
     }
 
     // Temporary methods to maintain compatibility during refactoring
@@ -901,7 +909,7 @@ export class TrailReplayApp {
             minLabel.style.visibility = 'visible';
             const valueSpan = minLabel.querySelector('.elevation-value');
             if (valueSpan) {
-                valueSpan.textContent = `${Math.round(minElevation)} m`;
+                valueSpan.textContent = this.formatElevation ? this.formatElevation(minElevation) : `${Math.round(minElevation)} m`;
             }
         }
 
@@ -912,7 +920,7 @@ export class TrailReplayApp {
             maxLabel.style.visibility = 'visible';
             const valueSpan = maxLabel.querySelector('.elevation-value');
             if (valueSpan) {
-                valueSpan.textContent = `${Math.round(maxElevation)} m`;
+                valueSpan.textContent = this.formatElevation ? this.formatElevation(maxElevation) : `${Math.round(maxElevation)} m`;
             }
         }
 

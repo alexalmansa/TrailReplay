@@ -47,12 +47,12 @@ export class StatsController {
 
         // Format and update the display values
         const distanceText = this.app.formatDistance(stats.totalDistance);
-        const elevationText = this.app.gpxParser.formatElevation(stats.elevationGain);
+        const elevationText = this.app.formatElevation(stats.elevationGain);
         const durationText = this.formatDurationMinutes(stats.totalDuration);
         const speedText = this.formatSpeed(stats.avgSpeed);
         const paceText = this.formatPaceValue(stats.avgPace); // Use avgPace directly (already in min/km)
-        const maxElevationText = this.app.gpxParser.formatElevation(stats.maxElevation);
-        const minElevationText = this.app.gpxParser.formatElevation(stats.minElevation);
+        const maxElevationText = this.app.formatElevation(stats.maxElevation);
+        const minElevationText = this.app.formatElevation(stats.minElevation);
 
 
 
@@ -729,7 +729,7 @@ export class StatsController {
         const gain = Math.max(0, segment.gain || 0);
         const loss = Math.max(0, segment.loss || 0);
         const net = gain - loss;
-        const netText = this.app.gpxParser?.formatElevation(Math.abs(net)) || `${Math.round(Math.abs(net))} m`;
+        const netText = this.app.formatElevation ? this.app.formatElevation(Math.abs(net)) : `${Math.round(Math.abs(net))} m`;
 
         let sign = '+';
         if (net < -0.5) {
@@ -816,7 +816,9 @@ export class StatsController {
             }
             
             if (this.elevationElement) {
-                const formattedElevation = this.app.gpxParser.formatElevation(currentElevationGain);
+                const formattedElevation = this.app.formatElevation
+                    ? this.app.formatElevation(currentElevationGain)
+                    : this.app.gpxParser.formatElevation(currentElevationGain);
                 if (this.elevationElement.textContent !== formattedElevation) {
                     this.elevationElement.textContent = formattedElevation;
                 }
@@ -993,7 +995,7 @@ export class StatsController {
     resetLiveStats() {
         const labels = getUnitLabels(this.app.state.unitSystem);
         document.getElementById('liveDistance').textContent = `0.0 ${labels.distance}`;
-        document.getElementById('liveElevation').textContent = '0 m';
+        document.getElementById('liveElevation').textContent = `0 ${labels.elevation || (this.app.state.unitSystem === 'imperial' ? 'ft' : 'm')}`;
         const avgSpeedElement = document.getElementById('liveAverageSpeed');
         if (avgSpeedElement) {
             avgSpeedElement.textContent = `0 ${labels.speed}`;
@@ -1025,12 +1027,12 @@ export class StatsController {
     resetStats() {
         const labels = getUnitLabels(this.app.state.unitSystem);
         document.getElementById('totalDistance').textContent = `0 ${labels.distance}`;
-        document.getElementById('elevationGain').textContent = '0 m';
+        document.getElementById('elevationGain').textContent = this.app.formatElevation ? this.app.formatElevation(0) : '0 m';
         document.getElementById('duration').textContent = '0h 0m';
         document.getElementById('averageSpeed').textContent = `0 ${labels.speed}`;
         document.getElementById('averagePace').textContent = `0:00 ${labels.pace}`;
-        document.getElementById('maxElevation').textContent = '0 m';
-        document.getElementById('minElevation').textContent = '0 m';
+        document.getElementById('maxElevation').textContent = this.app.formatElevation ? this.app.formatElevation(0) : '0 m';
+        document.getElementById('minElevation').textContent = this.app.formatElevation ? this.app.formatElevation(0) : '0 m';
     }
 
     // Format duration from hours to readable format (1h 30m)
