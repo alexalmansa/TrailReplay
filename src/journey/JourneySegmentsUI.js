@@ -111,7 +111,7 @@ export class JourneySegmentsUI {
                         <div class="segment-content">
                             <div class="segment-title">${t('journeyBuilder.transportation')}: ${t(`journeyBuilder.transport.${existingTransport.mode}`)}</div>
                             <div class="segment-description">
-                                ${existingTransport.route ? 'Route via ' + (existingTransport.route.provider || 'roads') : `Distance: ~${distance.toFixed(1)}km`}
+                                ${existingTransport.route ? 'Route via ' + (existingTransport.route.provider || 'roads') : `Distance: ~${this.formatDistance(distance)}`}
                             </div>
                             <div class="segment-timing">
                                 <label>${t('journeyBuilder.animationTime')}:</label>
@@ -138,7 +138,7 @@ export class JourneySegmentsUI {
                         <div class="segment-content">
                             <div class="segment-title">${t('journey.addTransportation')}</div>
                             <div class="segment-description">
-                                ${t('journeyBuilder.chooseHowToTravelBetweenTracks')} (~${distance.toFixed(1)}km)
+                                ${t('journeyBuilder.chooseHowToTravelBetweenTracks')} (~${this.formatDistance(distance)})
                             </div>
                         </div>
                         <div class="segment-actions">
@@ -617,7 +617,7 @@ export class JourneySegmentsUI {
                 <div class="route-drawing-info">
                     <span class="route-drawing-mode">${currentMode.icon} Drawing ${currentMode.name}</span>
                     <div class="route-drawing-details">
-                        <span class="route-distance">Distance: ~${distance}km</span>
+                        <span class="route-distance">Distance: ~${this.formatDistance(distance)}</span>
                         <div class="route-timing">
                             <label>Animation Time:</label>
                             <input type="number" id="routeTravelTime" min="5" max="600" value="${this.getDefaultTimeInSeconds(distance)}" step="5">
@@ -994,6 +994,14 @@ export class JourneySegmentsUI {
 
     // Utility methods
     formatDistance(distanceKm) {
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        if (useImperial) {
+            const miles = distanceKm * 0.621371;
+            return `${miles.toFixed(1)} mi`;
+        }
         if (distanceKm < 1) {
             return `${Math.round(distanceKm * 1000)}m`;
         }

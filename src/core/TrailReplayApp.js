@@ -15,6 +15,15 @@ import { URLController } from '../controllers/URLController.js';
 import { setupEventListeners } from '../ui/eventListeners.js';
 import { setupModals } from '../ui/modalController.js';
 import { DEFAULT_SETTINGS, ICON_CATEGORIES, AVAILABLE_ICONS } from '../utils/constants.js';
+import {
+    getUnitPreference,
+    setUnitPreference,
+    getUnitLabels,
+    formatDistance,
+    formatSpeed,
+    formatPaceFromSpeed,
+    formatPaceValue
+} from '../utils/units.js';
 import { heartRateColorMapper } from '../utils/heartRateColors.js';
 
 export class TrailReplayApp {
@@ -32,7 +41,8 @@ export class TrailReplayApp {
             currentIconChange: { icon: DEFAULT_SETTINGS.DEFAULT_ICON_CHANGE },
             isSelectingForChange: false,
             isDrawingMode: false,
-            isAnnotationMode: false
+            isAnnotationMode: false,
+            unitSystem: getUnitPreference()
         };
 
         // Legacy properties for compatibility during refactoring
@@ -147,6 +157,9 @@ export class TrailReplayApp {
         
         // Initialize video export functionality
         this.videoExporter.initialize();
+
+        // Sync unit preference to UI on startup
+        this.updateUnitUI();
         
         // Set up timing synchronization for journeys
         this.setupTimingSynchronization();
@@ -191,6 +204,52 @@ export class TrailReplayApp {
         };
         window.debugComparisonTrack = () => this.debugComparisonTrack();
         window.testTranslations = () => this.testTranslations();
+    }
+
+    setUnitSystem(unit) {
+        const normalized = unit === 'imperial' ? 'imperial' : 'metric';
+        this.state.unitSystem = normalized;
+        setUnitPreference(normalized);
+        this.updateUnitUI();
+
+        if (this.currentTrackData?.stats) {
+            this.stats.updateStats(this.currentTrackData.stats);
+        }
+        if (this.stats?.updateLiveStats) {
+            this.stats.updateLiveStats();
+        }
+        if (this.stats?.updateSpeedDisplayMode) {
+            this.stats.updateSpeedDisplayMode();
+        }
+    }
+
+    updateUnitUI() {
+        const unitSelect = document.getElementById('unitsSelect');
+        if (unitSelect) {
+            unitSelect.value = this.state.unitSystem;
+        }
+
+        const labels = getUnitLabels(this.state.unitSystem);
+        const paceLabel = document.getElementById('speedAsPaceLabel');
+        if (paceLabel) {
+            paceLabel.textContent = `${t('controls.showPace')} (${labels.pace})`;
+        }
+    }
+
+    formatDistance(distanceKm, options) {
+        return formatDistance(distanceKm, this.state.unitSystem, options);
+    }
+
+    formatSpeed(speedKmh) {
+        return formatSpeed(speedKmh, this.state.unitSystem);
+    }
+
+    formatPaceFromSpeed(speedKmh) {
+        return formatPaceFromSpeed(speedKmh, this.state.unitSystem);
+    }
+
+    formatPaceValue(paceMinPerKm) {
+        return formatPaceValue(paceMinPerKm, this.state.unitSystem);
     }
 
     // Temporary methods to maintain compatibility during refactoring
@@ -1397,7 +1456,7 @@ export class TrailReplayApp {
         } else {
             // Fallback to basic implementation
             const elements = {
-                'totalDistance': stats.totalDistance ? `${stats.totalDistance.toFixed(2)} km` : '0 km',
+                'totalDistance': this.formatDistance ? this.formatDistance(stats.totalDistance || 0) : (stats.totalDistance ? `${stats.totalDistance.toFixed(2)} km` : '0 km'),
                 'elevationGain': stats.elevationGain ? `${Math.round(stats.elevationGain)} m` : '0 m',
                 'totalTime': this.formatTimeInSeconds(this.state.totalAnimationTime)
             };

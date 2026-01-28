@@ -493,13 +493,32 @@ export class GPXParser {
     }
 
     formatDistance(km) {
-        if (!km || km === 0) return '0.00 km';
-        return `${km.toFixed(2)} km`;
+        return this.formatWithUnits('distance', km);
     }
 
     formatSpeed(kmh) {
-        if (!kmh || kmh === 0) return '0.0 km/h';
-        return `${kmh.toFixed(1)} km/h`;
+        return this.formatWithUnits('speed', kmh);
+    }
+
+    formatWithUnits(type, value) {
+        const unitPreference = typeof localStorage !== 'undefined'
+            ? localStorage.getItem('trailReplayUnits')
+            : 'metric';
+        const useImperial = unitPreference === 'imperial';
+        if (type === 'distance') {
+            if (!value || value === 0) return useImperial ? '0.00 mi' : '0.00 km';
+            if (useImperial) {
+                const miles = value * 0.621371;
+                return `${miles.toFixed(2)} mi`;
+            }
+            return `${value.toFixed(2)} km`;
+        }
+        if (type === 'speed') {
+            if (!value || value === 0) return useImperial ? '0.0 mph' : '0.0 km/h';
+            const speed = useImperial ? value * 0.621371 : value;
+            return `${speed.toFixed(1)} ${useImperial ? 'mph' : 'km/h'}`;
+        }
+        return `${value}`;
     }
 
     formatElevation(meters) {

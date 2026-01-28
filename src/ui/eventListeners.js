@@ -364,6 +364,14 @@ export function setupEventListeners(app) {
         });
     }
 
+    const unitsSelect = byId('unitsSelect');
+    if (unitsSelect) {
+        unitsSelect.value = app.state.unitSystem || 'metric';
+        unitsSelect.addEventListener('change', (e) => {
+            app.setUnitSystem?.(e.target.value);
+        });
+    }
+
 
 
 

@@ -535,6 +535,7 @@
                             <select id="cameraMode">
                                 <option value="standard" data-i18n="controls.cameraStandard">📝 Manual</option>
                                 <option value="followBehind" data-i18n="controls.cameraFollowBehind" selected>🎬 Follow Behind</option>
+                                <option value="overview" data-i18n="controls.cameraOverview">🌍 Overview</option>
                             </select>
                             <div class="camera-info-section">
                                 <div class="camera-info-button" id="cameraControlsInfo">
@@ -631,11 +632,16 @@
                             </div>
 
                             <div id="speedUnitToggleGroup" class="control-group" style="display: block;">
-                                <label data-i18n="controls.speedAsPace">Show pace (min/km)</label>
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="speedAsPace">
-                                    <label for="speedAsPace" class="toggle-slider"></label>
-                                </div>
+                            <label id="speedAsPaceLabel" data-i18n="controls.speedAsPace">Show pace (min/km)</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="speedAsPace">
+                                <label for="speedAsPace" class="toggle-slider"></label>
+                            </div>
+                            <label data-i18n="controls.unitsLabel">Units</label>
+                            <select id="unitsSelect">
+                                <option value="metric" data-i18n="controls.unitsMetric">Metric (km)</option>
+                                <option value="imperial" data-i18n="controls.unitsImperial">Imperial (mi)</option>
+                            </select>
                             </div>
 
                             <!-- Stats Selection -->

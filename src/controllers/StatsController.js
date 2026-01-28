@@ -1,5 +1,6 @@
 import { t } from '../translations.js';
 import { ACTIVITY_ICONS } from '../utils/constants.js';
+import { getUnitLabels, formatDistance as formatDistanceUnits } from '../utils/units.js';
 
 export class StatsController {
     constructor(app) {
@@ -45,7 +46,7 @@ export class StatsController {
 
 
         // Format and update the display values
-        const distanceText = this.app.gpxParser.formatDistance(stats.totalDistance);
+        const distanceText = this.app.formatDistance(stats.totalDistance);
         const elevationText = this.app.gpxParser.formatElevation(stats.elevationGain);
         const durationText = this.formatDurationMinutes(stats.totalDuration);
         const speedText = this.formatSpeed(stats.avgSpeed);
@@ -355,6 +356,8 @@ export class StatsController {
         let segmentLoss = 0;
         let startDistance = trackPoints[0]?.distance || 0;
 
+        const unitDistanceKm = this.app.state.unitSystem === 'imperial' ? 1 / 0.621371 : 1;
+
         for (let i = 1; i < trackPoints.length; i++) {
             const prev = trackPoints[i - 1];
             const curr = trackPoints[i];
@@ -376,7 +379,7 @@ export class StatsController {
             let deltaElevation = (curr.elevation || 0) - (prev.elevation || 0);
 
             while (deltaDistance > 0) {
-                const remainingDistanceToKm = Math.max(0, 1 - segmentDistance);
+                const remainingDistanceToKm = Math.max(0, unitDistanceKm - segmentDistance);
                 const portionDistance = Math.min(deltaDistance, remainingDistanceToKm);
                 const proportion = portionDistance / deltaDistance;
                 const portionTime = deltaTime * proportion;
@@ -401,7 +404,7 @@ export class StatsController {
                 deltaElevation -= portionElevation;
 
                 const isLastPoint = i === trackPoints.length - 1 && deltaDistance <= 1e-6;
-                if (segmentDistance >= 0.999 || (isLastPoint && segmentDistance > 0)) {
+                if (segmentDistance >= (unitDistanceKm - 0.001) || (isLastPoint && segmentDistance > 0)) {
                     const avgSpeed = segmentDuration > 0 && segmentDistance > 0
                         ? segmentDistance / segmentDuration
                         : (speedDistanceWeight > 0 ? speedDistanceSum / speedDistanceWeight : 0);
@@ -711,10 +714,10 @@ export class StatsController {
 
     formatSegmentDistance(distance) {
         if (!distance || distance <= 0) return null;
-        if (this.app.gpxParser?.formatDistance) {
-            return this.app.gpxParser.formatDistance(distance);
+        if (this.app?.formatDistance) {
+            return this.app.formatDistance(distance);
         }
-        return `${distance.toFixed(2)} km`;
+        return formatDistanceUnits(distance);
     }
 
     formatSegmentDuration(hours) {
@@ -735,8 +738,9 @@ export class StatsController {
             sign = '±';
         }
 
-        const kmIndex = Math.max(1, segment.index);
-        return `Km ${kmIndex} · ${sign}${netText}`;
+        const unitLabel = getUnitLabels(this.app.state.unitSystem).distance;
+        const unitIndex = Math.max(1, segment.index);
+        return `${unitLabel.toUpperCase()} ${unitIndex} · ${sign}${netText}`;
     }
 
     // Update live stats during animation - this is the main method called during playback
@@ -805,7 +809,7 @@ export class StatsController {
             
             // Format and update the display values - simplified without animation during playback
             if (this.distanceElement) {
-                const formattedDistance = this.app.gpxParser.formatDistance(currentDistance);
+                const formattedDistance = this.app.formatDistance(currentDistance);
                 if (this.distanceElement.textContent !== formattedDistance) {
                     this.distanceElement.textContent = formattedDistance;
                 }
@@ -987,19 +991,20 @@ export class StatsController {
     }
 
     resetLiveStats() {
-        document.getElementById('liveDistance').textContent = '0.0 km';
+        const labels = getUnitLabels(this.app.state.unitSystem);
+        document.getElementById('liveDistance').textContent = `0.0 ${labels.distance}`;
         document.getElementById('liveElevation').textContent = '0 m';
         const avgSpeedElement = document.getElementById('liveAverageSpeed');
         if (avgSpeedElement) {
-            avgSpeedElement.textContent = '0 km/h';
+            avgSpeedElement.textContent = `0 ${labels.speed}`;
         }
         if (!this.liveSpeedElement) {
             this.liveSpeedElement = document.getElementById('liveSpeed');
         }
         if (this.liveSpeedElement) {
             this.liveSpeedElement.textContent = this.app.state.speedDisplayMode === 'pace'
-                ? '0:00 min/km'
-                : '0.0 km/h';
+                ? `0:00 ${labels.pace}`
+                : `0.0 ${labels.speed}`;
         }
         if (!this.liveSpeedLabel) {
             this.liveSpeedLabel = document.getElementById('liveSpeedLabel');
@@ -1018,11 +1023,12 @@ export class StatsController {
 
     // Reset all static stats to default values
     resetStats() {
-        document.getElementById('totalDistance').textContent = '0 km';
+        const labels = getUnitLabels(this.app.state.unitSystem);
+        document.getElementById('totalDistance').textContent = `0 ${labels.distance}`;
         document.getElementById('elevationGain').textContent = '0 m';
         document.getElementById('duration').textContent = '0h 0m';
-        document.getElementById('averageSpeed').textContent = '0 km/h';
-        document.getElementById('averagePace').textContent = '0:00 min/km';
+        document.getElementById('averageSpeed').textContent = `0 ${labels.speed}`;
+        document.getElementById('averagePace').textContent = `0:00 ${labels.pace}`;
         document.getElementById('maxElevation').textContent = '0 m';
         document.getElementById('minElevation').textContent = '0 m';
     }
@@ -1049,33 +1055,17 @@ export class StatsController {
 
     // Format speed in km/h
     formatSpeed(speedKmh) {
-        if (!speedKmh || speedKmh === 0) return '0 km/h';
-        return `${speedKmh.toFixed(1)} km/h`;
+        return this.app.formatSpeed(speedKmh);
     }
 
     // Format pace from km/h to min/km
     formatPace(avgSpeedKmh) {
-        if (!avgSpeedKmh || avgSpeedKmh === 0) return '0:00 min/km';
-
-        // Convert km/h to min/km
-        const paceMinPerKm = 60 / avgSpeedKmh;
-
-        // Format as MM:SS
-        const minutes = Math.floor(paceMinPerKm);
-        const seconds = Math.round((paceMinPerKm - minutes) * 60);
-
-        return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
+        return this.app.formatPaceFromSpeed(avgSpeedKmh);
     }
 
     // Format pace value directly (when pace is already in min/km)
     formatPaceValue(paceMinPerKm) {
-        if (!paceMinPerKm || paceMinPerKm === 0) return '0:00 min/km';
-
-        // Format as MM:SS
-        const minutes = Math.floor(paceMinPerKm);
-        const seconds = Math.round((paceMinPerKm - minutes) * 60);
-
-        return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
+        return this.app.formatPaceValue(paceMinPerKm);
     }
 
     // Ensure all stats fields are properly calculated
