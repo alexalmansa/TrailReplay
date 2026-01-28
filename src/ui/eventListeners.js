@@ -364,6 +364,14 @@ export function setupEventListeners(app) {
         });
     }
 
+    const performanceModeToggle = byId('performanceModeToggle');
+    if (performanceModeToggle) {
+        performanceModeToggle.checked = !!app.state.performanceMode;
+        performanceModeToggle.addEventListener('change', (e) => {
+            app.setPerformanceMode?.(e.target.checked);
+        });
+    }
+
     const unitsSelect = byId('unitsSelect');
     if (unitsSelect) {
         unitsSelect.value = app.state.unitSystem || 'metric';

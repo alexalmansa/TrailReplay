@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS = {
     SHOW_SEGMENT_SPEEDS: true, // Enable segment speeds by default
     SHOW_LIVE_ELEVATION_LABEL: true, // Enable live elevation by default
     SPEED_DISPLAY_MODE: 'speed',
+    PERFORMANCE_MODE: false,
     DEFAULT_ICON: '🏃‍♂️',
     DEFAULT_ANNOTATION_ICON: '📍',
     DEFAULT_ICON_CHANGE: '🚴‍♂️',

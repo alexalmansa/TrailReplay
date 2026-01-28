@@ -43,7 +43,8 @@ export class TrailReplayApp {
             isSelectingForChange: false,
             isDrawingMode: false,
             isAnnotationMode: false,
-            unitSystem: getUnitPreference()
+            unitSystem: getUnitPreference(),
+            performanceMode: localStorage.getItem('trailReplayPerformanceMode') === 'true' || DEFAULT_SETTINGS.PERFORMANCE_MODE
         };
 
         // Legacy properties for compatibility during refactoring
@@ -162,6 +163,12 @@ export class TrailReplayApp {
         // Sync unit preference to UI on startup
         this.updateUnitUI();
 
+        // Sync performance mode to UI on startup
+        this.setPerformanceMode(this.state.performanceMode, { silent: true });
+
+        // Optional performance monitor (enable with ?perf=1)
+        this.initPerformanceMonitor();
+
         // Set up timing synchronization for journeys
         this.setupTimingSynchronization();
 
@@ -207,6 +214,69 @@ export class TrailReplayApp {
         window.testTranslations = () => this.testTranslations();
     }
 
+    initPerformanceMonitor() {
+        const params = new URLSearchParams(window.location.search);
+        const enabled = params.has('perf') || params.get('perf') === '1';
+        if (!enabled) return;
+
+        let monitor = document.getElementById('performanceMonitor');
+        if (!monitor) {
+            monitor = document.createElement('div');
+            monitor.id = 'performanceMonitor';
+            monitor.className = 'performance-monitor active';
+            monitor.innerHTML = `
+                <div class="performance-stat">
+                    <span>FPS</span>
+                    <span id="performanceFps" class="performance-value">--</span>
+                </div>
+                <div class="performance-stat">
+                    <span>Frame</span>
+                    <span id="performanceFrame" class="performance-value">--</span>
+                </div>
+            `;
+            document.body.appendChild(monitor);
+        } else {
+            monitor.classList.add('active');
+        }
+
+        const fpsEl = document.getElementById('performanceFps');
+        const frameEl = document.getElementById('performanceFrame');
+        let frames = 0;
+        let lastReport = performance.now();
+        let lastFrame = lastReport;
+
+        const updateClass = (el, fps) => {
+            if (!el) return;
+            el.classList.remove('warning', 'good');
+            if (fps < 24) {
+                el.classList.add('warning');
+            } else if (fps >= 45) {
+                el.classList.add('good');
+            }
+        };
+
+        const tick = (now) => {
+            frames += 1;
+            const frameMs = now - lastFrame;
+            lastFrame = now;
+            if (frameEl) {
+                frameEl.textContent = `${frameMs.toFixed(1)} ms`;
+            }
+            if (now - lastReport >= 1000) {
+                const fps = (frames * 1000) / (now - lastReport);
+                frames = 0;
+                lastReport = now;
+                if (fpsEl) {
+                    fpsEl.textContent = `${fps.toFixed(0)}`;
+                    updateClass(fpsEl, fps);
+                }
+            }
+            requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
+    }
+
     setUnitSystem(unit) {
         const normalized = unit === 'imperial' ? 'imperial' : 'metric';
         this.state.unitSystem = normalized;
@@ -224,6 +294,27 @@ export class TrailReplayApp {
         }
         if (typeof this.updateElevationLabels === 'function') {
             this.updateElevationLabels();
+        }
+    }
+
+    setPerformanceMode(enabled, { silent = false } = {}) {
+        this.state.performanceMode = !!enabled;
+        try {
+            localStorage.setItem('trailReplayPerformanceMode', this.state.performanceMode ? 'true' : 'false');
+        } catch (_) {}
+
+        document.body.classList.toggle('performance-mode', this.state.performanceMode);
+        if (this.mapRenderer?.setPerformanceMode) {
+            this.mapRenderer.setPerformanceMode(this.state.performanceMode);
+        }
+
+        const toggle = document.getElementById('performanceModeToggle');
+        if (toggle) {
+            toggle.checked = this.state.performanceMode;
+        }
+
+        if (!silent) {
+            this.showMessage(this.state.performanceMode ? t('controls.performanceModeOn') : t('controls.performanceModeOff'), 'info');
         }
     }
 

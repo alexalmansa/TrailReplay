@@ -283,6 +283,15 @@ export class VideoExportController {
                 .video-capture-container .map-watermark {
                     position: absolute;
                 }
+                .export-duration-note {
+                    margin-top: 12px;
+                    padding: 8px 10px;
+                    border-radius: 6px;
+                    background: rgba(46, 125, 50, 0.08);
+                    color: rgba(27, 42, 32, 0.8);
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
             </style>
             <div class="export-section">
                 <div class="export-header">
@@ -350,6 +359,7 @@ export class VideoExportController {
                         <span>${t('videoExport.manualModeShort')}</span>
                     </button>
                 </div>
+                <div class="export-duration-note">${t('videoExport.durationNote')}</div>
             </div>
         `;
     }

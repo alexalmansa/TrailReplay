@@ -390,6 +390,8 @@
                             <select id="terrainStyle">
                                 <option value="hybrid" data-i18n="controls.mapStyleSatelliteWithNames">🛰️🗺️ Satellite with Names</option>
                                 <option value="satellite" selected data-i18n="controls.mapStyleSatellite">🛰️ Satellite</option>
+                                <option value="light" data-i18n="controls.mapStyleLight">🌤️ Light</option>
+                                <option value="dark" data-i18n="controls.mapStyleDark">🌙 Dark</option>
                                 <option value="opentopomap" data-i18n="controls.mapStyleTerrain">🗻 Terrain (OpenTopoMap)</option>
                                 <option value="street" data-i18n="controls.mapStyleStreet">🗺️ Street</option>
                             </select>
@@ -633,6 +635,15 @@
                                     <input type="checkbox" id="showLiveElevation" checked>
                                     <label for="showLiveElevation" class="toggle-slider"></label>
                                 </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label data-i18n="controls.performanceMode">Performance Mode</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="performanceModeToggle">
+                                    <label for="performanceModeToggle" class="toggle-slider"></label>
+                                </div>
+                                <span class="control-hint" data-i18n="controls.performanceModeHint">Reduce visual effects for smoother playback.</span>
                             </div>
 
                             <div id="speedUnitToggleGroup" class="control-group" style="display: block;">

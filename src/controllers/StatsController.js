@@ -765,8 +765,9 @@ export class StatsController {
         try {
             // Increased throttling for better performance during animation
             const now = performance.now();
-            if (this.lastStatsUpdate && (now - this.lastStatsUpdate) < 150) {
-                return; // Skip if updated less than 150ms ago
+            const throttleMs = this.app.state.performanceMode ? 300 : 150;
+            if (this.lastStatsUpdate && (now - this.lastStatsUpdate) < throttleMs) {
+                return; // Skip if updated too recently
             }
             this.lastStatsUpdate = now;
             
