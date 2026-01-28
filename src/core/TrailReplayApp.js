@@ -906,7 +906,7 @@ export class TrailReplayApp {
             minLabel.style.visibility = 'visible';
             const valueSpan = minLabel.querySelector('.elevation-value');
             if (valueSpan) {
-                valueSpan.textContent = `${Math.round(minElevation)} m`;
+                valueSpan.textContent = this.formatElevation ? this.formatElevation(minElevation) : `${Math.round(minElevation)} m`;
             }
         }
 
@@ -917,7 +917,7 @@ export class TrailReplayApp {
             maxLabel.style.visibility = 'visible';
             const valueSpan = maxLabel.querySelector('.elevation-value');
             if (valueSpan) {
-                valueSpan.textContent = `${Math.round(maxElevation)} m`;
+                valueSpan.textContent = this.formatElevation ? this.formatElevation(maxElevation) : `${Math.round(maxElevation)} m`;
             }
         }
 
