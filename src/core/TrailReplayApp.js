@@ -288,7 +288,13 @@ export class TrailReplayApp {
         messageElement.textContent = message;
         messageContainer.appendChild(messageElement);
 
-        // Auto-remove after 5 seconds
+        const getDismissDelay = (messageType) => {
+            if (messageType === 'error') return 12000;
+            if (messageType === 'warning') return 8000;
+            return 5000;
+        };
+
+        // Auto-remove after a delay
         setTimeout(() => {
             if (messageElement.parentNode) {
                 messageElement.style.animation = 'slideOut 0.3s ease-in';
@@ -298,7 +304,7 @@ export class TrailReplayApp {
                     }
                 }, 300);
             }
-        }, 5000);
+        }, getDismissDelay(type));
     }
 
     clearElevationProfileCache(trackId = null) {

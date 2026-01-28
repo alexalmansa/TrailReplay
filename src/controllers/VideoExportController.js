@@ -693,8 +693,9 @@ export class VideoExportController {
         liveStatsOverlay.style.zIndex = '1000';
         
         // Ensure stats have proper styling for visibility
+        const statsColor = this.app?.mapRenderer?.pathColor || '#ffffff';
         liveStatsOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        liveStatsOverlay.style.color = 'white';
+        liveStatsOverlay.style.color = statsColor;
         liveStatsOverlay.style.padding = '12px 16px';
         liveStatsOverlay.style.borderRadius = '8px';
         liveStatsOverlay.style.fontSize = '14px';
@@ -703,6 +704,7 @@ export class VideoExportController {
         liveStatsOverlay.style.wordWrap = 'break-word';
         liveStatsOverlay.style.textAlign = 'right';
         liveStatsOverlay.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+        liveStatsOverlay.style.textShadow = '0 2px 6px rgba(0, 0, 0, 0.9)';
         
         // Move the stats element inside the video capture container if it's not already there
         if (liveStatsOverlay.parentElement !== videoCaptureContainer) {
@@ -771,6 +773,20 @@ export class VideoExportController {
         return true;
     }
 
+    getExportPreRollMs() {
+        return 3000;
+    }
+
+    setExportAnimationSpeed(multiplier) {
+        if (this.app.mapRenderer && this.app.mapRenderer.setAnimationSpeed) {
+            try {
+                this.app.mapRenderer.setAnimationSpeed(multiplier);
+            } catch (error) {
+                console.warn('Failed to set animation speed:', error);
+            }
+        }
+    }
+
     /**
      * Start video export process
      */
@@ -784,8 +800,16 @@ export class VideoExportController {
             return;
         }
 
+        let mp4Compatibility = null;
+        if (mode === 'mp4') {
+            mp4Compatibility = MP4Utils.validateBrowserCompatibility();
+            if (mp4Compatibility.browser === 'Firefox') {
+                this.app.showMessage(t('videoExport.mp4BrowserWarning', { browser: mp4Compatibility.browser }), 'warning');
+            }
+        }
+
         // Show confirmation dialog
-        const shouldContinue = await this.showExportConfirmation(mode);
+        const shouldContinue = await this.showExportConfirmation(mode, { mp4Compatibility });
         if (!shouldContinue) return;
 
         try {
@@ -850,7 +874,8 @@ export class VideoExportController {
             
             // Step 6: Start recording
             this.updateProgress(75, 'Starting recording...');
-            await this.startRecording();
+            this.setExportAnimationSpeed(0.6);
+            await this.startRecording({ preRollMs: this.getExportPreRollMs() });
 
         } catch (error) {
             console.error('❌ WebM export failed:', error);
@@ -1323,7 +1348,7 @@ export class VideoExportController {
             
             // Calculate expected duration and frame timing for proper video length
             const expectedDuration = this.estimateAnimationDuration();
-            const expectedFrameCount = Math.round(expectedDuration * targetFPS);
+            const expectedFrameCount = Math.round(totalExpectedDuration * targetFPS);
             
             console.log(`🎬 Starting frame recording at ${targetFPS} FPS...`);
             console.log(`  - Expected duration: ${expectedDuration}s`);
@@ -1369,7 +1394,7 @@ export class VideoExportController {
                     const animationDone = (progress >= 1.0) && !this.isAnimationPlaying();
                     
                     // Also stop if we've recorded for the expected duration (with small buffer)
-                    const recordingComplete = elapsedTime >= (expectedDuration - 1); // 1s buffer
+                    const recordingComplete = elapsedTime >= (totalExpectedDuration - 1); // 1s buffer
                     
                     if (animationDone || recordingComplete) {
                         // Optionally capture one final frame after animation stops
@@ -1379,7 +1404,7 @@ export class VideoExportController {
                         }
                         
                         console.log(`🎬 Recording completed: ${frameCount} frames captured in ${elapsedTime.toFixed(1)}s`);
-                        console.log(`  - Expected: ${expectedDuration}s, Target frames: ${expectedFrameCount}`);
+                        console.log(`  - Expected: ${totalExpectedDuration}s, Target frames: ${expectedFrameCount}`);
                         console.log(`  - Actual: ${elapsedTime.toFixed(1)}s, Actual frames: ${frameCount}`);
                         console.log(`  - Stop reason: ${animationDone ? 'Animation done' : 'Time limit reached'}`);
                         
@@ -1395,11 +1420,23 @@ export class VideoExportController {
             };
 
             // Start animation and recording
-            console.log('🎬 Starting animation playback...');
-            if (this.app.playback && this.app.playback.play) {
-                this.app.playback.play();
-            } else if (this.app.map && this.app.map.startAnimation) {
-                this.app.map.startAnimation();
+            if (this.app.playback && this.app.playback.reset) {
+                this.app.playback.reset();
+            }
+
+            const startPlayback = () => {
+                console.log('🎬 Starting animation playback...');
+                if (this.app.playback && this.app.playback.play) {
+                    this.app.playback.play();
+                } else if (this.app.map && this.app.map.startAnimation) {
+                    this.app.map.startAnimation();
+                }
+            };
+
+            if (preRollMs > 0) {
+                setTimeout(startPlayback, preRollMs);
+            } else {
+                startPlayback();
             }
             
             // Delay slightly to ensure animation has started
@@ -1548,6 +1585,9 @@ export class VideoExportController {
 
             // Calculate animation speed to ensure proper timing
             const expectedDuration = this.estimateAnimationDuration();
+            const preRollMs = this.getExportPreRollMs();
+            const preRollSeconds = preRollMs / 1000;
+            const totalExpectedDuration = expectedDuration + preRollSeconds;
             const cinematicDurations = this.getCinematicDurations();
             const mainAnimationDuration = expectedDuration - cinematicDurations.zoomIn - cinematicDurations.zoomOut;
             
@@ -1556,7 +1596,7 @@ export class VideoExportController {
             let speedMultiplier = 0.5; // Moderate speed - let animation complete naturally
             
             console.log(`🎬 Animation timing setup:`);
-            console.log(`  - Expected total duration: ${expectedDuration}s`);
+            console.log(`  - Expected total duration: ${totalExpectedDuration}s (includes pre-roll ${preRollSeconds}s)`);
             console.log(`  - Zoom-in duration: ${cinematicDurations.zoomIn}s`);
             console.log(`  - Main animation duration: ${mainAnimationDuration}s`);
             console.log(`  - Zoom-out duration: ${cinematicDurations.zoomOut}s`);
@@ -2906,10 +2946,14 @@ export class VideoExportController {
         const liveSpeedItem = document.getElementById('liveSpeedItem');
         const liveSpeedLabel = document.getElementById('liveSpeedLabel');
 
+        const statsColor = this.app?.mapRenderer?.pathColor || '#ffffff';
+
         // Text styling to match CSS (.live-stats-overlay)
         ctx.textAlign = 'left'; // matches text-align: left from CSS
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFFFFF'; // matches color: #fff from CSS
+        ctx.fillStyle = statsColor;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.lineWidth = 3;
         
         // Add stronger text shadow for better visibility over light backgrounds
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
@@ -2922,12 +2966,17 @@ export class VideoExportController {
         const startX = x + 12; // Match CSS padding-left: 0.75rem
         const labelValueGap = 30; // Increased gap between label and value
 
+        const drawText = (text, textX, textY) => {
+            ctx.strokeText(text, textX, textY);
+            ctx.fillText(text, textX, textY);
+        };
+
         // Draw distance
         if (distanceElement) {
             // Draw label and value on same line (matches CSS flex layout)
             ctx.font = '600 13px Arial, sans-serif'; // Reduced font size for better fit
-            ctx.fillText('D:', startX, currentY);
-            ctx.fillText(distanceElement.textContent, startX + labelValueGap, currentY);
+            drawText('D:', startX, currentY);
+            drawText(distanceElement.textContent, startX + labelValueGap, currentY);
             currentY += lineHeight;
         }
 
@@ -2935,8 +2984,8 @@ export class VideoExportController {
         if (elevationElement) {
             // Draw label and value on same line
             ctx.font = '600 13px Arial, sans-serif';
-            ctx.fillText('E:', startX, currentY);
-            ctx.fillText(elevationElement.textContent, startX + labelValueGap, currentY);
+            drawText('E:', startX, currentY);
+            drawText(elevationElement.textContent, startX + labelValueGap, currentY);
             currentY += lineHeight;
         }
 
@@ -2944,8 +2993,8 @@ export class VideoExportController {
         if (liveSpeedItem && liveSpeedItem.style.display !== 'none' && liveSpeedElement && liveSpeedLabel) {
             // Draw label and value on same line with more space
             ctx.font = '600 12px Arial, sans-serif'; // Even smaller font for speed values
-            ctx.fillText(liveSpeedLabel.textContent, startX, currentY);
-            ctx.fillText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
+            drawText(liveSpeedLabel.textContent, startX, currentY);
+            drawText(liveSpeedElement.textContent, startX + labelValueGap, currentY);
             currentY += lineHeight;
         }
 
@@ -4170,23 +4219,38 @@ export class VideoExportController {
     /**
      * Start the actual recording process
      */
-    async startRecording() {
+    async startRecording({ preRollMs = 0 } = {}) {
         if (!this.mediaRecorder) {
             throw new Error('MediaRecorder not initialized');
         }
 
         // Set up recording timing
         this.recordingStartTime = Date.now();
-        this.estimatedDuration = this.estimateAnimationDuration();
+        this.estimatedDuration = this.estimateAnimationDuration() + (preRollMs / 1000);
+        this.recordingPlaybackStarted = false;
         console.log(`🎬 Recording started at ${this.recordingStartTime}, estimated duration: ${this.estimatedDuration}s`);
+
+        if (this.app.playback && this.app.playback.reset) {
+            this.app.playback.reset();
+        }
 
         // Start MediaRecorder
         this.mediaRecorder.start(1000); // Request data every second
         console.log('MediaRecorder started');
 
-        // Start animation
-        this.app.playback.reset();
-        this.app.playback.play();
+        // Start animation after pre-roll
+        const startPlayback = () => {
+            if (this.app.playback && this.app.playback.play) {
+                this.app.playback.play();
+                this.recordingPlaybackStarted = true;
+            }
+        };
+
+        if (preRollMs > 0) {
+            setTimeout(startPlayback, preRollMs);
+        } else {
+            startPlayback();
+        }
 
         // Monitor recording progress
         await this.monitorRecording();
@@ -4201,6 +4265,11 @@ export class VideoExportController {
             let frameCount = 0;
 
             const checkProgress = () => {
+                if (!this.recordingPlaybackStarted) {
+                    requestAnimationFrame(checkProgress);
+                    return;
+                }
+
                 const progress = this.app.mapRenderer.getAnimationProgress();
                 frameCount++;
 
@@ -4584,7 +4653,7 @@ export class VideoExportController {
     /**
      * Show export confirmation dialog
      */
-    async showExportConfirmation(mode) {
+    async showExportConfirmation(mode, { mp4Compatibility } = {}) {
         return new Promise((resolve) => {
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -4602,6 +4671,21 @@ export class VideoExportController {
                 modeDescription = this.exportModes[mode].description;
             }
             
+            let mp4WarningHtml = '';
+            if (mode === 'mp4') {
+                const compatibility = mp4Compatibility || MP4Utils.validateBrowserCompatibility();
+                if (compatibility.browser === 'Firefox' || !compatibility.mp4Support) {
+                    const recommendations = (compatibility.recommendations || []).map((item) => `<li>${item}</li>`).join('');
+                    mp4WarningHtml = `
+                        <div class="export-confirmation-warning">
+                            <strong>${t('videoExport.mp4BrowserWarningTitle')}</strong>
+                            <p>${t('videoExport.mp4BrowserWarning', { browser: compatibility.browser })}</p>
+                            ${recommendations ? `<ul>${recommendations}</ul>` : ''}
+                        </div>
+                    `;
+                }
+            }
+
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="modal-header">
@@ -4609,6 +4693,7 @@ export class VideoExportController {
                     </div>
                     <div class="modal-body">
                         <p>${modeDescription}</p>
+                        ${mp4WarningHtml}
                         <div class="export-confirmation-tips">
                             <h4>${t('videoExport.beforeExporting')}:</h4>
                             <ul>
