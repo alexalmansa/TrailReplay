@@ -10,7 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(fileURLToPath(new URL('.', import.meta.url)), 'index.html'),
-        app: resolve(fileURLToPath(new URL('.', import.meta.url)), 'app.html'),
+        app: resolve(fileURLToPath(new URL('.', import.meta.url)), 'app-v1.html'),
         tutorial: resolve(fileURLToPath(new URL('.', import.meta.url)), 'tutorial.html'),
         acknowledgments: resolve(fileURLToPath(new URL('.', import.meta.url)), 'acknowledgments.html'),
         privacy: resolve(fileURLToPath(new URL('.', import.meta.url)), 'privacy.html'),

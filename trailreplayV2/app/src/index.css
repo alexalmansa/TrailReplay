@@ -1,0 +1,487 @@
+/* TrailReplay - Original Design System */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand Colors from Original TrailReplay */
+  --canvas: #F8F6F0;
+  --evergreen: #1B2A20;
+  --evergreen-40: rgba(27, 42, 32, 0.4);
+  --evergreen-60: rgba(27, 42, 32, 0.6);
+  --evergreen-80: rgba(27, 42, 32, 0.8);
+  --trail-orange: #C1652F;
+  --trail-orange-15: rgba(193, 101, 47, 0.15);
+  --trail-orange-40: rgba(193, 101, 47, 0.4);
+  --trail-orange-60: rgba(193, 101, 47, 0.6);
+  
+  /* Typography */
+  --font-family-primary: 'JetBrains Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  
+  /* Shadcn overrides */
+  --background: 45 23% 95%;
+  --foreground: 140 22% 14%;
+  --card: 45 23% 95%;
+  --card-foreground: 140 22% 14%;
+  --popover: 45 23% 95%;
+  --popover-foreground: 140 22% 14%;
+  --primary: 24 61% 43%;
+  --primary-foreground: 45 23% 95%;
+  --secondary: 140 22% 14%;
+  --secondary-foreground: 45 23% 95%;
+  --muted: 45 15% 90%;
+  --muted-foreground: 140 10% 40%;
+  --accent: 24 61% 43%;
+  --accent-foreground: 45 23% 95%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 45 23% 95%;
+  --border: 45 15% 85%;
+  --input: 45 15% 85%;
+  --ring: 24 61% 43%;
+  --radius: 0.5rem;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-family-primary);
+  background: var(--canvas);
+  color: var(--evergreen);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--evergreen-40);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--evergreen-60);
+}
+
+/* TrailReplay Button Styles */
+.tr-btn {
+  @apply px-4 py-2 rounded-md font-medium transition-all duration-200;
+  font-family: var(--font-family-primary);
+}
+
+.tr-btn-primary {
+  background: var(--trail-orange);
+  color: var(--canvas);
+}
+
+.tr-btn-primary:hover {
+  background: #a55325;
+  transform: translateY(-1px);
+}
+
+.tr-btn-secondary {
+  background: transparent;
+  color: var(--evergreen);
+  border: 2px solid var(--evergreen);
+}
+
+.tr-btn-secondary:hover {
+  background: var(--evergreen);
+  color: var(--canvas);
+}
+
+.tr-btn-outline {
+  background: transparent;
+  color: var(--trail-orange);
+  border: 2px solid var(--trail-orange);
+}
+
+.tr-btn-outline:hover {
+  background: var(--trail-orange);
+  color: var(--canvas);
+}
+
+/* Panel Styles */
+.tr-panel {
+  background: var(--canvas);
+  border: 2px solid var(--evergreen);
+  border-radius: 8px;
+}
+
+.tr-panel-header {
+  background: var(--evergreen);
+  color: var(--canvas);
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Map Marker Styles */
+.tr-marker {
+  width: 32px;
+  height: 32px;
+  background: var(--trail-orange);
+  border: 3px solid var(--canvas);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  z-index: 100;
+}
+
+.tr-marker::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid var(--trail-orange);
+}
+
+/* Track Line Styles */
+.tr-track-line {
+  stroke: var(--trail-orange);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.tr-track-progress {
+  stroke: var(--evergreen);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Stats Overlay */
+.tr-stats-overlay {
+  background: rgba(248, 246, 240, 0.95);
+  border: 2px solid var(--evergreen);
+  border-radius: 8px;
+  padding: 1rem;
+  font-family: var(--font-family-primary);
+}
+
+.tr-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tr-stat-value {
+  font-weight: 700;
+  color: var(--trail-orange);
+  font-size: 1.25rem;
+}
+
+.tr-stat-label {
+  font-size: 0.75rem;
+  color: var(--evergreen-60);
+  text-transform: uppercase;
+}
+
+/* Picture Annotation Popup */
+.tr-picture-popup {
+  background: var(--canvas);
+  border: 3px solid var(--trail-orange);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+}
+
+.tr-picture-popup img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tr-picture-popup .caption {
+  padding: 0.75rem 1rem;
+  background: var(--evergreen);
+  color: var(--canvas);
+  font-size: 0.875rem;
+}
+
+/* Journey Builder Styles */
+.tr-journey-segment {
+  background: var(--canvas);
+  border: 2px solid var(--evergreen-40);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s;
+}
+
+.tr-journey-segment:hover {
+  border-color: var(--trail-orange);
+}
+
+.tr-journey-segment.active {
+  border-color: var(--trail-orange);
+  background: var(--trail-orange-15);
+}
+
+.tr-transport-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--evergreen);
+  color: var(--canvas);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* Timeline Styles */
+.tr-timeline {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.tr-timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--evergreen-40);
+}
+
+.tr-timeline-item {
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.tr-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.5rem;
+  top: 0.75rem;
+  width: 10px;
+  height: 10px;
+  background: var(--trail-orange);
+  border-radius: 50%;
+  border: 2px solid var(--canvas);
+}
+
+/* Video Export Progress */
+.tr-export-progress {
+  background: var(--canvas);
+  border: 2px solid var(--evergreen);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.tr-progress-bar {
+  height: 8px;
+  background: var(--evergreen-40);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tr-progress-fill {
+  height: 100%;
+  background: var(--trail-orange);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Camera Mode Indicator */
+.tr-camera-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--evergreen);
+  color: var(--canvas);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.tr-camera-mode.active {
+  background: var(--trail-orange);
+}
+
+/* Heart Rate Zones */
+.tr-hr-zone-recovery { color: #4ade80; }
+.tr-hr-zone-aerobic { color: #60a5fa; }
+.tr-hr-zone-tempo { color: #fbbf24; }
+.tr-hr-zone-threshold { color: #f97316; }
+.tr-hr-zone-anaerobic { color: #ef4444; }
+
+/* Elevation Profile */
+.tr-elevation-profile {
+  background: var(--canvas);
+  border: 2px solid var(--evergreen);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.tr-elevation-path {
+  fill: var(--trail-orange-15);
+  stroke: var(--trail-orange);
+  stroke-width: 2;
+}
+
+/* Map Controls */
+.tr-map-control {
+  width: 40px;
+  height: 40px;
+  background: var(--canvas);
+  border: 2px solid var(--evergreen);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tr-map-control:hover {
+  background: var(--trail-orange);
+  border-color: var(--trail-orange);
+  color: var(--canvas);
+}
+
+/* Playback Controls */
+.tr-playback-btn {
+  width: 56px;
+  height: 56px;
+  background: var(--trail-orange);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(193, 101, 47, 0.4);
+}
+
+.tr-playback-btn:hover {
+  transform: scale(1.05);
+  background: #a55325;
+}
+
+.tr-speed-btn {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid var(--evergreen-40);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tr-speed-btn.active {
+  background: var(--trail-orange);
+  border-color: var(--trail-orange);
+  color: var(--canvas);
+}
+
+/* File Upload Dropzone */
+.tr-dropzone {
+  border: 3px dashed var(--evergreen-40);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.tr-dropzone:hover,
+.tr-dropzone.dragover {
+  border-color: var(--trail-orange);
+  background: var(--trail-orange-15);
+}
+
+/* Comparison Track */
+.tr-comparison-track {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tr-comparison-track.active {
+  background: var(--trail-orange-15);
+  border: 1px solid var(--trail-orange);
+}
+
+/* Animation */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.tr-marker-pulse {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* Utility Classes */
+.text-trail-orange { color: var(--trail-orange); }
+.text-evergreen { color: var(--evergreen); }
+.bg-canvas { background: var(--canvas); }
+.bg-evergreen { background: var(--evergreen); }
+.bg-trail-orange { background: var(--trail-orange); }
+.border-trail-orange { border-color: var(--trail-orange); }
+.border-evergreen { border-color: var(--evergreen); }
+
+/* MapLibre Customization */
+.maplibregl-map {
+  font-family: var(--font-family-primary) !important;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.maplibregl-ctrl-group button {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tr-panel {
+    border-width: 1px;
+  }
+  
+  .tr-stats-overlay {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+}

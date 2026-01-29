@@ -101,6 +101,26 @@ export class MapRenderer {
 
     }
 
+    setPerformanceMode(enabled) {
+        this.performanceMode = !!enabled;
+        if (!this.map) return;
+
+        const fade = this.performanceMode ? 0 : 100;
+        const layers = ['background', 'opentopomap', 'street', 'carto-labels', 'carto-light', 'carto-dark'];
+        layers.forEach((layerId) => {
+            if (this.map.getLayer(layerId)) {
+                try {
+                    this.map.setPaintProperty(layerId, 'raster-fade-duration', fade);
+                } catch (_) {}
+            }
+        });
+        if (this.performanceMode) {
+            this.disable3DTerrain();
+        } else if (this.currentMapStyle === 'hybrid') {
+            this.enable3DTerrain();
+        }
+    }
+
     // Delegated Terrain Methods
     enable3DTerrain() {
         this.terrainController.enable3DTerrain();
@@ -922,53 +942,32 @@ export class MapRenderer {
 
     // Map style methods
     changeMapStyle(style) {
-        const layerConfigs = {
-            'satellite': {
-                source: 'satellite',
-                attribution: '© Esri'
-            },
-            'opentopomap': {
-                source: 'opentopomap',
-                attribution: '© OpenTopoMap (CC-BY-SA)'
-            },
-            'street': {
-                source: 'osm',
-                attribution: '© OpenStreetMap contributors'
-            },
-            // Mountain satellite style: satellite + enhanced hillshade + labels (replaces hybrid)
-            'hybrid': {
-                sources: ['satellite', 'enhanced-hillshade', 'carto-labels'],
-                attribution: '© Esri, © OpenTopography/ASTER GDEM, © CartoDB'
-            }
-        };
-
         // --- Handle hybrid style (now mountain satellite with 3D terrain) ---
         if (style === 'hybrid') {
             // Show satellite, enhanced hillshade, and labels
             this.showLayers(['background', 'enhanced-hillshade', 'carto-labels']);
-            this.hideLayers(['opentopomap', 'street']);
+            this.hideLayers(['opentopomap', 'street', 'carto-light', 'carto-dark']);
             this.enable3DTerrain(); // Enable 3D for better terrain visualization
+            this.currentMapStyle = style; // Track current style for preloading
             return;
         }
 
         // --- Handle other styles ---
         const config = layerConfigs[style] || layerConfigs['satellite'];
-        if (this.map.getLayer('background')) {
-            this.map.setLayoutProperty('background', 'visibility', style === 'satellite' ? 'visible' : 'none');
-        }
-        if (this.map.getLayer('carto-labels')) {
-            this.map.setLayoutProperty('carto-labels', 'visibility', 'none');
-        }
-        if (this.map.getLayer('opentopomap')) {
-            this.map.setLayoutProperty('opentopomap', 'visibility', style === 'opentopomap' ? 'visible' : 'none');
-        }
-        if (this.map.getLayer('street')) {
-            // Show street only if style is street
-            this.map.setLayoutProperty('street', 'visibility', style === 'street' ? 'visible' : 'none');
-        }
-        // Hide enhanced hillshade for standard styles (except hybrid which uses it)
-        if (style !== 'hybrid' && this.map.getLayer('enhanced-hillshade')) {
-            this.map.setLayoutProperty('enhanced-hillshade', 'visibility', 'none');
+        const baseLayers = ['background', 'opentopomap', 'street', 'carto-light', 'carto-dark', 'carto-labels', 'enhanced-hillshade'];
+        this.hideLayers(baseLayers);
+        if (style === 'satellite') {
+            this.showLayers(['background']);
+        } else if (style === 'opentopomap') {
+            this.showLayers(['opentopomap']);
+        } else if (style === 'street') {
+            this.showLayers(['street']);
+        } else if (style === 'light') {
+            this.showLayers(['carto-light']);
+        } else if (style === 'dark') {
+            this.showLayers(['carto-dark']);
+        } else {
+            this.showLayers(['background']);
         }
 
         // Optionally update attribution UI here
@@ -1886,6 +1885,8 @@ export class MapRenderer {
             satellite: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
             opentopomap: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png'],
             street: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            light: ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+            dark: ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'],
             hybrid: [
                 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png'

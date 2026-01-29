@@ -7,11 +7,23 @@
   "rewrites": [
     {
       "source": "/app",
-      "destination": "/app.html"
+      "destination": "/app/index.html"
     },
     {
       "source": "/app/",
-      "destination": "/app.html"
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/app/(.*)",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/app-v1",
+      "destination": "/app-v1.html"
+    },
+    {
+      "source": "/app-v1/",
+      "destination": "/app-v1.html"
     },
     {
       "source": "/tutorial",
@@ -23,7 +35,7 @@
     },
     {
       "source": "/strava-callback",
-      "destination": "/app.html"
+      "destination": "/app-v1.html"
     },
     {
       "source": "/privacy",

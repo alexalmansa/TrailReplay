@@ -47,6 +47,22 @@ export class MapManager {
                         tileSize: 256,
                         attribution: '© CartoDB'
                     },
+                    'carto-light': {
+                        type: 'raster',
+                        tiles: [
+                            'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        attribution: '© CartoDB'
+                    },
+                    'carto-dark': {
+                        type: 'raster',
+                        tiles: [
+                            'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        attribution: '© CartoDB'
+                    },
                     'enhanced-hillshade': {
                         type: 'raster',
                         tiles: [
@@ -66,6 +82,18 @@ export class MapManager {
                         id: 'carto-labels',
                         type: 'raster',
                         source: 'carto-labels',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'carto-light',
+                        type: 'raster',
+                        source: 'carto-light',
+                        layout: { visibility: 'none' }
+                    },
+                    {
+                        id: 'carto-dark',
+                        type: 'raster',
+                        source: 'carto-dark',
                         layout: { visibility: 'none' }
                     },
                     {
@@ -103,7 +131,7 @@ export class MapManager {
         this.map.on('load', () => {
             this.setupMapLayers();
             try {
-                ['background','opentopomap','street','carto-labels'].forEach(layerId => {
+                ['background','opentopomap','street','carto-labels','carto-light','carto-dark'].forEach(layerId => {
                     if (this.map.getLayer(layerId)) {
                         this.map.setPaintProperty(layerId, 'raster-fade-duration', 100);
                     }
