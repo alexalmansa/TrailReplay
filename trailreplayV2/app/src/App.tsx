@@ -92,13 +92,21 @@ function App() {
           
           <div className="flex items-center gap-2">
             <CameraControls />
-            <a
-              href="/app.html"
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/30 text-white/90 hover:text-white hover:border-white/60 transition-colors"
-              title="Switch to TrailReplay v1"
-            >
-              Switch to v1
-            </a>
+            <div className="flex items-center rounded-full border border-white/30 bg-white/10 p-0.5">
+              <a
+                href="/app"
+                className="px-3 py-1 text-xs font-semibold rounded-full bg-white/90 text-[var(--evergreen)]"
+                aria-current="page"
+              >
+                v2
+              </a>
+              <a
+                href="/app.html"
+                className="px-3 py-1 text-xs font-semibold rounded-full text-white/90 hover:text-white"
+              >
+                v1
+              </a>
+            </div>
             <button
               onClick={toggleFullscreen}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"

@@ -176,36 +176,38 @@ body {
     z-index: 100;
 }
 
-.version-switch-button {
+/* Version Switcher */
+.version-switcher {
     position: absolute;
     top: 1rem;
     right: 9.5rem;
-    color: var(--evergreen);
-    text-decoration: none;
     display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 0.6rem 0.9rem;
-    border-radius: 8px;
-    transition: all 200ms ease-out;
-    font-size: 0.9rem;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
     border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    padding: 0.2rem;
+    gap: 0.2rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     z-index: 100;
 }
 
-.version-switch-button:hover {
-    background: var(--trail-orange);
-    color: var(--canvas);
-    transform: translateY(-2px);
-    border-color: rgba(193, 101, 47, 0.6);
-    box-shadow: 0 4px 12px rgba(193, 101, 47, 0.3);
+.version-switcher-link {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--evergreen);
+    transition: all 200ms ease-out;
 }
 
-.version-switch-button span {
-    white-space: nowrap;
+.version-switcher-link.active {
+    background: var(--trail-orange);
+    color: var(--canvas);
+}
+
+.version-switcher-link:not(.active):hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 .support-button:hover {
