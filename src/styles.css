@@ -176,6 +176,38 @@ body {
     z-index: 100;
 }
 
+.version-switch-button {
+    position: absolute;
+    top: 1rem;
+    right: 9.5rem;
+    color: var(--evergreen);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.6rem 0.9rem;
+    border-radius: 8px;
+    transition: all 200ms ease-out;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+}
+
+.version-switch-button:hover {
+    background: var(--trail-orange);
+    color: var(--canvas);
+    transform: translateY(-2px);
+    border-color: rgba(193, 101, 47, 0.6);
+    box-shadow: 0 4px 12px rgba(193, 101, 47, 0.3);
+}
+
+.version-switch-button span {
+    white-space: nowrap;
+}
+
 .support-button:hover {
     background: #FFDD44;
     color: var(--evergreen);
@@ -5576,4 +5608,90 @@ select.footer-link:hover {
     content: 'Loading ad...';
     color: rgba(0, 0, 0, 0.4);
     font-size: 0.85rem;
+}
+
+
+/* ============================================
+   PERFORMANCE MODE STYLES
+   ============================================ */
+
+/* Performance mode active - reduce visual effects */
+body.performance-mode-active {
+    /* Disable expensive CSS effects */
+    --shadow-intensity: 0.1;
+}
+
+/* Simplified live stats overlay in performance mode */
+body.performance-mode-active #liveStatsOverlay,
+#liveStatsOverlay.performance-simplified {
+    /* Remove backdrop blur and expensive effects */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    
+    /* Simpler background */
+    background: rgba(0, 0, 0, 0.75) !important;
+    
+    /* Remove text shadow for better performance */
+    text-shadow: none !important;
+    
+    /* Simpler box shadow */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Simplified elevation profile in performance mode */
+body.performance-mode-active #elevationProfileSvg,
+#elevationProfileSvg.performance-simplified {
+    /* Disable expensive SVG filters */
+    filter: none !important;
+}
+
+/* Reduce marker glow effect in performance mode */
+body.performance-mode-active .marker-glow,
+body.performance-mode-active #current-position-glow {
+    display: none !important;
+}
+
+/* Simplify animations in performance mode */
+body.performance-mode-active .live-stat-value,
+body.performance-mode-active .final-stat-value {
+    /* Disable value change animations */
+    transition: none !important;
+}
+
+body.performance-mode-active .segment-change {
+    /* Simplify segment change animation */
+    animation: none !important;
+}
+
+/* Reduce map overlay complexity */
+body.performance-mode-active .map-watermark {
+    /* Simpler watermark rendering */
+    opacity: 0.6 !important;
+}
+
+/* Performance mode toggle styling */
+#performanceModeToggle:checked + .toggle-slider {
+    background-color: #2E7D32;
+}
+
+/* Performance profiler display */
+#performance-profiler {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+/* Stats reduced refresh rate indicator */
+.performance-mode-active .stats-refresh-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #2E7D32;
+    border-radius: 50%;
+    margin-left: 6px;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
