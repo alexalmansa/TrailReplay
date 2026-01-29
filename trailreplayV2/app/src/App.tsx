@@ -101,7 +101,7 @@ function App() {
                 v2
               </a>
               <a
-                href="/app.html"
+                href="/app-v1.html"
                 className="px-3 py-1 text-xs font-semibold rounded-full text-white/90 hover:text-white"
               >
                 v1

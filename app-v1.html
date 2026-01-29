@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trail Replay - GPX Visualization</title>
+    <meta name="description" content="Convert your GPX files to stunning animated trail videos. TrailReplay is the easiest GPX to video converter for runners, cyclists, and outdoor adventurers. Create, customize, and share your trail stories online!">
+    <meta name="author" content="Trail Replay">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://trailreplay.com/app">
+    
+    <!-- Instagram -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://trailreplay.com/app">
+    <meta property="og:title" content="Trail Replay - GPX Visualization App">
+    <meta property="og:description" content="Convert your GPX files to stunning animated trail videos. Create, customize, and share your trail stories online!">
+    <meta property="og:image" content="https://trailreplay.com/media/images/app-screenshot.jpg">
+    <meta property="og:site_name" content="Trail Replay">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#C1652F">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.3/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="./src/styles.css">
+    <link rel="icon" type="image/png" href="media/images/simplelogo.png" />
+    
+    <style>
+        /* Tutorial and GPX Guide button styles */
+        .tutorial-btn, .gpx-guide-btn {
+            text-decoration: none;
+            font-weight: 600;
+            padding: 0.7rem 1.5rem;
+            border-radius: 6px;
+            transition: all 200ms ease-out;
+            font-size: 1.15rem;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+        
+        .tutorial-btn {
+            color: var(--trail-orange);
+            border: 2px solid var(--trail-orange);
+        }
+        
+        .tutorial-btn:hover {
+            background: var(--trail-orange);
+            color: var(--canvas);
+            transform: translateY(-2px);
+        }
+
+        .gpx-guide-btn {
+            color: var(--evergreen);
+            border: 2px solid var(--evergreen);
+        }
+        
+        .gpx-guide-btn:hover {
+            background: var(--evergreen);
+            color: var(--canvas);
+            transform: translateY(-2px);
+        }
+        
+        /* Mobile responsive spacing */
+        @media (max-width: 768px) {
+            .tutorial-btn, .gpx-guide-btn {
+                display: block;
+                margin: 0.75rem auto;
+                max-width: 280px;
+            }
+        }
+    </style>
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Trail Replay",
+        "alternateName": "GPX to Video Converter",
+        "url": "https://trailreplay.com",
+        "description": "Convert GPX files to stunning animated trail videos online. Free GPX to video converter for runners, cyclists, hikers.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web Browser",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "featureList": [
+            "GPX to video conversion",
+            "Animated trail visualization",
+            "3D terrain rendering",
+            "Custom map styles",
+            "Video export",
+            "Strava integration",
+            "Multi-track journeys"
+        ],
+        "screenshot": "https://trailreplay.com/media/images/screenshot.jpg",
+        "publisher": {
+            "@type": "Organization",
+            "name": "Trail Replay",
+            "url": "https://trailreplay.com"
+        },
+        "creator": {
+            "@type": "Person",
+            "name": "Alex Almansa",
+            "url": "https://github.com/alexalmansa"
+        },
+        "keywords": [
+            "gpx to video",
+            "gpx converter",
+            "trail animation",
+            "gps visualization",
+            "running video",
+            "cycling video",
+            "hiking video",
+            "gpx files",
+            "animated maps"
+        ],
+        "potentialAction": {
+            "@type": "UseAction",
+            "target": "https://trailreplay.com",
+            "object": {
+                "@type": "DigitalDocument",
+                "name": "GPX File",
+                "encodingFormat": "application/gpx+xml"
+            },
+            "result": {
+                "@type": "VideoObject",
+                "name": "Animated Trail Video",
+                "encodingFormat": "video/mp4"
+            }
+        }
+    }
+    </script>
+
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1913702280528809"
+            crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="header"></div>
+    <div class="tutorial-link" style="margin: 1.5rem auto 0 auto; text-align:center;">
+        <a href="tutorial.html" data-i18n="tutorial.link" class="tutorial-btn">
+            📚 Tutorial & Examples
+        </a>
+        <a href="gpx-download-guide.html" data-i18n="gpxGuide.link" class="gpx-guide-btn">
+            📥 GPX Download Guide
+        </a>
+    </div>
+    <div id="app">
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Upload Section -->
+                <section class="upload-section" id="uploadSection">
+                    <div class="upload-card">
+                        <div class="upload-icon">📁</div>
+                        <h2 data-i18n="upload.title">Upload GPX Files & Pictures</h2>
+                        <p data-i18n="upload.description">Add multiple GPX tracks and images to create your journey</p>
+                        <p class="upload-formats-info">
+                            <small>Supported formats: <strong>GPX files</strong> (.gpx) and <strong>Images</strong> (.jpg, .jpeg, .png, .gif, .webp)</small>
+                        </p>
+
+                        <!-- URL Input Section -->
+                        <div class="url-input-section" id="urlInputSection">
+                            <!-- Import from External Website Button -->
+                            <div class="external-import-toggle">
+                                <button id="showExternalImportBtn" class="external-import-btn">
+                                    <span class="btn-icon">🌐</span>
+                                    <span data-i18n="upload.externalImport">Import from Strava/Wikiloc</span>
+                                </button>
+                            </div>
+
+                            <div class="external-import-section" id="externalImportSection" style="display: none;">
+                                <div class="url-input-group">
+                                    <label for="wikilocUrl" data-i18n="upload.urlLabel">Paste your URL:</label>
+                                    <input type="url" id="wikilocUrl" data-i18n-placeholder="upload.urlPlaceholder" placeholder="https://www.strava.com/activities/1234567890 or https://www.wikiloc.com/trails/view/123456" class="url-input">
+                                    <button id="loadFromUrlBtn" class="url-load-btn" data-i18n="upload.loadFromUrl">
+                                        <span class="btn-text" data-i18n="upload.loadFromUrl">🔗 Open Download Page</span>
+                                        <span class="loading-text" style="display: none;" data-i18n="upload.urlStatus.openingText">⏳ Opening...</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Platform Instructions -->
+                            <div class="platform-instructions" id="platformInstructions" style="display: none;">
+                                <div class="platform-card strava-card">
+                                    <div class="platform-header">
+                                        <div class="platform-logo strava-logo">S</div>
+                                        <h4 data-i18n="upload.platformInstructions.strava.title">Strava</h4>
+                                    </div>
+                                    <ol>
+                                        <li data-i18n="upload.platformInstructions.strava.step1">Paste activity URL:</data-i18n> <a href="#" onclick="testPlatformURL('https://www.strava.com/activities/5868127842')" class="example-url">https://www.strava.com/activities/5868127842</a></li>
+                                        <li data-i18n="upload.platformInstructions.strava.step2">Click "🔗 Open Download Page"</li>
+                                        <li data-i18n="upload.platformInstructions.strava.step3">On Strava: Click 3 dots (⋯) next to activity title</li>
+                                        <li data-i18n="upload.platformInstructions.strava.step4">Select "Export GPX"</li>
+                                        <li data-i18n="upload.platformInstructions.strava.step5">Upload downloaded file</li>
+                                    </ol>
+                                    <p class="platform-examples">
+                                        <strong data-i18n="upload.platformInstructions.strava.tryIt">Try it:</strong> <a href="#" onclick="testPlatformURL('https://www.strava.com/activities/5868127842')" class="example-url" data-i18n="upload.platformInstructions.strava.exampleActivity">UTMB 2021 Activity</a>
+                                    </p>
+                                </div>
+                                <div class="platform-card wikiloc-card">
+                                    <div class="platform-header">
+                                        <div class="platform-logo wikiloc-logo">W</div>
+                                        <h4 data-i18n="upload.platformInstructions.wikiloc.title">Wikiloc</h4>
+                                    </div>
+                                    <ol>
+                                        <li data-i18n="upload.platformInstructions.wikiloc.step1">Paste trail URL:</data-i18n> <a href="#" onclick="testPlatformURL('https://es.wikiloc.com/rutas-carrera/cursa-festa-major-sant-feliu-de-codines-2022-113786033')" class="example-url">https://es.wikiloc.com/rutas-carrera/cursa-festa-major-sant-feliu-de-codines-2022-113786033</a></li>
+                                        <li data-i18n="upload.platformInstructions.wikiloc.step2">Click "🔗 Open Download Page"</li>
+                                        <li data-i18n="upload.platformInstructions.wikiloc.step3">On Wikiloc: Click "File" tab</li>
+                                        <li data-i18n="upload.platformInstructions.wikiloc.step4">Click "Download GPX"</li>
+                                        <li data-i18n="upload.platformInstructions.wikiloc.step5">Upload downloaded file</li>
+                                    </ol>
+                                    <p class="platform-examples">
+                                        <strong data-i18n="upload.platformInstructions.wikiloc.otherExamples">Other examples:</strong><br>
+                                        <a href="#" onclick="testPlatformURL('https://es.wikiloc.com/rutas-carrera/cursa-festa-major-sant-feliu-de-codines-2022-113786033')" class="example-url" data-i18n="upload.platformInstructions.wikiloc.santFeliuRace">Sant Feliu Race</a> |
+                                        <a href="#" onclick="testPlatformURL('https://www.wikiloc.com/trails/view/123456')" class="example-url" data-i18n="upload.platformInstructions.wikiloc.anotherTrail">Another trail</a>
+                                    </p>
+                                </div>
+
+                                <div class="platform-card other-card">
+                                    <div class="platform-header">
+                                        <div class="platform-logo other-logo">?</div>
+                                        <h4 data-i18n="upload.platformInstructions.otherPlatforms.title">Other Platforms</h4>
+                                    </div>
+                                    <ol>
+                                        <li data-i18n="upload.platformInstructions.otherPlatforms.step1">Paste any GPS platform URL</li>
+                                        <li data-i18n="upload.platformInstructions.otherPlatforms.step2">Click "🔗 Open Download Page"</li>
+                                        <li data-i18n="upload.platformInstructions.otherPlatforms.step3">Look for "Export" or "Download GPX" option</li>
+                                        <li data-i18n="upload.platformInstructions.otherPlatforms.step4">Select GPX format if available</li>
+                                        <li data-i18n="upload.platformInstructions.otherPlatforms.step5">Upload downloaded file</li>
+                                    </ol>
+                                    <p class="platform-examples">
+                                        <strong data-i18n="upload.platformInstructions.otherPlatforms.supported">Supported:</strong> <span data-i18n="upload.platformInstructions.otherPlatforms.supportedPlatforms">Garmin, AllTrails, Komoot, Suunto, Polar, Coros, Endomondo, Nike, Adidas, Fitbit, Dropbox, Google Drive</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="url-status" id="urlStatus" style="display: none;"></div>
+                        </div>
+
+                        <script>
+                        function testPlatformURL(url) {
+                            // Prevent default link behavior
+                            event.preventDefault();
+
+                            // Get the URL input field
+                            const urlInput = document.getElementById('wikilocUrl');
+                            const externalSection = document.getElementById('externalImportSection');
+                            const instructionsSection = document.getElementById('platformInstructions');
+
+                            if (urlInput) {
+                                // Populate the URL input field
+                                urlInput.value = url;
+
+                                // Show the external import section if it's hidden
+                                if (externalSection && externalSection.style.display === 'none') {
+                                    externalSection.style.display = 'block';
+                                    if (instructionsSection) {
+                                        instructionsSection.style.display = 'grid';
+                                    }
+
+                                    // No need to update button text here - the testPlatformURL function
+                                    // should only populate the URL field and show the section
+                                }
+
+                                // Focus the input field
+                                urlInput.focus();
+
+                                // Scroll to the input field
+                                urlInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                // Show a helpful message
+                                showTestURLMessage(url);
+
+                                console.log('✅ Example URL loaded:', url);
+                            }
+                        }
+
+                        function showTestURLMessage(url) {
+                            const statusDiv = document.getElementById('urlStatus');
+                            if (statusDiv) {
+                                const platform = detectPlatform(url);
+                                const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+
+                                statusDiv.innerHTML = `
+                                    <div class="status-info">
+                                        <p>🎯 <strong data-i18n="upload.urlStatus.exampleLoaded">Example URL loaded!</strong></p>
+                                        <p data-i18n="upload.urlStatus.platformDetected">Platform detected:</data-i18n> <strong>${platformName}</strong></p>
+                                        <p data-i18n="upload.urlStatus.clickToTest">Click "🔗 Open Download Page" to test the functionality.</p>
+                                    </div>
+                                `;
+                                statusDiv.style.display = 'block';
+                                statusDiv.className = 'url-status visible';
+                            }
+                        }
+
+                        function detectPlatform(url) {
+                            if (url.includes('strava.com')) return 'strava';
+                            if (url.includes('wikiloc.com')) return 'wikiloc';
+                            if (url.includes('garmin.com') || url.includes('connect.garmin.com')) return 'garmin';
+                            if (url.includes('alltrails.com')) return 'alltrails';
+                            if (url.includes('komoot.com')) return 'komoot';
+                            if (url.includes('suunto.com')) return 'suunto';
+                            if (url.includes('polar.com')) return 'polar';
+                            if (url.includes('coros.com')) return 'coros';
+                            if (url.includes('endomondo.com')) return 'endomondo';
+                            if (url.includes('nike.com') || url.includes('nrc-app')) return 'nike';
+                            if (url.includes('adidas')) return 'adidas';
+                            if (url.includes('fitbit.com')) return 'fitbit';
+                            if (url.includes('dropbox.com')) return 'dropbox';
+                            if (url.includes('drive.google.com')) return 'google-drive';
+                            return 'unknown';
+                        }
+                        </script>
+
+                        <input type="file" id="gpxFileInput" accept=".gpx,image/*" class="file-input" multiple>
+                        <button class="upload-btn" onclick="console.log('Upload button clicked!'); document.getElementById('gpxFileInput').click()">
+                            <span data-i18n="upload.button">Choose Files</span>
+                        </button>
+                        <div class="upload-progress" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="uploadProgressFill"></div>
+                            </div>
+                            <span id="uploadStatus">Processing files...</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Journey Planning Section -->
+                <section class="journey-planning-section" id="journeyPlanningSection" style="display: none;">
+                    <div class="journey-container">
+                        <h3 data-i18n="journey.title">Journey Builder</h3>
+                        
+                        <div class="tracks-list" id="tracksList">
+                            <div class="tracks-header">
+                                <span data-i18n="journey.tracks">Uploaded Tracks</span>
+                                <div class="journey-actions">
+                                    <button id="clearTracksBtn" class="btn-secondary">
+                                        <span data-i18n="journey.clearAll">🗑️ Clear All</span>
+                                    </button>
+                                    
+                                    <div class="auto-preview-status" id="autoPreviewStatus">
+                                        <span class="status-icon">🔄</span>
+                                        <span class="status-text" data-i18n="journey.autoPreview">Auto-updating journey...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tracks-items" id="tracksItems">
+                                <!-- Track items will be added here -->
+                            </div>
+                        </div>
+
+                        <div class="journey-segments" id="journeySegments">
+                            <div class="segments-header">
+                                <span data-i18n="journey.segments">Journey Segments</span>
+                            </div>
+                            <div class="segments-list" id="segmentsList">
+                                <!-- Journey segments will be built here -->
+                            </div>
+                            <div class="segments-actions">
+                                <!-- The Preview Journey button is removed as it's now automatic -->
+                            </div>
+                            
+
+                        </div>
+
+                        <div class="transportation-options" id="transportationOptions" style="display: none;">
+                            <h4 data-i18n="journey.addTransportation">Add Transportation</h4>
+                            <div class="transport-modes">
+                                <button class="transport-btn" data-mode="car" data-i18n="journey.transportCar">🚗 Car</button>
+                                <button class="transport-btn" data-mode="boat" data-i18n="journey.transportBoat">⛵ Boat</button>
+                                <button class="transport-btn" data-mode="plane" data-i18n="journey.transportPlane">✈️ Plane</button>
+                                <button class="transport-btn" data-mode="train" data-i18n="journey.transportTrain">🚂 Train</button>
+                                <button class="transport-btn" data-mode="walk" data-i18n="journey.transportWalk">🚶‍♂️ Walk</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Visualization Section -->
+                <section class="visualization-section" id="visualizationSection" style="display: none;">
+                    <div class="controls-panel">
+                        <!-- Row 1: Basic Controls -->
+                        <div class="control-group">
+                            <label for="terrainStyle">Map Style:</label>
+                            <select id="terrainStyle">
+                                <option value="hybrid" data-i18n="controls.mapStyleSatelliteWithNames">🛰️🗺️ Satellite with Names</option>
+                                <option value="satellite" selected data-i18n="controls.mapStyleSatellite">🛰️ Satellite</option>
+                                <option value="outdoors" data-i18n="controls.mapStyleOutdoors">🏕️ Outdoors</option>
+                                <option value="voyager" data-i18n="controls.mapStyleVoyager">🌍 Voyager</option>
+                                <option value="topo" data-i18n="controls.mapStyleTopo">🗻 Topographic (USGS)</option>
+                                <option value="opentopomap" data-i18n="controls.mapStyleTerrain">🗻 Terrain (OpenTopoMap)</option>
+                                <option value="street" data-i18n="controls.mapStyleStreet">🗺️ Street</option>
+                                <option value="light" data-i18n="controls.mapStyleLight">🌤️ Light</option>
+                                <option value="dark" data-i18n="controls.mapStyleDark">🌙 Dark</option>
+                            </select>
+                        </div>
+
+                        <!-- Row 2: Visual Customization -->
+                        <div class="control-group">
+                            <label data-i18n="controls.pathColor">Trail Color:</label>
+                            <div class="color-mode-selection">
+                                <div class="color-mode-toggle">
+                                    <input type="radio" id="colorModeFixed" name="colorMode" value="fixed" checked>
+                                    <label for="colorModeFixed" data-i18n="controls.colorModeFixed">Fixed Color</label>
+                                    
+                                    <input type="radio" id="colorModeHeartRate" name="colorMode" value="heartRate">
+                                    <label for="colorModeHeartRate" data-i18n="controls.colorModeHeartRate">💓 Heart Rate</label>
+                                </div>
+                                
+                                <!-- Fixed Color Controls -->
+                                <div id="fixedColorControls" class="color-input-group">
+                                    <input type="color" id="pathColor" value="#C1652F">
+                                    <span class="color-preset" data-color="#C1652F" title="Trail Orange">🟠</span>
+                                    <span class="color-preset" data-color="#28a745" title="Green">🟢</span>
+                                    <span class="color-preset" data-color="#7FB8AD" title="Lake Teal">🔵</span>
+                                    <span class="color-preset" data-color="#ffe66d" title="Yellow">🟡</span>
+                                    <span class="color-preset" data-color="#dc3545" title="Red">🔴</span>
+                                </div>
+                                
+                                <!-- Heart Rate Zone Controls -->
+                                <div id="heartRateControls" class="heart-rate-controls" style="display: none;">
+                                    <div class="heart-rate-status" id="heartRateStatus">
+                                        <span class="hr-status-text" data-i18n="controls.heartRateNotDetected">No heart rate data detected</span>
+                                    </div>
+                                    
+                                    <div class="heart-rate-zones" id="heartRateZones" style="display: none;">
+                                        <div class="hr-zone-header">
+                                            <span data-i18n="controls.heartRateZones">Heart Rate Zones (BPM)</span>
+                                        </div>
+                                        <div class="hr-zones-grid">
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone1Recovery">Zone 1 (Recovery)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone1Min" placeholder="50" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone1Max" placeholder="120" min="40" max="200">
+                                                    <input type="color" id="zone1Color" value="#8BC34A" style="display: none;">
+                                                    <div class="hr-zone-color" style="background: #8BC34A" data-zone="1"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone2Base">Zone 2 (Base)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone2Min" placeholder="121" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone2Max" placeholder="140" min="40" max="200">
+                                                    <input type="color" id="zone2Color" value="#4CAF50" style="display: none;">
+                                                    <div class="hr-zone-color" style="background: #4CAF50" data-zone="2"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone3Aerobic">Zone 3 (Aerobic)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone3Min" placeholder="141" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone3Max" placeholder="160" min="40" max="200">
+                                                    <input type="color" id="zone3Color" value="#FFC107" style="display: none;">
+                                                    <div class="hr-zone-color" style="background: #FFC107" data-zone="3"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone4Threshold">Zone 4 (Threshold)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone4Min" placeholder="161" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone4Max" placeholder="180" min="40" max="200">
+                                                    <input type="color" id="zone4Color" value="#FF9800" style="display: none;">
+                                                    <div class="hr-zone-color" style="background: #FF9800" data-zone="4"></div>
+                                                </div>
+                                            </div>
+                                            <div class="hr-zone">
+                                                <label data-i18n="controls.zone5Anaerobic">Zone 5 (Anaerobic)</label>
+                                                <div class="hr-zone-inputs">
+                                                    <input type="number" id="zone5Min" placeholder="181" min="40" max="200">
+                                                    <span>-</span>
+                                                    <input type="number" id="zone5Max" placeholder="220" min="40" max="200">
+                                                    <input type="color" id="zone5Color" value="#F44336" style="display: none;">
+                                                    <div class="hr-zone-color" style="background: #F44336" data-zone="5"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Main Track Letters (under color picker) -->
+                            <div class="track-letters-group" style="margin-top: 8px;">
+                                <label data-i18n="controls.track1Letters">Track Letters</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <div id="track1NameWrapper" style="flex: 1; display: none;">
+                                        <input type="text" id="track1Name" value="Track 1" placeholder="Track 1" style="width: 100%; padding: 4px 6px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;" data-i18n-placeholder="controls.comparisonNamesTrack1Placeholder">
+                                    </div>
+                                    <div class="toggle-switch" title="Show letters on main track" data-i18n-title="controls.showTrackLettersTitle">
+                                        <input type="checkbox" id="showTrackLetters">
+                                        <label for="showTrackLetters" class="toggle-slider"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Marker Controls Section -->
+                        <div class="control-section">
+                            <div class="control-section-header" data-i18n="controls.markerSettings">🎯 Marker Settings</div>
+                            <div class="control-group">
+                                <label data-i18n="controls.showMarker">Show Marker:</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="showMarker">
+                                    <label for="showMarker" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                        <div class="control-group">
+                            <label data-i18n="controls.markerSize">Marker Size:</label>
+                            <input type="range" id="markerSize" min="0.5" max="3" step="0.1" value="0.7">
+                            <span id="markerSizeValue">0.7x</span>
+                        </div>
+
+                        <div class="control-group">
+                            <label data-i18n="controls.currentIcon">Current Icon:</label>
+                            <div class="icon-selector">
+                                <div class="current-icon-display" id="currentIconDisplay">🏃‍♂️</div>
+                                <button class="icon-change-btn" id="changeIconBtn" data-i18n="controls.changeIcon">Change</button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label data-i18n="controls.showCircle">Show Circle:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="showCircle" checked>
+                                <label for="showCircle" class="toggle-slider"></label>
+                            </div>
+                        </div>
+                        </div>
+
+                        <!-- Camera Controls Section -->
+                        <div class="control-section">
+                            <div class="control-section-header" data-i18n="controls.cameraSettings">🎬 Camera Settings</div>
+                        <div class="control-group">
+                            <label data-i18n="controls.cameraMode">Camera Mode:</label>
+                            <select id="cameraMode">
+                                <option value="standard" data-i18n="controls.cameraStandard">📝 Manual</option>
+                                <option value="followBehind" data-i18n="controls.cameraFollowBehind" selected>🎬 Follow Behind</option>
+                                <option value="overview" data-i18n="controls.cameraOverview">🌍 Overview</option>
+                            </select>
+                            <div class="camera-info-section">
+                                <div class="camera-info-button" id="cameraControlsInfo">
+                                    <span class="camera-info-text" data-i18n="cameraInfo.buttonText">ℹ️ Camera Controls</span>
+                                    <div class="camera-info-tooltip">
+                                        <div class="camera-info-content">
+                                            <div class="camera-controls-section">
+                                                <h5 data-i18n="cameraInfo.desktop.title">💻 Desktop Controls</h5>
+                                                <p data-i18n="cameraInfo.desktop.pan">Pan: Click and drag to move the map</p>
+                                                <p data-i18n="cameraInfo.desktop.zoom">Zoom: Use mouse wheel or +/- keys</p>
+                                                <p data-i18n="cameraInfo.desktop.rotate">Rotate: Right-click and drag, or Shift + click and drag</p>
+                                                <p data-i18n="cameraInfo.desktop.tilt">Tilt: Ctrl + click and drag (3D mode)</p>
+                                            </div>
+                                            <div class="camera-controls-section">
+                                                <h5 data-i18n="cameraInfo.mobile.title">📱 Mobile Controls</h5>
+                                                <p data-i18n="cameraInfo.mobile.pan">Pan: Touch and drag with one finger</p>
+                                                <p data-i18n="cameraInfo.mobile.zoom">Zoom: Pinch with two fingers to zoom in/out</p>
+                                                <p data-i18n="cameraInfo.mobile.rotate">Rotate: Touch and drag with two fingers</p>
+                                                <p data-i18n="cameraInfo.mobile.tilt">Tilt: Touch with two fingers and move up/down (3D mode)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label data-i18n="controls.autoFollow">Auto Follow:</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="autoZoom" checked>
+                                <label for="autoZoom" class="toggle-slider"></label>
+                            </div>
+                        </div>
+
+                        <!-- Follow-Behind Zoom Preset (shown when Follow Behind is selected) -->
+                        <div class="control-group" id="followBehindZoomGroup" style="display: block;">
+                            <label data-i18n="controls.followBehindZoom">Follow Distance:</label>
+                            <select id="followBehindZoom">
+                                <option value="VERY_CLOSE" data-i18n="controls.followBehindVeryClose">🔍 Very Close</option>
+                                <option value="MEDIUM" data-i18n="controls.followBehindMedium" selected>📍 Medium</option>
+                                <option value="FAR" data-i18n="controls.followBehindFar">🌍 Far</option>
+                            </select>
+                        </div>
+
+                        </div>
+
+                        <!-- Terrain Controls Section -->
+                        <div class="control-section">
+                            <div class="control-section-header" data-i18n="controls.mapTerrainSettings">🗺️ Map & Terrain</div>
+                            <div class="control-group">
+                                <label data-i18n="controls.terrain3d">3D Terrain:</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="terrain3d" checked>
+                                    <label for="terrain3d" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+
+
+                        <div class="control-group" id="terrainSourceGroup" style="display: block;">
+                            <label data-i18n="controls.terrainSource">Elevation Data:</label>
+                            <select id="terrainSource" class="terrain-source-select">
+                                <option value="mapzen" selected>Mapzen Global</option>
+                                <option value="opentopo">OpenTopography SRTM</option>
+                            </select>
+                        </div>
+                        </div>
+
+                        <!-- Stats Settings -->
+                        <div class="control-section">
+                            <div class="control-section-header" data-i18n="controls.statsSettings">📊 Stats Settings</div>
+                            <div class="control-group">
+                                <label data-i18n="controls.showEndStats">Show End Stats</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="showEndStats" checked>
+                                    <label for="showEndStats" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label data-i18n="controls.showSegmentSpeeds">Show Segment Speeds</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="showSegmentSpeeds" checked>
+                                    <label for="showSegmentSpeeds" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label data-i18n="controls.showLiveElevation">Show Live Elevation</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="showLiveElevation" checked>
+                                    <label for="showLiveElevation" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label data-i18n="controls.performanceMode">Performance Mode</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="performanceModeToggle">
+                                    <label for="performanceModeToggle" class="toggle-slider"></label>
+                                </div>
+                                <span class="control-hint" data-i18n="controls.performanceModeHint">Reduce visual effects for smoother playback.</span>
+                            </div>
+
+                            <div id="speedUnitToggleGroup" class="control-group" style="display: block;">
+                                <label id="speedAsPaceLabel" data-i18n="controls.speedAsPace">Show pace (min/km)</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="speedAsPace">
+                                    <label for="speedAsPace" class="toggle-slider"></label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label data-i18n="controls.unitsLabel">Units</label>
+                                <select id="unitsSelect">
+                                    <option value="metric" data-i18n="controls.unitsMetric">Metric (km)</option>
+                                    <option value="imperial" data-i18n="controls.unitsImperial">Imperial (mi)</option>
+                                </select>
+                            </div>
+
+                            <!-- Stats Selection -->
+                            <div id="statsSelectionContainer" class="control-group" style="display: none; margin-top: 1rem;">
+                                <label style="margin-bottom: 0.5rem; display: block;">Select Stats to Show at End:</label>
+                                <div class="stats-checkboxes">
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statDistance" checked>
+                                        <label for="statDistance" data-i18n="stats.distance">📏 Total Distance</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statElevation" checked>
+                                        <label for="statElevation" data-i18n="stats.elevation">↗️ Total Elevation Gain</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statDuration" checked>
+                                        <label for="statDuration" data-i18n="stats.duration">⏱️ Duration</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statSpeed" checked>
+                                        <label for="statSpeed" data-i18n="stats.averageSpeed">💨 Average Speed</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statPace" checked>
+                                        <label for="statPace" data-i18n="stats.averagePace">👟 Average Pace</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statMaxElevation" checked>
+                                        <label for="statMaxElevation" data-i18n="stats.maxElevation">🏔️ Maximum Elevation</label>
+                                    </div>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="statMinElevation" checked>
+                                        <label for="statMinElevation" data-i18n="stats.minElevation">📉 Minimum Elevation</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Comparison Mode -->
+                        <div class="control-section">
+                            <div class="control-section-header" data-i18n="controls.comparisonSettings">🏃‍♂️ Comparison Mode</div>
+                            <div class="control-group">
+                                <label data-i18n="controls.enableComparison">Enable Comparison</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="enableComparison">
+                                    <label for="enableComparison" class="toggle-slider"></label>
+                                </div>
+                            </div>
+                            <div class="control-group" id="comparisonFileGroup" style="display: none;">
+                                <div style="margin-bottom: 8px; font-size: 11px; color: #666; line-height: 1.4;">
+                                    <strong data-i18n="controls.comparisonInstructionsTitle">How to use:</strong><br>
+                                    <span data-i18n="controls.comparisonInstructionsStep1">1. Load main GPX track</span><br>
+                                    <span data-i18n="controls.comparisonInstructionsStep2">2. Select comparison GPX file</span><br>
+                                    <span data-i18n="controls.comparisonInstructionsStep3">3. Customize names & colors below</span><br><br>
+                                    <strong data-i18n="controls.comparisonTracksTitle">Tracks:</strong><br>
+                                    <span data-i18n="controls.comparisonTracksTrack1">• Track 1: Main track (blue)</span><br>
+                                    <span data-i18n="controls.comparisonTracksTrack2">• Track 2: Comparison track</span>
+                                </div>
+                                <!-- Track file input -->
+                                <div class="control-group">
+                                    <label data-i18n="controls.secondTrack">Second Track</label>
+                                    <input type="file" id="comparisonFile" accept=".gpx" class="file-input">
+                                    <button class="upload-btn" onclick="document.getElementById('comparisonFile').click()">
+                                        <span data-i18n="controls.selectTrack">Select GPX File</span>
+                                    </button>
+                                </div>
+
+                                <!-- Track 2 Name -->
+                                <div class="control-group">
+                                    <label data-i18n="controls.track2Name">Track 2 Name</label>
+                                    <input type="text" id="track2Name" value="Track 2" placeholder="Track 2" style="width: 100%; padding: 4px 6px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;" data-i18n-placeholder="controls.comparisonNamesTrack2Placeholder">
+                                </div>
+
+                                <!-- Track 2 Color -->
+                                <div class="control-group">
+                                    <label data-i18n="controls.comparisonColorTitle">Track 2 Color</label>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <input type="color" id="track2Color" value="#DC2626" style="width: 36px; height: 24px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                        <input type="text" id="track2ColorHex" value="#DC2626" style="flex: 1; padding: 4px 6px; font-size: 11px; border: 1px solid #ccc; border-radius: 3px;" readonly>
+                                        <button id="resetTrack2Color" class="btn btn-secondary" style="font-size: 10px; padding: 2px 6px;" data-i18n="controls.comparisonColorReset">Reset</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="control-buttons">
+                            <button id="addIconChangeBtn" class="control-btn">
+                                <span data-i18n="controls.addIconChange">🔄 Add Icon Change</span>
+                            </button>
+                            <button id="addAnnotationBtn" class="control-btn">
+                                <span data-i18n="controls.addAnnotation">📍 Add Note</span>
+                            </button>
+                        </div>
+
+
+                    </div>
+
+                    <!-- Map Container -->
+                    <div class="map-container">
+                        <!-- Video Capture Container - wraps map + overlays for clean CropTarget capture -->
+                        <div id="videoCaptureContainer" class="video-capture-container">
+                            <div id="map" class="map"></div>
+                            <div id="threeContainer" class="three-container"></div>
+                            
+                            <!-- Logo Watermark - removed DOM element, using programmatic drawing only -->
+                            
+                            <div class="map-watermark" aria-hidden="true">
+                                <img src="media/images/logohorizontal.svg" alt="" loading="lazy">
+                            </div>
+
+                            <!-- Elevation Profile (stays in map) -->
+                            <div class="elevation-profile-container">
+                                <!-- Live Stats integrated into elevation profile -->
+                                <div id="liveStatsOverlay" class="live-stats-overlay">
+                                    <!-- Live stats for during playback -->
+                                    <div class="live-stats-content">
+                                        <div class="live-stat-item">
+                                            <span class="live-stat-label">D:</span>
+                                            <span class="live-stat-full-label" data-i18n="controls.distance"></span>
+                                            <span class="live-stat-value" id="liveDistance">0.0 km</span>
+                                        </div>
+                                        <div class="live-stat-item">
+                                            <span class="live-stat-label">E:</span>
+                                            <span class="live-stat-full-label" data-i18n="controls.elevation"></span>
+                                            <span class="live-stat-value" id="liveElevation">0 m</span>
+                                        </div>
+                                        <div class="live-stat-item" id="liveSpeedItem" style="display: none;">
+                                            <span class="live-stat-label" id="liveSpeedLabel">S:</span>
+                                            <span class="live-stat-full-label" data-i18n="stats.currentSpeed"></span>
+                                            <span class="live-stat-value" id="liveSpeed">0.0 km/h</span>
+                                        </div>
+                                    </div>
+
+                                    <div id="liveSpeedSegments" class="live-speed-segments" style="display: none;">
+                                        <div class="live-speed-segments-title" data-i18n="stats.speedPerKm"></div>
+                                        <div id="liveSpeedSegmentsList" class="live-speed-segments-list"></div>
+                                    </div>
+
+                                    <!-- Final stats for end animation -->
+                                    <div class="final-stats-content">
+                                        <div class="final-stat-box" data-stat="distance">
+                                            <div class="final-stat-label" data-i18n="stats.distance">Distance</div>
+                                            <div class="final-stat-value" id="finalDistance">0.0 km</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="elevation">
+                                            <div class="final-stat-label" data-i18n="stats.elevation">Elevation</div>
+                                            <div class="final-stat-value" id="finalElevation">0 m</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="duration">
+                                            <div class="final-stat-label" data-i18n="stats.duration">Duration</div>
+                                            <div class="final-stat-value" id="finalDuration">0h 0m</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="speed">
+                                            <div class="final-stat-label" data-i18n="stats.averageSpeed">Avg Speed</div>
+                                            <div class="final-stat-value" id="finalSpeed">0 km/h</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="pace">
+                                            <div class="final-stat-label" data-i18n="stats.averagePace">Avg Pace</div>
+                                            <div class="final-stat-value" id="finalPace">0:00 min/km</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="maxelevation">
+                                            <div class="final-stat-label" data-i18n="stats.maxElevation">Max Elev</div>
+                                            <div class="final-stat-value" id="finalMaxElevation">0 m</div>
+                                        </div>
+                                        <div class="final-stat-box" data-stat="minelevation">
+                                            <div class="final-stat-label" data-i18n="stats.minElevation">Min Elev</div>
+                                            <div class="final-stat-value" id="finalMinElevation">0 m</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="elevation-progress-bar" id="progressBar">
+                                    <!-- SVG Elevation Profile -->
+                                    <svg id="elevationProfileSvg" class="elevation-profile-svg" viewBox="0 0 800 60" preserveAspectRatio="none">
+                                        <!-- Background gradient -->
+                                        <defs>
+                                            <linearGradient id="elevationGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:0.8" />
+                                                <stop offset="50%" style="stop-color:#8BC34A;stop-opacity:0.6" />
+                                                <stop offset="100%" style="stop-color:#C8E6C9;stop-opacity:0.4" />
+                                            </linearGradient>
+                                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#C1652F;stop-opacity:0.9" />
+                                                <stop offset="50%" style="stop-color:#FF8A50;stop-opacity:0.7" />
+                                                <stop offset="100%" style="stop-color:#FFB74D;stop-opacity:0.5" />
+                                            </linearGradient>
+                                        </defs>
+                                        
+                                        <!-- Elevation profile path (background) -->
+                                        <path id="elevationPath" d="M0,30 L800,30" fill="url(#elevationGradient)" stroke="#4CAF50" stroke-width="1"/>
+                                        
+                                        <!-- Progress overlay path -->
+                                        <path id="progressPath" d="M0,30 L0,30" fill="url(#progressGradient)" stroke="#C1652F" stroke-width="2"/>
+                                    </svg>
+                                    
+                                    <!-- Icon change markers -->
+                                    <div id="iconChangeMarkers" class="elevation-markers"></div>
+                                    
+                                    <!-- Annotation markers -->
+                                    <div id="annotationMarkers" class="elevation-markers"></div>
+
+                                    <!-- Live elevation marker -->
+                                    <div id="liveElevationMarker" class="elevation-live-label">0 m</div>
+                                    
+                                    <!-- Elevation labels -->
+                                    <div class="elevation-labels">
+                                        <div id="minElevationLabel" class="elevation-label elevation-label-start">
+                                            <span class="elevation-value">0 m</span>
+                                        </div>
+                                        <div id="maxElevationLabel" class="elevation-label elevation-label-peak">
+                                            <span class="elevation-value">0 m</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Active Annotation Display -->
+                            <div id="activeAnnotation" class="active-annotation" style="display: none;">
+                                <div class="annotation-popup">
+                                    <span class="annotation-popup-icon"></span>
+                                    <div class="annotation-popup-content">
+                                        <div class="annotation-popup-title"></div>
+                                        <div class="annotation-popup-description"></div>
+                                    </div>
+                                    <button class="annotation-popup-close">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Controls (moved here to be above journey timeline) -->
+                    <div class="progress-controls-container">
+                        <div class="progress-header">
+                            <div class="progress-controls">
+                                <button id="playBtn" class="progress-control-btn primary">
+                                    <span data-i18n="controls.play">Play</span>
+                                </button>
+                                <button id="resetBtn" class="progress-control-btn primary">
+                                    <span data-i18n="controls.reset">Reset</span>
+                                </button>
+                            </div>
+                            <div class="progress-info">
+                                <span id="currentTime">00:00</span>
+                                <span>/</span>
+                                <span id="totalTime">00:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+
+                <!-- Stats Section -->
+                <section class="stats-section" id="statsSection" style="display: none;">
+                    <h3 data-i18n="stats.title">Trail Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">↔</div>
+                            <div class="stat-value" id="totalDistance">0 km</div>
+                            <div class="stat-label" data-i18n="stats.distance">Distance</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">↗</div>
+                            <div class="stat-value" id="elevationGain">0 m</div>
+                            <div class="stat-label" data-i18n="stats.elevation">Elevation</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏱</div>
+                            <div class="stat-value" id="duration">0h 0m</div>
+                            <div class="stat-label" data-i18n="stats.duration">Duration</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">→</div>
+                            <div class="stat-value" id="averageSpeed">0 km/h</div>
+                            <div class="stat-label" data-i18n="stats.averageSpeed">Speed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👟</div>
+                            <div class="stat-value" id="averagePace">0:00 min/km</div>
+                            <div class="stat-label" data-i18n="stats.averagePace">Pace</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">▲</div>
+                            <div class="stat-value" id="maxElevation">0 m</div>
+                            <div class="stat-label" data-i18n="stats.maxElevation">Max Elev</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">▼</div>
+                            <div class="stat-value" id="minElevation">0 m</div>
+                            <div class="stat-label" data-i18n="stats.minElevation">Min Elev</div>
+                        </div>
+                    </div>
+
+                </section>
+
+
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <div id="footer"></div>
+    </div>
+
+    <!-- Icon Selection Modal -->
+    <div id="iconSelectionModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="iconSelection.title">Select Icon</h3>
+                <button class="modal-close" id="closeIconModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="icon-grid" id="iconGrid">
+                    <!-- Icons will be populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelIconBtn" class="control-btn" data-i18n="buttons.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Icon Change Modal -->
+    <div id="iconChangeModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="iconChange.title">Add Icon Change</h3>
+                <button class="modal-close" id="closeIconChangeModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p data-i18n="iconChange.instruction">Click on the map or progress bar to set the position where the icon should change.</p>
+                <div class="icon-change-controls">
+                    <label data-i18n="iconChange.newIcon">New Icon:</label>
+                    <div class="icon-selection-mini" id="iconChangeSelection">
+                        <div class="selected-icon" id="selectedIconForChange">🚴‍♂️</div>
+                        <button class="icon-select-btn" id="selectIconForChangeBtn" data-i18n="buttons.chooseIcon">Choose Icon</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveIconChangeBtn" class="control-btn primary" data-i18n="buttons.save">Save</button>
+                <button id="cancelIconChangeBtn" class="control-btn" data-i18n="buttons.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Annotation Modal -->
+    <div id="annotationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="annotations.addTitle">Add Annotation</h3>
+                <button class="modal-close" id="closeAnnotationModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="annotationTitle" data-i18n-placeholder="messages.annotationTitlePlaceholder" placeholder="Annotation title..." maxlength="50">
+                <textarea id="annotationDescription" data-i18n-placeholder="messages.annotationDescriptionPlaceholder" placeholder="Description (optional)..." maxlength="200"></textarea>
+                <div class="annotation-icons">
+                    <span class="annotation-icon" data-icon="📍">📍</span>
+                    <span class="annotation-icon" data-icon="⚠️">⚠️</span>
+                    <span class="annotation-icon" data-icon="📸">📸</span>
+                    <span class="annotation-icon" data-icon="🏔️">🏔️</span>
+                    <span class="annotation-icon" data-icon="💧">💧</span>
+                    <span class="annotation-icon" data-icon="🌳">🌳</span>
+                    <span class="annotation-icon" data-icon="🏠">🏠</span>
+                    <span class="annotation-icon" data-icon="⭐">⭐</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveAnnotationBtn" class="control-btn primary" data-i18n="buttons.save">Save</button>
+                <button id="cancelAnnotationBtn" class="control-btn" data-i18n="buttons.cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./src/index.js"></script>
+    
+    <!-- Language Switcher Initialization -->
+    <script>
+        // Initialize language switcher after footer is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for footer to load, then initialize language switcher
+            setTimeout(() => {
+                if (window.initializeLanguageSwitcher) {
+                    window.initializeLanguageSwitcher();
+                } else {
+                    // Fallback if main app hasn't loaded yet
+                    setTimeout(() => {
+                        if (window.initializeLanguageSwitcher) {
+                            window.initializeLanguageSwitcher();
+                        }
+                    }, 500);
+                }
+            }, 200);
+        });
+    </script>
+    <script>
+      fetch('/footer.html').then(r => r.text()).then(html => { document.getElementById('footer').innerHTML = html; });
+    </script>
+    <script>
+      fetch('/header.html').then(r => r.text()).then(html => { document.getElementById('header').innerHTML = html; });
+    </script>
+</body>
+</html> 

@@ -2,7 +2,7 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": false,
+  "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
     {
@@ -18,6 +18,14 @@
       "destination": "/app/index.html"
     },
     {
+      "source": "/app-v1",
+      "destination": "/app-v1.html"
+    },
+    {
+      "source": "/app-v1/",
+      "destination": "/app-v1.html"
+    },
+    {
       "source": "/tutorial",
       "destination": "/tutorial.html"
     },
@@ -27,7 +35,7 @@
     },
     {
       "source": "/strava-callback",
-      "destination": "/app.html"
+      "destination": "/app-v1.html"
     },
     {
       "source": "/privacy",

@@ -40,7 +40,7 @@ npm install
 npm run dev
 ```
 
-- Development server: <http://localhost:5173> (Vite auto-opens the landing page; `app.html` is the main editor).
+- Development server: <http://localhost:5173> (Vite auto-opens the landing page; `app-v1.html` is the main editor).
 - Build for production: `npm run build` (outputs to `dist/` and copies `strava-callback.html`).
 - Preview a production build: `npm run preview`.
 
