@@ -79,7 +79,7 @@ function App() {
             </button>
             <div className="flex items-center gap-2">
               <img
-                src="/media/images/logohorizontal.svg"
+                src="/app/media/images/logohorizontal.svg"
                 alt="TrailReplay"
                 className="h-7 w-auto"
               />
@@ -160,7 +160,7 @@ function App() {
                     {/* Logo */}
                     <div className="flex justify-center mb-4">
                       <img
-                        src="/media/images/logo.svg"
+                        src="/app/media/images/logo.svg"
                         alt="TrailReplay"
                         className="h-16 w-16"
                       />
