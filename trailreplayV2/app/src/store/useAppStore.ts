@@ -260,12 +260,12 @@ export const useAppStore = create<AppState>()(
             totalDistance: 0,
           };
         }
-        // Add track to journey
+        // Add track to journey with default 60s duration (user can adjust in Journey panel)
         state.journeySegments.push({
           id: `segment-${Date.now()}-${track.id}`,
           type: 'track',
           trackId: track.id,
-          duration: track.totalTime * 1000,
+          duration: 60000, // 60 seconds default
         });
         // Switch to journey panel
         state.activePanel = 'journey';

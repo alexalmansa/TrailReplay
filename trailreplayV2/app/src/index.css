@@ -131,30 +131,28 @@ html, body {
 
 /* Map Marker Styles */
 .tr-marker {
-  width: 32px;
-  height: 32px;
-  background: var(--trail-orange);
-  border: 3px solid var(--canvas);
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   z-index: 100;
+  position: relative;
+  transition: transform 0.2s ease;
 }
 
-.tr-marker::after {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 10px solid var(--trail-orange);
+/* Pulse animation for marker glow circle */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Track Line Styles */

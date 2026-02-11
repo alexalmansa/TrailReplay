@@ -11,6 +11,10 @@ const OUTRO_DELAY = 1000; // 1 second delay before zoom-out
 const OUTRO_DURATION = 3000; // 3 seconds for zoom-out
 const AUTO_RESET_DELAY = 3000; // 3 seconds after outro before auto-reset
 
+// Duration limits (in milliseconds)
+const MIN_DURATION = 30000; // 30 seconds minimum
+const MAX_DURATION = 120000; // 120 seconds maximum
+
 export function PlaybackProvider({ children }: PlaybackProviderProps) {
   const playback = useAppStore((state) => state.playback);
   const tracks = useAppStore((state) => state.tracks);
@@ -33,23 +37,20 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
   const activeTrack = tracks.find((t) => t.id === activeTrackId);
 
   // Calculate total duration based on journey segments or active track
+  // Duration is clamped between 30-120 seconds for good viewing experience
   const calculateTotalDuration = useCallback(() => {
+    let duration = 0;
+
     // If we have journey segments, use their total duration
     if (journeySegments.length > 0) {
-      return journeySegments.reduce((sum, seg) => sum + (seg.duration || 0), 0);
+      duration = journeySegments.reduce((sum, seg) => sum + (seg.duration || 0), 0);
+    } else if (activeTrack) {
+      // Default to 60 seconds for a track
+      duration = 60000;
     }
 
-    // Otherwise, use the active track duration
-    if (!activeTrack) return 0;
-
-    // If track has time data, use it
-    if (activeTrack.totalTime > 0) {
-      return activeTrack.totalTime * 1000; // Convert to milliseconds
-    }
-
-    // Otherwise, estimate based on distance (assuming average speed of 10 km/h)
-    const estimatedHours = activeTrack.totalDistance / 10000; // 10 km/h in m/h
-    return estimatedHours * 3600 * 1000; // Convert to milliseconds
+    // Clamp duration between MIN and MAX
+    return Math.max(MIN_DURATION, Math.min(MAX_DURATION, duration));
   }, [journeySegments, activeTrack]);
 
   // Clear all timeouts

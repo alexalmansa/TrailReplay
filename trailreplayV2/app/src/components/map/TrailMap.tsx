@@ -122,13 +122,18 @@ function calculateBearing(from: { lat: number; lon: number }, to: { lat: number;
 }
 
 // Smooth bearing using exponential moving average
-function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.05): number {
+// Lower smoothingFactor = smoother but slower response
+function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.015): number {
   // Handle the 360/0 wraparound
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
-  
-  return (currentBearing + diff * smoothingFactor + 360) % 360;
+
+  // Only apply small changes to avoid sudden jumps
+  const maxChange = 2; // Max degrees per frame
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+
+  return (currentBearing + change + 360) % 360;
 }
 
 // Interpolate position between two points
@@ -150,16 +155,15 @@ export function TrailMap({}: TrailMapProps) {
   const activeTrackId = useAppStore((state) => state.activeTrackId);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const settings = useAppStore((state) => state.settings);
+  const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const pictures = useAppStore((state) => state.pictures);
-  const iconChanges = useAppStore((state) => state.iconChanges);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [currentIcon, setCurrentIcon] = useState('🏃');
   
   const activeTrack = tracks.find((t) => t.id === activeTrackId);
   
@@ -230,8 +234,10 @@ export function TrailMap({}: TrailMapProps) {
   const getBearingAtProgress = (track: GPXTrack, progress: number): number => {
     const pointIndex = Math.floor(progress * (track.points.length - 1));
     const currentPoint = track.points[pointIndex];
-    const nextPoint = track.points[Math.min(pointIndex + 5, track.points.length - 1)];
-    
+    // Look further ahead (3% of track) for smoother bearing - reduces sudden turns
+    const lookAheadPoints = Math.max(20, Math.floor(track.points.length * 0.03));
+    const nextPoint = track.points[Math.min(pointIndex + lookAheadPoints, track.points.length - 1)];
+
     if (currentPoint && nextPoint) {
       return calculateBearing(
         { lat: currentPoint.lat, lon: currentPoint.lon },
@@ -356,7 +362,21 @@ export function TrailMap({}: TrailMapProps) {
       map.current.setLayoutProperty('carto-labels', 'visibility', 'none');
     }
   }, [settings.mapStyle, isMapLoaded]);
-  
+
+  // Update trail colors when trailStyle changes
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const color = trailStyle.trailColor;
+
+    if (map.current.getLayer('trail-line')) {
+      map.current.setPaintProperty('trail-line', 'line-color', color);
+    }
+    if (map.current.getLayer('trail-completed')) {
+      map.current.setPaintProperty('trail-completed', 'line-color', color);
+    }
+  }, [trailStyle.trailColor, isMapLoaded]);
+
   // Update tracks on map
   const updateTracks = useCallback(() => {
     if (!map.current || !isMapLoaded) return;
@@ -392,22 +412,6 @@ export function TrailMap({}: TrailMapProps) {
     updateTracks();
   }, [updateTracks]);
   
-  // Update icon based on progress
-  useEffect(() => {
-    const sortedIcons = [...iconChanges].sort((a, b) => a.progress - b.progress);
-    let currentIconIndex = 0;
-    
-    for (let i = 0; i < sortedIcons.length; i++) {
-      if (playback.progress >= sortedIcons[i].progress) {
-        currentIconIndex = i;
-      }
-    }
-    
-    if (sortedIcons[currentIconIndex]) {
-      setCurrentIcon(sortedIcons[currentIconIndex].icon);
-    }
-  }, [playback.progress, iconChanges]);
-  
   // Update marker position and camera follow
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
@@ -417,28 +421,70 @@ export function TrailMap({}: TrailMapProps) {
     
     // Update smooth bearing
     targetBearingRef.current = bearing;
-    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, bearing, 0.08);
+    // Very smooth bearing transitions - low factor for cinematic effect
+    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, bearing, 0.02);
     
-    // Create or update marker
+    // Create or update marker based on trailStyle settings
     const icon = isTransport ? (
       { car: '🚗', bus: '🚌', train: '🚆', plane: '✈️', bike: '🚲', walk: '🚶', ferry: '⛴️' } as Record<string, string>
-    )[getCurrentJourneyPosition().transportMode || 'car'] || '🚗' : currentIcon;
-    
-    if (!markerRef.current) {
-      const el = document.createElement('div');
-      el.className = 'tr-marker';
-      el.innerHTML = `<span>${icon}</span>`;
-      
-      markerRef.current = new maplibregl.Marker({
-        element: el,
-        anchor: 'bottom',
-      })
-        .setLngLat([position.lon, position.lat])
-        .addTo(map.current);
+    )[getCurrentJourneyPosition().transportMode || 'car'] || '🚗' : trailStyle.currentIcon;
+
+    // Handle marker visibility
+    if (!trailStyle.showMarker) {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
     } else {
-      markerRef.current.setLngLat([position.lon, position.lat]);
-      const el = markerRef.current.getElement();
-      el.innerHTML = `<span>${icon}</span>`;
+      const markerSize = trailStyle.markerSize;
+      const showCircle = trailStyle.showCircle;
+
+      if (!markerRef.current) {
+        const el = document.createElement('div');
+        el.className = 'tr-marker';
+        el.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform: scale(${markerSize});
+          transition: transform 0.2s ease;
+        `;
+        el.innerHTML = `
+          ${showCircle ? `<div style="
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: ${trailStyle.trailColor}40;
+            border: 2px solid ${trailStyle.trailColor};
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+          "></div>` : ''}
+          <span style="font-size: 24px; position: relative; z-index: 1;">${icon}</span>
+        `;
+
+        markerRef.current = new maplibregl.Marker({
+          element: el,
+          anchor: 'center',
+        })
+          .setLngLat([position.lon, position.lat])
+          .addTo(map.current);
+      } else {
+        markerRef.current.setLngLat([position.lon, position.lat]);
+        const el = markerRef.current.getElement();
+        el.style.transform = `scale(${markerSize})`;
+        el.innerHTML = `
+          ${showCircle ? `<div style="
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: ${trailStyle.trailColor}40;
+            border: 2px solid ${trailStyle.trailColor};
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+          "></div>` : ''}
+          <span style="font-size: 24px; position: relative; z-index: 1;">${icon}</span>
+        `;
+      }
     }
     
     // Update completed track line
@@ -498,7 +544,7 @@ export function TrailMap({}: TrailMapProps) {
       pitch: map.current.getPitch(),
       bearing: map.current.getBearing(),
     });
-  }, [getCurrentJourneyPosition, playback.isPlaying, playback.progress, animationPhase, cameraSettings, activeTrack, currentIcon, isMapLoaded, setCameraPosition]);
+  }, [getCurrentJourneyPosition, playback.isPlaying, playback.progress, animationPhase, cameraSettings, activeTrack, trailStyle, isMapLoaded, setCameraPosition]);
   
   // Handle camera mode changes
   useEffect(() => {
