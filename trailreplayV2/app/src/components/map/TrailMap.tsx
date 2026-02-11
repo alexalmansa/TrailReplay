@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/store/useAppStore';
+import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import type { GPXPoint, GPXTrack } from '@/types';
 
 interface TrailMapProps {
@@ -153,6 +154,7 @@ export function TrailMap({}: TrailMapProps) {
   const pictures = useAppStore((state) => state.pictures);
   const iconChanges = useAppStore((state) => state.iconChanges);
   const playback = useAppStore((state) => state.playback);
+  const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
   
@@ -453,10 +455,10 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
     
-    // Camera follow logic
+    // Camera follow logic - only during 'playing' phase
     const { mode, followBehindPreset } = cameraSettings;
-    
-    if (playback.isPlaying && mode !== 'overview') {
+
+    if (animationPhase === 'playing' && mode !== 'overview') {
       const presets = {
         'very-close': { zoom: 17, pitch: 60 },
         'close': { zoom: 16, pitch: 55 },
@@ -464,7 +466,7 @@ export function TrailMap({}: TrailMapProps) {
         'far': { zoom: 14, pitch: 45 },
       };
       const preset = presets[followBehindPreset] || presets.medium;
-      
+
       if (mode === 'follow') {
         map.current.easeTo({
           center: [position.lon, position.lat],
@@ -477,7 +479,7 @@ export function TrailMap({}: TrailMapProps) {
         // Follow from behind - camera is behind the marker looking forward
         // Use the SMOOTHED bearing for camera direction
         const cameraBearing = smoothBearingRef.current;
-        
+
         map.current.easeTo({
           center: [position.lon, position.lat],
           zoom: preset.zoom,
@@ -496,14 +498,14 @@ export function TrailMap({}: TrailMapProps) {
       pitch: map.current.getPitch(),
       bearing: map.current.getBearing(),
     });
-  }, [getCurrentJourneyPosition, playback.isPlaying, playback.progress, cameraSettings, activeTrack, currentIcon, isMapLoaded, setCameraPosition]);
+  }, [getCurrentJourneyPosition, playback.isPlaying, playback.progress, animationPhase, cameraSettings, activeTrack, currentIcon, isMapLoaded, setCameraPosition]);
   
   // Handle camera mode changes
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
-    
+
     const { mode } = cameraSettings;
-    
+
     if (mode === 'overview') {
       if (tracks.length > 0) {
         const bounds = new maplibregl.LngLatBounds();
@@ -514,6 +516,71 @@ export function TrailMap({}: TrailMapProps) {
       }
     }
   }, [cameraSettings.mode, tracks, isMapLoaded]);
+
+  // Handle intro and outro animations based on animation phase
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || !activeTrack) return;
+
+    const { followBehindPreset } = cameraSettings;
+    const presets = {
+      'very-close': { zoom: 17, pitch: 60 },
+      'close': { zoom: 16, pitch: 55 },
+      'medium': { zoom: 15, pitch: 50 },
+      'far': { zoom: 14, pitch: 45 },
+    };
+    const preset = presets[followBehindPreset] || presets.medium;
+
+    if (animationPhase === 'intro') {
+      // Cinematic zoom-in from overview to starting position
+      const startPoint = activeTrack.points[0];
+      if (startPoint) {
+        // Calculate bearing from first segment
+        const lookAheadIndex = Math.min(10, activeTrack.points.length - 1);
+        const lookAheadPoint = activeTrack.points[lookAheadIndex];
+        const initialBearing = calculateBearing(
+          { lat: startPoint.lat, lon: startPoint.lon },
+          { lat: lookAheadPoint.lat, lon: lookAheadPoint.lon }
+        );
+
+        // Smooth zoom-in animation
+        map.current.flyTo({
+          center: [startPoint.lon, startPoint.lat],
+          zoom: preset.zoom,
+          pitch: preset.pitch,
+          bearing: initialBearing,
+          duration: INTRO_DURATION,
+          easing: (t) => 1 - Math.pow(1 - t, 3), // Ease-out cubic
+        });
+
+        // Initialize bearing refs
+        smoothBearingRef.current = initialBearing;
+        targetBearingRef.current = initialBearing;
+      }
+    } else if (animationPhase === 'outro') {
+      // Zoom out to show entire track
+      const bounds = new maplibregl.LngLatBounds();
+      tracks.forEach((track) => {
+        track.points.forEach((p) => bounds.extend([p.lon, p.lat]));
+      });
+
+      map.current.fitBounds(bounds, {
+        padding: 100,
+        pitch: 45,
+        bearing: 0,
+        duration: OUTRO_DURATION,
+        easing: (t) => 1 - Math.pow(1 - t, 2), // Ease-out quadratic
+      } as maplibregl.FitBoundsOptions);
+    } else if (animationPhase === 'idle') {
+      // Reset to overview when idle
+      if (tracks.length > 0) {
+        const bounds = new maplibregl.LngLatBounds();
+        tracks.forEach((track) => {
+          track.points.forEach((p) => bounds.extend([p.lon, p.lat]));
+        });
+        map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
+      }
+    }
+  }, [animationPhase, activeTrack, tracks, cameraSettings.followBehindPreset, isMapLoaded]);
   
   // Add picture markers
   useEffect(() => {

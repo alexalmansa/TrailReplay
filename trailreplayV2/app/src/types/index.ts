@@ -164,6 +164,23 @@ export interface ComparisonTrack {
 
 export type UnitSystem = 'metric' | 'imperial';
 
+export type ColorMode = 'fixed' | 'heartRate';
+
+export interface TrailStyleSettings {
+  // Trail Color
+  trailColor: string;
+  colorMode: ColorMode;
+  heartRateZones: HeartRateZone[];
+  // Marker Settings
+  showMarker: boolean;
+  markerSize: number;
+  currentIcon: string;
+  showCircle: boolean;
+  // Track Labels
+  showTrackLabels: boolean;
+  trackLabel: string;
+}
+
 export interface AppSettings {
   unitSystem: UnitSystem;
   mapStyle: MapStyle;
@@ -173,6 +190,7 @@ export interface AppSettings {
   cameraMode: CameraMode;
   defaultAnimationSpeed: number;
   defaultTotalTime: number;
+  trailStyle: TrailStyleSettings;
 }
 
 export interface LiveStats {

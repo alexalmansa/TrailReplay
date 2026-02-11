@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { TracksPanel } from './TracksPanel';
 import { JourneyPanel } from './JourneyPanel';
@@ -6,27 +5,27 @@ import { AnnotationsPanel } from './AnnotationsPanel';
 import { PicturesPanel } from './PicturesPanel';
 import { ExportPanel } from './ExportPanel';
 import { SettingsPanel } from './SettingsPanel';
-import { 
-  MapPin, 
-  Route, 
-  Image, 
-  Type, 
-  Video, 
+import {
+  MapPin,
+  Route,
+  Image,
+  Palette,
+  Video,
   Settings
 } from 'lucide-react';
 
 export function Sidebar() {
-  const [activeTab, setActiveTab] = useState<'tracks' | 'journey' | 'annotations' | 'pictures' | 'export' | 'settings'>('tracks');
-  
+  const activeTab = useAppStore((state) => state.activePanel);
+  const setActiveTab = useAppStore((state) => state.setActivePanel);
+
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const pictures = useAppStore((state) => state.pictures);
-  const iconChanges = useAppStore((state) => state.iconChanges);
-  
+
   const tabs = [
     { id: 'tracks' as const, label: 'Tracks', icon: MapPin, count: tracks.length },
     { id: 'journey' as const, label: 'Journey', icon: Route, count: journeySegments.length },
-    { id: 'annotations' as const, label: 'Icons', icon: Type, count: iconChanges.length },
+    { id: 'annotations' as const, label: 'Style', icon: Palette, count: 0 },
     { id: 'pictures' as const, label: 'Media', icon: Image, count: pictures.length },
     { id: 'export' as const, label: 'Export', icon: Video, count: 0 },
     { id: 'settings' as const, label: 'Settings', icon: Settings, count: 0 },
