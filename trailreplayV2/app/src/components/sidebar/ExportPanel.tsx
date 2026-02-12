@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { VideoExporter, estimateFileSize } from '@/utils/videoExport';
-import { 
-  Download, 
-  Settings, 
-  Check, 
+import {
+  Download,
+  Settings,
+  Check,
   X,
   Film,
   Monitor
@@ -23,87 +23,150 @@ export function ExportPanel() {
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
   const setVideoExportSettings = useAppStore((state) => state.setVideoExportSettings);
   const playback = useAppStore((state) => state.playback);
+  const animationPhase = useAppStore((state) => state.animationPhase);
   const isExporting = useAppStore((state) => state.isExporting);
   const exportProgress = useAppStore((state) => state.exportProgress);
   const exportStage = useAppStore((state) => state.exportStage);
   const setIsExporting = useAppStore((state) => state.setIsExporting);
   const setExportProgress = useAppStore((state) => state.setExportProgress);
   const setExportStage = useAppStore((state) => state.setExportStage);
-  
+  const resetPlayback = useAppStore((state) => state.resetPlayback);
+  const play = useAppStore((state) => state.play);
+  const setCinematicPlayed = useAppStore((state) => state.setCinematicPlayed);
+
   const [showSettings, setShowSettings] = useState(false);
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
   const exporterRef = useRef<VideoExporter | null>(null);
-  
+  const recordingStartedRef = useRef(false);
+  const waitingForEndRef = useRef(false);
+
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
-  
+
+  // Watch for animation phase changes to stop recording
+  useEffect(() => {
+    if (!waitingForEndRef.current) return;
+
+    // Update progress based on playback progress
+    if (animationPhase === 'playing') {
+      setExportProgress(playback.progress * 100);
+      setExportStage(`Recording... ${Math.round(playback.progress * 100)}%`);
+    }
+
+    // Stop recording when animation ends
+    if (animationPhase === 'ended' || animationPhase === 'outro') {
+      // Wait a bit for outro to be captured, then stop
+      if (animationPhase === 'outro') {
+        setExportStage('Capturing outro...');
+      } else if (animationPhase === 'ended') {
+        setTimeout(() => {
+          finishRecording();
+        }, 500);
+      }
+    }
+  }, [animationPhase, playback.progress]);
+
+  const finishRecording = useCallback(() => {
+    if (!exporterRef.current || !waitingForEndRef.current) return;
+
+    waitingForEndRef.current = false;
+    recordingStartedRef.current = false;
+
+    setExportStage('Finalizing...');
+
+    // Small delay to ensure last frame is captured
+    setTimeout(() => {
+      const blob = exporterRef.current?.stopRecording();
+      if (blob && blob.size > 0) {
+        setExportedBlob(blob);
+        setExportStage('Complete!');
+        setExportProgress(100);
+
+        // Auto download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trail-replay-${Date.now()}.${videoExportSettings.format === 'mp4' ? 'webm' : 'webm'}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        setExportStage('Export failed - no data recorded');
+      }
+      setIsExporting(false);
+    }, 500);
+  }, [videoExportSettings.format, setExportStage, setExportProgress, setIsExporting]);
+
   const handleStartExport = useCallback(async () => {
-    const canvas = document.querySelector('canvas');
-    if (!canvas) {
+    // Find the map canvas
+    const mapContainer = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
+    if (!mapContainer) {
       alert('No map canvas found. Please load a track first.');
       return;
     }
-    
+
     setIsExporting(true);
     setExportProgress(0);
     setExportStage('Preparing...');
     setExportedBlob(null);
-    
+
     try {
+      // Step 1: Reset playback to beginning
+      setExportStage('Resetting to start...');
+      resetPlayback();
+      setCinematicPlayed(false); // Enable intro animation for recording
+
+      // Wait for reset to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 2: Create exporter and start recording
+      setExportStage('Starting recording...');
       exporterRef.current = new VideoExporter(
-        canvas as HTMLCanvasElement,
+        mapContainer,
         videoExportSettings,
         (progress) => {
           setExportProgress(progress.progress);
-          setExportStage(`Recording frame ${progress.frame}/${progress.totalFrames}`);
         }
       );
-      
+
       await exporterRef.current.startRecording();
-      
-      // Simulate recording for demo (in real app, this would sync with animation)
-      const duration = Math.min(playback.totalDuration / 1000, 30); // Max 30 seconds for demo
-      
-      setTimeout(() => {
-        const blob = exporterRef.current?.stopRecording();
-        if (blob) {
-          setExportedBlob(blob);
-          setExportStage('Complete!');
-          
-          // Auto download
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `trail-replay-${Date.now()}.${videoExportSettings.format}`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-        setIsExporting(false);
-      }, duration * 1000);
-      
+      recordingStartedRef.current = true;
+      waitingForEndRef.current = true;
+
+      // Wait a bit for recording to stabilize
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Step 3: Start playback - the animation will now play and be recorded
+      setExportStage('Recording animation...');
+      play();
+
     } catch (error) {
       console.error('Export failed:', error);
-      setExportStage('Export failed');
+      setExportStage('Export failed: ' + (error as Error).message);
       setIsExporting(false);
+      waitingForEndRef.current = false;
+      recordingStartedRef.current = false;
     }
-  }, [videoExportSettings, playback.totalDuration, setIsExporting, setExportProgress, setExportStage]);
-  
+  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play]);
+
   const handleCancelExport = useCallback(() => {
     exporterRef.current?.cancel();
+    waitingForEndRef.current = false;
+    recordingStartedRef.current = false;
     setIsExporting(false);
     setExportProgress(0);
     setExportStage('');
-  }, [setIsExporting, setExportProgress, setExportStage]);
-  
+    resetPlayback();
+  }, [setIsExporting, setExportProgress, setExportStage, resetPlayback]);
+
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
-    
+
     const url = URL.createObjectURL(exportedBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trail-replay-${Date.now()}.${videoExportSettings.format}`;
+    a.download = `trail-replay-${Date.now()}.webm`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [exportedBlob, videoExportSettings.format]);
+  }, [exportedBlob]);
 
   return (
     <div className="space-y-4">
@@ -118,11 +181,11 @@ export function ExportPanel() {
             <Settings className="w-4 h-4" />
           </button>
         </div>
-        
+
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="opacity-70">Format:</span>
-            <span className="ml-2 font-bold uppercase">{videoExportSettings.format}</span>
+            <span className="ml-2 font-bold uppercase">WebM</span>
           </div>
           <div>
             <span className="opacity-70">Quality:</span>
@@ -133,23 +196,22 @@ export function ExportPanel() {
             <span className="ml-2 font-bold">{videoExportSettings.fps}</span>
           </div>
           <div>
-            <span className="opacity-70">Est. Size:</span>
-            <span className="ml-2 font-bold">{estimatedSize}</span>
+            <span className="opacity-70">Duration:</span>
+            <span className="ml-2 font-bold">{Math.round(playback.totalDuration / 1000)}s</span>
           </div>
         </div>
       </div>
-      
+
+      {/* Info about how export works */}
+      <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)] rounded-lg p-3">
+        <p className="text-xs text-[var(--evergreen)]">
+          <strong>How it works:</strong> Click "Start Recording" to reset the animation to the beginning,
+          then it will automatically play and record the entire animation including intro and outro.
+        </p>
+      </div>
+
       {/* Export Options */}
       <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm text-[var(--evergreen)]">
-          <input
-            type="checkbox"
-            checked={videoExportSettings.includeStats}
-            onChange={(e) => setVideoExportSettings({ includeStats: e.target.checked })}
-            className="w-4 h-4 accent-[var(--trail-orange)]"
-          />
-          Include Statistics Overlay
-        </label>
         <label className="flex items-center gap-2 text-sm text-[var(--evergreen)]">
           <input
             type="checkbox"
@@ -159,28 +221,26 @@ export function ExportPanel() {
           />
           Include Elevation Profile
         </label>
-        <label className="flex items-center gap-2 text-sm text-[var(--evergreen)]">
-          <input
-            type="checkbox"
-            checked={videoExportSettings.includeStats}
-            onChange={(e) => setVideoExportSettings({ includeStats: e.target.checked })}
-            className="w-4 h-4 accent-[var(--trail-orange)]"
-          />
-          Include Stats Overlay
-        </label>
       </div>
-      
+
       {/* Export Button */}
       {!isExporting && !exportedBlob && (
         <button
           onClick={handleStartExport}
-          className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3"
+          disabled={playback.totalDuration === 0}
+          className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Film className="w-5 h-5" />
           Start Recording
         </button>
       )}
-      
+
+      {playback.totalDuration === 0 && !isExporting && (
+        <p className="text-xs text-center text-[var(--evergreen-60)]">
+          Load a track and add it to the journey first
+        </p>
+      )}
+
       {/* Export Progress */}
       {isExporting && (
         <div className="tr-export-progress">
@@ -192,14 +252,22 @@ export function ExportPanel() {
               {Math.round(exportProgress)}%
             </span>
           </div>
-          
+
           <div className="tr-progress-bar mb-4">
-            <div 
+            <div
               className="tr-progress-fill"
               style={{ width: `${exportProgress}%` }}
             />
           </div>
-          
+
+          {/* Live recording indicator */}
+          {recordingStartedRef.current && (
+            <div className="flex items-center gap-2 mb-4 text-sm text-[var(--evergreen)]">
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              Recording in progress...
+            </div>
+          )}
+
           <button
             onClick={handleCancelExport}
             className="w-full tr-btn tr-btn-secondary flex items-center justify-center gap-2"
@@ -209,7 +277,7 @@ export function ExportPanel() {
           </button>
         </div>
       )}
-      
+
       {/* Export Complete */}
       {exportedBlob && !isExporting && (
         <div className="space-y-3">
@@ -217,7 +285,7 @@ export function ExportPanel() {
             <Check className="w-5 h-5" />
             <span className="font-medium">Export complete!</span>
           </div>
-          
+
           <button
             onClick={handleDownload}
             className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2"
@@ -225,10 +293,12 @@ export function ExportPanel() {
             <Download className="w-4 h-4" />
             Download Again
           </button>
-          
+
           <button
             onClick={() => {
               setExportedBlob(null);
+              setExportProgress(0);
+              setExportStage('');
             }}
             className="w-full tr-btn tr-btn-secondary"
           >
@@ -236,7 +306,7 @@ export function ExportPanel() {
           </button>
         </div>
       )}
-      
+
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -244,31 +314,7 @@ export function ExportPanel() {
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4">
               Export Settings
             </h3>
-            
-            {/* Format */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                Format
-              </label>
-              <div className="flex gap-2">
-                {(['webm', 'mp4'] as const).map((format) => (
-                  <button
-                    key={format}
-                    onClick={() => setVideoExportSettings({ format })}
-                    className={`
-                      flex-1 py-2 px-3 rounded-lg text-sm font-medium uppercase transition-colors
-                      ${videoExportSettings.format === format
-                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                      }
-                    `}
-                  >
-                    {format}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
+
             {/* Quality */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
@@ -278,9 +324,9 @@ export function ExportPanel() {
                 {QUALITY_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => setVideoExportSettings({ 
+                    onClick={() => setVideoExportSettings({
                       quality: opt.value as any,
-                      resolution: opt.resolution 
+                      resolution: opt.resolution
                     })}
                     className={`
                       py-2 px-3 rounded-lg text-sm font-medium transition-colors
@@ -295,7 +341,7 @@ export function ExportPanel() {
                 ))}
               </div>
             </div>
-            
+
             {/* FPS */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
@@ -319,7 +365,7 @@ export function ExportPanel() {
                 ))}
               </div>
             </div>
-            
+
             {/* Estimated Size */}
             <div className="bg-[var(--evergreen)]/10 rounded-lg p-3 flex items-center gap-2 mb-4">
               <Monitor className="w-4 h-4 text-[var(--evergreen-60)]" />
@@ -327,7 +373,13 @@ export function ExportPanel() {
                 Estimated file size: <strong>{estimatedSize}</strong>
               </span>
             </div>
-            
+
+            {/* Note about format */}
+            <p className="text-xs text-[var(--evergreen-60)] mb-4">
+              Note: Video will be exported as WebM format which is widely supported.
+              You can convert to MP4 using free online tools if needed.
+            </p>
+
             <button
               onClick={() => setShowSettings(false)}
               className="w-full tr-btn tr-btn-primary"
