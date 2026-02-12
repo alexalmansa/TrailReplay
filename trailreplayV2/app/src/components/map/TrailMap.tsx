@@ -95,14 +95,14 @@ const TERRAIN_CAMERA_SETTINGS = {
   LOOK_AHEAD_PROGRESS: 0.02,   // How far ahead/behind to check for slope
 
   // Dynamic adjustments
-  MAX_ZOOM_OUT: 1.5,           // Max zoom levels to reduce
-  MAX_PITCH_REDUCE: 12,        // Max pitch degrees to reduce
+  MAX_ZOOM_OUT: 2,             // Max zoom levels to reduce
+  MAX_PITCH_REDUCE: 15,        // Max pitch degrees to reduce
 
-  // Limits
-  MIN_ZOOM: 10,
-  MAX_ZOOM: 18,
-  MIN_PITCH: 20,
-  MAX_PITCH: 65,
+  // Limits (reduced to prevent white screen from tiles not loading)
+  MIN_ZOOM: 8,
+  MAX_ZOOM: 15,
+  MIN_PITCH: 15,
+  MAX_PITCH: 55,
 };
 
 // Calculate terrain-aware camera adjustments
@@ -465,22 +465,37 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
 
-    // Camera follow logic - only during 'playing' phase
+    // Camera follow logic
     const { mode, followBehindPreset } = cameraSettings;
 
-    if (animationPhase === 'playing' && mode !== 'overview') {
-      const presets = {
-        'very-close': { zoom: 17, pitch: 60 },
-        'close': { zoom: 16, pitch: 55 },
-        'medium': { zoom: 15, pitch: 50 },
-        'far': { zoom: 14, pitch: 45 },
-      };
-      const preset = presets[followBehindPreset] || presets.medium;
+    // Reduced zoom levels to prevent white screen (tiles not loaded)
+    const presets = {
+      'very-close': { zoom: 15, pitch: 55 },
+      'close': { zoom: 14, pitch: 50 },
+      'medium': { zoom: 13, pitch: 45 },
+      'far': { zoom: 12, pitch: 40 },
+    };
+    const preset = presets[followBehindPreset] || presets.medium;
 
+    // Handle intro phase - smooth zoom from overview to follow position
+    if (animationPhase === 'intro' && mode !== 'overview') {
+      const cameraBearing = smoothBearingRef.current;
+
+      // During intro, use a longer duration for smooth transition
+      map.current.easeTo({
+        center: [currentPosition.lon, currentPosition.lat],
+        zoom: preset.zoom,
+        pitch: mode === 'follow-behind' ? preset.pitch : 0,
+        bearing: mode === 'follow-behind' ? cameraBearing : 0,
+        duration: 2000, // Match intro duration for smooth transition
+      });
+    }
+    // Handle playing phase - continuous follow
+    else if (animationPhase === 'playing' && mode !== 'overview') {
       if (mode === 'follow') {
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: 16,
+          zoom: 14,
           pitch: 0,
           bearing: 0,
           duration: 100,
