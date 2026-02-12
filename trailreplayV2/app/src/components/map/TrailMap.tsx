@@ -100,9 +100,9 @@ const TERRAIN_CAMERA_SETTINGS = {
 
   // Limits (reduced to prevent white screen from tiles not loading)
   MIN_ZOOM: 8,
-  MAX_ZOOM: 15,
+  MAX_ZOOM: 14,
   MIN_PITCH: 15,
-  MAX_PITCH: 55,
+  MAX_PITCH: 50,
 };
 
 // Calculate terrain-aware camera adjustments
@@ -148,6 +148,8 @@ export function TrailMap({}: TrailMapProps) {
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const smoothBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
+  const introZoomTriggeredRef = useRef<boolean>(false);
+  const lastAnimationPhaseRef = useRef<string>('idle');
 
   const tracks = useAppStore((state) => state.tracks);
   const settings = useAppStore((state) => state.settings);
@@ -470,16 +472,23 @@ export function TrailMap({}: TrailMapProps) {
 
     // Reduced zoom levels to prevent white screen (tiles not loaded)
     const presets = {
-      'very-close': { zoom: 15, pitch: 55 },
-      'close': { zoom: 14, pitch: 50 },
-      'medium': { zoom: 13, pitch: 45 },
-      'far': { zoom: 12, pitch: 40 },
+      'very-close': { zoom: 14, pitch: 50 },
+      'close': { zoom: 13, pitch: 45 },
+      'medium': { zoom: 12, pitch: 40 },
+      'far': { zoom: 11, pitch: 35 },
     };
     const preset = presets[followBehindPreset] || presets.medium;
 
-    // Handle intro phase - smooth zoom from overview to follow position
-    if (animationPhase === 'intro' && mode !== 'overview') {
-      const cameraBearing = smoothBearingRef.current;
+    // Reset intro flag when going back to idle
+    if (animationPhase === 'idle' && lastAnimationPhaseRef.current !== 'idle') {
+      introZoomTriggeredRef.current = false;
+    }
+    lastAnimationPhaseRef.current = animationPhase;
+
+    // Handle intro phase - smooth zoom from overview to follow position (only once)
+    if (animationPhase === 'intro' && mode !== 'overview' && !introZoomTriggeredRef.current) {
+      introZoomTriggeredRef.current = true;
+      const cameraBearing = currentBearing || 0;
 
       // During intro, use a longer duration for smooth transition
       map.current.easeTo({
@@ -495,7 +504,7 @@ export function TrailMap({}: TrailMapProps) {
       if (mode === 'follow') {
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: 14,
+          zoom: 13,
           pitch: 0,
           bearing: 0,
           duration: 100,
