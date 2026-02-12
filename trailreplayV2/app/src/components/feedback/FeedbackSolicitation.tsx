@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, X, ThumbsUp, ArrowLeftRight } from 'lucide-react';
+import { MessageCircle, X, ThumbsUp, ArrowLeftRight, Loader2 } from 'lucide-react';
 
 const STORAGE_KEY = 'trailreplay_v2_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_v2_activity';
@@ -18,7 +18,10 @@ export function FeedbackSolicitation() {
   const [showForm, setShowForm] = useState(false);
   const [preference, setPreference] = useState<'v1' | 'v2' | 'both' | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Track activity
   useEffect(() => {
@@ -93,20 +96,57 @@ export function FeedbackSolicitation() {
     setShowPopup(false);
   };
 
-  const handleSubmitFeedback = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
+  const handleSubmitFeedback = async () => {
+    setIsSubmitting(true);
+    setError(null);
 
-    // Track feedback (could send to analytics)
-    console.log('Feedback submitted:', { preference, feedback });
+    // Build the feedback message
+    const preferenceLabels = {
+      v1: 'Prefers v1 (Classic)',
+      v2: 'Prefers v2 (New)',
+      both: 'Likes both versions',
+    };
+    const message = [
+      `Version Preference: ${preference ? preferenceLabels[preference] : 'Not specified'}`,
+      '',
+      'Additional Feedback:',
+      feedback || '(No additional feedback provided)',
+    ].join('\n');
 
-    // You could send this to your backend or analytics service here
-    // For now, we just log it and show a thank you message
-    setSubmitted(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'V2 Feedback User',
+          email: email || '',
+          message,
+          website: '', // honeypot field
+          meta: {
+            path: location.pathname,
+            ua: navigator.userAgent,
+            source: 'v2-feedback-solicitation',
+            preference,
+          },
+        }),
+      });
 
-    setTimeout(() => {
-      setShowForm(false);
-      setSubmitted(false);
-    }, 3000);
+      if (res.ok) {
+        localStorage.setItem(STORAGE_KEY, 'true');
+        setSubmitted(true);
+        setTimeout(() => {
+          setShowForm(false);
+          setSubmitted(false);
+        }, 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data?.error || 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setError('Failed to send feedback. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseForm = () => {
@@ -238,6 +278,19 @@ export function FeedbackSolicitation() {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
+                    Your email (optional, for follow-up)
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg text-sm focus:border-[var(--trail-orange)] focus:outline-none"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
                     Any additional feedback? (optional)
                   </label>
                   <textarea
@@ -248,19 +301,33 @@ export function FeedbackSolicitation() {
                   />
                 </div>
 
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     onClick={handleCloseForm}
-                    className="flex-1 py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors"
+                    disabled={isSubmitting}
+                    className="flex-1 py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors disabled:opacity-50"
                   >
                     Skip
                   </button>
                   <button
                     onClick={handleSubmitFeedback}
-                    disabled={!preference}
-                    className="flex-1 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!preference || isSubmitting}
+                    className="flex-1 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Submit
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Submit'
+                    )}
                   </button>
                 </div>
               </>

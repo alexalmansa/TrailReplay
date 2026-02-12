@@ -41,19 +41,12 @@ export function formatDistance(meters: number, unitSystem: UnitSystem): string {
     const km = metersToKilometers(meters);
     if (km >= 10) {
       return `${km.toFixed(1)} km`;
-    } else if (km >= 1) {
-      return `${km.toFixed(2)} km`;
     } else {
-      return `${Math.round(meters)} m`;
+      return `${km.toFixed(2)} km`;
     }
   } else {
     const miles = metersToMiles(meters);
-    if (miles >= 1) {
-      return `${miles.toFixed(2)} mi`;
-    } else {
-      const feet = metersToFeet(meters);
-      return `${Math.round(feet)} ft`;
-    }
+    return `${miles.toFixed(2)} mi`;
   }
 }
 

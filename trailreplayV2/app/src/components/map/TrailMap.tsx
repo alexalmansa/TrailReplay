@@ -380,7 +380,7 @@ export function TrailMap({}: TrailMapProps) {
 
       // Only fit bounds on initial load or when tracks change significantly
       if (animationPhase === 'idle' && playback.progress === 0) {
-        map.current.fitBounds(bounds, { padding: 100, duration: 500 });
+        map.current.fitBounds(bounds, { padding: 100, duration: 500, maxZoom: 15 });
       }
     }
   }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
