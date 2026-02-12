@@ -467,15 +467,15 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
 
-    // Camera follow logic
+    // Camera follow logic - simplified to match v1 approach
     const { mode, followBehindPreset } = cameraSettings;
 
-    // Reduced zoom levels to prevent white screen (tiles not loaded)
+    // Presets matching v1 CameraController (VERY_CLOSE: 16/55, MEDIUM: 14/35, FAR: 11/30)
     const presets = {
-      'very-close': { zoom: 14, pitch: 50 },
-      'close': { zoom: 13, pitch: 45 },
-      'medium': { zoom: 12, pitch: 40 },
-      'far': { zoom: 11, pitch: 35 },
+      'very-close': { zoom: 16, pitch: 55 },
+      'close': { zoom: 15, pitch: 45 },
+      'medium': { zoom: 14, pitch: 35 },
+      'far': { zoom: 11, pitch: 30 },
     };
     const preset = presets[followBehindPreset] || presets.medium;
 
@@ -485,57 +485,43 @@ export function TrailMap({}: TrailMapProps) {
     }
     lastAnimationPhaseRef.current = animationPhase;
 
-    // Handle intro phase - smooth zoom from overview to follow position (only once)
+    // Handle intro phase - smooth cinematic zoom from overview to follow position (only once)
     if (animationPhase === 'intro' && mode !== 'overview' && !introZoomTriggeredRef.current) {
       introZoomTriggeredRef.current = true;
       const cameraBearing = currentBearing || 0;
 
-      // During intro, use a longer duration for smooth transition
+      // Cinematic zoom-in over 2 seconds (like v1's startCinematicSequence)
       map.current.easeTo({
         center: [currentPosition.lon, currentPosition.lat],
         zoom: preset.zoom,
         pitch: mode === 'follow-behind' ? preset.pitch : 0,
         bearing: mode === 'follow-behind' ? cameraBearing : 0,
-        duration: 2000, // Match intro duration for smooth transition
+        duration: 2000,
+        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Smooth ease-out cubic like v1
       });
     }
-    // Handle playing phase - continuous follow
+    // Handle playing phase - continuous follow with consistent zoom (like v1's updateCameraPosition)
     else if (animationPhase === 'playing' && mode !== 'overview') {
+      const cameraBearing = smoothBearingRef.current;
+
       if (mode === 'follow') {
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: 13,
+          zoom: 14,
           pitch: 0,
           bearing: 0,
           duration: 100,
         });
       } else if (mode === 'follow-behind') {
-        const cameraBearing = smoothBearingRef.current;
-
-        // Calculate terrain-aware adjustments for high-elevation trails
-        const currentElevation = currentPosition.elevation || 0;
-        const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
-          currentElevation,
-          elevationData,
-          playback.progress
-        );
-
-        // Apply terrain adjustments - zoom out and reduce pitch at high elevations
-        const adjustedZoom = Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
-        );
-        const adjustedPitch = Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
-        );
-
+        // Use consistent preset zoom during playback (like v1)
+        // No terrain adjustments during playback to avoid zoom changes
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: adjustedZoom,
-          pitch: adjustedPitch,
+          zoom: preset.zoom,
+          pitch: preset.pitch,
           bearing: cameraBearing,
           duration: 100,
+          easing: (t: number) => t * (2 - t), // Smooth ease-out like v1
         });
       }
     }
