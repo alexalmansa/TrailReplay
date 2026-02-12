@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { convertElevation, convertDistance } from '@/utils/units';
+import { convertElevation } from '@/utils/units';
 
 interface MapElevationProfileProps {
   className?: string;
@@ -11,6 +11,7 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   const activeTrackId = useAppStore((state) => state.activeTrackId);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
+  const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const animationPhase = useAppStore((state) => state.animationPhase);
 
   const activeTrack = tracks.find((t) => t.id === activeTrackId);
@@ -50,7 +51,7 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
         : chartHeight / 2;
       // SVG y is inverted (0 at top)
       const y = svgHeight - padding - normalizedY;
-      return { x, y };
+      return { x, y, elevation: point.elevation };
     });
 
     // Create path for elevation profile (filled area from bottom)
@@ -71,9 +72,9 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   }, [activeTrack]);
 
   // Calculate progress path (filled area showing progress)
-  const progressPathD = useMemo(() => {
+  const progressData = useMemo(() => {
     if (!profileData || playback.progress <= 0) {
-      return '';
+      return { pathD: '', currentElevation: 0, markerX: 0, markerY: 0 };
     }
 
     const { svgWidth, svgHeight, normalizedPoints } = profileData;
@@ -88,48 +89,27 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
     }
 
     // Interpolate to exact progress position if between points
+    let markerY = svgHeight;
+    let currentElevation = 0;
+
     if (progressIndex < normalizedPoints.length - 1) {
       const currentPoint = normalizedPoints[progressIndex];
       const nextPoint = normalizedPoints[progressIndex + 1];
       const localProgress = (playback.progress * (normalizedPoints.length - 1)) - progressIndex;
       const interpolatedY = currentPoint.y + (nextPoint.y - currentPoint.y) * localProgress;
       pathD += ` L ${progressX} ${interpolatedY}`;
+      markerY = interpolatedY;
+      currentElevation = currentPoint.elevation + (nextPoint.elevation - currentPoint.elevation) * localProgress;
+    } else if (progressIndex < normalizedPoints.length) {
+      markerY = normalizedPoints[progressIndex].y;
+      currentElevation = normalizedPoints[progressIndex].elevation;
     }
 
     // Close the path
     pathD += ` L ${progressX} ${svgHeight} Z`;
 
-    return pathD;
+    return { pathD, currentElevation, markerX: progressX, markerY };
   }, [profileData, playback.progress]);
-
-  // Calculate current stats at progress point
-  const currentStats = useMemo(() => {
-    if (!activeTrack || activeTrack.points.length === 0) {
-      return { distance: 0, elevation: 0, elevationGain: 0 };
-    }
-
-    const currentIndex = Math.min(
-      Math.floor(playback.progress * (activeTrack.points.length - 1)),
-      activeTrack.points.length - 1
-    );
-
-    const currentPoint = activeTrack.points[currentIndex];
-    const distance = currentPoint?.distance || 0;
-    const elevation = currentPoint?.elevation || 0;
-
-    // Calculate elevation gain up to current point
-    let elevationGain = 0;
-    let prevElevation = activeTrack.points[0]?.elevation || 0;
-    for (let i = 1; i <= currentIndex; i++) {
-      const currElev = activeTrack.points[i]?.elevation || 0;
-      if (currElev > prevElevation) {
-        elevationGain += currElev - prevElevation;
-      }
-      prevElevation = currElev;
-    }
-
-    return { distance, elevation, elevationGain };
-  }, [activeTrack, playback.progress]);
 
   // Don't show during intro/outro animations
   const shouldShow = profileData && (animationPhase === 'idle' || animationPhase === 'playing');
@@ -138,102 +118,72 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
     return null;
   }
 
-  const { pathD, minElevation, maxElevation, svgWidth, svgHeight } = profileData;
+  const { pathD, svgWidth, svgHeight } = profileData;
+  const { pathD: progressPathD, currentElevation, markerX } = progressData;
   const elevUnit = settings.unitSystem === 'metric' ? 'm' : 'ft';
-  const distUnit = settings.unitSystem === 'metric' ? 'km' : 'mi';
+  const trailColor = trailStyle.trailColor;
 
-  const formattedDistance = convertDistance(currentStats.distance, settings.unitSystem).toFixed(1);
-  const formattedElevGain = Math.round(convertElevation(currentStats.elevationGain, settings.unitSystem));
-  const formattedCurrentElev = Math.round(convertElevation(currentStats.elevation, settings.unitSystem));
+  const formattedCurrentElev = Math.round(convertElevation(currentElevation, settings.unitSystem));
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 z-10 ${className}`}
+      className={`absolute bottom-0 left-0 right-0 z-20 ${className}`}
       id="mapElevationProfile"
     >
-      <div className="relative bg-[var(--canvas)]/90 backdrop-blur-sm border-t-2 border-[var(--evergreen)]">
-        {/* Live Stats Row - shows during playback */}
-        {(animationPhase === 'playing' || playback.progress > 0) && (
-          <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--evergreen)]/20">
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[var(--evergreen)]/60">D:</span>
-                <span className="text-[var(--trail-orange)] font-bold">{formattedDistance} {distUnit}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[var(--evergreen)]/60">E:</span>
-                <span className="text-[var(--trail-orange)] font-bold">+{formattedElevGain} {elevUnit}</span>
-              </div>
-            </div>
-            {/* Current elevation badge */}
-            <div className="bg-[var(--trail-orange)] text-[var(--canvas)] text-[10px] font-bold px-2 py-0.5 rounded">
-              {formattedCurrentElev} {elevUnit}
-            </div>
+      <div className="relative">
+        {/* SVG Profile */}
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          preserveAspectRatio="none"
+          className="w-full h-[60px]"
+          id="elevationProfileSvg"
+        >
+          {/* Gradient definitions - using trail color */}
+          <defs>
+            <linearGradient id="mapElevationGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={trailColor} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={trailColor} stopOpacity="0.1" />
+            </linearGradient>
+            <linearGradient id="mapProgressGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={trailColor} stopOpacity="0.9" />
+              <stop offset="100%" stopColor={trailColor} stopOpacity="0.5" />
+            </linearGradient>
+          </defs>
+
+          {/* Background elevation profile */}
+          <path
+            d={pathD}
+            fill="url(#mapElevationGradient)"
+            stroke={trailColor}
+            strokeWidth="1"
+            strokeOpacity="0.3"
+            id="elevationPath"
+          />
+
+          {/* Progress overlay */}
+          {progressPathD && (
+            <path
+              d={progressPathD}
+              fill="url(#mapProgressGradient)"
+              stroke={trailColor}
+              strokeWidth="2"
+              id="progressPath"
+            />
+          )}
+        </svg>
+
+        {/* Current elevation label - follows the progress, aligned to bottom */}
+        {playback.progress > 0 && (
+          <div
+            className="absolute bottom-1 transform -translate-x-1/2 text-[var(--canvas)] text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+            style={{
+              left: `${(markerX / svgWidth) * 100}%`,
+              backgroundColor: trailColor,
+            }}
+          >
+            {formattedCurrentElev} {elevUnit}
           </div>
         )}
-
-        <div className="flex">
-          {/* Elevation labels */}
-          <div className="flex flex-col justify-between py-1 px-2 text-[10px] font-medium text-[var(--evergreen)] min-w-[45px]">
-            <span>{Math.round(convertElevation(maxElevation, settings.unitSystem))} {elevUnit}</span>
-            <span>{Math.round(convertElevation(minElevation, settings.unitSystem))} {elevUnit}</span>
-          </div>
-
-          {/* SVG Profile */}
-          <div className="flex-1 pr-2">
-            <svg
-              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              preserveAspectRatio="none"
-              className="w-full h-[60px]"
-              id="elevationProfileSvg"
-            >
-              {/* Gradient definitions */}
-              <defs>
-                <linearGradient id="mapElevationGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--evergreen)" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="var(--evergreen)" stopOpacity="0.15" />
-                </linearGradient>
-                <linearGradient id="mapProgressGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--trail-orange)" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="var(--trail-orange)" stopOpacity="0.4" />
-                </linearGradient>
-              </defs>
-
-              {/* Background elevation profile */}
-              <path
-                d={pathD}
-                fill="url(#mapElevationGradient)"
-                stroke="var(--evergreen)"
-                strokeWidth="1"
-                strokeOpacity="0.4"
-                id="elevationPath"
-              />
-
-              {/* Progress overlay */}
-              {progressPathD && (
-                <path
-                  d={progressPathD}
-                  fill="url(#mapProgressGradient)"
-                  stroke="var(--trail-orange)"
-                  strokeWidth="2"
-                  id="progressPath"
-                />
-              )}
-
-              {/* Current position marker line */}
-              {playback.progress > 0 && (
-                <line
-                  x1={playback.progress * svgWidth}
-                  y1="0"
-                  x2={playback.progress * svgWidth}
-                  y2={svgHeight}
-                  stroke="var(--trail-orange)"
-                  strokeWidth="2"
-                />
-              )}
-            </svg>
-          </div>
-        </div>
       </div>
     </div>
   );

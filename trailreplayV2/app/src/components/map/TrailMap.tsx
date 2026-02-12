@@ -272,15 +272,15 @@ export function TrailMap({}: TrailMapProps) {
       bearing: 0,
       maxPitch: 85,
       preserveDrawingBuffer: true,
-      attributionControl: { compact: true },
+      attributionControl: false, // Hide attribution to keep bottom clean for elevation profile
     } as any);
     
     map.current.on('load', () => {
       setIsMapLoaded(true);
 
-      map.current?.addControl(new maplibregl.NavigationControl(), 'bottom-right');
-      map.current?.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
-      map.current?.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+      // Position controls at top to avoid overlap with elevation profile
+      map.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
+      map.current?.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
       // Add track sources
       setupTrackSources();
