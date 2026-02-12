@@ -245,10 +245,13 @@ export const useAppStore = create<AppState>()(
     addTrack: (track) =>
       set((state) => {
         const colorIndex = state.tracks.length % trackColors.length;
-        const trackWithColor = { ...track, color: track.color || trackColors[colorIndex], visible: true };
+        const trackColor = track.color || trackColors[colorIndex];
+        const trackWithColor = { ...track, color: trackColor, visible: true };
         state.tracks.push(trackWithColor);
         if (!state.activeTrackId) {
           state.activeTrackId = track.id;
+          // Sync trail color with first active track
+          state.settings.trailStyle.trailColor = trackColor;
         }
         // Auto-create journey if it doesn't exist
         if (!state.journey) {
@@ -285,12 +288,23 @@ export const useAppStore = create<AppState>()(
     setActiveTrack: (trackId) =>
       set((state) => {
         state.activeTrackId = trackId;
+        // Sync trail color with active track
+        const activeTrack = state.tracks.find((t) => t.id === trackId);
+        if (activeTrack && activeTrack.color) {
+          state.settings.trailStyle.trailColor = activeTrack.color;
+        }
       }),
 
     updateTrackColor: (trackId, color) =>
       set((state) => {
         const track = state.tracks.find((t) => t.id === trackId);
-        if (track) track.color = color;
+        if (track) {
+          track.color = color;
+          // Sync trail style if this is the active track
+          if (state.activeTrackId === trackId) {
+            state.settings.trailStyle.trailColor = color;
+          }
+        }
       }),
 
     toggleTrackVisibility: (trackId) =>

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { useGPX } from '@/hooks/useGPX';
 import { TrailMap } from '@/components/map/TrailMap';
 import { PlaybackControls } from '@/components/playback/PlaybackControls';
 import { PlaybackProvider } from '@/components/playback/PlaybackProvider';
@@ -7,16 +8,19 @@ import { StatsOverlay } from '@/components/stats/StatsOverlay';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { PicturePopup } from '@/components/annotations/PicturePopup';
 import { CameraControls } from '@/components/camera/CameraControls';
+import { FeedbackSolicitation } from '@/components/feedback/FeedbackSolicitation';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { Menu, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight } from 'lucide-react';
 import { gsap } from 'gsap';
 
 function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
-  
+
+  const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
   const pictures = useAppStore((state) => state.pictures);
   const playback = useAppStore((state) => state.playback);
@@ -52,6 +56,27 @@ function App() {
       document.exitFullscreen();
       setIsFullscreen(false);
     }
+  };
+
+  // Handle file input change
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        await parseFiles(files);
+        setShowSidebar(true);
+      }
+      // Reset input to allow re-uploading same file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    },
+    [parseFiles]
+  );
+
+  // Trigger file picker
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
   
   // Get active picture for current progress
@@ -153,6 +178,16 @@ function App() {
                 />
               )}
               
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".gpx,application/gpx+xml"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
               {/* No tracks message */}
               {!hasTracks && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -166,22 +201,37 @@ function App() {
                       />
                     </div>
                     <h2 className="text-xl font-bold text-[var(--evergreen)] mb-2">
-                      Welcome to Trail Replay
+                      Welcome to Trail Replay v2
                     </h2>
-                    <p className="text-[var(--evergreen-60)] mb-6">
+                    <p className="text-[var(--evergreen-60)] mb-4">
                       Upload GPX files to visualize your trails, create journeys, and export stunning videos.
                     </p>
+
+                    {/* v1/v2 notice */}
+                    <div className="bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg p-3 mb-6">
+                      <div className="flex items-center justify-center gap-2 text-xs text-[var(--evergreen-60)]">
+                        <ArrowLeftRight className="w-4 h-4" />
+                        <span>
+                          New v2 experience! Switch between versions using the toggle in the header.
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="flex gap-2 justify-center">
-                      <button 
-                        onClick={() => setShowSidebar(true)}
-                        className="tr-btn tr-btn-primary"
+                      <button
+                        onClick={openFilePicker}
+                        className="tr-btn tr-btn-primary flex items-center gap-2"
                       >
-                        Get Started
+                        <Upload className="w-4 h-4" />
+                        Upload GPX Files
                       </button>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* Feedback Solicitation */}
+              {hasTracks && <FeedbackSolicitation />}
             </div>
             
             {/* Playback Controls */}
