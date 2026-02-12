@@ -510,34 +510,54 @@ export function TrailMap({}: TrailMapProps) {
       introZoomTriggeredRef.current = true;
       const cameraBearing = currentBearing || 0;
 
+      // Get current zoom to prevent too aggressive zoom change (causes white screen)
+      const currentZoom = map.current.getZoom();
+
+      // Limit zoom change to max 3 levels to allow tiles to load
+      // This prevents white screen when jumping from overview (12) to follow (14-16)
+      const maxZoomChange = 3;
+      const targetZoom = Math.min(preset.zoom, currentZoom + maxZoomChange);
+
       // Cinematic zoom-in over 2 seconds (like v1's startCinematicSequence)
       map.current.easeTo({
         center: [currentPosition.lon, currentPosition.lat],
-        zoom: preset.zoom,
+        zoom: targetZoom,
         pitch: mode === 'follow-behind' ? preset.pitch : 0,
         bearing: mode === 'follow-behind' ? cameraBearing : 0,
         duration: 2000,
         easing: (t: number) => 1 - Math.pow(1 - t, 3), // Smooth ease-out cubic like v1
       });
     }
-    // Handle playing phase - continuous follow with consistent zoom (like v1's updateCameraPosition)
+    // Handle playing phase - continuous follow with gradual zoom approach
     else if (animationPhase === 'playing' && mode !== 'overview') {
       const cameraBearing = smoothBearingRef.current;
+      const currentZoom = map.current.getZoom();
+
+      // Gradually approach target zoom (0.1 levels per frame) to allow tiles to load
+      const zoomStep = 0.1;
 
       if (mode === 'follow') {
+        const targetZoom = 14;
+        const newZoom = currentZoom < targetZoom
+          ? Math.min(currentZoom + zoomStep, targetZoom)
+          : Math.max(currentZoom - zoomStep, targetZoom);
+
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: 14,
+          zoom: newZoom,
           pitch: 0,
           bearing: 0,
           duration: 100,
         });
       } else if (mode === 'follow-behind') {
-        // Use consistent preset zoom during playback (like v1)
-        // No terrain adjustments during playback to avoid zoom changes
+        // Gradually approach preset zoom to allow tiles to load
+        const newZoom = currentZoom < preset.zoom
+          ? Math.min(currentZoom + zoomStep, preset.zoom)
+          : Math.max(currentZoom - zoomStep, preset.zoom);
+
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: preset.zoom,
+          zoom: newZoom,
           pitch: preset.pitch,
           bearing: cameraBearing,
           duration: 100,
