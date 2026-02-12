@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { VideoExporter, estimateFileSize } from '@/utils/videoExport';
+import { estimateFileSize } from '@/utils/videoExport';
 import {
   Download,
   Settings,
@@ -36,69 +36,133 @@ export function ExportPanel() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
-  const exporterRef = useRef<VideoExporter | null>(null);
-  const recordingStartedRef = useRef(false);
-  const waitingForEndRef = useRef(false);
+
+  // Recording refs
+  const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recordingContextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const isRecordingRef = useRef(false);
+  const frameRequestRef = useRef<number | null>(null);
 
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
 
   // Watch for animation phase changes to stop recording
   useEffect(() => {
-    if (!waitingForEndRef.current) return;
+    if (!isRecordingRef.current) return;
 
     // Update progress based on playback progress
     if (animationPhase === 'playing') {
       setExportProgress(playback.progress * 100);
       setExportStage(`Recording... ${Math.round(playback.progress * 100)}%`);
+    } else if (animationPhase === 'intro') {
+      setExportStage('Recording intro...');
+    } else if (animationPhase === 'outro') {
+      setExportStage('Recording outro...');
     }
 
     // Stop recording when animation ends
-    if (animationPhase === 'ended' || animationPhase === 'outro') {
-      // Wait a bit for outro to be captured, then stop
-      if (animationPhase === 'outro') {
-        setExportStage('Capturing outro...');
-      } else if (animationPhase === 'ended') {
-        setTimeout(() => {
-          finishRecording();
-        }, 500);
-      }
+    if (animationPhase === 'ended') {
+      setTimeout(() => {
+        finishRecording();
+      }, 1000); // Wait 1 second after ended to capture final frames
     }
   }, [animationPhase, playback.progress]);
 
-  const finishRecording = useCallback(() => {
-    if (!exporterRef.current || !waitingForEndRef.current) return;
+  // Capture frame to composite canvas
+  const captureFrame = useCallback(() => {
+    if (!recordingCanvasRef.current || !recordingContextRef.current) return;
 
-    waitingForEndRef.current = false;
-    recordingStartedRef.current = false;
+    const ctx = recordingContextRef.current;
+    const { width, height } = videoExportSettings.resolution;
+
+    // Clear canvas
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+
+    // 1. Draw the map canvas
+    const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
+    if (mapCanvas) {
+      ctx.drawImage(mapCanvas, 0, 0, width, height);
+    }
+
+    // 2. Draw the elevation profile if enabled
+    if (videoExportSettings.includeElevation) {
+      const elevationProfile = document.getElementById('mapElevationProfile');
+      if (elevationProfile) {
+        // Draw elevation profile at bottom of canvas
+        const profileHeight = 80; // Height for elevation profile area
+        const profileY = height - profileHeight;
+
+        // Draw semi-transparent background
+        ctx.fillStyle = 'rgba(248, 246, 240, 0.9)';
+        ctx.fillRect(0, profileY, width, profileHeight);
+
+        // Draw the SVG elevation profile
+        const svgElement = elevationProfile.querySelector('svg');
+        if (svgElement) {
+          // Convert SVG to image and draw
+          const svgData = new XMLSerializer().serializeToString(svgElement);
+          const img = new Image();
+          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(svgBlob);
+
+          img.onload = () => {
+            ctx.drawImage(img, 50, profileY + 10, width - 100, profileHeight - 20);
+            URL.revokeObjectURL(url);
+          };
+          img.src = url;
+        }
+
+        // Draw current elevation label if visible
+        const elevLabel = elevationProfile.querySelector('[class*="bg-\\[var\\(--trail-orange\\)\\]"]');
+        if (elevLabel) {
+          const labelText = elevLabel.textContent || '';
+          ctx.fillStyle = '#C1652F';
+          ctx.font = 'bold 12px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          const labelX = (playback.progress * (width - 100)) + 50;
+          ctx.fillText(labelText, labelX, height - 10);
+        }
+      }
+    }
+  }, [videoExportSettings, playback.progress]);
+
+  // Frame capture loop using requestAnimationFrame
+  const startFrameCapture = useCallback(() => {
+    const captureLoop = () => {
+      if (!isRecordingRef.current) return;
+
+      captureFrame();
+      frameRequestRef.current = requestAnimationFrame(captureLoop);
+    };
+
+    frameRequestRef.current = requestAnimationFrame(captureLoop);
+  }, [captureFrame]);
+
+  const finishRecording = useCallback(() => {
+    if (!isRecordingRef.current) return;
+
+    isRecordingRef.current = false;
+
+    // Stop frame capture
+    if (frameRequestRef.current) {
+      cancelAnimationFrame(frameRequestRef.current);
+      frameRequestRef.current = null;
+    }
 
     setExportStage('Finalizing...');
 
-    // Small delay to ensure last frame is captured
-    setTimeout(() => {
-      const blob = exporterRef.current?.stopRecording();
-      if (blob && blob.size > 0) {
-        setExportedBlob(blob);
-        setExportStage('Complete!');
-        setExportProgress(100);
-
-        // Auto download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `trail-replay-${Date.now()}.${videoExportSettings.format === 'mp4' ? 'webm' : 'webm'}`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        setExportStage('Export failed - no data recorded');
-      }
-      setIsExporting(false);
-    }, 500);
-  }, [videoExportSettings.format, setExportStage, setExportProgress, setIsExporting]);
+    // Stop media recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  }, [setExportStage]);
 
   const handleStartExport = useCallback(async () => {
     // Find the map canvas
-    const mapContainer = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
-    if (!mapContainer) {
+    const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
+    if (!mapCanvas) {
       alert('No map canvas found. Please load a track first.');
       return;
     }
@@ -107,9 +171,22 @@ export function ExportPanel() {
     setExportProgress(0);
     setExportStage('Preparing...');
     setExportedBlob(null);
+    recordedChunksRef.current = [];
 
     try {
-      // Step 1: Reset playback to beginning
+      const { width, height } = videoExportSettings.resolution;
+
+      // Step 1: Create recording canvas
+      setExportStage('Creating recording canvas...');
+
+      if (!recordingCanvasRef.current) {
+        recordingCanvasRef.current = document.createElement('canvas');
+      }
+      recordingCanvasRef.current.width = width;
+      recordingCanvasRef.current.height = height;
+      recordingContextRef.current = recordingCanvasRef.current.getContext('2d');
+
+      // Step 2: Reset playback to beginning
       setExportStage('Resetting to start...');
       resetPlayback();
       setCinematicPlayed(false); // Enable intro animation for recording
@@ -117,24 +194,63 @@ export function ExportPanel() {
       // Wait for reset to complete
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Step 2: Create exporter and start recording
-      setExportStage('Starting recording...');
-      exporterRef.current = new VideoExporter(
-        mapContainer,
-        videoExportSettings,
-        (progress) => {
-          setExportProgress(progress.progress);
-        }
-      );
+      // Step 3: Setup MediaRecorder
+      setExportStage('Setting up recorder...');
 
-      await exporterRef.current.startRecording();
-      recordingStartedRef.current = true;
-      waitingForEndRef.current = true;
+      const stream = recordingCanvasRef.current.captureStream(videoExportSettings.fps);
+
+      // Find supported MIME type
+      const mimeTypes = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+      ];
+      const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: getVideoBitrate(videoExportSettings.quality),
+      });
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+
+        if (blob.size > 0) {
+          setExportedBlob(blob);
+          setExportStage('Complete!');
+          setExportProgress(100);
+
+          // Auto download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `trail-replay-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } else {
+          setExportStage('Export failed - no data recorded');
+        }
+        setIsExporting(false);
+      };
+
+      // Step 4: Start recording
+      setExportStage('Starting recording...');
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
+      isRecordingRef.current = true;
+
+      // Step 5: Start frame capture loop
+      startFrameCapture();
 
       // Wait a bit for recording to stabilize
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Step 3: Start playback - the animation will now play and be recorded
+      // Step 6: Start playback
       setExportStage('Recording animation...');
       play();
 
@@ -142,15 +258,21 @@ export function ExportPanel() {
       console.error('Export failed:', error);
       setExportStage('Export failed: ' + (error as Error).message);
       setIsExporting(false);
-      waitingForEndRef.current = false;
-      recordingStartedRef.current = false;
+      isRecordingRef.current = false;
     }
-  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play]);
+  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture]);
 
   const handleCancelExport = useCallback(() => {
-    exporterRef.current?.cancel();
-    waitingForEndRef.current = false;
-    recordingStartedRef.current = false;
+    isRecordingRef.current = false;
+
+    if (frameRequestRef.current) {
+      cancelAnimationFrame(frameRequestRef.current);
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+
     setIsExporting(false);
     setExportProgress(0);
     setExportStage('');
@@ -205,8 +327,8 @@ export function ExportPanel() {
       {/* Info about how export works */}
       <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)] rounded-lg p-3">
         <p className="text-xs text-[var(--evergreen)]">
-          <strong>How it works:</strong> Click "Start Recording" to reset the animation to the beginning,
-          then it will automatically play and record the entire animation including intro and outro.
+          <strong>How it works:</strong> Recording captures the map animation including intro zoom-in,
+          the track playback, and outro zoom-out. The animation resets to the beginning before recording starts.
         </p>
       </div>
 
@@ -261,12 +383,10 @@ export function ExportPanel() {
           </div>
 
           {/* Live recording indicator */}
-          {recordingStartedRef.current && (
-            <div className="flex items-center gap-2 mb-4 text-sm text-[var(--evergreen)]">
-              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-              Recording in progress...
-            </div>
-          )}
+          <div className="flex items-center gap-2 mb-4 text-sm text-[var(--evergreen)]">
+            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+            Recording in progress...
+          </div>
 
           <button
             onClick={handleCancelExport}
@@ -374,12 +494,6 @@ export function ExportPanel() {
               </span>
             </div>
 
-            {/* Note about format */}
-            <p className="text-xs text-[var(--evergreen-60)] mb-4">
-              Note: Video will be exported as WebM format which is widely supported.
-              You can convert to MP4 using free online tools if needed.
-            </p>
-
             <button
               onClick={() => setShowSettings(false)}
               className="w-full tr-btn tr-btn-primary"
@@ -391,4 +505,15 @@ export function ExportPanel() {
       )}
     </div>
   );
+}
+
+// Helper function for video bitrate
+function getVideoBitrate(quality: string): number {
+  const bitrates: Record<string, number> = {
+    low: 2_000_000,
+    medium: 5_000_000,
+    high: 10_000_000,
+    ultra: 20_000_000,
+  };
+  return bitrates[quality] || bitrates.high;
 }
