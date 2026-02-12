@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/store/useAppStore';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
+import { MapElevationProfile } from './MapElevationProfile';
 import type { GPXPoint, GPXTrack } from '@/types';
 
 interface TrailMapProps {
@@ -43,6 +44,13 @@ const MAP_STYLE = {
       tiles: ['https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/ASTER_GDEM/{z}/{x}/{y}.png'],
       tileSize: 256,
       attribution: '© OpenTopography/ASTER GDEM'
+    },
+    'terrain-dem': {
+      type: 'raster-dem',
+      tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      encoding: 'terrarium',
+      maxzoom: 15
     }
   },
   layers: [
@@ -51,7 +59,11 @@ const MAP_STYLE = {
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
     { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
     { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } }
-  ]
+  ],
+  terrain: {
+    source: 'terrain-dem',
+    exaggeration: 1.2
+  }
 };
 
 // Map layer names for UI
@@ -265,11 +277,11 @@ export function TrailMap({}: TrailMapProps) {
     
     map.current.on('load', () => {
       setIsMapLoaded(true);
-      
+
       map.current?.addControl(new maplibregl.NavigationControl(), 'bottom-right');
       map.current?.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
       map.current?.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-      
+
       // Add track sources
       setupTrackSources();
     });
@@ -377,6 +389,24 @@ export function TrailMap({}: TrailMapProps) {
     }
   }, [trailStyle.trailColor, isMapLoaded]);
 
+  // Toggle 3D terrain based on settings
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    if (settings.show3DTerrain) {
+      // Enable 3D terrain
+      if (map.current.getSource('terrain-dem')) {
+        map.current.setTerrain({
+          source: 'terrain-dem',
+          exaggeration: 1.5
+        });
+      }
+    } else {
+      // Disable 3D terrain
+      map.current.setTerrain(null as any);
+    }
+  }, [settings.show3DTerrain, isMapLoaded]);
+
   // Update tracks on map
   const updateTracks = useCallback(() => {
     if (!map.current || !isMapLoaded) return;
@@ -424,13 +454,17 @@ export function TrailMap({}: TrailMapProps) {
     // Very smooth bearing transitions - low factor for cinematic effect
     smoothBearingRef.current = smoothBearing(smoothBearingRef.current, bearing, 0.02);
     
+    // Only show/update marker during 'playing' phase or when paused with progress
+    const shouldShowMarker = trailStyle.showMarker &&
+      (animationPhase === 'playing' || (animationPhase === 'idle' && playback.progress > 0));
+
     // Create or update marker based on trailStyle settings
     const icon = isTransport ? (
       { car: '🚗', bus: '🚌', train: '🚆', plane: '✈️', bike: '🚲', walk: '🚶', ferry: '⛴️' } as Record<string, string>
     )[getCurrentJourneyPosition().transportMode || 'car'] || '🚗' : trailStyle.currentIcon;
 
-    // Handle marker visibility
-    if (!trailStyle.showMarker) {
+    // Handle marker visibility - hide during intro/outro animations
+    if (!shouldShowMarker) {
       if (markerRef.current) {
         markerRef.current.remove();
         markerRef.current = null;
@@ -438,28 +472,23 @@ export function TrailMap({}: TrailMapProps) {
     } else {
       const markerSize = trailStyle.markerSize;
       const showCircle = trailStyle.showCircle;
+      const fontSize = Math.round(24 * markerSize);
+      const circleSize = Math.round(40 * markerSize);
 
       if (!markerRef.current) {
         const el = document.createElement('div');
         el.className = 'tr-marker';
-        el.style.cssText = `
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transform: scale(${markerSize});
-          transition: transform 0.2s ease;
-        `;
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: ${circleSize}px;
+            height: ${circleSize}px;
             background: ${trailStyle.trailColor}40;
             border: 2px solid ${trailStyle.trailColor};
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: 24px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
         `;
 
         markerRef.current = new maplibregl.Marker({
@@ -471,18 +500,17 @@ export function TrailMap({}: TrailMapProps) {
       } else {
         markerRef.current.setLngLat([position.lon, position.lat]);
         const el = markerRef.current.getElement();
-        el.style.transform = `scale(${markerSize})`;
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
-            width: 40px;
-            height: 40px;
+            width: ${circleSize}px;
+            height: ${circleSize}px;
             background: ${trailStyle.trailColor}40;
             border: 2px solid ${trailStyle.trailColor};
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: 24px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
         `;
       }
     }
@@ -669,7 +697,7 @@ export function TrailMap({}: TrailMapProps) {
   return (
     <div className="w-full h-full relative">
       <div ref={mapContainer} className="w-full h-full" />
-      
+
       {!isMapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--canvas)]">
           <div className="flex items-center gap-3">
@@ -677,6 +705,11 @@ export function TrailMap({}: TrailMapProps) {
             <span className="text-[var(--evergreen)]">Loading map...</span>
           </div>
         </div>
+      )}
+
+      {/* Elevation Profile at bottom of map */}
+      {isMapLoaded && activeTrack && (
+        <MapElevationProfile />
       )}
     </div>
   );
