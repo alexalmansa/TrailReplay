@@ -105,11 +105,13 @@ function App() {
               {showSidebar ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <div className="flex items-center gap-2">
-              <img
-                src="/app/media/images/logohorizontal.svg"
-                alt="TrailReplay"
-                className="h-7 w-auto"
-              />
+              <div className="bg-white rounded-md p-1">
+                <img
+                  src="/app/media/images/logohorizontal.svg"
+                  alt="TrailReplay"
+                  className="h-5 w-auto"
+                />
+              </div>
               <div>
                 <h1 className="font-bold text-sm tracking-wide">Trail Replay</h1>
                 <p className="text-[10px] opacity-70">GPX VISUALIZATION</p>
