@@ -1,46 +1,89 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { getPointAtDistance } from '@/utils/gpxParser';
+import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatSpeed, formatDuration, formatElevation } from '@/utils/units';
-import { 
-  Route, 
-  Timer, 
-  Gauge, 
-  Mountain, 
-  TrendingUp, 
+import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import {
+  Route,
+  Timer,
+  Gauge,
+  Mountain,
   Heart,
-  Zap
+  Zap,
+  TrendingUp
 } from 'lucide-react';
 
 export function StatsOverlay() {
   const tracks = useAppStore((state) => state.tracks);
-  const activeTrackId = useAppStore((state) => state.activeTrackId);
+  const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
-  
-  const activeTrack = tracks.find((t) => t.id === activeTrackId);
-  
+
+  // Use computed journey for multi-track support
+  const {
+    currentPosition,
+    currentSegment,
+    isInTransport,
+    totalDistance,
+    segmentTimings,
+  } = useComputedJourney();
+
   const currentStats = useMemo(() => {
-    if (!activeTrack) return null;
-    
-    const progress = playback.progress;
-    const targetDistance = activeTrack.totalDistance * progress;
-    const currentPoint = getPointAtDistance(activeTrack, targetDistance);
-    
-    if (!currentPoint) return null;
-    
+    if (!currentPosition) return null;
+
+    // Calculate cumulative distance based on journey progress
+    const distanceAtProgress = totalDistance * playback.progress;
+
     return {
-      distance: currentPoint.distance,
-      duration: activeTrack.totalTime * progress,
-      speed: currentPoint.speed,
-      elevation: currentPoint.elevation,
-      heartRate: currentPoint.heartRate,
-      cadence: currentPoint.cadence,
-      power: currentPoint.power,
+      distance: distanceAtProgress,
+      duration: playback.currentTime / 1000, // Convert ms to seconds
+      speed: currentPosition.speed || 0,
+      elevation: currentPosition.elevation || 0,
+      heartRate: currentPosition.heartRate,
+      cadence: currentPosition.cadence,
+      power: currentPosition.power,
     };
-  }, [activeTrack, playback.progress]);
-  
-  if (!activeTrack || !currentStats) return null;
+  }, [currentPosition, playback.progress, playback.currentTime, totalDistance]);
+
+  // Get current track info
+  const currentTrackInfo = useMemo(() => {
+    if (!currentSegment) return null;
+
+    if (currentSegment.segment.type === 'track' && currentSegment.segment.trackId) {
+      const track = tracks.find((t) => t.id === currentSegment.segment.trackId);
+      return {
+        type: 'track' as const,
+        name: track?.name || 'Track',
+        color: track?.color || '#C1652F',
+      };
+    } else if (currentSegment.segment.type === 'transport') {
+      const mode = currentSegment.segment.transportMode || 'car';
+      const modeLabels: Record<string, string> = {
+        car: 'Driving',
+        bus: 'Bus',
+        train: 'Train',
+        plane: 'Flying',
+        bike: 'Cycling',
+        walk: 'Walking',
+        ferry: 'Ferry',
+      };
+      return {
+        type: 'transport' as const,
+        name: modeLabels[mode] || 'Transport',
+        mode,
+        color: '#888888',
+      };
+    }
+
+    return null;
+  }, [currentSegment, tracks]);
+
+  // Don't show if no data
+  if (!currentStats || journeySegments.length === 0) return null;
+
+  // Count segments
+  const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
+  const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
 
   return (
     <div className="tr-stats-overlay max-w-md">
@@ -49,7 +92,7 @@ export function StatsOverlay() {
         <StatItem
           icon={<Route className="w-4 h-4" />}
           label="Distance"
-          value={formatDistance(currentStats.distance, settings.unitSystem)}
+          value={formatDistance(currentStats.distance * 1000, settings.unitSystem)} // Convert km to m
         />
         <StatItem
           icon={<Timer className="w-4 h-4" />}
@@ -59,19 +102,22 @@ export function StatsOverlay() {
         <StatItem
           icon={<Gauge className="w-4 h-4" />}
           label="Speed"
-          value={formatSpeed(currentStats.speed / 3.6, settings.unitSystem)}
+          value={isInTransport
+            ? formatSpeed(currentStats.speed, settings.unitSystem)
+            : formatSpeed(currentStats.speed / 3.6, settings.unitSystem) // Convert km/h to m/s for track
+          }
         />
       </div>
-      
+
       {/* Secondary Stats */}
       <div className="grid grid-cols-4 gap-2 pt-4 border-t border-[var(--evergreen)]/20">
         <SmallStatItem
           icon={<Mountain className="w-3 h-3" />}
           label="Elev"
-          value={formatElevation(currentStats.elevation, settings.unitSystem)}
+          value={isInTransport ? '--' : formatElevation(currentStats.elevation, settings.unitSystem)}
         />
-        
-        {settings.showHeartRate && currentStats.heartRate && (
+
+        {settings.showHeartRate && currentStats.heartRate && !isInTransport && (
           <SmallStatItem
             icon={<Heart className="w-3 h-3" />}
             label="HR"
@@ -80,8 +126,8 @@ export function StatsOverlay() {
             color="text-red-500"
           />
         )}
-        
-        {currentStats.cadence && (
+
+        {currentStats.cadence && !isInTransport && (
           <SmallStatItem
             icon={<Zap className="w-3 h-3" />}
             label="Cadence"
@@ -89,8 +135,8 @@ export function StatsOverlay() {
             unit="rpm"
           />
         )}
-        
-        {currentStats.power && (
+
+        {currentStats.power && !isInTransport && (
           <SmallStatItem
             icon={<TrendingUp className="w-3 h-3" />}
             label="Power"
@@ -99,21 +145,42 @@ export function StatsOverlay() {
           />
         )}
       </div>
-      
-      {/* Track Info */}
+
+      {/* Current Segment Info */}
       <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div 
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: activeTrack.color }}
-          />
-          <span className="text-sm font-medium text-[var(--evergreen)] truncate max-w-[150px]">
-            {activeTrack.name}
+          {currentTrackInfo?.type === 'transport' ? (
+            <>
+              <span className="text-lg">
+                {TRANSPORT_ICONS[currentTrackInfo.mode || 'car']}
+              </span>
+              <span className="text-sm font-medium text-[var(--evergreen)]">
+                {currentTrackInfo.name}
+              </span>
+            </>
+          ) : (
+            <>
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: currentTrackInfo?.color || '#C1652F' }}
+              />
+              <span className="text-sm font-medium text-[var(--evergreen)] truncate max-w-[150px]">
+                {currentTrackInfo?.name || 'Track'}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {segmentTimings.length > 1 && (
+            <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
+              {trackCount} track{trackCount !== 1 ? 's' : ''}
+              {transportCount > 0 && ` + ${transportCount} transport`}
+            </span>
+          )}
+          <span className="text-xs text-[var(--evergreen-60)]">
+            {(playback.progress * 100).toFixed(1)}%
           </span>
         </div>
-        <span className="text-xs text-[var(--evergreen-60)]">
-          {(playback.progress * 100).toFixed(1)}%
-        </span>
       </div>
     </div>
   );

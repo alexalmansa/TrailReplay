@@ -2,9 +2,10 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/store/useAppStore';
+import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import { MapElevationProfile } from './MapElevationProfile';
-import type { GPXPoint, GPXTrack } from '@/types';
+import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -74,86 +75,16 @@ const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
 };
 
-// Get position at progress for a track
-function getPositionAtProgress(track: GPXTrack, progress: number): GPXPoint | null {
-  if (!track || track.points.length === 0) return null;
-  
-  const targetDistance = track.totalDistance * progress;
-  
-  let left = 0;
-  let right = track.points.length - 1;
-  
-  while (left < right) {
-    const mid = Math.floor((left + right) / 2);
-    if (track.points[mid].distance < targetDistance) {
-      left = mid + 1;
-    } else {
-      right = mid;
-    }
-  }
-  
-  const pointIndex = Math.max(1, left);
-  const prevPoint = track.points[pointIndex - 1];
-  const nextPoint = track.points[pointIndex];
-  
-  if (!prevPoint || !nextPoint) return track.points[0];
-  
-  const segmentDistance = nextPoint.distance - prevPoint.distance;
-  if (segmentDistance === 0) return prevPoint;
-  
-  const ratio = (targetDistance - prevPoint.distance) / segmentDistance;
-  
-  return {
-    lat: prevPoint.lat + (nextPoint.lat - prevPoint.lat) * ratio,
-    lon: prevPoint.lon + (nextPoint.lon - prevPoint.lon) * ratio,
-    elevation: prevPoint.elevation + (nextPoint.elevation - prevPoint.elevation) * ratio,
-    time: prevPoint.time,
-    heartRate: prevPoint.heartRate,
-    cadence: prevPoint.cadence,
-    power: prevPoint.power,
-    temperature: prevPoint.temperature,
-    distance: targetDistance,
-    speed: prevPoint.speed + (nextPoint.speed - prevPoint.speed) * ratio,
-  };
-}
-
-// Calculate bearing between two points
-function calculateBearing(from: { lat: number; lon: number }, to: { lat: number; lon: number }): number {
-  const lat1 = from.lat * Math.PI / 180;
-  const lat2 = to.lat * Math.PI / 180;
-  const lon1 = from.lon * Math.PI / 180;
-  const lon2 = to.lon * Math.PI / 180;
-  
-  const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-  
-  let bearing = Math.atan2(y, x) * 180 / Math.PI;
-  bearing = (bearing + 360) % 360;
-  
-  return bearing;
-}
-
 // Smooth bearing using exponential moving average
-// Lower smoothingFactor = smoother but slower response
 function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.015): number {
-  // Handle the 360/0 wraparound
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
 
-  // Only apply small changes to avoid sudden jumps
-  const maxChange = 2; // Max degrees per frame
+  const maxChange = 2;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
 
   return (currentBearing + change + 360) % 360;
-}
-
-// Interpolate position between two points
-function interpolatePosition(from: { lat: number; lon: number }, to: { lat: number; lon: number }, progress: number) {
-  return {
-    lat: from.lat + (to.lat - from.lat) * progress,
-    lon: from.lon + (to.lon - from.lon) * progress,
-  };
 }
 
 export function TrailMap({}: TrailMapProps) {
@@ -162,10 +93,8 @@ export function TrailMap({}: TrailMapProps) {
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const smoothBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
-  
+
   const tracks = useAppStore((state) => state.tracks);
-  const activeTrackId = useAppStore((state) => state.activeTrackId);
-  const journeySegments = useAppStore((state) => state.journeySegments);
   const settings = useAppStore((state) => state.settings);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
@@ -174,95 +103,25 @@ export function TrailMap({}: TrailMapProps) {
   const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
-  
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
-  
-  const activeTrack = tracks.find((t) => t.id === activeTrackId);
-  
-  // Get current position based on journey segments and playback progress
-  const getCurrentJourneyPosition = useCallback((): { 
-    position: GPXPoint | null; 
-    bearing: number;
-    isTransport: boolean;
-    transportMode?: string;
-  } => {
-    if (journeySegments.length === 0) {
-      if (!activeTrack) return { position: null, bearing: 0, isTransport: false };
-      const position = getPositionAtProgress(activeTrack, playback.progress);
-      const bearing = getBearingAtProgress(activeTrack, playback.progress);
-      return { position, bearing, isTransport: false };
-    }
-    
-    const totalDuration = journeySegments.reduce((sum, seg) => sum + (seg.duration || 0), 0);
-    if (totalDuration === 0) return { position: null, bearing: 0, isTransport: false };
-    
-    const currentTime = playback.progress * totalDuration;
-    let accumulatedTime = 0;
-    let currentSegmentIndex = 0;
-    
-    for (let i = 0; i < journeySegments.length; i++) {
-      const segmentDuration = journeySegments[i].duration || 0;
-      if (currentTime < accumulatedTime + segmentDuration) {
-        currentSegmentIndex = i;
-        break;
-      }
-      accumulatedTime += segmentDuration;
-    }
-    
-    const segment = journeySegments[currentSegmentIndex];
-    const segmentProgress = (currentTime - accumulatedTime) / (segment.duration || 1);
-    
-    if (segment.type === 'track') {
-      const track = tracks.find((t) => t.id === segment.trackId);
-      if (!track) return { position: null, bearing: 0, isTransport: false };
-      
-      const position = getPositionAtProgress(track, segmentProgress);
-      const bearing = getBearingAtProgress(track, segmentProgress);
-      return { position, bearing, isTransport: false };
-    } else {
-      const from = segment.from;
-      const to = segment.to;
-      const position = interpolatePosition(from, to, segmentProgress);
-      const bearing = calculateBearing(from, to);
-      return { 
-        position: { 
-          ...position, 
-          elevation: 0, 
-          time: null, 
-          heartRate: null, 
-          cadence: null, 
-          power: null, 
-          temperature: null, 
-          distance: 0, 
-          speed: 0 
-        }, 
-        bearing, 
-        isTransport: true,
-        transportMode: segment.mode 
-      };
-    }
-  }, [journeySegments, tracks, activeTrack, playback.progress]);
-  
-  const getBearingAtProgress = (track: GPXTrack, progress: number): number => {
-    const pointIndex = Math.floor(progress * (track.points.length - 1));
-    const currentPoint = track.points[pointIndex];
-    // Look further ahead (3% of track) for smoother bearing - reduces sudden turns
-    const lookAheadPoints = Math.max(20, Math.floor(track.points.length * 0.03));
-    const nextPoint = track.points[Math.min(pointIndex + lookAheadPoints, track.points.length - 1)];
 
-    if (currentPoint && nextPoint) {
-      return calculateBearing(
-        { lat: currentPoint.lat, lon: currentPoint.lon },
-        { lat: nextPoint.lat, lon: nextPoint.lon }
-      );
-    }
-    return smoothBearingRef.current;
-  };
-  
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+
+  // Use the computed journey hook for multi-track support
+  const {
+    currentPosition,
+    currentBearing,
+    currentSegment,
+    completedCoordinates,
+    allCoordinates,
+    isInTransport,
+    currentTrackColor,
+    segmentTimings,
+  } = useComputedJourney();
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
-    
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: MAP_STYLE as any,
@@ -272,52 +131,50 @@ export function TrailMap({}: TrailMapProps) {
       bearing: 0,
       maxPitch: 85,
       preserveDrawingBuffer: true,
-      attributionControl: false, // Hide attribution to keep bottom clean for elevation profile
+      attributionControl: false,
     } as any);
-    
+
     map.current.on('load', () => {
       setIsMapLoaded(true);
-
-      // Position controls at top to avoid overlap with elevation profile
       map.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
       map.current?.addControl(new maplibregl.FullscreenControl(), 'top-right');
-
-      // Add track sources
       setupTrackSources();
     });
-    
+
     return () => {
       map.current?.remove();
       map.current = null;
     };
   }, []);
-  
+
   // Setup track sources
   const setupTrackSources = useCallback(() => {
     if (!map.current) return;
-    
-    // Add sources for tracks
+
+    // Main trail line (full journey)
     if (!map.current.getSource('trail-line')) {
       map.current.addSource('trail-line', {
         type: 'geojson',
         data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
       });
     }
-    
+
+    // Completed trail (animated portion)
     if (!map.current.getSource('trail-completed')) {
       map.current.addSource('trail-completed', {
         type: 'geojson',
         data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
       });
     }
-    
-    if (!map.current.getSource('current-position')) {
-      map.current.addSource('current-position', {
+
+    // Transport segments (dashed line)
+    if (!map.current.getSource('transport-line')) {
+      map.current.addSource('transport-line', {
         type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } }
+        data: { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: [] } }
       });
     }
-    
+
     // Add layers
     if (!map.current.getLayer('trail-line')) {
       map.current.addLayer({
@@ -325,10 +182,26 @@ export function TrailMap({}: TrailMapProps) {
         type: 'line',
         source: 'trail-line',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#C1652F', 'line-width': 4, 'line-opacity': 0.7 }
+        paint: { 'line-color': '#C1652F', 'line-width': 4, 'line-opacity': 0.5 }
       });
     }
-    
+
+    // Transport line (dashed)
+    if (!map.current.getLayer('transport-line')) {
+      map.current.addLayer({
+        id: 'transport-line',
+        type: 'line',
+        source: 'transport-line',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#888888',
+          'line-width': 3,
+          'line-opacity': 0.6,
+          'line-dasharray': [2, 2]
+        }
+      });
+    }
+
     if (!map.current.getLayer('trail-completed')) {
       map.current.addLayer({
         id: 'trail-completed',
@@ -339,11 +212,11 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
   }, []);
-  
+
   // Update map layer visibility
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
-    
+
     const layerMap: Record<string, string> = {
       satellite: 'background',
       street: 'street',
@@ -351,23 +224,20 @@ export function TrailMap({}: TrailMapProps) {
       outdoor: 'opentopomap',
       terrain: 'enhanced-hillshade',
     };
-    
+
     const targetLayer = layerMap[settings.mapStyle] || 'background';
-    
-    // Hide all layers first
+
     ['background', 'street', 'opentopomap', 'enhanced-hillshade'].forEach(layerId => {
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(layerId, 'visibility', 'none');
       }
     });
-    
-    // Show target layer
+
     if (map.current.getLayer(targetLayer)) {
       map.current.setLayoutProperty(targetLayer, 'visibility', 'visible');
     }
-    
-    // Show labels for street and topo
-    if ((settings.mapStyle === 'street' || settings.mapStyle === 'topo' || settings.mapStyle === 'outdoor') 
+
+    if ((settings.mapStyle === 'street' || settings.mapStyle === 'topo' || settings.mapStyle === 'outdoor')
         && map.current.getLayer('carto-labels')) {
       map.current.setLayoutProperty('carto-labels', 'visibility', 'visible');
     } else if (map.current.getLayer('carto-labels')) {
@@ -379,7 +249,7 @@ export function TrailMap({}: TrailMapProps) {
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    const color = trailStyle.trailColor;
+    const color = currentTrackColor || trailStyle.trailColor;
 
     if (map.current.getLayer('trail-line')) {
       map.current.setPaintProperty('trail-line', 'line-color', color);
@@ -387,14 +257,13 @@ export function TrailMap({}: TrailMapProps) {
     if (map.current.getLayer('trail-completed')) {
       map.current.setPaintProperty('trail-completed', 'line-color', color);
     }
-  }, [trailStyle.trailColor, isMapLoaded]);
+  }, [trailStyle.trailColor, currentTrackColor, isMapLoaded]);
 
-  // Toggle 3D terrain based on settings
+  // Toggle 3D terrain
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
     if (settings.show3DTerrain) {
-      // Enable 3D terrain
       if (map.current.getSource('terrain-dem')) {
         map.current.setTerrain({
           source: 'terrain-dem',
@@ -402,68 +271,84 @@ export function TrailMap({}: TrailMapProps) {
         });
       }
     } else {
-      // Disable 3D terrain
       map.current.setTerrain(null as any);
     }
   }, [settings.show3DTerrain, isMapLoaded]);
 
-  // Update tracks on map
-  const updateTracks = useCallback(() => {
+  // Update journey lines on map
+  useEffect(() => {
     if (!map.current || !isMapLoaded) return;
-    
-    // Build coordinates for all tracks
-    const allCoordinates: number[][] = [];
-    
-    tracks.forEach((track, index) => {
-      if (track.points.length === 0) return;
-      
-      const coordinates = track.points.map((p) => [p.lon, p.lat]);
-      allCoordinates.push(...coordinates);
-      
-      // Update main track line
-      if (index === 0 && map.current?.getSource('trail-line')) {
-        (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates }
-        });
-      }
-    });
-    
+
+    // Update full trail line with all journey coordinates
+    if (allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+      (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: allCoordinates }
+      });
+    }
+
+    // Extract transport segment coordinates for dashed lines
+    if (segmentTimings.length > 0 && map.current.getSource('transport-line')) {
+      const transportCoords: number[][][] = [];
+
+      segmentTimings.forEach(timing => {
+        if (timing.type === 'transport') {
+          // Get coordinates for this transport segment from allCoordinates
+          const segmentCoords: number[][] = [];
+          // We need to map from journey coordinates - approximate by progress
+          const startIdx = Math.floor(timing.progressStartRatio * allCoordinates.length);
+          const endIdx = Math.ceil(timing.progressEndRatio * allCoordinates.length);
+
+          for (let i = startIdx; i <= endIdx && i < allCoordinates.length; i++) {
+            segmentCoords.push(allCoordinates[i]);
+          }
+
+          if (segmentCoords.length > 1) {
+            transportCoords.push(segmentCoords);
+          }
+        }
+      });
+
+      (map.current.getSource('transport-line') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'MultiLineString', coordinates: transportCoords }
+      });
+    }
+
     // Fit bounds to all tracks
     if (allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
-      map.current.fitBounds(bounds, { padding: 100, duration: 0 });
+
+      // Only fit bounds on initial load or when tracks change significantly
+      if (animationPhase === 'idle' && playback.progress === 0) {
+        map.current.fitBounds(bounds, { padding: 100, duration: 500 });
+      }
     }
-  }, [tracks, isMapLoaded]);
-  
+  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
+
+  // Update completed trail and marker position
   useEffect(() => {
-    updateTracks();
-  }, [updateTracks]);
-  
-  // Update marker position and camera follow
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-    
-    const { position, bearing, isTransport } = getCurrentJourneyPosition();
-    if (!position) return;
-    
+    if (!map.current || !isMapLoaded || !currentPosition) return;
+
     // Update smooth bearing
-    targetBearingRef.current = bearing;
-    // Very smooth bearing transitions - low factor for cinematic effect
-    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, bearing, 0.02);
-    
-    // Only show/update marker during 'playing' phase or when paused with progress
+    targetBearingRef.current = currentBearing;
+    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, currentBearing, 0.02);
+
     const shouldShowMarker = trailStyle.showMarker &&
       (animationPhase === 'playing' || (animationPhase === 'idle' && playback.progress > 0));
 
-    // Create or update marker based on trailStyle settings
-    const icon = isTransport ? (
-      { car: '🚗', bus: '🚌', train: '🚆', plane: '✈️', bike: '🚲', walk: '🚶', ferry: '⛴️' } as Record<string, string>
-    )[getCurrentJourneyPosition().transportMode || 'car'] || '🚗' : trailStyle.currentIcon;
+    // Determine icon based on segment type
+    const icon = isInTransport
+      ? TRANSPORT_ICONS[currentSegment?.segment.transportMode || 'car'] || '🚗'
+      : trailStyle.currentIcon;
 
-    // Handle marker visibility - hide during intro/outro animations
+    // Get the current color (from active track segment or default)
+    const currentColor = currentTrackColor || trailStyle.trailColor;
+
+    // Handle marker
     if (!shouldShowMarker) {
       if (markerRef.current) {
         markerRef.current.remove();
@@ -483,8 +368,8 @@ export function TrailMap({}: TrailMapProps) {
             position: absolute;
             width: ${circleSize}px;
             height: ${circleSize}px;
-            background: ${trailStyle.trailColor}40;
-            border: 2px solid ${trailStyle.trailColor};
+            background: ${currentColor}40;
+            border: 2px solid ${currentColor};
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
@@ -495,18 +380,18 @@ export function TrailMap({}: TrailMapProps) {
           element: el,
           anchor: 'center',
         })
-          .setLngLat([position.lon, position.lat])
+          .setLngLat([currentPosition.lon, currentPosition.lat])
           .addTo(map.current);
       } else {
-        markerRef.current.setLngLat([position.lon, position.lat]);
+        markerRef.current.setLngLat([currentPosition.lon, currentPosition.lat]);
         const el = markerRef.current.getElement();
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
             width: ${circleSize}px;
             height: ${circleSize}px;
-            background: ${trailStyle.trailColor}40;
-            border: 2px solid ${trailStyle.trailColor};
+            background: ${currentColor}40;
+            border: 2px solid ${currentColor};
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
@@ -514,21 +399,16 @@ export function TrailMap({}: TrailMapProps) {
         `;
       }
     }
-    
+
     // Update completed track line
-    if (activeTrack && map.current.getSource('trail-completed')) {
-      const completedPoints = activeTrack.points.filter(
-        (p) => p.distance <= position.distance
-      );
-      const completedCoords = completedPoints.map((p) => [p.lon, p.lat]);
-      
+    if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
       (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
         type: 'Feature',
         properties: {},
-        geometry: { type: 'LineString', coordinates: completedCoords },
+        geometry: { type: 'LineString', coordinates: completedCoordinates },
       });
     }
-    
+
     // Camera follow logic - only during 'playing' phase
     const { mode, followBehindPreset } = cameraSettings;
 
@@ -543,19 +423,17 @@ export function TrailMap({}: TrailMapProps) {
 
       if (mode === 'follow') {
         map.current.easeTo({
-          center: [position.lon, position.lat],
+          center: [currentPosition.lon, currentPosition.lat],
           zoom: 16,
           pitch: 0,
           bearing: 0,
           duration: 100,
         });
       } else if (mode === 'follow-behind') {
-        // Follow from behind - camera is behind the marker looking forward
-        // Use the SMOOTHED bearing for camera direction
         const cameraBearing = smoothBearingRef.current;
 
         map.current.easeTo({
-          center: [position.lon, position.lat],
+          center: [currentPosition.lon, currentPosition.lat],
           zoom: preset.zoom,
           pitch: preset.pitch,
           bearing: cameraBearing,
@@ -563,17 +441,18 @@ export function TrailMap({}: TrailMapProps) {
         });
       }
     }
-    
+
     // Update camera position in store
     setCameraPosition({
-      lat: position.lat,
-      lon: position.lon,
+      lat: currentPosition.lat,
+      lon: currentPosition.lon,
       zoom: map.current.getZoom(),
       pitch: map.current.getPitch(),
       bearing: map.current.getBearing(),
     });
-  }, [getCurrentJourneyPosition, playback.isPlaying, playback.progress, animationPhase, cameraSettings, activeTrack, trailStyle, isMapLoaded, setCameraPosition]);
-  
+  }, [currentPosition, currentBearing, completedCoordinates, playback.progress, animationPhase,
+      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor]);
+
   // Handle camera mode changes
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
@@ -581,19 +460,17 @@ export function TrailMap({}: TrailMapProps) {
     const { mode } = cameraSettings;
 
     if (mode === 'overview') {
-      if (tracks.length > 0) {
+      if (allCoordinates.length > 0) {
         const bounds = new maplibregl.LngLatBounds();
-        tracks.forEach((track) => {
-          track.points.forEach((p) => bounds.extend([p.lon, p.lat]));
-        });
+        allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
         map.current.fitBounds(bounds, { padding: 100, duration: 500 });
       }
     }
-  }, [cameraSettings.mode, tracks, isMapLoaded]);
+  }, [cameraSettings.mode, allCoordinates, isMapLoaded]);
 
-  // Handle intro and outro animations based on animation phase
+  // Handle intro and outro animations
   useEffect(() => {
-    if (!map.current || !isMapLoaded || !activeTrack) return;
+    if (!map.current || !isMapLoaded) return;
 
     const { followBehindPreset } = cameraSettings;
     const presets = {
@@ -604,65 +481,63 @@ export function TrailMap({}: TrailMapProps) {
     };
     const preset = presets[followBehindPreset] || presets.medium;
 
-    if (animationPhase === 'intro') {
-      // Cinematic zoom-in from overview to starting position
-      const startPoint = activeTrack.points[0];
-      if (startPoint) {
-        // Calculate bearing from first segment
-        const lookAheadIndex = Math.min(10, activeTrack.points.length - 1);
-        const lookAheadPoint = activeTrack.points[lookAheadIndex];
-        const initialBearing = calculateBearing(
-          { lat: startPoint.lat, lon: startPoint.lon },
-          { lat: lookAheadPoint.lat, lon: lookAheadPoint.lon }
-        );
+    if (animationPhase === 'intro' && allCoordinates.length > 0) {
+      // Cinematic zoom-in to starting position
+      const startPoint = allCoordinates[0];
+      const lookAheadIndex = Math.min(10, allCoordinates.length - 1);
+      const lookAheadPoint = allCoordinates[lookAheadIndex];
 
-        // Smooth zoom-in animation
+      if (startPoint && lookAheadPoint) {
+        const lat1 = (startPoint[1] * Math.PI) / 180;
+        const lat2 = (lookAheadPoint[1] * Math.PI) / 180;
+        const lon1 = (startPoint[0] * Math.PI) / 180;
+        const lon2 = (lookAheadPoint[0] * Math.PI) / 180;
+
+        const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+        const x =
+          Math.cos(lat1) * Math.sin(lat2) -
+          Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+
+        let initialBearing = (Math.atan2(y, x) * 180) / Math.PI;
+        initialBearing = (initialBearing + 360) % 360;
+
         map.current.flyTo({
-          center: [startPoint.lon, startPoint.lat],
+          center: startPoint as [number, number],
           zoom: preset.zoom,
           pitch: preset.pitch,
           bearing: initialBearing,
           duration: INTRO_DURATION,
-          easing: (t) => 1 - Math.pow(1 - t, 3), // Ease-out cubic
+          easing: (t) => 1 - Math.pow(1 - t, 3),
         });
 
-        // Initialize bearing refs
         smoothBearingRef.current = initialBearing;
         targetBearingRef.current = initialBearing;
       }
-    } else if (animationPhase === 'outro') {
-      // Zoom out to show entire track
+    } else if (animationPhase === 'outro' && allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
-      tracks.forEach((track) => {
-        track.points.forEach((p) => bounds.extend([p.lon, p.lat]));
-      });
+      allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
 
       map.current.fitBounds(bounds, {
         padding: 100,
         pitch: 45,
         bearing: 0,
         duration: OUTRO_DURATION,
-        easing: (t) => 1 - Math.pow(1 - t, 2), // Ease-out quadratic
+        easing: (t) => 1 - Math.pow(1 - t, 2),
       } as maplibregl.FitBoundsOptions);
-    } else if (animationPhase === 'idle') {
-      // Reset to overview when idle
-      if (tracks.length > 0) {
-        const bounds = new maplibregl.LngLatBounds();
-        tracks.forEach((track) => {
-          track.points.forEach((p) => bounds.extend([p.lon, p.lat]));
-        });
-        map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
-      }
+    } else if (animationPhase === 'idle' && allCoordinates.length > 0) {
+      const bounds = new maplibregl.LngLatBounds();
+      allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
+      map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
     }
-  }, [animationPhase, activeTrack, tracks, cameraSettings.followBehindPreset, isMapLoaded]);
-  
+  }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded]);
+
   // Add picture markers
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
-    
+
     const existingMarkers = document.querySelectorAll('.tr-picture-marker');
     existingMarkers.forEach((el) => el.remove());
-    
+
     if (!settings.showPictures) return;
 
     pictures.forEach((picture) => {
@@ -682,7 +557,7 @@ export function TrailMap({}: TrailMapProps) {
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         `;
         el.innerHTML = '📷';
-        
+
         el.addEventListener('click', () => {
           setSelectedPictureId(picture.id);
         });
@@ -708,7 +583,7 @@ export function TrailMap({}: TrailMapProps) {
       )}
 
       {/* Elevation Profile at bottom of map */}
-      {isMapLoaded && activeTrack && (
+      {isMapLoaded && (tracks.length > 0 || allCoordinates.length > 0) && (
         <MapElevationProfile />
       )}
     </div>

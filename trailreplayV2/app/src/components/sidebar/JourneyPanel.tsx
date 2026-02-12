@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import type { TransportMode, JourneySegment } from '@/types';
+import type { TransportMode, JourneySegment, TransportSegment } from '@/types';
 import { formatDistance, formatDuration } from '@/utils/units';
-import { 
-  Plus, 
-  Car, 
-  Bus, 
-  Train, 
-  Plane, 
-  Bike, 
+import { calculateDistance } from '@/utils/journeyUtils';
+import {
+  Plus,
+  Car,
+  Bus,
+  Train,
+  Plane,
+  Bike,
   Ship,
   GripVertical,
   Trash2,
@@ -107,13 +108,13 @@ export function JourneyPanel() {
   
   const addTransport = (mode: TransportMode) => {
     if (selectedTransportIndex === null) return;
-    
+
     const prevSegment = journeySegments[selectedTransportIndex];
     const nextSegment = journeySegments[selectedTransportIndex + 1];
-    
+
     let from = { lat: 0, lon: 0 };
     let to = { lat: 0, lon: 0 };
-    
+
     if (prevSegment?.type === 'track') {
       const prevTrack = tracks.find((t) => t.id === prevSegment.trackId);
       if (prevTrack) {
@@ -121,7 +122,7 @@ export function JourneyPanel() {
         from = { lat: lastPoint.lat, lon: lastPoint.lon };
       }
     }
-    
+
     if (nextSegment?.type === 'track') {
       const nextTrack = tracks.find((t) => t.id === nextSegment.trackId);
       if (nextTrack) {
@@ -129,17 +130,32 @@ export function JourneyPanel() {
         to = { lat: firstPoint.lat, lon: firstPoint.lon };
       }
     }
-    
-    addJourneySegment({
+
+    // Calculate distance between the two points
+    const distance = calculateDistance(from.lat, from.lon, to.lat, to.lon);
+
+    // Calculate default duration based on mode and distance
+    const speeds: Record<TransportMode, number> = {
+      car: 50, bus: 30, train: 80, plane: 500, bike: 15, walk: 4, ferry: 25,
+    };
+    const speed = speeds[mode] || 30;
+    const defaultDuration = Math.max(3000, (distance / speed) * 3600 * 1000); // min 3 seconds
+
+    const newTransportSegment: TransportSegment = {
       id: `transport-${Date.now()}`,
       type: 'transport',
       mode,
       from,
       to,
-      duration: 5000, // Default 5 seconds for transport
-      distance: 0,
-    });
-    
+      duration: Math.min(defaultDuration, 10000), // Cap at 10 seconds for animation
+      distance,
+    };
+
+    // Insert the transport segment at the correct position
+    const newSegments = [...journeySegments];
+    newSegments.splice(selectedTransportIndex + 1, 0, newTransportSegment);
+    reorderJourneySegments(newSegments);
+
     setShowTransportMenu(false);
     setSelectedTransportIndex(null);
   };
