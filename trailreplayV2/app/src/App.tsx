@@ -7,11 +7,12 @@ import { PlaybackProvider } from '@/components/playback/PlaybackProvider';
 import { StatsOverlay } from '@/components/stats/StatsOverlay';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { PicturePopup } from '@/components/annotations/PicturePopup';
-import { CameraControls } from '@/components/camera/CameraControls';
+import { SupportButton } from '@/components/header/SupportButton';
+import { InfoPanel } from '@/components/info/InfoPanel';
 import { FeedbackSolicitation } from '@/components/feedback/FeedbackSolicitation';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight } from 'lucide-react';
+import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info } from 'lucide-react';
 import { gsap } from 'gsap';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -116,7 +118,7 @@ function App() {
           </div>
           
           <div className="flex items-center gap-2">
-            <CameraControls />
+            <SupportButton />
             <div className="flex items-center rounded-full border border-white/30 bg-white/10 p-0.5">
               <a
                 href="/app"
@@ -135,8 +137,16 @@ function App() {
             <button
               onClick={toggleFullscreen}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="Toggle fullscreen"
             >
               {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={() => setShowInfoPanel(!showInfoPanel)}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="About & Info"
+            >
+              {showInfoPanel ? <X className="w-5 h-5" /> : <Info className="w-5 h-5" />}
             </button>
           </div>
         </header>
@@ -241,6 +251,13 @@ function App() {
               </div>
             )}
           </div>
+
+          {/* Info Panel (Right Side) */}
+          {showInfoPanel && (
+            <div className="w-80 flex-shrink-0 overflow-hidden">
+              <InfoPanel onClose={() => setShowInfoPanel(false)} />
+            </div>
+          )}
         </main>
         
         <Toaster 
