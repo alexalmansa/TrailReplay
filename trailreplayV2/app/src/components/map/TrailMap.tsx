@@ -375,14 +375,34 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
 
-    // Fit bounds to all tracks
+    // Fit bounds to all tracks - show overview without aggressive zoom
     if (allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
 
       // Only fit bounds on initial load or when tracks change significantly
       if (animationPhase === 'idle' && playback.progress === 0) {
-        map.current.fitBounds(bounds, { padding: 100, duration: 500, maxZoom: 15 });
+        // Use setTimeout like v1 to ensure map is ready
+        setTimeout(() => {
+          if (!map.current) return;
+
+          // Workaround: do a tiny zoom adjustment first to "wake up" the map
+          // This fixes an issue where the initial fitBounds doesn't work correctly
+          const currentZoom = map.current.getZoom();
+          map.current.setZoom(currentZoom - 0.01);
+
+          // Now fit bounds with conservative maxZoom (12 = overview level like v1)
+          setTimeout(() => {
+            if (!map.current) return;
+            map.current.fitBounds(bounds, {
+              padding: 80,
+              duration: 800,
+              maxZoom: 12,  // Conservative zoom to show full track
+              pitch: 0,
+              bearing: 0
+            });
+          }, 50);
+        }, 100);
       }
     }
   }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
