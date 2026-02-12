@@ -87,6 +87,61 @@ function smoothBearing(currentBearing: number, targetBearing: number, smoothingF
   return (currentBearing + change + 360) % 360;
 }
 
+// Terrain-aware camera settings (based on v1 FollowBehindCamera)
+const TERRAIN_CAMERA_SETTINGS = {
+  // Risk thresholds
+  ELEVATION_RISK_METERS: 1200, // At this elevation, risk is 100%
+  STEEPNESS_RISK_FACTOR: 18,   // Multiplier for slope risk
+  LOOK_AHEAD_PROGRESS: 0.02,   // How far ahead/behind to check for slope
+
+  // Dynamic adjustments
+  MAX_ZOOM_OUT: 1.5,           // Max zoom levels to reduce
+  MAX_PITCH_REDUCE: 12,        // Max pitch degrees to reduce
+
+  // Limits
+  MIN_ZOOM: 10,
+  MAX_ZOOM: 18,
+  MIN_PITCH: 20,
+  MAX_PITCH: 65,
+};
+
+// Calculate terrain-aware camera adjustments
+function calculateTerrainAwareAdjustments(
+  elevation: number,
+  elevationData: Array<{ elevation: number; progress: number }>,
+  currentProgress: number
+): { zoomAdjust: number; pitchAdjust: number } {
+  // Calculate elevation risk (0-1 based on how high we are)
+  const elevationRisk = Math.min(
+    Math.max(0, elevation) / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS,
+    1
+  );
+
+  // Calculate steepness risk based on elevation change
+  let steepnessRisk = 0;
+  if (elevationData.length > 2) {
+    const lookAhead = TERRAIN_CAMERA_SETTINGS.LOOK_AHEAD_PROGRESS;
+    const behindIdx = Math.max(0, Math.floor((currentProgress - lookAhead) * (elevationData.length - 1)));
+    const aheadIdx = Math.min(elevationData.length - 1, Math.floor((currentProgress + lookAhead) * (elevationData.length - 1)));
+
+    const behindElev = elevationData[behindIdx]?.elevation || elevation;
+    const aheadElev = elevationData[aheadIdx]?.elevation || elevation;
+    const elevChange = Math.abs(aheadElev - behindElev);
+
+    // Normalize steepness (higher change = more risk)
+    steepnessRisk = Math.min(elevChange / 100 * TERRAIN_CAMERA_SETTINGS.STEEPNESS_RISK_FACTOR / 100, 1);
+  }
+
+  // Combined risk is the maximum of elevation and steepness risks
+  const combinedRisk = Math.max(elevationRisk, steepnessRisk);
+
+  // Calculate adjustments
+  const zoomAdjust = combinedRisk * TERRAIN_CAMERA_SETTINGS.MAX_ZOOM_OUT;
+  const pitchAdjust = combinedRisk * TERRAIN_CAMERA_SETTINGS.MAX_PITCH_REDUCE;
+
+  return { zoomAdjust, pitchAdjust };
+}
+
 export function TrailMap({}: TrailMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -116,6 +171,7 @@ export function TrailMap({}: TrailMapProps) {
     isInTransport,
     currentTrackColor,
     segmentTimings,
+    elevationData,
   } = useComputedJourney();
 
   // Initialize map
@@ -432,10 +488,28 @@ export function TrailMap({}: TrailMapProps) {
       } else if (mode === 'follow-behind') {
         const cameraBearing = smoothBearingRef.current;
 
+        // Calculate terrain-aware adjustments for high-elevation trails
+        const currentElevation = currentPosition.elevation || 0;
+        const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
+          currentElevation,
+          elevationData,
+          playback.progress
+        );
+
+        // Apply terrain adjustments - zoom out and reduce pitch at high elevations
+        const adjustedZoom = Math.max(
+          TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
+          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
+        );
+        const adjustedPitch = Math.max(
+          TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
+          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
+        );
+
         map.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: preset.zoom,
-          pitch: preset.pitch,
+          zoom: adjustedZoom,
+          pitch: adjustedPitch,
           bearing: cameraBearing,
           duration: 100,
         });
@@ -451,7 +525,7 @@ export function TrailMap({}: TrailMapProps) {
       bearing: map.current.getBearing(),
     });
   }, [currentPosition, currentBearing, completedCoordinates, playback.progress, animationPhase,
-      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor]);
+      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData]);
 
   // Handle camera mode changes
   useEffect(() => {
@@ -501,10 +575,27 @@ export function TrailMap({}: TrailMapProps) {
         let initialBearing = (Math.atan2(y, x) * 180) / Math.PI;
         initialBearing = (initialBearing + 360) % 360;
 
+        // Calculate terrain-aware adjustments for starting position
+        const startElevation = elevationData.length > 0 ? elevationData[0].elevation : 0;
+        const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
+          startElevation,
+          elevationData,
+          0
+        );
+
+        const adjustedZoom = Math.max(
+          TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
+          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
+        );
+        const adjustedPitch = Math.max(
+          TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
+          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
+        );
+
         map.current.flyTo({
           center: startPoint as [number, number],
-          zoom: preset.zoom,
-          pitch: preset.pitch,
+          zoom: adjustedZoom,
+          pitch: adjustedPitch,
           bearing: initialBearing,
           duration: INTRO_DURATION,
           easing: (t) => 1 - Math.pow(1 - t, 3),
@@ -529,7 +620,7 @@ export function TrailMap({}: TrailMapProps) {
       allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
       map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
     }
-  }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded]);
+  }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded, elevationData]);
 
   // Add picture markers
   useEffect(() => {
