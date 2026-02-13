@@ -466,6 +466,8 @@ export const translations = {
             // Map Style Options
             mapStyleSatelliteWithNames: "🛰️🗺️ Satellite with Names",
             mapStyleSatellite: "🛰️ Satellite", 
+            mapStyleLight: "🌤️ Light",
+            mapStyleDark: "🌙 Dark",
             mapStyleTerrain: "🗻 Terrain (OpenTopoMap)",
             mapStyleStreet: "🗺️ Street",
             markerSize: "Marker Size",
@@ -497,6 +499,10 @@ export const translations = {
             unitsLabel: "Units",
             unitsMetric: "Metric (km)",
             unitsImperial: "Imperial (mi)",
+            performanceMode: "Performance Mode",
+            performanceModeHint: "Reduce visual effects for smoother playback.",
+            performanceModeOn: "Performance mode enabled",
+            performanceModeOff: "Performance mode disabled",
             
             // Comparison Mode
             comparisonSettings: "🏃‍♂️ Comparison Mode",
@@ -891,6 +897,7 @@ export const translations = {
             landscape: "16:9 Landscape",
             square: "1:1 Square", 
             mobile: "9:16 Mobile",
+            durationNote: "⏱️ Export length follows your Journey Timing. Adjust segment durations to control the final video length.",
             autoWebMShort: "Auto (WebM)",
             autoMP4Short: "Auto (MP4)",
             manualModeShort: "Manual Mode",
@@ -1442,6 +1449,8 @@ export const translations = {
             // Map Style Options
             mapStyleSatelliteWithNames: "🛰️🗺️ Satélite con Nombres",
             mapStyleSatellite: "🛰️ Satélite", 
+            mapStyleLight: "🌤️ Claro",
+            mapStyleDark: "🌙 Oscuro",
             mapStyleTerrain: "🗻 Terreno (OpenTopoMap)",
             mapStyleStreet: "🗺️ Calles",
             showMarker: "Mostrar Marcador",
@@ -1466,6 +1475,10 @@ export const translations = {
     unitsLabel: "Unidades",
     unitsMetric: "Métrico (km)",
     unitsImperial: "Imperial (mi)",
+    performanceMode: "Modo de rendimiento",
+    performanceModeHint: "Reduce efectos visuales para una reproducción más fluida.",
+    performanceModeOn: "Modo de rendimiento activado",
+    performanceModeOff: "Modo de rendimiento desactivado",
             
             // Comparison Mode
             comparisonSettings: "🏃‍♂️ Modo Comparación",
@@ -1858,6 +1871,7 @@ export const translations = {
             landscape: "16:9 Horizontal",
             square: "1:1 Cuadrado",
             mobile: "9:16 Móvil",
+            durationNote: "⏱️ La duración del video sigue el Tiempo del Viaje. Ajusta las duraciones de los segmentos para controlar la longitud final.",
             autoWebMShort: "Auto (WebM)",
             autoMP4Short: "Auto (MP4)",
             manualModeShort: "Modo Manual",
@@ -2379,6 +2393,8 @@ export const translations = {
                 // Map Style Options
                 mapStyleSatelliteWithNames: "🛰️🗺️ Satèl·lit amb Noms",
                 mapStyleSatellite: "🛰️ Satèl·lit", 
+                mapStyleLight: "🌤️ Clar",
+                mapStyleDark: "🌙 Fosc",
                 mapStyleTerrain: "🗻 Terreny (OpenTopoMap)",
                 mapStyleStreet: "🗺️ Carrers",
                 showMarker: "Mostrar Marcador",
@@ -2403,6 +2419,10 @@ export const translations = {
                 unitsLabel: "Unitats",
                 unitsMetric: "Mètric (km)",
                 unitsImperial: "Imperial (mi)",
+                performanceMode: "Mode de rendiment",
+                performanceModeHint: "Redueix efectes visuals per una reproducció més fluida.",
+                performanceModeOn: "Mode de rendiment activat",
+                performanceModeOff: "Mode de rendiment desactivat",
 
                 // Comparison Mode
                 comparisonSettings: "🏃‍♂️ Mode Comparació",
@@ -2805,6 +2825,7 @@ export const translations = {
                 landscape: "16:9 Horitzontal",
                 square: "1:1 Quadrat",
                 mobile: "9:16 Mòbil",
+                durationNote: "⏱️ La durada del vídeo segueix el Temps del Viatge. Ajusta les durades dels segments per controlar la longitud final.",
                 autoWebMShort: "Auto (WebM)",
                 autoMP4Short: "Auto (MP4)",
                 manualModeShort: "Mode Manual",

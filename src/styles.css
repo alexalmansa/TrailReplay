@@ -176,6 +176,40 @@ body {
     z-index: 100;
 }
 
+/* Version Switcher */
+.version-switcher {
+    position: absolute;
+    top: 1rem;
+    right: 9.5rem;
+    display: inline-flex;
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    padding: 0.2rem;
+    gap: 0.2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+}
+
+.version-switcher-link {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--evergreen);
+    transition: all 200ms ease-out;
+}
+
+.version-switcher-link.active {
+    background: var(--trail-orange);
+    color: var(--canvas);
+}
+
+.version-switcher-link:not(.active):hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
 .support-button:hover {
     background: #FFDD44;
     color: var(--evergreen);
@@ -884,6 +918,12 @@ body {
     font-weight: 600;
     color: var(--evergreen);
     font-size: 0.9rem;
+}
+
+.control-hint {
+    font-size: 0.75rem;
+    color: rgba(23, 38, 31, 0.7);
+    line-height: 1.3;
 }
 
 .control-group select,
@@ -3390,6 +3430,20 @@ body.route-drawing-active .transportation-options {
     display: block;
 }
 
+.performance-mode .live-stats-overlay,
+.performance-mode .speed-segment-item,
+.performance-mode .export-panel,
+.performance-mode .segment-item,
+.performance-mode .modal-content {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.performance-mode .live-stats-overlay,
+.performance-mode .speed-segment-item {
+    background: rgba(0, 0, 0, 0.65) !important;
+}
+
 .performance-stat {
     display: flex;
     justify-content: space-between;
@@ -5556,4 +5610,90 @@ select.footer-link:hover {
     content: 'Loading ad...';
     color: rgba(0, 0, 0, 0.4);
     font-size: 0.85rem;
+}
+
+
+/* ============================================
+   PERFORMANCE MODE STYLES
+   ============================================ */
+
+/* Performance mode active - reduce visual effects */
+body.performance-mode-active {
+    /* Disable expensive CSS effects */
+    --shadow-intensity: 0.1;
+}
+
+/* Simplified live stats overlay in performance mode */
+body.performance-mode-active #liveStatsOverlay,
+#liveStatsOverlay.performance-simplified {
+    /* Remove backdrop blur and expensive effects */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    
+    /* Simpler background */
+    background: rgba(0, 0, 0, 0.75) !important;
+    
+    /* Remove text shadow for better performance */
+    text-shadow: none !important;
+    
+    /* Simpler box shadow */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Simplified elevation profile in performance mode */
+body.performance-mode-active #elevationProfileSvg,
+#elevationProfileSvg.performance-simplified {
+    /* Disable expensive SVG filters */
+    filter: none !important;
+}
+
+/* Reduce marker glow effect in performance mode */
+body.performance-mode-active .marker-glow,
+body.performance-mode-active #current-position-glow {
+    display: none !important;
+}
+
+/* Simplify animations in performance mode */
+body.performance-mode-active .live-stat-value,
+body.performance-mode-active .final-stat-value {
+    /* Disable value change animations */
+    transition: none !important;
+}
+
+body.performance-mode-active .segment-change {
+    /* Simplify segment change animation */
+    animation: none !important;
+}
+
+/* Reduce map overlay complexity */
+body.performance-mode-active .map-watermark {
+    /* Simpler watermark rendering */
+    opacity: 0.6 !important;
+}
+
+/* Performance mode toggle styling */
+#performanceModeToggle:checked + .toggle-slider {
+    background-color: #2E7D32;
+}
+
+/* Performance profiler display */
+#performance-profiler {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+/* Stats reduced refresh rate indicator */
+.performance-mode-active .stats-refresh-indicator {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #2E7D32;
+    border-radius: 50%;
+    margin-left: 6px;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
