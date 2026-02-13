@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatSpeed, formatDuration, formatElevation } from '@/utils/units';
+import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import {
   Route,
   Timer,
-  Gauge,
+  Clock,
   Mountain,
   Heart,
   Zap,
@@ -32,12 +32,18 @@ export function StatsOverlay() {
     if (!currentPosition) return null;
 
     // Calculate cumulative distance based on journey progress
+    // totalDistance is in meters (from gpxParser using Haversine)
     const distanceAtProgress = totalDistance * playback.progress;
 
+    // Calculate average pace (m/s) from distance covered and time elapsed
+    const durationSeconds = playback.currentTime / 1000;
+    const averageSpeedMps = durationSeconds > 0 ? distanceAtProgress / durationSeconds : 0;
+
     return {
-      distance: distanceAtProgress,
-      duration: playback.currentTime / 1000, // Convert ms to seconds
-      speed: currentPosition.speed || 0,
+      distance: distanceAtProgress, // in meters
+      duration: durationSeconds,
+      averageSpeed: averageSpeedMps, // m/s for pace calculation
+      currentSpeed: currentPosition.speed || 0, // km/h for transport display
       elevation: currentPosition.elevation || 0,
       heartRate: currentPosition.heartRate,
       cadence: currentPosition.cadence,
@@ -92,7 +98,7 @@ export function StatsOverlay() {
         <StatItem
           icon={<Route className="w-4 h-4" />}
           label="Distance"
-          value={formatDistance(currentStats.distance * 1000, settings.unitSystem)} // Convert km to m
+          value={formatDistance(currentStats.distance, settings.unitSystem)}
         />
         <StatItem
           icon={<Timer className="w-4 h-4" />}
@@ -100,12 +106,9 @@ export function StatsOverlay() {
           value={formatDuration(currentStats.duration)}
         />
         <StatItem
-          icon={<Gauge className="w-4 h-4" />}
-          label="Speed"
-          value={isInTransport
-            ? formatSpeed(currentStats.speed, settings.unitSystem)
-            : formatSpeed(currentStats.speed / 3.6, settings.unitSystem) // Convert km/h to m/s for track
-          }
+          icon={<Clock className="w-4 h-4" />}
+          label="Avg Pace"
+          value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
         />
       </div>
 

@@ -62,7 +62,7 @@ export interface ComputedJourney {
   coordinates: JourneyPoint[];
   segmentTimings: SegmentTiming[];
   totalDuration: number; // in ms
-  totalDistance: number; // in km
+  totalDistance: number; // in meters (from gpxParser Haversine)
   trackDuration: number; // in ms
   transportDuration: number; // in ms
 }
