@@ -26,6 +26,7 @@ export function StatsOverlay() {
     isInTransport,
     totalDistance,
     segmentTimings,
+    activeTrack,
   } = useComputedJourney();
 
   const currentStats = useMemo(() => {
@@ -35,13 +36,38 @@ export function StatsOverlay() {
     // totalDistance is in meters (from gpxParser using Haversine)
     const distanceAtProgress = totalDistance * playback.progress;
 
-    // Calculate average pace (m/s) from distance covered and time elapsed
-    const durationSeconds = playback.currentTime / 1000;
-    const averageSpeedMps = durationSeconds > 0 ? distanceAtProgress / durationSeconds : 0;
+    // Calculate real elapsed time from actual track data (not animation time)
+    // For single track: use track's totalTime proportional to progress
+    // For multi-segment journeys: sum real track durations proportionally
+    let realElapsedSeconds = 0;
+    if (segmentTimings.length > 0) {
+      // Multi-segment journey: sum real track time up to current progress
+      for (const timing of segmentTimings) {
+        if (timing.type !== 'track' || !timing.trackId) continue;
+        const track = tracks.find((t) => t.id === timing.trackId);
+        if (!track) continue;
+        const trackRealTime = track.movingTime || track.totalTime;
+        if (playback.progress >= timing.progressEndRatio) {
+          realElapsedSeconds += trackRealTime;
+        } else if (playback.progress > timing.progressStartRatio) {
+          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
+          const localProgress = segmentSpan > 0
+            ? (playback.progress - timing.progressStartRatio) / segmentSpan
+            : 0;
+          realElapsedSeconds += trackRealTime * localProgress;
+        }
+      }
+    } else if (activeTrack) {
+      // Single track mode: use track's real time proportional to progress
+      const trackRealTime = activeTrack.movingTime || activeTrack.totalTime;
+      realElapsedSeconds = trackRealTime * playback.progress;
+    }
+
+    const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
     return {
       distance: distanceAtProgress, // in meters
-      duration: durationSeconds,
+      duration: realElapsedSeconds,
       averageSpeed: averageSpeedMps, // m/s for pace calculation
       currentSpeed: currentPosition.speed || 0, // km/h for transport display
       elevation: currentPosition.elevation || 0,
@@ -49,7 +75,7 @@ export function StatsOverlay() {
       cadence: currentPosition.cadence,
       power: currentPosition.power,
     };
-  }, [currentPosition, playback.progress, playback.currentTime, totalDistance]);
+  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks]);
 
   // Get current track info
   const currentTrackInfo = useMemo(() => {

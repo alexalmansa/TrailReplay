@@ -160,6 +160,7 @@ export function TrailMap({}: TrailMapProps) {
   const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const comparisonTracks = useAppStore((state) => state.comparisonTracks);
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
@@ -233,6 +234,14 @@ export function TrailMap({}: TrailMapProps) {
       });
     }
 
+    // Track label source
+    if (!map.current.getSource('main-track-label')) {
+      map.current.addSource('main-track-label', {
+        type: 'geojson',
+        data: { type: 'Feature', properties: { label: '' }, geometry: { type: 'Point', coordinates: [0, 0] } }
+      });
+    }
+
     // Add layers
     if (!map.current.getLayer('trail-line')) {
       map.current.addLayer({
@@ -267,6 +276,29 @@ export function TrailMap({}: TrailMapProps) {
         source: 'trail-completed',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: { 'line-color': '#C1652F', 'line-width': 6 }
+      });
+    }
+
+    // Track label layer
+    if (!map.current.getLayer('main-track-label')) {
+      map.current.addLayer({
+        id: 'main-track-label',
+        type: 'symbol',
+        source: 'main-track-label',
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 12,
+          'text-offset': [0, 2.5],
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+          'text-anchor': 'center',
+          'visibility': 'none',
+        },
+        paint: {
+          'text-color': trailStyle.trailColor,
+          'text-halo-color': '#FFFFFF',
+          'text-halo-width': 2,
+        },
       });
     }
   }, []);
@@ -316,6 +348,29 @@ export function TrailMap({}: TrailMapProps) {
       map.current.setPaintProperty('trail-completed', 'line-color', color);
     }
   }, [trailStyle.trailColor, currentTrackColor, isMapLoaded]);
+
+  // Update track label visibility, text, and color
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    if (map.current.getLayer('main-track-label')) {
+      map.current.setLayoutProperty(
+        'main-track-label',
+        'visibility',
+        trailStyle.showTrackLabels ? 'visible' : 'none'
+      );
+      const color = currentTrackColor || trailStyle.trailColor;
+      map.current.setPaintProperty('main-track-label', 'text-color', color);
+    }
+
+    if (map.current.getSource('main-track-label')) {
+      (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: { label: trailStyle.trackLabel || '' },
+        geometry: { type: 'Point', coordinates: [0, 0] },
+      });
+    }
+  }, [trailStyle.showTrackLabels, trailStyle.trackLabel, trailStyle.trailColor, currentTrackColor, isMapLoaded]);
 
   // Toggle 3D terrain
   useEffect(() => {
@@ -484,6 +539,15 @@ export function TrailMap({}: TrailMapProps) {
         type: 'Feature',
         properties: {},
         geometry: { type: 'LineString', coordinates: completedCoordinates },
+      });
+    }
+
+    // Update track label position to follow marker
+    if (trailStyle.showTrackLabels && map.current.getSource('main-track-label')) {
+      (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: { label: trailStyle.trackLabel || '' },
+        geometry: { type: 'Point', coordinates: [currentPosition.lon, currentPosition.lat] },
       });
     }
 
@@ -709,6 +773,155 @@ export function TrailMap({}: TrailMapProps) {
       }
     });
   }, [pictures, isMapLoaded, settings.showPictures, setSelectedPictureId]);
+
+  // Setup and update comparison track layers
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    // Clean up old comparison layers
+    ['comparison-trail-line', 'comparison-trail-completed', 'comparison-position-glow', 'comparison-track-label'].forEach((layerId) => {
+      if (map.current!.getLayer(layerId)) map.current!.removeLayer(layerId);
+    });
+    ['comparison-trail', 'comparison-trail-completed', 'comparison-position', 'comparison-track-label'].forEach((sourceId) => {
+      if (map.current!.getSource(sourceId)) map.current!.removeSource(sourceId);
+    });
+
+    if (comparisonTracks.length === 0) return;
+
+    const ct = comparisonTracks[0]; // Support first comparison track
+    const coords = ct.track.points.map((p) => [p.lon, p.lat]);
+
+    // Full trail
+    map.current.addSource('comparison-trail', {
+      type: 'geojson',
+      data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } },
+    });
+    map.current.addLayer({
+      id: 'comparison-trail-line',
+      type: 'line',
+      source: 'comparison-trail',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': ct.color, 'line-width': 4, 'line-opacity': 0.5 },
+    });
+
+    // Completed trail
+    map.current.addSource('comparison-trail-completed', {
+      type: 'geojson',
+      data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } },
+    });
+    map.current.addLayer({
+      id: 'comparison-trail-completed',
+      type: 'line',
+      source: 'comparison-trail-completed',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': ct.color, 'line-width': 6 },
+    });
+
+    // Marker glow
+    map.current.addSource('comparison-position', {
+      type: 'geojson',
+      data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: coords[0] || [0, 0] } },
+    });
+    map.current.addLayer({
+      id: 'comparison-position-glow',
+      type: 'circle',
+      source: 'comparison-position',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': ct.color,
+        'circle-opacity': 0.6,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#FFFFFF',
+      },
+    });
+
+    // Label
+    map.current.addSource('comparison-track-label', {
+      type: 'geojson',
+      data: { type: 'Feature', properties: { label: ct.name }, geometry: { type: 'Point', coordinates: coords[0] || [0, 0] } },
+    });
+    map.current.addLayer({
+      id: 'comparison-track-label',
+      type: 'symbol',
+      source: 'comparison-track-label',
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-size': 11,
+        'text-offset': [0, 2],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+        'text-anchor': 'center',
+      },
+      paint: {
+        'text-color': ct.color,
+        'text-halo-color': '#FFFFFF',
+        'text-halo-width': 2,
+      },
+    });
+  }, [comparisonTracks, isMapLoaded]);
+
+  // Update comparison track position during animation
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || comparisonTracks.length === 0) return;
+
+    const ct = comparisonTracks[0];
+    if (!ct.visible) return;
+
+    const points = ct.track.points;
+    if (points.length === 0) return;
+
+    // Spatial-only: comparison progress matches main progress
+    const progress = playback.progress;
+    const targetDistance = ct.track.totalDistance * progress;
+
+    // Find the point at this distance
+    let pointIndex = 0;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].distance >= targetDistance) {
+        pointIndex = i;
+        break;
+      }
+      pointIndex = i;
+    }
+
+    const point = points[pointIndex];
+    const currentCoord: [number, number] = [point.lon, point.lat];
+
+    // Completed coordinates
+    const completed: number[][] = [];
+    for (const p of points) {
+      if (p.distance <= targetDistance) {
+        completed.push([p.lon, p.lat]);
+      } else {
+        break;
+      }
+    }
+
+    // Update sources
+    if (map.current.getSource('comparison-trail-completed') && completed.length > 1) {
+      (map.current.getSource('comparison-trail-completed') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: completed },
+      });
+    }
+
+    if (map.current.getSource('comparison-position')) {
+      (map.current.getSource('comparison-position') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: currentCoord },
+      });
+    }
+
+    if (map.current.getSource('comparison-track-label')) {
+      (map.current.getSource('comparison-track-label') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: { label: ct.name },
+        geometry: { type: 'Point', coordinates: currentCoord },
+      });
+    }
+  }, [comparisonTracks, playback.progress, isMapLoaded]);
 
   return (
     <div className="w-full h-full relative">

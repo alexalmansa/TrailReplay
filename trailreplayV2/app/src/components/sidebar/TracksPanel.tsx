@@ -1,19 +1,22 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
+import { parseGPX } from '@/utils/gpxParser';
 import { formatDistance, formatDuration, formatSpeed } from '@/utils/units';
-import { 
-  Upload, 
-  GripVertical, 
-  Eye, 
+import {
+  Upload,
+  GripVertical,
+  Eye,
   EyeOff,
   Palette,
   Play,
   Trash2,
   Clock,
   TrendingUp,
-  Navigation
+  Navigation,
+  GitCompareArrows,
+  X,
 } from 'lucide-react';
 
 const TRACK_COLORS = [
@@ -207,6 +210,8 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
   );
 }
 
+const COMPARISON_COLORS = ['#DC2626', '#2563EB', '#059669', '#7C3AED', '#D97706'];
+
 export function TracksPanel() {
   const { parseFiles, isParsing } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -217,6 +222,39 @@ export function TracksPanel() {
   const toggleTrackVisibility = useAppStore((state) => state.toggleTrackVisibility);
   const reorderTracks = useAppStore((state) => state.reorderTracks);
   const settings = useAppStore((state) => state.settings);
+
+  // Comparison track state
+  const comparisonTracks = useAppStore((state) => state.comparisonTracks);
+  const addComparisonTrack = useAppStore((state) => state.addComparisonTrack);
+  const removeComparisonTrack = useAppStore((state) => state.removeComparisonTrack);
+  const [showComparison, setShowComparison] = useState(comparisonTracks.length > 0);
+  const [isParsingComparison, setIsParsingComparison] = useState(false);
+  const comparisonFileRef = useRef<HTMLInputElement>(null);
+
+  const handleComparisonFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.name.endsWith('.gpx')) return;
+
+    setIsParsingComparison(true);
+    try {
+      const content = await file.text();
+      const track = parseGPX(content, file.name);
+      const colorIndex = comparisonTracks.length % COMPARISON_COLORS.length;
+      addComparisonTrack({
+        id: `comparison-${Date.now()}`,
+        name: track.name,
+        color: COMPARISON_COLORS[colorIndex],
+        track,
+        visible: true,
+        offset: 0,
+      });
+    } catch (err) {
+      console.error('Failed to parse comparison GPX:', err);
+    } finally {
+      setIsParsingComparison(false);
+      if (comparisonFileRef.current) comparisonFileRef.current.value = '';
+    }
+  }, [addComparisonTrack, comparisonTracks.length]);
   
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const gpxFiles = acceptedFiles.filter(
@@ -297,6 +335,74 @@ export function TracksPanel() {
         </div>
       )}
       
+      {/* Comparison Mode */}
+      {tracks.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowComparison(!showComparison)}
+            className="flex items-center gap-2 w-full text-left mb-3"
+          >
+            <GitCompareArrows className="w-4 h-4 text-[var(--evergreen-60)]" />
+            <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+              Comparison Mode
+            </h3>
+            <span className="text-xs text-[var(--evergreen-60)] ml-auto">
+              {showComparison ? '▾' : '▸'}
+            </span>
+          </button>
+
+          {showComparison && (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--evergreen-60)]">
+                Add a second GPX track to compare side-by-side during animation.
+              </p>
+
+              {/* Comparison track list */}
+              {comparisonTracks.map((ct) => (
+                <div key={ct.id} className="tr-journey-segment p-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: ct.color }}
+                    />
+                    <span className="text-sm font-medium text-[var(--evergreen)] truncate flex-1">
+                      {ct.name}
+                    </span>
+                    <span className="text-xs text-[var(--evergreen-60)]">
+                      {formatDistance(ct.track.totalDistance, settings.unitSystem)}
+                    </span>
+                    <button
+                      onClick={() => removeComparisonTrack(ct.id)}
+                      className="p-1 hover:bg-red-100 text-red-500 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add comparison file */}
+              <div>
+                <input
+                  ref={comparisonFileRef}
+                  type="file"
+                  accept=".gpx"
+                  onChange={handleComparisonFile}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => comparisonFileRef.current?.click()}
+                  disabled={isParsingComparison}
+                  className="tr-btn tr-btn-secondary w-full text-sm"
+                >
+                  {isParsingComparison ? 'Parsing...' : '+ Add Comparison Track'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Empty State */}
       {tracks.length === 0 && !isParsing && (
         <div className="text-center py-8 text-[var(--evergreen-60)]">

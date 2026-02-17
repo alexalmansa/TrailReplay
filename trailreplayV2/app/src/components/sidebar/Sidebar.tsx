@@ -65,13 +65,22 @@ export function Sidebar() {
       </div>
       
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === 'tracks' && <TracksPanel />}
-        {activeTab === 'journey' && <JourneyPanel />}
-        {activeTab === 'annotations' && <AnnotationsPanel />}
-        {activeTab === 'pictures' && <PicturesPanel />}
-        {activeTab === 'export' && <ExportPanel />}
-        {activeTab === 'settings' && <SettingsPanel />}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+        <div className="flex-1">
+          {activeTab === 'tracks' && <TracksPanel />}
+          {activeTab === 'journey' && <JourneyPanel />}
+          {activeTab === 'annotations' && <AnnotationsPanel />}
+          {activeTab === 'pictures' && <PicturesPanel />}
+          {activeTab === 'export' && <ExportPanel />}
+          {activeTab === 'settings' && <SettingsPanel />}
+        </div>
+        <div className="pt-6 pb-2 flex justify-center">
+          <img
+            src="/media/images/simplelogo.png"
+            alt="TrailReplay"
+            className="w-8 h-8 object-contain opacity-40"
+          />
+        </div>
       </div>
     </div>
   );
