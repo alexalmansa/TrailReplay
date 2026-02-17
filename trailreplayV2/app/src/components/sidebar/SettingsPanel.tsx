@@ -203,8 +203,8 @@ export function SettingsPanel() {
       {/* About */}
       <div className="pt-4 border-t-2 border-[var(--evergreen)]/20">
         <div className="text-center">
-          <div className="w-12 h-12 bg-[var(--trail-orange)] rounded-xl flex items-center justify-center mx-auto mb-2">
-            <span className="text-2xl">🏔️</span>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
+            <img src="/media/images/simplelogo.png" alt="TrailReplay" className="w-10 h-10 object-contain" />
           </div>
           <h4 className="font-bold text-[var(--evergreen)]">Trail Replay</h4>
           <p className="text-xs text-[var(--evergreen-60)]">GPX Visualization v2.0</p>

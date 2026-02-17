@@ -264,7 +264,6 @@ export class AnimationController {
             });
         }
 
-        console.log('AnimationController gpxParser:', this.renderer.gpxParser);
         const completedCoordinates = this.renderer.gpxParser.getTrackPointsToProgress(this.renderer.animationProgress, currentPoint);
         if (this.renderer.map.getSource('trail-completed')) {
             this.renderer.map.getSource('trail-completed').setData({
