@@ -114,11 +114,91 @@ export class MapRenderer {
                 } catch (_) {}
             }
         });
+        
+        // Performance mode optimizations
         if (this.performanceMode) {
             this.disable3DTerrain();
-        } else if (this.currentMapStyle === 'hybrid') {
-            this.enable3DTerrain();
+            this.enablePerformanceOptimizations();
+        } else {
+            if (this.currentMapStyle === 'hybrid') {
+                this.enable3DTerrain();
+            }
+            this.disablePerformanceOptimizations();
         }
+    }
+    
+    /**
+     * Enable performance optimizations for smoother playback
+     */
+    enablePerformanceOptimizations() {
+        // Reduce map detail level
+        if (this.map) {
+            // Disable render world copies (less rendering overhead)
+            try {
+                this.map.setRenderWorldCopies(false);
+            } catch (_) {}
+            
+            // Reduce tile cache size for lower memory usage
+            try {
+                this.map.setMaxZoom(16); // Limit max zoom in performance mode
+            } catch (_) {}
+        }
+        
+        // Apply performance CSS classes
+        if (typeof document !== 'undefined') {
+            document.body.classList.add('performance-mode-active');
+            
+            // Simplify live stats overlay
+            const liveStats = document.getElementById('liveStatsOverlay');
+            if (liveStats) {
+                liveStats.classList.add('performance-simplified');
+            }
+            
+            // Reduce elevation profile detail
+            const elevationProfile = document.getElementById('elevationProfileSvg');
+            if (elevationProfile) {
+                elevationProfile.classList.add('performance-simplified');
+            }
+        }
+        
+        // Reduce marker complexity
+        this.showCircle = false;
+        this.updateActivityIcon();
+        
+        console.log('🔧 Performance optimizations enabled');
+    }
+    
+    /**
+     * Disable performance optimizations (restore normal quality)
+     */
+    disablePerformanceOptimizations() {
+        if (this.map) {
+            try {
+                this.map.setRenderWorldCopies(true);
+                this.map.setMaxZoom(18);
+            } catch (_) {}
+        }
+        
+        if (typeof document !== 'undefined') {
+            document.body.classList.remove('performance-mode-active');
+            
+            const liveStats = document.getElementById('liveStatsOverlay');
+            if (liveStats) {
+                liveStats.classList.remove('performance-simplified');
+            }
+            
+            const elevationProfile = document.getElementById('elevationProfileSvg');
+            if (elevationProfile) {
+                elevationProfile.classList.remove('performance-simplified');
+            }
+        }
+        
+        // Restore marker circle (will be updated based on user settings)
+        const showCircleToggle = document.getElementById('showCircle');
+        this.showCircle = showCircleToggle ? showCircleToggle.checked : true;
+        this.updateActivityIcon();
+        
+        console.log('🔧 Performance optimizations disabled');
     }
 
     // Delegated Terrain Methods
@@ -942,36 +1022,54 @@ export class MapRenderer {
 
     // Map style methods
     changeMapStyle(style) {
+        // Track current style for preloading
+        this.currentMapStyle = style;
+        this.mapManager.currentBaseLayer = style;
+        
         // --- Handle hybrid style (now mountain satellite with 3D terrain) ---
         if (style === 'hybrid') {
             // Show satellite, enhanced hillshade, and labels
             this.showLayers(['background', 'enhanced-hillshade', 'carto-labels']);
-            this.hideLayers(['opentopomap', 'street', 'carto-light', 'carto-dark']);
+            this.hideLayers(['opentopomap', 'street', 'carto-light', 'carto-dark', 'carto-voyager', 'stadia-outdoors', 'usgs-topo']);
             this.enable3DTerrain(); // Enable 3D for better terrain visualization
-            this.currentMapStyle = style; // Track current style for preloading
             return;
         }
 
-        // --- Handle other styles ---
-        const config = layerConfigs[style] || layerConfigs['satellite'];
-        const baseLayers = ['background', 'opentopomap', 'street', 'carto-light', 'carto-dark', 'carto-labels', 'enhanced-hillshade'];
+        // --- Handle all other styles ---
+        const baseLayers = ['background', 'opentopomap', 'street', 'carto-light', 'carto-dark', 
+                           'carto-labels', 'enhanced-hillshade', 'carto-voyager', 'stadia-outdoors', 'usgs-topo'];
         this.hideLayers(baseLayers);
-        if (style === 'satellite') {
-            this.showLayers(['background']);
-        } else if (style === 'opentopomap') {
-            this.showLayers(['opentopomap']);
-        } else if (style === 'street') {
-            this.showLayers(['street']);
-        } else if (style === 'light') {
-            this.showLayers(['carto-light']);
-        } else if (style === 'dark') {
-            this.showLayers(['carto-dark']);
-        } else {
-            this.showLayers(['background']);
+        
+        switch (style) {
+            case 'satellite':
+                this.showLayers(['background']);
+                break;
+            case 'opentopomap':
+                this.showLayers(['opentopomap']);
+                break;
+            case 'street':
+                this.showLayers(['street']);
+                break;
+            case 'light':
+                this.showLayers(['carto-light']);
+                break;
+            case 'dark':
+                this.showLayers(['carto-dark']);
+                break;
+            case 'outdoors':
+                this.showLayers(['stadia-outdoors']);
+                break;
+            case 'voyager':
+                this.showLayers(['carto-voyager']);
+                break;
+            case 'topo':
+                this.showLayers(['usgs-topo']);
+                break;
+            default:
+                this.showLayers(['background']);
         }
 
         // Optionally update attribution UI here
-        this.currentMapStyle = style; // Track current style for preloading
     }
 
     // Helper methods for cleaner layer management
@@ -1521,27 +1619,44 @@ export class MapRenderer {
     }
 
     async waitForTerrainToLoad() {
-        return new Promise((resolve) => {
-            const checkTerrain = () => {
-                // Check if terrain is actually applied and ready
-                if (this.map.getTerrain && this.map.getTerrain()) {
-                    console.log('🎬 Terrain confirmed loaded');
-                    resolve();
-                } else {
-                    console.log('🎬 Waiting for terrain to load...');
-                    setTimeout(checkTerrain, 500);
-                }
-            };
+        const startTime = performance.now();
+        const maxWaitMs = 5000;
 
-            // Start checking immediately, but with a fallback timeout
-            checkTerrain();
+        // Phase 1: Wait for terrain object
+        while (!this.map.getTerrain || !this.map.getTerrain()) {
+            if (performance.now() - startTime > maxWaitMs) {
+                console.warn('🎬 Terrain object timeout, proceeding anyway');
+                return;
+            }
+            await new Promise(r => setTimeout(r, 100));
+        }
+        console.log('🎬 Terrain object confirmed');
 
-            // Fallback: resolve after 3 seconds even if terrain check fails
-            setTimeout(() => {
-                console.log('🎬 Terrain load timeout, proceeding anyway');
-                resolve();
-            }, 3000);
-        });
+        // Phase 2: Wait for DEM tiles via queryTerrainElevation
+        const testPoint = this.gpxParser?.getInterpolatedPoint(0);
+        if (testPoint && typeof testPoint.lat !== 'undefined') {
+            while (performance.now() - startTime < maxWaitMs) {
+                try {
+                    const elev = this.map.queryTerrainElevation(
+                        { lng: testPoint.lon, lat: testPoint.lat }
+                    );
+                    if (elev !== null && elev !== undefined) {
+                        console.log(`🎬 DEM tiles loaded, terrain elevation at start: ${elev.toFixed(1)}m`);
+                        return;
+                    }
+                } catch (_) {}
+                await new Promise(r => setTimeout(r, 150));
+            }
+            console.warn('🎬 DEM tile load timeout, proceeding with terrain object only');
+        } else {
+            await new Promise(r => {
+                let resolved = false;
+                const onIdle = () => { if (!resolved) { resolved = true; r(); } };
+                this.map.once('idle', onIdle);
+                setTimeout(() => { if (!resolved) { resolved = true; r(); } }, 2000);
+            });
+            console.log('🎬 Terrain wait completed via idle fallback');
+        }
     }
 
     initializeTerrainAwareSettings() {
@@ -1864,6 +1979,10 @@ export class MapRenderer {
     }
 
     // Getters for compatibility
+    get is3DMode() {
+        return this.terrainController?.is3DMode ?? false;
+    }
+
     get isAnnotationMode() {
         return this.annotations.isAnnotationMode;
     }

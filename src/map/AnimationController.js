@@ -27,8 +27,8 @@ export class AnimationController {
         
         if (this.renderer.cameraMode === 'followBehind' && this.renderer.followBehindCamera.shouldTriggerCinematic() && this.renderer.animationProgress <= 0.05) {
             this.renderer.followBehindCamera.setCinematicStart(false);
-            
-            if (this.renderer.followBehindCamera.startCinematicSequenceForVideoExport) {
+
+            if (this.renderer.followBehindCamera.isVideoExport) {
                 await this.renderer.followBehindCamera.startCinematicSequenceForVideoExport();
             } else {
                 await this.renderer.followBehindCamera.startCinematicSequence();
