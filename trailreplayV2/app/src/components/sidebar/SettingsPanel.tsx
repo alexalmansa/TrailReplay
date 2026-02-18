@@ -47,6 +47,7 @@ type WaybackItem = {
   releaseDate?: string;
   releaseDatetime?: number;
   itemURL: string;
+  itemTitle?: string;
 };
 
 const WAYBACK_CONFIG_URL = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json';
@@ -56,7 +57,19 @@ const getWaybackItems = async (): Promise<WaybackItem[]> => {
   if (!response.ok) throw new Error('Wayback config fetch failed');
   const data = await response.json();
   const configData = data?.waybackConfigData ?? data ?? {};
-  const items = Object.values(configData) as WaybackItem[];
+  const entries = Object.entries(configData) as Array<[string, WaybackItem]>;
+  const items = entries.map(([key, item]) => {
+    const releaseNum = Number(item.releaseNum ?? key);
+    const title = item.itemTitle ?? '';
+    const dateMatch = typeof title === 'string' ? title.match(/(\d{4}-\d{2}-\d{2})/) : null;
+    const releaseDateLabel = dateMatch?.[1] || item.releaseDateLabel || item.releaseDate || `Release ${releaseNum}`;
+    return {
+      ...item,
+      releaseNum,
+      releaseDateLabel,
+      releaseDate: item.releaseDate ?? releaseDateLabel,
+    };
+  });
   const getReleaseTime = (item: WaybackItem) => {
     if (typeof item.releaseDatetime === 'number') return item.releaseDatetime;
     const label = item.releaseDateLabel || item.releaseDate || '';
@@ -64,7 +77,7 @@ const getWaybackItems = async (): Promise<WaybackItem[]> => {
     return Number.isNaN(parsed) ? 0 : parsed;
   };
   return items
-    .filter((item) => item?.releaseNum && item?.itemURL)
+    .filter((item) => Number.isFinite(item.releaseNum) && !!item?.itemURL)
     .sort((a, b) => getReleaseTime(b) - getReleaseTime(a));
 };
 
