@@ -446,30 +446,41 @@ export function TrailMap({}: TrailMapProps) {
       // Only fit bounds on initial load or when tracks change significantly
       if (animationPhase === 'idle' && playback.progress === 0) {
         if (!loadZoomDoneRef.current) {
-          // First load: animate a brief zoom-out to wake up tile recalculation,
-          // then fit bounds smoothly. Mimics the user scrolling out.
+          // First load: fit bounds immediately, then simulate mouse-wheel scroll-out
+          // at the map center to force MapLibre tile/zoom recalculation.
           loadZoomDoneRef.current = true;
           setTimeout(() => {
             if (!map.current) return;
-            const currentZoom = map.current.getZoom();
-            // Zoom out 1.5 levels with a short ease
-            map.current.easeTo({
-              zoom: currentZoom - 1.5,
-              duration: 350,
-              easing: (t) => t * (2 - t),
+            map.current.fitBounds(bounds, {
+              padding: 80,
+              duration: 800,
+              maxZoom: 12,
+              pitch: 0,
+              bearing: 0,
             });
-            // Then fit to bounds after the zoom-out settles
-            setTimeout(() => {
-              if (!map.current) return;
-              map.current.fitBounds(bounds, {
-                padding: 80,
-                duration: 700,
-                maxZoom: 12,
-                pitch: 0,
-                bearing: 0,
-              });
-            }, 400);
-          }, 2150);
+          }, 100);
+
+          // After the view has settled, fire wheel events at the map center
+          setTimeout(() => {
+            const container = map.current?.getContainer();
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            // Fire a few scroll-down (zoom-out) wheel ticks
+            for (let i = 0; i < 4; i++) {
+              setTimeout(() => {
+                container.dispatchEvent(new WheelEvent('wheel', {
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: cx,
+                  clientY: cy,
+                  deltaY: 120,      // positive = scroll down = zoom out
+                  deltaMode: 0,     // DOM_DELTA_PIXEL
+                }));
+              }, i * 80);
+            }
+          }, 2200);
         } else {
           // Subsequent track changes: just fit bounds directly
           setTimeout(() => {
