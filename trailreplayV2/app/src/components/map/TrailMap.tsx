@@ -6,6 +6,7 @@ import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import { MapElevationProfile } from './MapElevationProfile';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import { mapGlobalRef } from '@/utils/mapRef';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -200,6 +201,9 @@ export function TrailMap({}: TrailMapProps) {
       attributionControl: false,
     } as any);
 
+    // Expose map instance globally so ExportPanel can call getCanvas() / triggerRepaint()
+    mapGlobalRef.current = map.current;
+
     map.current.on('load', () => {
       setIsMapLoaded(true);
       map.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -208,6 +212,7 @@ export function TrailMap({}: TrailMapProps) {
     });
 
     return () => {
+      mapGlobalRef.current = null;
       map.current?.remove();
       map.current = null;
       loadZoomDoneRef.current = false;

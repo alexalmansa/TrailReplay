@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
+import { mapGlobalRef } from '@/utils/mapRef';
 import {
   Download,
   Settings,
@@ -100,6 +101,7 @@ export function ExportPanel() {
   const recordedChunksRef = useRef<Blob[]>([]);
   const isRecordingRef = useRef(false);
   const frameRequestRef = useRef<number | null>(null);
+  const frameCleanupRef = useRef<(() => void) | null>(null);
 
   // Overlay capture refs — updated async via html2canvas, drawn sync each frame
   const cachedOverlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -232,7 +234,9 @@ export function ExportPanel() {
     const ctx = recordingContextRef.current;
     const { width: recordW, height: recordH } = videoExportSettings.resolution;
 
-    const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
+    // Use map.getCanvas() like v1 does — more reliable than DOM query
+    const mapCanvas = (mapGlobalRef.current?.getCanvas() ??
+      document.querySelector('.maplibregl-canvas')) as HTMLCanvasElement | null;
     const container = document.getElementById('map-capture-container');
 
     if (!mapCanvas || !container) {
@@ -281,22 +285,57 @@ export function ExportPanel() {
     }
   }, [videoExportSettings.resolution, getCropRegion, updateOverlayAsync]);
 
-  // Frame capture loop using requestAnimationFrame
+  // Frame capture — mirrors v1's approach:
+  // Listen to MapLibre's `render` event (fires AFTER each WebGL frame is drawn)
+  // so drawImage(mapCanvas) always reads a fresh, fully-rendered frame.
+  // A separate rAF loop calls triggerRepaint() to keep MapLibre rendering even
+  // when the animation hasn't changed (e.g., during intro/outro holds).
   const startFrameCapture = useCallback(() => {
-    const captureLoop = () => {
-      if (!isRecordingRef.current) return;
-      captureFrame();
+    const map = mapGlobalRef.current;
+    const targetFrameInterval = 1000 / videoExportSettings.fps;
+    let lastCaptureTime = 0;
+
+    if (map) {
+      // Primary: capture in MapLibre render event (after WebGL draw)
+      const onRender = () => {
+        if (!isRecordingRef.current) return;
+        const now = performance.now();
+        if (now - lastCaptureTime >= targetFrameInterval) {
+          captureFrame();
+          lastCaptureTime = now;
+        }
+      };
+      map.on('render', onRender);
+      frameCleanupRef.current = () => map.off('render', onRender);
+
+      // Secondary: rAF loop to keep triggerRepaint() running so render events fire
+      const keepRendering = () => {
+        if (!isRecordingRef.current) return;
+        map.triggerRepaint();
+        frameRequestRef.current = requestAnimationFrame(keepRendering);
+      };
+      frameRequestRef.current = requestAnimationFrame(keepRendering);
+    } else {
+      // Fallback: plain rAF if map not available
+      const captureLoop = () => {
+        if (!isRecordingRef.current) return;
+        captureFrame();
+        frameRequestRef.current = requestAnimationFrame(captureLoop);
+      };
       frameRequestRef.current = requestAnimationFrame(captureLoop);
-    };
-    frameRequestRef.current = requestAnimationFrame(captureLoop);
-  }, [captureFrame]);
+    }
+  }, [captureFrame, videoExportSettings.fps]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
 
     isRecordingRef.current = false;
 
-    // Stop frame capture
+    // Stop frame capture — remove render event listener and rAF loop
+    if (frameCleanupRef.current) {
+      frameCleanupRef.current();
+      frameCleanupRef.current = null;
+    }
     if (frameRequestRef.current) {
       cancelAnimationFrame(frameRequestRef.current);
       frameRequestRef.current = null;
@@ -434,6 +473,10 @@ export function ExportPanel() {
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
 
+    if (frameCleanupRef.current) {
+      frameCleanupRef.current();
+      frameCleanupRef.current = null;
+    }
     if (frameRequestRef.current) {
       cancelAnimationFrame(frameRequestRef.current);
     }
