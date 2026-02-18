@@ -150,6 +150,7 @@ export function TrailMap({}: TrailMapProps) {
   const targetBearingRef = useRef<number>(0);
   const introZoomTriggeredRef = useRef<boolean>(false);
   const lastAnimationPhaseRef = useRef<string>('idle');
+  const loadZoomDoneRef = useRef<boolean>(false);
 
   const tracks = useAppStore((state) => state.tracks);
   const settings = useAppStore((state) => state.settings);
@@ -209,6 +210,7 @@ export function TrailMap({}: TrailMapProps) {
     return () => {
       map.current?.remove();
       map.current = null;
+      loadZoomDoneRef.current = false;
     };
   }, []);
 
@@ -443,27 +445,44 @@ export function TrailMap({}: TrailMapProps) {
 
       // Only fit bounds on initial load or when tracks change significantly
       if (animationPhase === 'idle' && playback.progress === 0) {
-        // Use setTimeout like v1 to ensure map is ready
-        setTimeout(() => {
-          if (!map.current) return;
-
-          // Workaround: do a tiny zoom adjustment first to "wake up" the map
-          // This fixes an issue where the initial fitBounds doesn't work correctly
-          const currentZoom = map.current.getZoom();
-          map.current.setZoom(currentZoom - 0.01);
-
-          // Now fit bounds with conservative maxZoom (12 = overview level like v1)
+        if (!loadZoomDoneRef.current) {
+          // First load: animate a brief zoom-out to wake up tile recalculation,
+          // then fit bounds smoothly. Mimics the user scrolling out.
+          loadZoomDoneRef.current = true;
+          setTimeout(() => {
+            if (!map.current) return;
+            const currentZoom = map.current.getZoom();
+            // Zoom out 1.5 levels with a short ease
+            map.current.easeTo({
+              zoom: currentZoom - 1.5,
+              duration: 350,
+              easing: (t) => t * (2 - t),
+            });
+            // Then fit to bounds after the zoom-out settles
+            setTimeout(() => {
+              if (!map.current) return;
+              map.current.fitBounds(bounds, {
+                padding: 80,
+                duration: 700,
+                maxZoom: 12,
+                pitch: 0,
+                bearing: 0,
+              });
+            }, 400);
+          }, 150);
+        } else {
+          // Subsequent track changes: just fit bounds directly
           setTimeout(() => {
             if (!map.current) return;
             map.current.fitBounds(bounds, {
               padding: 80,
               duration: 800,
-              maxZoom: 12,  // Conservative zoom to show full track
+              maxZoom: 12,
               pitch: 0,
-              bearing: 0
+              bearing: 0,
             });
-          }, 50);
-        }, 100);
+          }, 100);
+        }
       }
     }
   }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
