@@ -469,7 +469,7 @@ export function TrailMap({}: TrailMapProps) {
                 bearing: 0,
               });
             }, 400);
-          }, 150);
+          }, 2150);
         } else {
           // Subsequent track changes: just fit bounds directly
           setTimeout(() => {
