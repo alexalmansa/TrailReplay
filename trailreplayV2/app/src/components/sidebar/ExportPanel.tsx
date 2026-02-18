@@ -105,6 +105,7 @@ export function ExportPanel() {
   const cachedOverlayRef = useRef<HTMLCanvasElement | null>(null);
   const overlayBusyRef = useRef(false);
   const overlayLastUpdateRef = useRef(0);
+  const cachedLogoRef = useRef<HTMLImageElement | null>(null);
 
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
 
@@ -162,7 +163,8 @@ export function ExportPanel() {
   }, []);
 
   // Async overlay update — captures ONLY the pure-HTML overlay elements (no WebGL).
-  // Draws them into an overlay canvas positioned relative to the crop region.
+  // Draws them at FIXED positions within the recording canvas so they're always
+  // visible regardless of aspect ratio crop (stats top-left, elevation bottom).
   const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
     if (overlayBusyRef.current || !(window as any).html2canvas) return;
     overlayBusyRef.current = true;
@@ -171,41 +173,54 @@ export function ExportPanel() {
       const container = document.getElementById('map-capture-container');
       if (!container) return;
       const containerRect = container.getBoundingClientRect();
-      const { cropX, cropY, cropW, cropH } = getCropRegion(containerRect, recordW, recordH);
-      const scaleX = recordW / cropW;
-      const scaleY = recordH / cropH;
+      const { cropW } = getCropRegion(containerRect, recordW, recordH);
+      // Screen px → recording px conversion
+      const scaleToRec = recordW / cropW;
+      const margin = Math.round(recordW * 0.025);
 
       const overlay = document.createElement('canvas');
       overlay.width = recordW;
       overlay.height = recordH;
       const octx = overlay.getContext('2d')!;
 
-      // Helper: capture a pure-HTML element and place it at its correct position in the recording
-      const captureEl = async (el: HTMLElement) => {
-        try {
-          const captured: HTMLCanvasElement = await (window as any).html2canvas(el, {
-            backgroundColor: null, scale: 1, logging: false, useCORS: true,
-          });
-          const r = el.getBoundingClientRect();
-          const x = (r.left - containerRect.left - cropX) * scaleX;
-          const y = (r.top - containerRect.top - cropY) * scaleY;
-          octx.drawImage(captured, x, y, r.width * scaleX, r.height * scaleY);
-        } catch { /* skip if element fails */ }
-      };
+      // Stats overlay — fixed at TOP-LEFT (always visible in any aspect ratio)
+      if (videoExportSettings.includeStats) {
+        const statsEl = document.querySelector('.tr-stats-overlay')?.parentElement as HTMLElement | null;
+        if (statsEl) {
+          try {
+            const cap: HTMLCanvasElement = await (window as any).html2canvas(statsEl, {
+              backgroundColor: null, scale: 1, logging: false, useCORS: true,
+            });
+            const dw = cap.width * scaleToRec;
+            const dh = cap.height * scaleToRec;
+            octx.drawImage(cap, 0, 0, cap.width, cap.height, margin, margin, dw, dh);
+          } catch { /* skip */ }
+        }
+      }
 
-      // Stats overlay — pure HTML, no WebGL
-      const statsWrapper = document.querySelector('.tr-stats-overlay')?.parentElement as HTMLElement | null;
-      if (statsWrapper) await captureEl(statsWrapper);
-
-      // Elevation profile — SVG-based, no WebGL
-      const elevEl = document.getElementById('mapElevationProfile') as HTMLElement | null;
-      if (elevEl) await captureEl(elevEl);
+      // Elevation profile — fixed at BOTTOM, centered horizontally
+      if (videoExportSettings.includeElevation) {
+        const elevEl = document.getElementById('mapElevationProfile') as HTMLElement | null;
+        if (elevEl) {
+          try {
+            const cap: HTMLCanvasElement = await (window as any).html2canvas(elevEl, {
+              backgroundColor: null, scale: 1, logging: false, useCORS: true,
+            });
+            const rawDw = cap.width * scaleToRec;
+            const dw = Math.min(rawDw, recordW * 0.85);
+            const dh = cap.height * (dw / cap.width);
+            const dx = (recordW - dw) / 2;
+            const dy = recordH - dh - margin;
+            octx.drawImage(cap, 0, 0, cap.width, cap.height, dx, dy, dw, dh);
+          } catch { /* skip */ }
+        }
+      }
 
       cachedOverlayRef.current = overlay;
     } catch { /* silently ignore */ } finally {
       overlayBusyRef.current = false;
     }
-  }, [getCropRegion]);
+  }, [getCropRegion, videoExportSettings.includeStats, videoExportSettings.includeElevation]);
 
   // Capture frame:
   // 1. Draw the MapLibre canvas DIRECTLY (always works, preserveDrawingBuffer:true)
@@ -246,7 +261,35 @@ export function ExportPanel() {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    // 3. Kick off async overlay refresh (throttled)
+    // 3. Draw logo watermark — always top-right corner
+    if (cachedLogoRef.current) {
+      const logoSize = Math.round(recordW * 0.045);
+      const margin = Math.round(recordW * 0.025);
+      const lx = recordW - logoSize - margin;
+      const ly = margin;
+      ctx.save();
+      // White rounded background
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      const pad = Math.round(logoSize * 0.15);
+      const r = Math.round(logoSize * 0.2);
+      const bx = lx - pad, by = ly - pad, bw = logoSize + pad * 2, bh = logoSize + pad * 2;
+      ctx.beginPath();
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh - r);
+      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+      ctx.lineTo(bx + r, by + bh);
+      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.closePath();
+      ctx.fill();
+      ctx.drawImage(cachedLogoRef.current, lx, ly, logoSize, logoSize);
+      ctx.restore();
+    }
+
+    // 4. Kick off async overlay refresh (throttled)
     if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
@@ -314,6 +357,16 @@ export function ExportPanel() {
       // Step 1b: Load html2canvas for overlay capture (stats + elevation profile)
       setExportStage('Loading overlay capture library...');
       await loadHtml2Canvas();
+
+      // Preload logo watermark image
+      cachedLogoRef.current = null;
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => { cachedLogoRef.current = img; resolve(); };
+        img.onerror = () => resolve();
+        img.src = '/media/images/simplelogo.png';
+      });
 
       // Pre-warm the overlay cache before recording starts
       await updateOverlayAsync(width, height);
@@ -674,6 +727,42 @@ export function ExportPanel() {
                     {fps} FPS
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Overlays */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
+                Overlays
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setVideoExportSettings({ includeStats: !videoExportSettings.includeStats })}
+                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                      videoExportSettings.includeStats ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      videoExportSettings.includeStats ? 'translate-x-5' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                  <span className="text-sm text-[var(--evergreen)]">Stats overlay (distance, pace, elevation)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setVideoExportSettings({ includeElevation: !videoExportSettings.includeElevation })}
+                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                      videoExportSettings.includeElevation ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      videoExportSettings.includeElevation ? 'translate-x-5' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                  <span className="text-sm text-[var(--evergreen)]">Elevation profile chart</span>
+                </label>
+                <p className="text-xs text-[var(--evergreen-60)] pl-13">Logo watermark is always included.</p>
               </div>
             </div>
 
