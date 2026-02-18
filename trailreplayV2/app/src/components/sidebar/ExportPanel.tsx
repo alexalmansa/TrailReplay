@@ -143,68 +143,114 @@ export function ExportPanel() {
     });
   }, []);
 
-  // Async overlay update — captures the whole map container (map + all HTML overlays).
-  // MapLibre has preserveDrawingBuffer:true so html2canvas can read the WebGL canvas.
+  // Calculate center-crop region so the map canvas is cropped to target aspect ratio.
+  // Returns pixel coordinates within the map container's CSS rect.
+  const getCropRegion = useCallback((containerRect: DOMRect, recordW: number, recordH: number) => {
+    const targetAspect = recordW / recordH;
+    const containerAspect = containerRect.width / containerRect.height;
+    let cropX = 0, cropY = 0, cropW = containerRect.width, cropH = containerRect.height;
+    if (targetAspect < containerAspect - 0.01) {
+      // Target is narrower (e.g., 9:16) → trim left/right
+      cropW = containerRect.height * targetAspect;
+      cropX = (containerRect.width - cropW) / 2;
+    } else if (targetAspect > containerAspect + 0.01) {
+      // Target is wider → trim top/bottom
+      cropH = containerRect.width / targetAspect;
+      cropY = (containerRect.height - cropH) / 2;
+    }
+    return { cropX, cropY, cropW, cropH };
+  }, []);
+
+  // Async overlay update — captures ONLY the pure-HTML overlay elements (no WebGL).
+  // Draws them into an overlay canvas positioned relative to the crop region.
   const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
-    if (overlayBusyRef.current) return;
+    if (overlayBusyRef.current || !(window as any).html2canvas) return;
     overlayBusyRef.current = true;
+    overlayLastUpdateRef.current = Date.now();
     try {
       const container = document.getElementById('map-capture-container');
-      if (!container || !(window as any).html2canvas) return;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const { cropX, cropY, cropW, cropH } = getCropRegion(containerRect, recordW, recordH);
+      const scaleX = recordW / cropW;
+      const scaleY = recordH / cropH;
 
-      const result: HTMLCanvasElement = await (window as any).html2canvas(container, {
-        backgroundColor: null,
-        scale: 1,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        // Ignore sidebar / controls — only the map container is targeted
-        ignoreElements: (el: Element) =>
-          el.tagName === 'SCRIPT' || el.tagName === 'STYLE',
-      });
-
-      // Resize to recording resolution
       const overlay = document.createElement('canvas');
       overlay.width = recordW;
       overlay.height = recordH;
-      const ctx = overlay.getContext('2d')!;
-      ctx.drawImage(result, 0, 0, recordW, recordH);
-      cachedOverlayRef.current = overlay;
-    } catch (e) {
-      // Silently ignore — the map canvas will still be recorded
-    } finally {
-      overlayBusyRef.current = false;
-      overlayLastUpdateRef.current = Date.now();
-    }
-  }, []);
+      const octx = overlay.getContext('2d')!;
 
-  // Capture frame: draw map canvas (sync, fast) + cached overlay (sync).
-  // Trigger async overlay refresh every ~150ms in the background.
+      // Helper: capture a pure-HTML element and place it at its correct position in the recording
+      const captureEl = async (el: HTMLElement) => {
+        try {
+          const captured: HTMLCanvasElement = await (window as any).html2canvas(el, {
+            backgroundColor: null, scale: 1, logging: false, useCORS: true,
+          });
+          const r = el.getBoundingClientRect();
+          const x = (r.left - containerRect.left - cropX) * scaleX;
+          const y = (r.top - containerRect.top - cropY) * scaleY;
+          octx.drawImage(captured, x, y, r.width * scaleX, r.height * scaleY);
+        } catch { /* skip if element fails */ }
+      };
+
+      // Stats overlay — pure HTML, no WebGL
+      const statsWrapper = document.querySelector('.tr-stats-overlay')?.parentElement as HTMLElement | null;
+      if (statsWrapper) await captureEl(statsWrapper);
+
+      // Elevation profile — SVG-based, no WebGL
+      const elevEl = document.getElementById('mapElevationProfile') as HTMLElement | null;
+      if (elevEl) await captureEl(elevEl);
+
+      cachedOverlayRef.current = overlay;
+    } catch { /* silently ignore */ } finally {
+      overlayBusyRef.current = false;
+    }
+  }, [getCropRegion]);
+
+  // Capture frame:
+  // 1. Draw the MapLibre canvas DIRECTLY (always works, preserveDrawingBuffer:true)
+  //    cropped to the target aspect ratio from the center.
+  // 2. Composite the cached overlay (HTML stats + elevation, updated async).
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;
 
     const ctx = recordingContextRef.current;
-    const { width, height } = videoExportSettings.resolution;
+    const { width: recordW, height: recordH } = videoExportSettings.resolution;
 
-    // 1. Draw the MapLibre WebGL canvas
-    const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
-    if (mapCanvas) {
-      ctx.drawImage(mapCanvas, 0, 0, width, height);
-    } else {
+    const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
+    const container = document.getElementById('map-capture-container');
+
+    if (!mapCanvas || !container) {
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, recordW, recordH);
+      return;
     }
 
-    // 2. Composite the last captured overlay (stats + elevation profile)
+    const containerRect = container.getBoundingClientRect();
+    const { cropX, cropY, cropW, cropH } = getCropRegion(containerRect, recordW, recordH);
+
+    // Map canvas actual pixel size can differ from CSS size (devicePixelRatio)
+    const pixelScaleX = mapCanvas.width / containerRect.width;
+    const pixelScaleY = mapCanvas.height / containerRect.height;
+
+    // 1. Draw cropped map (this is the only correct way to get WebGL content)
+    ctx.drawImage(
+      mapCanvas,
+      cropX * pixelScaleX, cropY * pixelScaleY,
+      cropW * pixelScaleX, cropH * pixelScaleY,
+      0, 0, recordW, recordH,
+    );
+
+    // 2. Composite overlay (stats + elevation profile), updated async in background
     if (cachedOverlayRef.current) {
-      ctx.drawImage(cachedOverlayRef.current, 0, 0, width, height);
+      ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    // 3. Kick off async overlay refresh (throttled to ~150ms)
-    if (Date.now() - overlayLastUpdateRef.current > 150) {
-      updateOverlayAsync(width, height);
+    // 3. Kick off async overlay refresh (throttled)
+    if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
+      updateOverlayAsync(recordW, recordH);
     }
-  }, [videoExportSettings.resolution, updateOverlayAsync]);
+  }, [videoExportSettings.resolution, getCropRegion, updateOverlayAsync]);
 
   // Frame capture loop using requestAnimationFrame
   const startFrameCapture = useCallback(() => {
@@ -342,7 +388,7 @@ export function ExportPanel() {
       setIsExporting(false);
       isRecordingRef.current = false;
     }
-  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture, loadHtml2Canvas, updateOverlayAsync]);
+  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture, loadHtml2Canvas, updateOverlayAsync, getCropRegion]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
