@@ -114,7 +114,7 @@ export interface PlaybackState {
   segmentProgress: number;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light' | 's2maps';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 's2maps';
 
 export interface MapOverlays {
   skiPistes: boolean;

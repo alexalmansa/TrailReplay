@@ -59,6 +59,12 @@ const MAP_STYLE = {
       tileSize: 256,
       attribution: 'Data © OpenStreetMap contributors ODbL, OpenSnowMap.org CC-BY-SA'
     },
+    'esri-clarity': {
+      type: 'raster',
+      tiles: ['https://clarity.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+    },
     'terrain-dem': {
       type: 'raster-dem',
       tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -70,6 +76,7 @@ const MAP_STYLE = {
   layers: [
     { id: 'background', type: 'raster', source: 'satellite' },
     { id: 's2maps', type: 'raster', source: 's2maps', layout: { visibility: 'none' } },
+    { id: 'esri-clarity', type: 'raster', source: 'esri-clarity', layout: { visibility: 'none' } },
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
     { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
@@ -89,7 +96,7 @@ const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   opentopomap: { name: 'Topo', icon: '⛰️' },
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
   s2maps: { name: 'Sentinel-2', icon: '🌍' },
-  ski: { name: 'Ski Map', icon: '⛷️' },
+  'esri-clarity': { name: 'Esri Clarity', icon: '📡' },
 };
 
 const S2MAPS_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
@@ -343,14 +350,14 @@ export function TrailMap({}: TrailMapProps) {
       street: 'street',
       topo: 'opentopomap',
       outdoor: 'opentopomap',
-      terrain: 'enhanced-hillshade',
+      'esri-clarity': 'esri-clarity',
       s2maps: 's2maps',
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
 
     // Hide all base layers
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps'].forEach(layerId => {
+    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps', 'esri-clarity'].forEach(layerId => {
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(layerId, 'visibility', 'none');
       }

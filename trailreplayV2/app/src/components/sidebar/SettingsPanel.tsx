@@ -15,7 +15,7 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
   { id: 'topo', name: 'Topographic', icon: '🗺️' },
   { id: 'street', name: 'Streets', icon: '🏙️' },
   { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
-  { id: 'dark', name: 'Dark', icon: '🌙' },
+  { id: 'esri-clarity', name: 'Esri Clarity', icon: '📡' },
   { id: 's2maps', name: 'Sentinel-2', icon: '🌍' },
 ];
 
