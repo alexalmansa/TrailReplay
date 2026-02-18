@@ -49,7 +49,7 @@ const MAP_STYLE = {
     },
     's2maps': {
       type: 'raster',
-      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
+      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'],
       tileSize: 256,
       attribution: 'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)'
     },
@@ -379,7 +379,8 @@ export function TrailMap({}: TrailMapProps) {
     if (!map.current || !isMapLoaded) return;
 
     const year = settings.s2mapsYear ?? 2024;
-    const url = `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg`;
+    const layerName = year <= 2016 ? 's2cloudless_3857' : `s2cloudless-${year}_3857`;
+    const url = `https://tiles.maps.eox.at/wmts/1.0.0/${layerName}/default/g/{z}/{y}/{x}.jpg`;
     const attribution = `Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${year})`;
     const isS2Active = settings.mapStyle === 's2maps';
 
