@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, UnitSystem, MapOverlays } from '@/types';
 import { S2MAPS_YEARS } from '@/components/map/TrailMap';
@@ -17,6 +18,7 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
   { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
   { id: 'esri-clarity', name: 'Esri Clarity', icon: '📡' },
   { id: 's2maps', name: 'Sentinel-2', icon: '🌍' },
+  { id: 'wayback', name: 'Wayback', icon: '🕰️' },
 ];
 
 const MAP_OVERLAYS: { id: string; name: string; icon: string; description: string }[] = [
@@ -39,6 +41,33 @@ const FOLLOW_PRESETS = [
   { id: 'far', name: 'Far', zoom: 14, pitch: 45 },
 ];
 
+type WaybackItem = {
+  releaseNum: number;
+  releaseDateLabel?: string;
+  releaseDate?: string;
+  releaseDatetime?: number;
+  itemURL: string;
+};
+
+const WAYBACK_CONFIG_URL = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json';
+
+const getWaybackItems = async (): Promise<WaybackItem[]> => {
+  const response = await fetch(WAYBACK_CONFIG_URL);
+  if (!response.ok) throw new Error('Wayback config fetch failed');
+  const data = await response.json();
+  const configData = data?.waybackConfigData ?? data ?? {};
+  const items = Object.values(configData) as WaybackItem[];
+  const getReleaseTime = (item: WaybackItem) => {
+    if (typeof item.releaseDatetime === 'number') return item.releaseDatetime;
+    const label = item.releaseDateLabel || item.releaseDate || '';
+    const parsed = Date.parse(label);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+  return items
+    .filter((item) => item?.releaseNum && item?.itemURL)
+    .sort((a, b) => getReleaseTime(b) - getReleaseTime(a));
+};
+
 export function SettingsPanel() {
   const settings = useAppStore((state) => state.settings);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
@@ -47,6 +76,44 @@ export function SettingsPanel() {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
   const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+  const [waybackItems, setWaybackItems] = useState<WaybackItem[]>([]);
+  const [waybackLoading, setWaybackLoading] = useState(false);
+  const [waybackError, setWaybackError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (settings.mapStyle !== 'wayback') return;
+
+    let cancelled = false;
+
+    const loadWayback = async () => {
+      setWaybackLoading(true);
+      setWaybackError(null);
+      try {
+        const items = await getWaybackItems();
+        if (cancelled) return;
+        setWaybackItems(items);
+        if (!settings.waybackRelease && items.length > 0) {
+          setSettings({
+            waybackRelease: items[0].releaseNum,
+            waybackItemURL: items[0].itemURL,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setWaybackError('Unable to load Wayback dates.');
+        }
+      } finally {
+        if (!cancelled) {
+          setWaybackLoading(false);
+        }
+      }
+    };
+
+    loadWayback();
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.mapStyle, setSettings]);
 
   const toggleOverlay = (key: keyof MapOverlays) => {
     setSettings({ mapOverlays: { ...settings.mapOverlays, [key]: !settings.mapOverlays?.[key] } });
@@ -102,6 +169,47 @@ export function SettingsPanel() {
                 className="underline hover:text-[var(--trail-orange)]">EOX IT Services
               </a>
               {' '}· CC-BY-NC-SA 4.0
+            </p>
+          </div>
+        )}
+
+        {/* Wayback options — date selector */}
+        {settings.mapStyle === 'wayback' && (
+          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--evergreen)] mb-1">
+                Wayback date
+              </label>
+              {waybackLoading ? (
+                <p className="text-xs text-[var(--evergreen-60)]">Loading dates...</p>
+              ) : (
+                <select
+                  value={settings.waybackRelease ?? ''}
+                  onChange={(e) => {
+                    const selected = waybackItems.find((item) => item.releaseNum === Number(e.target.value));
+                    if (selected) {
+                      setSettings({
+                        waybackRelease: selected.releaseNum,
+                        waybackItemURL: selected.itemURL,
+                      });
+                    }
+                  }}
+                  className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-2 py-1.5 focus:outline-none focus:border-[var(--trail-orange)]"
+                >
+                  <option value="" disabled>Select a date</option>
+                  {waybackItems.map((item) => (
+                    <option key={item.releaseNum} value={item.releaseNum}>
+                      {item.releaseDateLabel || item.releaseDate}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {waybackError && (
+                <p className="text-xs text-[var(--evergreen-60)] mt-1">{waybackError}</p>
+              )}
+            </div>
+            <p className="text-xs text-[var(--evergreen-60)]">
+              Esri Wayback imagery releases (publish dates, not exact capture dates).
             </p>
           </div>
         )}

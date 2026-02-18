@@ -114,7 +114,7 @@ export interface PlaybackState {
   segmentProgress: number;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 's2maps';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 's2maps' | 'wayback';
 
 export interface MapOverlays {
   skiPistes: boolean;
@@ -202,6 +202,8 @@ export interface AppSettings {
   defaultTotalTime: number;
   trailStyle: TrailStyleSettings;
   s2mapsYear: number;
+  waybackRelease: number | null;
+  waybackItemURL: string | null;
 }
 
 export interface LiveStats {

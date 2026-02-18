@@ -187,6 +187,8 @@ const defaultSettings: AppSettings = {
   },
   mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: false, aspectOverlay: false },
   s2mapsYear: 2024,
+  waybackRelease: null,
+  waybackItemURL: null,
 };
 
 const defaultCameraSettings: CameraSettings = {

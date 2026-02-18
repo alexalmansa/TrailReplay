@@ -325,6 +325,7 @@ const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
   s2maps: { name: 'Sentinel-2', icon: '🌍' },
   'esri-clarity': { name: 'Esri Clarity', icon: '📡' },
+  wayback: { name: 'Wayback', icon: '🕰️' },
 };
 
 const S2MAPS_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
@@ -583,12 +584,13 @@ export function TrailMap({}: TrailMapProps) {
       outdoor: 'opentopomap',
       'esri-clarity': 'esri-clarity',
       s2maps: 's2maps',
+      wayback: 'wayback',
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
 
     // Hide all base layers
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps', 'esri-clarity'].forEach(layerId => {
+    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps', 'esri-clarity', 'wayback'].forEach(layerId => {
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(layerId, 'visibility', 'none');
       }
@@ -650,6 +652,32 @@ export function TrailMap({}: TrailMapProps) {
       'carto-labels'
     );
   }, [settings.s2mapsYear, isMapLoaded]);
+
+  // Update Wayback imagery tile source when date changes
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+    if (!settings.waybackItemURL) return;
+
+    const tileUrl = settings.waybackItemURL
+      .replace('{level}', '{z}')
+      .replace('{row}', '{y}')
+      .replace('{col}', '{x}');
+    const isWaybackActive = settings.mapStyle === 'wayback';
+
+    if (map.current.getLayer('wayback')) map.current.removeLayer('wayback');
+    if (map.current.getSource('wayback')) map.current.removeSource('wayback');
+
+    map.current.addSource('wayback', {
+      type: 'raster',
+      tiles: [tileUrl],
+      tileSize: 256,
+      attribution: '© Esri — Source: Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+    });
+    map.current.addLayer(
+      { id: 'wayback', type: 'raster', source: 'wayback', layout: { visibility: isWaybackActive ? 'visible' : 'none' } },
+      'carto-labels'
+    );
+  }, [settings.waybackItemURL, settings.mapStyle, isMapLoaded]);
 
   // Update trail colors when trailStyle changes
   useEffect(() => {
