@@ -21,6 +21,7 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
 
 const MAP_OVERLAYS: { id: string; name: string; icon: string; description: string }[] = [
   { id: 'skiPistes', name: 'Ski Pistes', icon: '⛷️', description: 'OpenSnowMap ski runs overlay' },
+  { id: 'slopeOverlay', name: 'Slope', icon: '📐', description: 'Color-coded terrain steepness' },
 ];
 
 const CAMERA_MODES: { id: CameraMode; name: string; description: string }[] = [
@@ -159,6 +160,24 @@ export function SettingsPanel() {
                 className="underline hover:text-[var(--trail-orange)]">OpenSnowMap.org
               </a>
               {' '}· OSM contributors ODbL · CC-BY-SA
+            </p>
+          </div>
+        )}
+
+        {/* Slope overlay legend */}
+        {settings.mapOverlays?.slopeOverlay && (
+          <div className="mt-2 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
+            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">Slope Steepness</p>
+            <div className="space-y-1 text-xs text-[var(--evergreen-60)]">
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,255,0)'}}></span>&lt;25° — Mild</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,200,0)'}}></span>25–30° — Moderate</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,120,0)'}}></span>30–35° — Steep</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,50,0)'}}></span>35–40° — Very Steep</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(220,0,0)'}}></span>40–45° — Extreme</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(160,0,80)'}}></span>&gt;45° — Cliff</p>
+            </div>
+            <p className="text-xs text-[var(--evergreen-60)] mt-2">
+              Computed from AWS Terrain Tiles elevation data
             </p>
           </div>
         )}

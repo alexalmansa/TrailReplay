@@ -12,6 +12,115 @@ interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
+// ── Slope protocol: computes slope from Terrarium elevation tiles ──────────
+// Terrarium encoding: elevation = (R * 256 + G + B / 256) - 32768
+function terrariumHeight(r: number, g: number, b: number): number {
+  return (r * 256 + g + b / 256) - 32768;
+}
+
+// Meters per pixel at a given zoom level (at equator; good enough for slope)
+function metersPerPixel(zoom: number): number {
+  return 40075016.686 / (256 * Math.pow(2, zoom));
+}
+
+// Slope color ramp (degrees → RGBA) — ski/mountaineering standard
+function slopeColor(degrees: number): [number, number, number, number] {
+  if (degrees < 15) return [0, 0, 0, 0];                // flat — transparent
+  if (degrees < 25) return [255, 255, 0, 120];           // yellow — mild
+  if (degrees < 30) return [255, 200, 0, 150];           // amber — moderate
+  if (degrees < 35) return [255, 120, 0, 180];           // orange — steep
+  if (degrees < 40) return [255, 50, 0, 200];            // red-orange — very steep
+  if (degrees < 45) return [220, 0, 0, 210];             // red — extreme
+  return [160, 0, 80, 220];                              // dark magenta — cliff
+}
+
+let slopeProtocolRegistered = false;
+
+function registerSlopeProtocol() {
+  if (slopeProtocolRegistered) return;
+  slopeProtocolRegistered = true;
+
+  maplibregl.addProtocol('slope', async (params, _abortController) => {
+    // URL format: slope://{z}/{x}/{y}
+    const parts = params.url.replace('slope://', '').split('/');
+    const z = parseInt(parts[0]);
+    const x = parseInt(parts[1]);
+    const y = parseInt(parts[2]);
+
+    // Clamp to maxzoom 15 (Terrarium tiles max)
+    const tz = Math.min(z, 15);
+    // Scale tile coords if we're beyond maxzoom
+    const scale = Math.pow(2, z - tz);
+    const tx = Math.floor(x / scale);
+    const ty = Math.floor(y / scale);
+
+    const tileUrl = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${tz}/${tx}/${ty}.png`;
+
+    const response = await fetch(tileUrl);
+    if (!response.ok) throw new Error(`Tile fetch error: ${response.statusText}`);
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+
+    const size = 256;
+    // Draw source tile to read pixels (oversized to read neighbor pixels at edges)
+    const srcCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const srcCtx = srcCanvas.getContext('2d')!;
+    srcCtx.drawImage(bitmap, 0, 0);
+    const srcData = srcCtx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const src = srcData.data;
+    const w = bitmap.width;
+
+    // If beyond maxzoom, we need to extract a sub-region of the parent tile
+    const subSize = Math.floor(w / scale);
+    const offX = Math.floor((x % scale) * subSize);
+    const offY = Math.floor((y % scale) * subSize);
+
+    // Output canvas
+    const outCanvas = new OffscreenCanvas(size, size);
+    const outCtx = outCanvas.getContext('2d')!;
+    const outImg = outCtx.createImageData(size, size);
+    const out = outImg.data;
+
+    const cellSize = metersPerPixel(z);
+
+    for (let py = 0; py < size; py++) {
+      for (let px = 0; px < size; px++) {
+        // Map output pixel to source pixel
+        const sx = Math.min(Math.floor(offX + px * subSize / size), w - 1);
+        const sy = Math.min(Math.floor(offY + py * subSize / size), w - 1);
+
+        const idx = (sy * w + sx) * 4;
+        const idxL = (sy * w + Math.max(0, sx - 1)) * 4;
+        const idxR = (sy * w + Math.min(w - 1, sx + 1)) * 4;
+        const idxU = (Math.max(0, sy - 1) * w + sx) * 4;
+        const idxD = (Math.min(w - 1, sy + 1) * w + sx) * 4;
+
+        const hC = terrariumHeight(src[idx], src[idx + 1], src[idx + 2]);
+        const hL = terrariumHeight(src[idxL], src[idxL + 1], src[idxL + 2]);
+        const hR = terrariumHeight(src[idxR], src[idxR + 1], src[idxR + 2]);
+        const hU = terrariumHeight(src[idxU], src[idxU + 1], src[idxU + 2]);
+        const hD = terrariumHeight(src[idxD], src[idxD + 1], src[idxD + 2]);
+
+        const dzdx = (hR - hL) / (2 * cellSize);
+        const dzdy = (hD - hU) / (2 * cellSize);
+        const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
+
+        const [r, g, b, a] = slopeColor(slopeDeg);
+        const oi = (py * size + px) * 4;
+        out[oi] = r;
+        out[oi + 1] = g;
+        out[oi + 2] = b;
+        out[oi + 3] = a;
+      }
+    }
+
+    outCtx.putImageData(outImg, 0, 0);
+    const outBlob = await outCanvas.convertToBlob({ type: 'image/png' });
+    const arrayBuffer = await outBlob.arrayBuffer();
+    return { data: arrayBuffer };
+  });
+}
+
 // Map style configuration matching original TrailReplay
 const MAP_STYLE = {
   version: 8,
@@ -65,6 +174,13 @@ const MAP_STYLE = {
       tileSize: 256,
       attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
     },
+    'slope': {
+      type: 'raster',
+      tiles: ['slope://{z}/{x}/{y}'],
+      tileSize: 256,
+      maxzoom: 15,
+      attribution: 'Slope derived from AWS Terrain Tiles'
+    },
     'terrain-dem': {
       type: 'raster-dem',
       tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -81,7 +197,8 @@ const MAP_STYLE = {
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
     { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
     { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } },
-    { id: 'ski-pistes', type: 'raster', source: 'opensnowmap', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.9 } }
+    { id: 'ski-pistes', type: 'raster', source: 'opensnowmap', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.9 } },
+    { id: 'slope-overlay', type: 'raster', source: 'slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7 } }
   ],
   terrain: {
     source: 'terrain-dem',
@@ -213,6 +330,8 @@ export function TrailMap({}: TrailMapProps) {
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
+
+    registerSlopeProtocol();
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -367,10 +486,15 @@ export function TrailMap({}: TrailMapProps) {
       map.current.setLayoutProperty(targetLayer, 'visibility', 'visible');
     }
 
-    // Ski piste overlay — controlled independently of base map
+    // Overlays — controlled independently of base map
     if (map.current.getLayer('ski-pistes')) {
       map.current.setLayoutProperty('ski-pistes', 'visibility',
         settings.mapOverlays?.skiPistes ? 'visible' : 'none');
+    }
+
+    if (map.current.getLayer('slope-overlay')) {
+      map.current.setLayoutProperty('slope-overlay', 'visibility',
+        settings.mapOverlays?.slopeOverlay ? 'visible' : 'none');
     }
 
     // Labels: shown for street/topo/outdoor, and for s2maps when labels enabled
@@ -379,7 +503,7 @@ export function TrailMap({}: TrailMapProps) {
     if (map.current.getLayer('carto-labels')) {
       map.current.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
     }
-  }, [settings.mapStyle, settings.s2mapsLabels, settings.mapOverlays?.skiPistes, isMapLoaded]);
+  }, [settings.mapStyle, settings.s2mapsLabels, settings.mapOverlays?.skiPistes, settings.mapOverlays?.slopeOverlay, isMapLoaded]);
 
   // Update S2Maps tile source when year changes
   useEffect(() => {

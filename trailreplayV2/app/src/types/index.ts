@@ -118,6 +118,7 @@ export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clari
 
 export interface MapOverlays {
   skiPistes: boolean;
+  slopeOverlay: boolean;
 }
 
 export interface MapStyleConfig {
