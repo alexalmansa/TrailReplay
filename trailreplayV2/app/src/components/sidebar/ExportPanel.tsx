@@ -261,31 +261,17 @@ export function ExportPanel() {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    // 3. Draw logo watermark — always top-right corner
+    // 3. Draw logo watermark — always top-right corner (no background)
     if (cachedLogoRef.current) {
-      const logoSize = Math.round(recordW * 0.045);
+      // logohorizontal.svg viewBox 500×200 → aspect ratio 2.5:1
+      const logoW = Math.round(recordW * 0.14);
+      const logoH = Math.round(logoW / 2.5);
       const margin = Math.round(recordW * 0.025);
-      const lx = recordW - logoSize - margin;
+      const lx = recordW - logoW - margin;
       const ly = margin;
       ctx.save();
-      // White rounded background
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      const pad = Math.round(logoSize * 0.15);
-      const r = Math.round(logoSize * 0.2);
-      const bx = lx - pad, by = ly - pad, bw = logoSize + pad * 2, bh = logoSize + pad * 2;
-      ctx.beginPath();
-      ctx.moveTo(bx + r, by);
-      ctx.lineTo(bx + bw - r, by);
-      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
-      ctx.lineTo(bx + bw, by + bh - r);
-      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
-      ctx.lineTo(bx + r, by + bh);
-      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
-      ctx.lineTo(bx, by + r);
-      ctx.quadraticCurveTo(bx, by, bx + r, by);
-      ctx.closePath();
-      ctx.fill();
-      ctx.drawImage(cachedLogoRef.current, lx, ly, logoSize, logoSize);
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(cachedLogoRef.current, lx, ly, logoW, logoH);
       ctx.restore();
     }
 
@@ -365,7 +351,7 @@ export function ExportPanel() {
         img.crossOrigin = 'anonymous';
         img.onload = () => { cachedLogoRef.current = img; resolve(); };
         img.onerror = () => resolve();
-        img.src = '/media/images/simplelogo.png';
+        img.src = '/media/images/logohorizontal.svg';
       });
 
       // Pre-warm the overlay cache before recording starts

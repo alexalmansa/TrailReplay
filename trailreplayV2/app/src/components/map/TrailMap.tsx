@@ -296,7 +296,7 @@ export function TrailMap({}: TrailMapProps) {
         layout: {
           'text-field': ['get', 'label'],
           'text-size': 12,
-          'text-offset': [0, 2.5],
+          'text-offset': [0, -2.5],
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'text-anchor': 'center',
@@ -883,7 +883,7 @@ export function TrailMap({}: TrailMapProps) {
       layout: {
         'text-field': ['get', 'label'],
         'text-size': 11,
-        'text-offset': [0, 2],
+        'text-offset': [0, -2],
         'text-allow-overlap': true,
         'text-ignore-placement': true,
         'text-anchor': 'center',
