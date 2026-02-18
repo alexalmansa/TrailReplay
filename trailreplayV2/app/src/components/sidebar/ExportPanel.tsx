@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import {
@@ -7,8 +7,35 @@ import {
   Check,
   X,
   Film,
-  Monitor
+  Monitor,
+  AlertTriangle
 } from 'lucide-react';
+
+const MP4_MIME_TYPES = [
+  'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+  'video/mp4;codecs=avc1.4D401E,mp4a.40.2',
+  'video/mp4;codecs=avc1.64001E,mp4a.40.2',
+  'video/mp4;codecs=h264',
+  'video/mp4',
+];
+
+const WEBM_MIME_TYPES = [
+  'video/webm;codecs=vp9',
+  'video/webm;codecs=vp8',
+  'video/webm',
+];
+
+function getSupportedMimeType(format: 'mp4' | 'webm'): { mimeType: string; actualFormat: 'mp4' | 'webm' } {
+  if (format === 'mp4') {
+    const mp4 = MP4_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t));
+    if (mp4) return { mimeType: mp4, actualFormat: 'mp4' };
+    // Fall back to WebM if MP4 not natively supported
+    const webm = WEBM_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+    return { mimeType: webm, actualFormat: 'webm' };
+  }
+  const webm = WEBM_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+  return { mimeType: webm, actualFormat: 'webm' };
+}
 
 const QUALITY_OPTIONS = [
   { value: 'low', label: '720p', resolution: { width: 1280, height: 720 } },
@@ -36,6 +63,13 @@ export function ExportPanel() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
+
+  // Check native MP4 support once
+  const mp4Supported = useMemo(
+    () => MP4_MIME_TYPES.some(t => MediaRecorder.isTypeSupported(t)),
+    []
+  );
+  const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
 
   // Recording refs
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -199,13 +233,9 @@ export function ExportPanel() {
 
       const stream = recordingCanvasRef.current.captureStream(videoExportSettings.fps);
 
-      // Find supported MIME type
-      const mimeTypes = [
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm',
-      ];
-      const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+      // Find supported MIME type based on selected format
+      const { mimeType, actualFormat: recordedFormat } = getSupportedMimeType(videoExportSettings.format);
+      const ext = recordedFormat === 'mp4' ? 'mp4' : 'webm';
 
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType,
@@ -230,7 +260,7 @@ export function ExportPanel() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `trail-replay-${Date.now()}.webm`;
+          a.download = `trail-replay-${Date.now()}.${ext}`;
           a.click();
           URL.revokeObjectURL(url);
         } else {
@@ -282,10 +312,11 @@ export function ExportPanel() {
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
 
+    const ext = exportedBlob.type.startsWith('video/mp4') ? 'mp4' : 'webm';
     const url = URL.createObjectURL(exportedBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trail-replay-${Date.now()}.webm`;
+    a.download = `trail-replay-${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   }, [exportedBlob]);
@@ -307,7 +338,12 @@ export function ExportPanel() {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="opacity-70">Format:</span>
-            <span className="ml-2 font-bold uppercase">WebM</span>
+            <span className="ml-2 font-bold uppercase">
+              {actualFormat.toUpperCase()}
+              {videoExportSettings.format === 'mp4' && !mp4Supported && (
+                <span className="ml-1 text-yellow-400 text-xs">(WebM fallback)</span>
+              )}
+            </span>
           </div>
           <div>
             <span className="opacity-70">Quality:</span>
@@ -434,6 +470,39 @@ export function ExportPanel() {
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4">
               Export Settings
             </h3>
+
+            {/* Format */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
+                Format
+              </label>
+              <div className="flex gap-2">
+                {(['mp4', 'webm'] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => setVideoExportSettings({ format: fmt })}
+                    className={`
+                      flex-1 py-2 px-3 rounded-lg text-sm font-medium uppercase transition-colors
+                      ${videoExportSettings.format === fmt
+                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
+                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
+                      }
+                    `}
+                  >
+                    {fmt}
+                  </button>
+                ))}
+              </div>
+              {videoExportSettings.format === 'mp4' && !mp4Supported && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+                  <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  MP4 is not natively supported in this browser. Will record as WebM instead. Use Safari or Chrome for native MP4 export.
+                </div>
+              )}
+              {videoExportSettings.format === 'mp4' && mp4Supported && (
+                <p className="mt-1 text-xs text-[var(--evergreen-60)]">Native MP4 recording supported.</p>
+              )}
+            </div>
 
             {/* Quality */}
             <div className="mb-4">
