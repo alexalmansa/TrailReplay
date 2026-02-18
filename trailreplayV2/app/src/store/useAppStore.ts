@@ -185,6 +185,8 @@ const defaultSettings: AppSettings = {
     showTrackLabels: false,
     trackLabel: 'Track 1',
   },
+  s2mapsYear: 2024,
+  s2mapsLabels: false,
 };
 
 const defaultCameraSettings: CameraSettings = {

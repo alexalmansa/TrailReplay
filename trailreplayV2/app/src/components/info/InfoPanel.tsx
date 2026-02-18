@@ -50,6 +50,53 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           </a>
         </div>
 
+        {/* Map Data Sources */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
+            Map Data Sources
+          </h3>
+          <div className="space-y-3 text-xs text-[var(--evergreen-60)]">
+            <div>
+              <a href="https://s2maps.eu" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                Sentinel-2 Cloudless
+              </a>
+              {' '}by{' '}
+              <a href="https://eox.at" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">EOX IT Services GmbH
+              </a>
+              . Contains modified Copernicus Sentinel data.
+              Licensed under{' '}
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">CC-BY-NC-SA 4.0
+              </a>.
+            </div>
+            <div>
+              <a href="https://www.opensnowmap.org" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                OpenSnowMap.org
+              </a>
+              {' '}ski piste overlay.
+              Data © OpenStreetMap contributors (ODbL), OpenSnowMap.org (CC-BY-SA).
+            </div>
+            <div>
+              <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                OpenStreetMap
+              </a>
+              {' '}contributors (ODbL) ·{' '}
+              <a href="https://opentopomap.org" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">OpenTopoMap
+              </a>
+              {' '}(CC-BY-SA) ·{' '}
+              <a href="https://carto.com" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">CartoDB
+              </a>
+              {' '}labels
+            </div>
+          </div>
+        </div>
+
         {/* Links */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">

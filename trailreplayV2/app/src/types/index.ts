@@ -114,7 +114,7 @@ export interface PlaybackState {
   segmentProgress: number;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light' | 's2maps' | 'ski';
 
 export interface MapStyleConfig {
   id: MapStyle;
@@ -193,6 +193,8 @@ export interface AppSettings {
   defaultAnimationSpeed: number;
   defaultTotalTime: number;
   trailStyle: TrailStyleSettings;
+  s2mapsYear: number;
+  s2mapsLabels: boolean;
 }
 
 export interface LiveStats {

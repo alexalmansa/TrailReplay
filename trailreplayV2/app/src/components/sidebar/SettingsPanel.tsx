@@ -1,10 +1,11 @@
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, UnitSystem } from '@/types';
-import { 
-  Map as MapIcon, 
-  Video, 
-  Mountain, 
-  Heart, 
+import { S2MAPS_YEARS } from '@/components/map/TrailMap';
+import {
+  Map as MapIcon,
+  Video,
+  Mountain,
+  Heart,
   Ruler,
   Globe
 } from 'lucide-react';
@@ -15,6 +16,8 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
   { id: 'street', name: 'Streets', icon: '🏙️' },
   { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
   { id: 'dark', name: 'Dark', icon: '🌙' },
+  { id: 's2maps', name: 'Sentinel-2', icon: '🌍' },
+  { id: 'ski', name: 'Ski Map', icon: '⛷️' },
 ];
 
 const CAMERA_MODES: { id: CameraMode; name: string; description: string }[] = [
@@ -65,6 +68,59 @@ export function SettingsPanel() {
             </button>
           ))}
         </div>
+
+        {/* S2Maps options — year selector + labels toggle */}
+        {settings.mapStyle === 's2maps' && (
+          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--evergreen)] mb-1">
+                Satellite year
+              </label>
+              <select
+                value={settings.s2mapsYear ?? 2024}
+                onChange={(e) => setSettings({ s2mapsYear: Number(e.target.value) })}
+                className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-2 py-1.5 focus:outline-none focus:border-[var(--trail-orange)]"
+              >
+                {S2MAPS_YEARS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setSettings({ s2mapsLabels: !settings.s2mapsLabels })}
+                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                  settings.s2mapsLabels ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                  settings.s2mapsLabels ? 'translate-x-5' : 'translate-x-0.5'
+                }`} />
+              </div>
+              <span className="text-sm text-[var(--evergreen)]">Show place names</span>
+            </label>
+            <p className="text-xs text-[var(--evergreen-60)]">
+              Sentinel-2 cloudless imagery by{' '}
+              <a href="https://s2maps.eu" target="_blank" rel="noopener noreferrer"
+                className="underline hover:text-[var(--trail-orange)]">EOX IT Services
+              </a>
+              {' '}· CC-BY-NC-SA 4.0
+            </p>
+          </div>
+        )}
+
+        {/* Ski map note */}
+        {settings.mapStyle === 'ski' && (
+          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
+            <p className="text-xs text-[var(--evergreen-60)]">
+              Ski piste overlay from{' '}
+              <a href="https://www.opensnowmap.org" target="_blank" rel="noopener noreferrer"
+                className="underline hover:text-[var(--trail-orange)]">OpenSnowMap.org
+              </a>
+              {' '}on topographic base · Data © OSM contributors ODbL, OpenSnowMap CC-BY-SA
+            </p>
+          </div>
+        )}
       </div>
       
       {/* Camera Mode */}

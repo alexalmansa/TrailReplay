@@ -47,6 +47,18 @@ const MAP_STYLE = {
       tileSize: 256,
       attribution: '© OpenTopography/ASTER GDEM'
     },
+    's2maps': {
+      type: 'raster',
+      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024/default/GoogleMapsCompatible/{z}/{x}/{y}.jpg'],
+      tileSize: 256,
+      attribution: 'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)'
+    },
+    'opensnowmap': {
+      type: 'raster',
+      tiles: ['https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: 'Data © OpenStreetMap contributors ODbL, OpenSnowMap.org CC-BY-SA'
+    },
     'terrain-dem': {
       type: 'raster-dem',
       tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -57,10 +69,12 @@ const MAP_STYLE = {
   },
   layers: [
     { id: 'background', type: 'raster', source: 'satellite' },
+    { id: 's2maps', type: 'raster', source: 's2maps', layout: { visibility: 'none' } },
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
     { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
-    { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } }
+    { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } },
+    { id: 'ski-pistes', type: 'raster', source: 'opensnowmap', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.9 } }
   ],
   terrain: {
     source: 'terrain-dem',
@@ -74,7 +88,11 @@ const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   street: { name: 'Street', icon: '🛣️' },
   opentopomap: { name: 'Topo', icon: '⛰️' },
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
+  s2maps: { name: 'Sentinel-2', icon: '🌍' },
+  ski: { name: 'Ski Map', icon: '⛷️' },
 };
+
+const S2MAPS_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
 // Smooth bearing using exponential moving average
 function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.015): number {
@@ -326,11 +344,14 @@ export function TrailMap({}: TrailMapProps) {
       topo: 'opentopomap',
       outdoor: 'opentopomap',
       terrain: 'enhanced-hillshade',
+      s2maps: 's2maps',
+      ski: 'opentopomap', // ski uses topo as base map
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
 
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade'].forEach(layerId => {
+    // Hide all base layers
+    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps'].forEach(layerId => {
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(layerId, 'visibility', 'none');
       }
@@ -340,13 +361,40 @@ export function TrailMap({}: TrailMapProps) {
       map.current.setLayoutProperty(targetLayer, 'visibility', 'visible');
     }
 
-    if ((settings.mapStyle === 'street' || settings.mapStyle === 'topo' || settings.mapStyle === 'outdoor')
-        && map.current.getLayer('carto-labels')) {
-      map.current.setLayoutProperty('carto-labels', 'visibility', 'visible');
-    } else if (map.current.getLayer('carto-labels')) {
-      map.current.setLayoutProperty('carto-labels', 'visibility', 'none');
+    // Ski piste overlay — only visible on ski style
+    if (map.current.getLayer('ski-pistes')) {
+      map.current.setLayoutProperty('ski-pistes', 'visibility',
+        settings.mapStyle === 'ski' ? 'visible' : 'none');
     }
-  }, [settings.mapStyle, isMapLoaded]);
+
+    // Labels: shown for street/topo/outdoor/ski, and for s2maps when labels enabled
+    const showLabels = ['street', 'topo', 'outdoor', 'ski'].includes(settings.mapStyle)
+      || (settings.mapStyle === 's2maps' && settings.s2mapsLabels);
+    if (map.current.getLayer('carto-labels')) {
+      map.current.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
+    }
+  }, [settings.mapStyle, settings.s2mapsLabels, isMapLoaded]);
+
+  // Update S2Maps tile source when year changes
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const year = settings.s2mapsYear ?? 2024;
+    const url = `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}/default/GoogleMapsCompatible/{z}/{x}/{y}.jpg`;
+    const attribution = `Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${year})`;
+    const isS2Active = settings.mapStyle === 's2maps';
+
+    // Remove existing s2maps layer + source, then re-add with new year URL
+    if (map.current.getLayer('s2maps')) map.current.removeLayer('s2maps');
+    if (map.current.getSource('s2maps')) map.current.removeSource('s2maps');
+
+    map.current.addSource('s2maps', { type: 'raster', tiles: [url], tileSize: 256, attribution });
+    // Insert before carto-labels so place labels render on top
+    map.current.addLayer(
+      { id: 's2maps', type: 'raster', source: 's2maps', layout: { visibility: isS2Active ? 'visible' : 'none' } },
+      'carto-labels'
+    );
+  }, [settings.s2mapsYear, isMapLoaded]);
 
   // Update trail colors when trailStyle changes
   useEffect(() => {
@@ -985,4 +1033,4 @@ export function TrailMap({}: TrailMapProps) {
   );
 }
 
-export { MAP_LAYERS };
+export { MAP_LAYERS, S2MAPS_YEARS };
