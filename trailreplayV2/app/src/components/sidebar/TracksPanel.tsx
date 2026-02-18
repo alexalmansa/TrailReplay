@@ -38,13 +38,16 @@ interface TrackItemProps {
   onRemove: () => void;
   onToggleVisibility: () => void;
   onColorChange: (color: string) => void;
+  onNameChange: (name: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
   settings: import('@/types').AppSettings;
 }
 
-function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisibility, onColorChange, onReorder, settings }: TrackItemProps) {
+function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisibility, onColorChange, onNameChange, onReorder, settings }: TrackItemProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(track.name);
   
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
@@ -102,12 +105,37 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
               {track.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
             
-            <span 
-              className="font-medium text-sm truncate flex-1"
-              style={{ color: track.color }}
-            >
-              {track.name}
-            </span>
+            {isEditingName ? (
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={() => {
+                  if (editName.trim()) onNameChange(editName.trim());
+                  setIsEditingName(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (editName.trim()) onNameChange(editName.trim());
+                    setIsEditingName(false);
+                  } else if (e.key === 'Escape') {
+                    setEditName(track.name);
+                    setIsEditingName(false);
+                  }
+                }}
+                autoFocus
+                className="font-medium text-sm flex-1 min-w-0 px-1 py-0 border border-[var(--trail-orange)] rounded bg-[var(--canvas)] outline-none"
+                style={{ color: track.color }}
+              />
+            ) : (
+              <span
+                className="font-medium text-sm truncate flex-1 cursor-text hover:underline decoration-dotted"
+                style={{ color: track.color }}
+                onClick={() => { setEditName(track.name); setIsEditingName(true); }}
+                title="Click to rename"
+              >
+                {track.name}
+              </span>
+            )}
             
             <div className="flex items-center gap-1">
               <button
@@ -212,6 +240,64 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
 
 const COMPARISON_COLORS = ['#DC2626', '#2563EB', '#059669', '#7C3AED', '#D97706'];
 
+function ComparisonTrackItem({
+  ct,
+  settings,
+  onNameChange,
+  onRemove,
+}: {
+  ct: import('@/types').ComparisonTrack;
+  settings: import('@/types').AppSettings;
+  onNameChange: (name: string) => void;
+  onRemove: () => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(ct.name);
+
+  return (
+    <div className="tr-journey-segment p-3">
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ct.color }} />
+        {isEditing ? (
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={() => {
+              if (editName.trim()) onNameChange(editName.trim());
+              setIsEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (editName.trim()) onNameChange(editName.trim());
+                setIsEditing(false);
+              } else if (e.key === 'Escape') {
+                setEditName(ct.name);
+                setIsEditing(false);
+              }
+            }}
+            autoFocus
+            className="text-sm font-medium flex-1 min-w-0 px-1 py-0 border border-[var(--trail-orange)] rounded bg-[var(--canvas)] outline-none text-[var(--evergreen)]"
+          />
+        ) : (
+          <span
+            className="text-sm font-medium text-[var(--evergreen)] truncate flex-1 cursor-text hover:underline decoration-dotted"
+            onClick={() => { setEditName(ct.name); setIsEditing(true); }}
+            title="Click to rename"
+          >
+            {ct.name}
+          </span>
+        )}
+        <span className="text-xs text-[var(--evergreen-60)] flex-shrink-0">
+          {formatDistance(ct.track.totalDistance, settings.unitSystem)}
+        </span>
+        <button onClick={onRemove} className="p-1 hover:bg-red-100 text-red-500 rounded flex-shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TracksPanel() {
   const { parseFiles, isParsing } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -219,6 +305,7 @@ export function TracksPanel() {
   const removeTrack = useAppStore((state) => state.removeTrack);
   const setActiveTrack = useAppStore((state) => state.setActiveTrack);
   const updateTrackColor = useAppStore((state) => state.updateTrackColor);
+  const updateTrackName = useAppStore((state) => state.updateTrackName);
   const toggleTrackVisibility = useAppStore((state) => state.toggleTrackVisibility);
   const reorderTracks = useAppStore((state) => state.reorderTracks);
   const settings = useAppStore((state) => state.settings);
@@ -227,6 +314,7 @@ export function TracksPanel() {
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
   const addComparisonTrack = useAppStore((state) => state.addComparisonTrack);
   const removeComparisonTrack = useAppStore((state) => state.removeComparisonTrack);
+  const updateComparisonTrackName = useAppStore((state) => state.updateComparisonTrackName);
   const [showComparison, setShowComparison] = useState(comparisonTracks.length > 0);
   const [isParsingComparison, setIsParsingComparison] = useState(false);
   const comparisonFileRef = useRef<HTMLInputElement>(null);
@@ -327,6 +415,7 @@ export function TracksPanel() {
                 onRemove={() => removeTrack(track.id)}
                 onToggleVisibility={() => toggleTrackVisibility(track.id)}
                 onColorChange={(color) => updateTrackColor(track.id, color)}
+                onNameChange={(name) => updateTrackName(track.id, name)}
                 onReorder={handleReorder}
                 settings={settings}
               />
@@ -359,26 +448,13 @@ export function TracksPanel() {
 
               {/* Comparison track list */}
               {comparisonTracks.map((ct) => (
-                <div key={ct.id} className="tr-journey-segment p-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: ct.color }}
-                    />
-                    <span className="text-sm font-medium text-[var(--evergreen)] truncate flex-1">
-                      {ct.name}
-                    </span>
-                    <span className="text-xs text-[var(--evergreen-60)]">
-                      {formatDistance(ct.track.totalDistance, settings.unitSystem)}
-                    </span>
-                    <button
-                      onClick={() => removeComparisonTrack(ct.id)}
-                      className="p-1 hover:bg-red-100 text-red-500 rounded"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <ComparisonTrackItem
+                  key={ct.id}
+                  ct={ct}
+                  settings={settings}
+                  onNameChange={(name) => updateComparisonTrackName(ct.id, name)}
+                  onRemove={() => removeComparisonTrack(ct.id)}
+                />
               ))}
 
               {/* Add comparison file */}

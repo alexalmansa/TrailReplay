@@ -68,14 +68,16 @@ interface AppState {
   removeTrack: (trackId: string) => void;
   setActiveTrack: (trackId: string | null) => void;
   updateTrackColor: (trackId: string, color: string) => void;
+  updateTrackName: (trackId: string, name: string) => void;
   toggleTrackVisibility: (trackId: string) => void;
   reorderTracks: (fromIndex: number, toIndex: number) => void;
-  
+
   // Comparison
   addComparisonTrack: (track: ComparisonTrack) => void;
   removeComparisonTrack: (trackId: string) => void;
   toggleComparisonTrack: (trackId: string) => void;
   updateComparisonOffset: (trackId: string, offset: number) => void;
+  updateComparisonTrackName: (trackId: string, name: string) => void;
   
   // Journey
   createJourney: (name: string) => void;
@@ -307,6 +309,12 @@ export const useAppStore = create<AppState>()(
         }
       }),
 
+    updateTrackName: (trackId, name) =>
+      set((state) => {
+        const track = state.tracks.find((t) => t.id === trackId);
+        if (track) track.name = name;
+      }),
+
     toggleTrackVisibility: (trackId) =>
       set((state) => {
         const track = state.tracks.find((t) => t.id === trackId);
@@ -340,6 +348,12 @@ export const useAppStore = create<AppState>()(
       set((state) => {
         const track = state.comparisonTracks.find((t) => t.id === trackId);
         if (track) track.offset = offset;
+      }),
+
+    updateComparisonTrackName: (trackId, name) =>
+      set((state) => {
+        const track = state.comparisonTracks.find((t) => t.id === trackId);
+        if (track) track.name = name;
       }),
 
     // Journey Actions

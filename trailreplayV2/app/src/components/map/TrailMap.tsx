@@ -175,7 +175,13 @@ export function TrailMap({}: TrailMapProps) {
     currentTrackColor,
     segmentTimings,
     elevationData,
+    activeTrack,
   } = useComputedJourney();
+
+  // Derive the current track name for the label
+  const currentTrackName = currentSegment?.segment.type === 'track' && currentSegment.segment.trackId
+    ? tracks.find((t) => t.id === currentSegment.segment.trackId)?.name
+    : activeTrack?.name;
 
   // Initialize map
   useEffect(() => {
@@ -366,11 +372,11 @@ export function TrailMap({}: TrailMapProps) {
     if (map.current.getSource('main-track-label')) {
       (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
-        properties: { label: trailStyle.trackLabel || '' },
+        properties: { label: currentTrackName || '' },
         geometry: { type: 'Point', coordinates: [0, 0] },
       });
     }
-  }, [trailStyle.showTrackLabels, trailStyle.trackLabel, trailStyle.trailColor, currentTrackColor, isMapLoaded]);
+  }, [trailStyle.showTrackLabels, currentTrackName, trailStyle.trailColor, currentTrackColor, isMapLoaded]);
 
   // Toggle 3D terrain
   useEffect(() => {
@@ -546,7 +552,7 @@ export function TrailMap({}: TrailMapProps) {
     if (trailStyle.showTrackLabels && map.current.getSource('main-track-label')) {
       (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
-        properties: { label: trailStyle.trackLabel || '' },
+        properties: { label: currentTrackName || '' },
         geometry: { type: 'Point', coordinates: [currentPosition.lon, currentPosition.lat] },
       });
     }
@@ -639,7 +645,7 @@ export function TrailMap({}: TrailMapProps) {
       bearing: map.current.getBearing(),
     });
   }, [currentPosition, currentBearing, completedCoordinates, playback.progress, animationPhase,
-      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData]);
+      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData, currentTrackName]);
 
   // Handle camera mode changes
   useEffect(() => {

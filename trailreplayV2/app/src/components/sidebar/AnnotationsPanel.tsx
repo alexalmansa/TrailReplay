@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const COLOR_PRESETS = [
@@ -196,17 +195,10 @@ export function AnnotationsPanel() {
             />
           </div>
 
-          {/* Track Label Input */}
           {trailStyle.showTrackLabels && (
-            <div className="space-y-2">
-              <Label className="text-sm text-[var(--evergreen)]">Label Text</Label>
-              <Input
-                value={trailStyle.trackLabel}
-                onChange={(e) => setTrailStyle({ trackLabel: e.target.value })}
-                placeholder="Track 1"
-                className="text-sm"
-              />
-            </div>
+            <p className="text-xs text-[var(--evergreen-60)]">
+              Each track uses its name as its label. Rename tracks in the Tracks panel.
+            </p>
           )}
         </div>
       </div>

@@ -18,7 +18,8 @@ import {
   Settings2,
   Route,
   Play,
-  Edit3
+  Edit3,
+  GitCompareArrows,
 } from 'lucide-react';
 
 const TRANSPORT_MODES: { mode: TransportMode; icon: typeof Car; label: string; color: string }[] = [
@@ -44,6 +45,7 @@ const TRANSPORT_ICONS: Record<TransportMode, string> = {
 export function JourneyPanel() {
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
+  const comparisonTracks = useAppStore((state) => state.comparisonTracks);
   const addJourneySegment = useAppStore((state) => state.addJourneySegment);
   const removeJourneySegment = useAppStore((state) => state.removeJourneySegment);
   const reorderJourneySegments = useAppStore((state) => state.reorderJourneySegments);
@@ -374,6 +376,49 @@ export function JourneyPanel() {
         )}
       </div>
       
+      {/* Comparison Tracks running simultaneously */}
+      {comparisonTracks.length > 0 && journeySegments.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <GitCompareArrows className="w-4 h-4 text-[var(--evergreen-60)]" />
+            <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+              Runs Simultaneously
+            </h3>
+          </div>
+          <div className="rounded-lg border-2 border-dashed border-[var(--evergreen)]/30 p-3 space-y-2 bg-[var(--evergreen)]/3">
+            <p className="text-xs text-[var(--evergreen-60)] mb-2">
+              These tracks animate at the same time as your main journey, from start to finish.
+            </p>
+            {comparisonTracks.map((ct) => (
+              <div
+                key={ct.id}
+                className="flex items-center gap-3 bg-[var(--canvas)] rounded-lg p-2 border border-[var(--evergreen)]/10"
+              >
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: ct.color + '25' }}>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ct.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--evergreen)] truncate">{ct.name}</p>
+                  <div className="flex gap-3 text-[10px] text-[var(--evergreen-60)] mt-0.5">
+                    <span>{formatDistance(ct.track.totalDistance, settings.unitSystem)}</span>
+                    {ct.track.totalTime > 0 && <span>{formatDuration(ct.track.totalTime)}</span>}
+                  </div>
+                </div>
+                {/* Visual indicator showing it runs across full journey */}
+                <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1">
+                    <div className="w-16 h-1.5 rounded-full" style={{ backgroundColor: ct.color + '40' }}>
+                      <div className="h-full w-full rounded-full" style={{ backgroundColor: ct.color, opacity: 0.7 }} />
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-[var(--evergreen-60)]">full journey</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Transport Mode Selector */}
       {showTransportMenu && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
