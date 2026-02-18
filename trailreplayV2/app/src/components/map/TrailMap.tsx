@@ -89,7 +89,6 @@ function registerSlopeProtocol() {
         const sx = Math.min(Math.floor(offX + px * subSize / size), w - 1);
         const sy = Math.min(Math.floor(offY + py * subSize / size), w - 1);
 
-        const idx = (sy * w + sx) * 4;
         const idxL = (sy * w + Math.max(0, sx - 1)) * 4;
         const idxR = (sy * w + Math.min(w - 1, sx + 1)) * 4;
         const idxU = (Math.max(0, sy - 1) * w + sx) * 4;
