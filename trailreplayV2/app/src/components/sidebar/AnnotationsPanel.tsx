@@ -34,94 +34,200 @@ const ACTIVITY_ICONS = [
   { icon: '🚂', label: 'Train' },
 ];
 
+// ─── Inline name editor ────────────────────────────────────────────────────
+function InlineName({
+  name,
+  color,
+  onSave,
+}: {
+  name: string;
+  color: string;
+  onSave: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  const commit = () => {
+    if (draft.trim()) onSave(draft.trim());
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') { setDraft(name); setEditing(false); }
+        }}
+        autoFocus
+        className="flex-1 min-w-0 px-2 py-0.5 text-sm font-semibold border border-[var(--trail-orange)] rounded bg-[var(--canvas)] outline-none"
+        style={{ color }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="flex-1 min-w-0 text-sm font-semibold truncate cursor-text hover:underline decoration-dotted"
+      style={{ color }}
+      title="Click to rename"
+      onClick={() => { setDraft(name); setEditing(true); }}
+    >
+      {name}
+    </span>
+  );
+}
+
+// ─── Per-track settings block ──────────────────────────────────────────────
+function TrackStyleSection({
+  label,
+  color,
+  name,
+  onColorChange,
+  onNameChange,
+}: {
+  label: string;
+  color: string;
+  name: string;
+  onColorChange: (c: string) => void;
+  onNameChange: (n: string) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-[var(--evergreen)]/15 p-3 bg-[var(--evergreen)]/3">
+      {/* Section header: dot + label */}
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+        <span className="text-xs font-bold text-[var(--evergreen-60)] uppercase tracking-wide">{label}</span>
+      </div>
+
+      {/* Name row */}
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">Name</Label>
+        <InlineName name={name} color={color} onSave={onNameChange} />
+      </div>
+
+      {/* Color row */}
+      <div className="flex items-center gap-3">
+        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">Color</Label>
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => onColorChange(e.target.value)}
+          className="w-8 h-8 rounded cursor-pointer border-2 border-[var(--evergreen)]/20 flex-shrink-0"
+        />
+        <div className="flex gap-1.5 flex-wrap">
+          {COLOR_PRESETS.map(({ color: preset, label: pl }) => (
+            <button
+              key={preset}
+              onClick={() => onColorChange(preset)}
+              title={pl}
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                color === preset
+                  ? 'border-[var(--evergreen)] scale-110'
+                  : 'border-transparent hover:scale-105'
+              }`}
+              style={{ backgroundColor: preset }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main panel ────────────────────────────────────────────────────────────
 export function AnnotationsPanel() {
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const setTrailStyle = useAppStore((state) => state.setTrailStyle);
+
   const tracks = useAppStore((state) => state.tracks);
-  const updateTrackColor = useAppStore((state) => state.updateTrackColor);
   const activeTrackId = useAppStore((state) => state.activeTrackId);
+  const updateTrackColor = useAppStore((state) => state.updateTrackColor);
+  const updateTrackName = useAppStore((state) => state.updateTrackName);
+
+  const comparisonTracks = useAppStore((state) => state.comparisonTracks);
+  const updateComparisonColor = useAppStore((state) => state.updateComparisonColor);
+  const updateComparisonTrackName = useAppStore((state) => state.updateComparisonTrackName);
 
   const [showIconPicker, setShowIconPicker] = useState(false);
 
-  const handleColorChange = (color: string) => {
-    setTrailStyle({ trailColor: color });
-    // Also update the active track color
-    if (activeTrackId) {
-      updateTrackColor(activeTrackId, color);
-    }
-  };
+  const hasMultiple = tracks.length > 1 || comparisonTracks.length > 0;
 
-  const handleIconSelect = (icon: string) => {
-    setTrailStyle({ currentIcon: icon });
-    setShowIconPicker(false);
+  // When the active track color changes, also sync trailStyle
+  const handleMainColorChange = (trackId: string, color: string) => {
+    updateTrackColor(trackId, color);
+    if (trackId === activeTrackId) {
+      setTrailStyle({ trailColor: color });
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Trail Color Section */}
+
+      {/* ── Track colour & name sections ─────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          Trail Color
+          {hasMultiple ? 'Tracks' : 'Trail'}
         </h3>
 
-        <div className="space-y-3">
-          {/* Color Picker */}
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={trailStyle.trailColor}
-              onChange={(e) => handleColorChange(e.target.value)}
-              className="w-10 h-10 rounded cursor-pointer border-2 border-[var(--evergreen)]/20"
-            />
-            <div className="flex gap-2 flex-wrap">
-              {COLOR_PRESETS.map(({ color, label }) => (
-                <button
-                  key={color}
-                  onClick={() => handleColorChange(color)}
-                  title={label}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${
-                    trailStyle.trailColor === color
-                      ? 'border-[var(--evergreen)] scale-110'
-                      : 'border-transparent hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
+        {tracks.length === 0 && comparisonTracks.length === 0 && (
+          <p className="text-xs text-[var(--evergreen-60)]">Load a GPX track to set its colour and name.</p>
+        )}
 
-          {/* Per-track colors */}
-          {tracks.length > 1 && (
-            <div className="mt-3 pt-3 border-t border-[var(--evergreen)]/10">
-              <p className="text-xs text-[var(--evergreen-60)] mb-2">Track Colors</p>
-              <div className="space-y-2">
-                {tracks.map((track, index) => (
-                  <div key={track.id} className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={track.color}
-                      onChange={(e) => updateTrackColor(track.id, e.target.value)}
-                      className="w-6 h-6 rounded cursor-pointer border border-[var(--evergreen)]/20"
-                    />
-                    <span className="text-xs text-[var(--evergreen)]">
-                      {track.name || `Track ${index + 1}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Main tracks */}
+        {tracks.map((track, i) => (
+          <TrackStyleSection
+            key={track.id}
+            label={hasMultiple ? `Track ${i + 1}` : 'Main Track'}
+            color={track.color}
+            name={track.name}
+            onColorChange={(c) => handleMainColorChange(track.id, c)}
+            onNameChange={(n) => updateTrackName(track.id, n)}
+          />
+        ))}
+
+        {/* Comparison tracks */}
+        {comparisonTracks.map((ct, i) => (
+          <TrackStyleSection
+            key={ct.id}
+            label={`Comparison ${comparisonTracks.length > 1 ? i + 1 : ''}`}
+            color={ct.color}
+            name={ct.name}
+            onColorChange={(c) => updateComparisonColor(ct.id, c)}
+            onNameChange={(n) => updateComparisonTrackName(ct.id, n)}
+          />
+        ))}
       </div>
 
-      {/* Marker Settings Section */}
+      {/* ── Label visibility ─────────────────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          Marker Settings
+          Labels
+        </h3>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-[var(--evergreen)]">Show on map</Label>
+          <Switch
+            checked={trailStyle.showTrackLabels}
+            onCheckedChange={(checked) => setTrailStyle({ showTrackLabels: checked })}
+          />
+        </div>
+        {trailStyle.showTrackLabels && (
+          <p className="text-xs text-[var(--evergreen-60)]">
+            Each track's name floats next to its marker on the map.
+          </p>
+        )}
+      </div>
+
+      {/* ── Marker settings ──────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+          Marker
         </h3>
 
         <div className="space-y-4">
-          {/* Show Marker */}
           <div className="flex items-center justify-between">
             <Label className="text-sm text-[var(--evergreen)]">Show Marker</Label>
             <Switch
@@ -130,12 +236,11 @@ export function AnnotationsPanel() {
             />
           </div>
 
-          {/* Marker Size */}
           {trailStyle.showMarker && (
             <>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm text-[var(--evergreen)]">Marker Size</Label>
+                  <Label className="text-sm text-[var(--evergreen)]">Size</Label>
                   <span className="text-xs text-[var(--evergreen-60)]">
                     {trailStyle.markerSize.toFixed(1)}x
                   </span>
@@ -150,7 +255,6 @@ export function AnnotationsPanel() {
                 />
               </div>
 
-              {/* Current Icon */}
               <div className="space-y-2">
                 <Label className="text-sm text-[var(--evergreen)]">Activity Icon</Label>
                 <div className="flex items-center gap-3">
@@ -166,39 +270,14 @@ export function AnnotationsPanel() {
                 </div>
               </div>
 
-              {/* Show Circle */}
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-[var(--evergreen)]">Show Glow Circle</Label>
+                <Label className="text-sm text-[var(--evergreen)]">Glow Circle</Label>
                 <Switch
                   checked={trailStyle.showCircle}
                   onCheckedChange={(checked) => setTrailStyle({ showCircle: checked })}
                 />
               </div>
             </>
-          )}
-        </div>
-      </div>
-
-      {/* Track Labels Section */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          Track Labels
-        </h3>
-
-        <div className="space-y-4">
-          {/* Show Track Labels */}
-          <div className="flex items-center justify-between">
-            <Label className="text-sm text-[var(--evergreen)]">Show Labels</Label>
-            <Switch
-              checked={trailStyle.showTrackLabels}
-              onCheckedChange={(checked) => setTrailStyle({ showTrackLabels: checked })}
-            />
-          </div>
-
-          {trailStyle.showTrackLabels && (
-            <p className="text-xs text-[var(--evergreen-60)]">
-              Each track uses its name as its label. Rename tracks in the Tracks panel.
-            </p>
           )}
         </div>
       </div>
@@ -210,12 +289,11 @@ export function AnnotationsPanel() {
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4">
               Select Activity Icon
             </h3>
-
             <div className="grid grid-cols-6 gap-2 mb-6">
               {ACTIVITY_ICONS.map(({ icon, label }) => (
                 <button
                   key={icon}
-                  onClick={() => handleIconSelect(icon)}
+                  onClick={() => { setTrailStyle({ currentIcon: icon }); setShowIconPicker(false); }}
                   title={label}
                   className={`
                     flex items-center justify-center p-2 rounded-lg border-2 transition-colors
@@ -229,7 +307,6 @@ export function AnnotationsPanel() {
                 </button>
               ))}
             </div>
-
             <button
               onClick={() => setShowIconPicker(false)}
               className="w-full tr-btn tr-btn-secondary"

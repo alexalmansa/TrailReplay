@@ -78,6 +78,7 @@ interface AppState {
   toggleComparisonTrack: (trackId: string) => void;
   updateComparisonOffset: (trackId: string, offset: number) => void;
   updateComparisonTrackName: (trackId: string, name: string) => void;
+  updateComparisonColor: (trackId: string, color: string) => void;
   
   // Journey
   createJourney: (name: string) => void;
@@ -354,6 +355,12 @@ export const useAppStore = create<AppState>()(
       set((state) => {
         const track = state.comparisonTracks.find((t) => t.id === trackId);
         if (track) track.name = name;
+      }),
+
+    updateComparisonColor: (trackId, color) =>
+      set((state) => {
+        const track = state.comparisonTracks.find((t) => t.id === trackId);
+        if (track) track.color = color;
       }),
 
     // Journey Actions
