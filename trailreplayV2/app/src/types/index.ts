@@ -135,12 +135,14 @@ export interface CameraSettings {
 
 export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'low' | 'medium' | 'high' | 'ultra';
+export type AspectRatio = '16:9' | '1:1' | '9:16';
 
 export interface VideoExportSettings {
   format: VideoFormat;
   quality: VideoQuality;
   fps: number;
   resolution: { width: number; height: number };
+  aspectRatio: AspectRatio;
   includeStats: boolean;
   includeElevation: boolean;
   includeAudio: boolean;

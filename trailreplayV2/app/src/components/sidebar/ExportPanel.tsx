@@ -37,12 +37,34 @@ function getSupportedMimeType(format: 'mp4' | 'webm'): { mimeType: string; actua
   return { mimeType: webm, actualFormat: 'webm' };
 }
 
+import type { AspectRatio } from '@/types';
+
 const QUALITY_OPTIONS = [
-  { value: 'low', label: '720p', resolution: { width: 1280, height: 720 } },
-  { value: 'medium', label: '1080p', resolution: { width: 1920, height: 1080 } },
-  { value: 'high', label: '1440p', resolution: { width: 2560, height: 1440 } },
-  { value: 'ultra', label: '4K', resolution: { width: 3840, height: 2160 } },
+  { value: 'low',   label: '720p'  },
+  { value: 'medium', label: '1080p' },
+  { value: 'high',  label: '1440p' },
+  { value: 'ultra', label: '4K'    },
 ];
+
+// Long-edge pixel counts per quality tier
+const QUALITY_LONG_EDGE: Record<string, number> = {
+  low: 1280, medium: 1920, high: 2560, ultra: 3840,
+};
+
+const ASPECT_RATIO_OPTIONS: { id: AspectRatio; label: string; icon: string; description: string }[] = [
+  { id: '16:9', label: '16:9', icon: '▬', description: 'Landscape' },
+  { id: '1:1',  label: '1:1',  icon: '■', description: 'Square'    },
+  { id: '9:16', label: '9:16', icon: '▮', description: 'Portrait'  },
+];
+
+function getResolution(quality: string, aspectRatio: AspectRatio): { width: number; height: number } {
+  const long = QUALITY_LONG_EDGE[quality] ?? 1920;
+  switch (aspectRatio) {
+    case '16:9': return { width: long, height: Math.round(long * 9 / 16) };
+    case '1:1':  { const s = Math.round(long * 9 / 16); return { width: s, height: s }; }
+    case '9:16': { const h = long; const w = Math.round(long * 9 / 16); return { width: w, height: h }; }
+  }
+}
 
 const FPS_OPTIONS = [24, 30, 60];
 
@@ -373,17 +395,17 @@ export function ExportPanel() {
             <span className="ml-2 font-bold uppercase">
               {actualFormat.toUpperCase()}
               {videoExportSettings.format === 'mp4' && !mp4Supported && (
-                <span className="ml-1 text-yellow-400 text-xs">(WebM fallback)</span>
+                <span className="ml-1 text-yellow-400 text-xs">(WebM)</span>
               )}
             </span>
           </div>
           <div>
-            <span className="opacity-70">Quality:</span>
-            <span className="ml-2 font-bold">{QUALITY_OPTIONS.find(q => q.value === videoExportSettings.quality)?.label}</span>
+            <span className="opacity-70">Ratio:</span>
+            <span className="ml-2 font-bold">{videoExportSettings.aspectRatio}</span>
           </div>
           <div>
-            <span className="opacity-70">FPS:</span>
-            <span className="ml-2 font-bold">{videoExportSettings.fps}</span>
+            <span className="opacity-70">Quality:</span>
+            <span className="ml-2 font-bold">{QUALITY_OPTIONS.find(q => q.value === videoExportSettings.quality)?.label} · {videoExportSettings.fps}fps</span>
           </div>
           <div>
             <span className="opacity-70">Duration:</span>
@@ -524,6 +546,40 @@ export function ExportPanel() {
               )}
             </div>
 
+            {/* Aspect Ratio */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
+                Aspect Ratio
+              </label>
+              <div className="flex gap-2">
+                {ASPECT_RATIO_OPTIONS.map((ar) => (
+                  <button
+                    key={ar.id}
+                    onClick={() => setVideoExportSettings({
+                      aspectRatio: ar.id,
+                      resolution: getResolution(videoExportSettings.quality, ar.id),
+                    })}
+                    className={`
+                      flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-colors
+                      ${videoExportSettings.aspectRatio === ar.id
+                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
+                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
+                      }
+                    `}
+                  >
+                    {/* Visual ratio icon */}
+                    <span className={`
+                      border-2 rounded-sm
+                      ${videoExportSettings.aspectRatio === ar.id ? 'border-white/70' : 'border-[var(--evergreen)]/40'}
+                      ${ar.id === '16:9' ? 'w-8 h-[18px]' : ar.id === '1:1' ? 'w-5 h-5' : 'w-[11px] h-5'}
+                    `} />
+                    <span className="font-bold">{ar.label}</span>
+                    <span className="opacity-70 text-[10px]">{ar.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Quality */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
@@ -535,7 +591,7 @@ export function ExportPanel() {
                     key={opt.value}
                     onClick={() => setVideoExportSettings({
                       quality: opt.value as any,
-                      resolution: opt.resolution
+                      resolution: getResolution(opt.value, videoExportSettings.aspectRatio),
                     })}
                     className={`
                       py-2 px-3 rounded-lg text-sm font-medium transition-colors
@@ -575,11 +631,12 @@ export function ExportPanel() {
               </div>
             </div>
 
-            {/* Estimated Size */}
+            {/* Estimated Size + Resolution */}
             <div className="bg-[var(--evergreen)]/10 rounded-lg p-3 flex items-center gap-2 mb-4">
               <Monitor className="w-4 h-4 text-[var(--evergreen-60)]" />
               <span className="text-sm text-[var(--evergreen)]">
-                Estimated file size: <strong>{estimatedSize}</strong>
+                <strong>{videoExportSettings.resolution.width}×{videoExportSettings.resolution.height}</strong>
+                <span className="text-[var(--evergreen-60)] ml-2">≈ {estimatedSize}</span>
               </span>
             </div>
 
