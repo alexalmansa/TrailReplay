@@ -1,5 +1,5 @@
 import { useAppStore } from '@/store/useAppStore';
-import type { MapStyle, CameraMode, UnitSystem } from '@/types';
+import type { MapStyle, CameraMode, UnitSystem, MapOverlays } from '@/types';
 import { S2MAPS_YEARS } from '@/components/map/TrailMap';
 import {
   Map as MapIcon,
@@ -17,7 +17,10 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
   { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
   { id: 'dark', name: 'Dark', icon: '🌙' },
   { id: 's2maps', name: 'Sentinel-2', icon: '🌍' },
-  { id: 'ski', name: 'Ski Map', icon: '⛷️' },
+];
+
+const MAP_OVERLAYS: { id: string; name: string; icon: string; description: string }[] = [
+  { id: 'skiPistes', name: 'Ski Pistes', icon: '⛷️', description: 'OpenSnowMap ski runs overlay' },
 ];
 
 const CAMERA_MODES: { id: CameraMode; name: string; description: string }[] = [
@@ -41,6 +44,10 @@ export function SettingsPanel() {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
   const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+
+  const toggleOverlay = (key: keyof MapOverlays) => {
+    setSettings({ mapOverlays: { ...settings.mapOverlays, [key]: !settings.mapOverlays?.[key] } });
+  };
 
   return (
     <div className="space-y-6">
@@ -109,20 +116,54 @@ export function SettingsPanel() {
           </div>
         )}
 
-        {/* Ski map note */}
-        {settings.mapStyle === 'ski' && (
-          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
+      </div>
+
+      {/* Map Overlays */}
+      <div>
+        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
+          <MapIcon className="w-4 h-4" />
+          Overlays
+        </h3>
+        <div className="space-y-2">
+          {MAP_OVERLAYS.map((overlay) => {
+            const isActive = !!settings.mapOverlays?.[overlay.id as keyof MapOverlays];
+            return (
+              <button
+                key={overlay.id}
+                onClick={() => toggleOverlay(overlay.id as keyof MapOverlays)}
+                className={`
+                  w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-colors text-left
+                  ${isActive
+                    ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
+                    : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
+                  }
+                `}
+              >
+                <span className="text-xl">{overlay.icon}</span>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-[var(--evergreen)] block">{overlay.name}</span>
+                  <span className="text-xs text-[var(--evergreen-60)]">{overlay.description}</span>
+                </div>
+                {isActive && <div className="w-3 h-3 rounded-full bg-[var(--trail-orange)] flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Ski pistes attribution */}
+        {settings.mapOverlays?.skiPistes && (
+          <div className="mt-2 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
             <p className="text-xs text-[var(--evergreen-60)]">
-              Ski piste overlay from{' '}
+              Data ©{' '}
               <a href="https://www.opensnowmap.org" target="_blank" rel="noopener noreferrer"
                 className="underline hover:text-[var(--trail-orange)]">OpenSnowMap.org
               </a>
-              {' '}on topographic base · Data © OSM contributors ODbL, OpenSnowMap CC-BY-SA
+              {' '}· OSM contributors ODbL · CC-BY-SA
             </p>
           </div>
         )}
       </div>
-      
+
       {/* Camera Mode */}
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">

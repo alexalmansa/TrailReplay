@@ -114,7 +114,11 @@ export interface PlaybackState {
   segmentProgress: number;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light' | 's2maps' | 'ski';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light' | 's2maps';
+
+export interface MapOverlays {
+  skiPistes: boolean;
+}
 
 export interface MapStyleConfig {
   id: MapStyle;
@@ -186,6 +190,7 @@ export interface TrailStyleSettings {
 export interface AppSettings {
   unitSystem: UnitSystem;
   mapStyle: MapStyle;
+  mapOverlays: MapOverlays;
   show3DTerrain: boolean;
   showHeartRate: boolean;
   showPictures: boolean;

@@ -49,7 +49,7 @@ const MAP_STYLE = {
     },
     's2maps': {
       type: 'raster',
-      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024/default/GoogleMapsCompatible/{z}/{x}/{y}.jpg'],
+      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
       tileSize: 256,
       attribution: 'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)'
     },
@@ -345,7 +345,6 @@ export function TrailMap({}: TrailMapProps) {
       outdoor: 'opentopomap',
       terrain: 'enhanced-hillshade',
       s2maps: 's2maps',
-      ski: 'opentopomap', // ski uses topo as base map
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
@@ -361,26 +360,26 @@ export function TrailMap({}: TrailMapProps) {
       map.current.setLayoutProperty(targetLayer, 'visibility', 'visible');
     }
 
-    // Ski piste overlay — only visible on ski style
+    // Ski piste overlay — controlled independently of base map
     if (map.current.getLayer('ski-pistes')) {
       map.current.setLayoutProperty('ski-pistes', 'visibility',
-        settings.mapStyle === 'ski' ? 'visible' : 'none');
+        settings.mapOverlays?.skiPistes ? 'visible' : 'none');
     }
 
-    // Labels: shown for street/topo/outdoor/ski, and for s2maps when labels enabled
-    const showLabels = ['street', 'topo', 'outdoor', 'ski'].includes(settings.mapStyle)
+    // Labels: shown for street/topo/outdoor, and for s2maps when labels enabled
+    const showLabels = ['street', 'topo', 'outdoor'].includes(settings.mapStyle)
       || (settings.mapStyle === 's2maps' && settings.s2mapsLabels);
     if (map.current.getLayer('carto-labels')) {
       map.current.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
     }
-  }, [settings.mapStyle, settings.s2mapsLabels, isMapLoaded]);
+  }, [settings.mapStyle, settings.s2mapsLabels, settings.mapOverlays?.skiPistes, isMapLoaded]);
 
   // Update S2Maps tile source when year changes
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
     const year = settings.s2mapsYear ?? 2024;
-    const url = `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}/default/GoogleMapsCompatible/{z}/{x}/{y}.jpg`;
+    const url = `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-${year}/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg`;
     const attribution = `Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${year})`;
     const isS2Active = settings.mapStyle === 's2maps';
 
