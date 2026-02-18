@@ -283,6 +283,37 @@ export class VideoExportController {
                 .video-capture-container .map-watermark {
                     position: absolute;
                 }
+                .export-duration-note {
+                    margin-top: 12px;
+                    padding: 8px 10px;
+                    border-radius: 6px;
+                    background: rgba(46, 125, 50, 0.08);
+                    color: rgba(27, 42, 32, 0.8);
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+                .export-duration-tooltip {
+                    margin-top: 8px;
+                    padding: 10px 12px;
+                    border-radius: 6px;
+                    background: rgba(193, 101, 47, 0.1);
+                    border-left: 3px solid var(--trail-orange);
+                    color: rgba(27, 42, 32, 0.85);
+                    font-size: 12px;
+                    line-height: 1.5;
+                }
+                .export-duration-tooltip strong {
+                    color: var(--trail-orange);
+                    display: block;
+                    margin-bottom: 4px;
+                }
+                .export-duration-tooltip ul {
+                    margin: 6px 0 0 0;
+                    padding-left: 16px;
+                }
+                .export-duration-tooltip li {
+                    margin-bottom: 3px;
+                }
             </style>
             <div class="export-section">
                 <div class="export-header">
@@ -349,6 +380,18 @@ export class VideoExportController {
                         <span>${this.exportModes.manual.icon}</span>
                         <span>${t('videoExport.manualModeShort')}</span>
                     </button>
+                </div>
+                <div class="export-duration-note">${t('videoExport.durationNote')}</div>
+                
+                <!-- Duration-based export tooltip -->
+                <div class="export-duration-tooltip" title="${t('videoExport.durationTooltipTitle')}">
+                    <strong>💡 ${t('videoExport.durationAdvantageTitle')}</strong>
+                    ${t('videoExport.durationAdvantageText')}
+                    <ul>
+                        <li>${t('videoExport.durationAdvantage1')}</li>
+                        <li>${t('videoExport.durationAdvantage2')}</li>
+                        <li>${t('videoExport.durationAdvantage3')}</li>
+                    </ul>
                 </div>
             </div>
         `;
@@ -4346,7 +4389,12 @@ export class VideoExportController {
     async prepareForExport() {
         // Reset animation to beginning
         this.app.playback.reset();
-        
+
+        // Signal to FollowBehindCamera that this is a video export
+        if (this.app.mapRenderer?.followBehindCamera) {
+            this.app.mapRenderer.followBehindCamera.isVideoExport = true;
+        }
+
         // Enable performance mode if available
         if (this.app.mapRenderer.setPerformanceMode) {
             this.app.mapRenderer.setPerformanceMode(true);
@@ -4883,7 +4931,12 @@ export class VideoExportController {
 
         this.isExporting = false;
         this.currentExportMode = null;
-        
+
+        // Clear video export flag on camera
+        if (this.app.mapRenderer?.followBehindCamera) {
+            this.app.mapRenderer.followBehindCamera.isVideoExport = false;
+        }
+
         // Restore window behavior
         this.restoreWindowChanges();
         

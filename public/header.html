@@ -2,14 +2,17 @@
     <div class="container">
         <div class="logo-container">
             <div class="logo-placeholder" id="logoPlaceholder">
-                <img src="media/images/logohorizontal.svg" alt="TrailReplay logo" class="logo-image"
-                     onload="if(this.offsetWidth > 0) { document.querySelector('.logo-text').style.display = 'none'; } else { document.querySelector('.logo-text').style.display = 'block'; this.style.display = 'block'; }"
-                     onerror="document.querySelector('.logo-text').style.display = 'block'; this.style.display = 'none';" />
-                <span class="logo-text">TrailReplay</span>
+                <img src="media/images/simplelogo.png" alt="TrailReplay logo" class="logo-image" style="height: 32px; width: auto;" />
             </div>
         </div>
         <p class="subtitle" data-i18n="subtitle">Replay the story your trails told</p>
         <!-- Language Switcher removed from header -->
+    </div>
+
+    <!-- Version Switch -->
+    <div class="version-switcher" aria-label="Version switcher">
+        <a href="/app-v1.html" class="version-switcher-link active" aria-current="page">v1</a>
+        <a href="/app" class="version-switcher-link">v2</a>
     </div>
 
     <!-- Support Button - Top Right -->

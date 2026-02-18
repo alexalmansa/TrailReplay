@@ -80,5 +80,5 @@ export const ADS_CONFIG = {
  *
  * 5. Add AdSense code to your site:
  *    - Copy the AdSense script tag
- *    - Add it to app.html (we'll do this in next step)
+ *    - Add it to app-v1.html (we'll do this in next step)
  */
