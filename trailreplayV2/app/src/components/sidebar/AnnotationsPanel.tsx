@@ -1,37 +1,38 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 
 const COLOR_PRESETS = [
-  { color: '#C1652F', label: 'Trail Orange' },
-  { color: '#28a745', label: 'Green' },
-  { color: '#7FB8AD', label: 'Teal' },
-  { color: '#3B82F6', label: 'Blue' },
-  { color: '#dc3545', label: 'Red' },
-  { color: '#8B5CF6', label: 'Purple' },
+  { color: '#C1652F', labelKey: 'colors.trailOrange' },
+  { color: '#28a745', labelKey: 'colors.green' },
+  { color: '#7FB8AD', labelKey: 'colors.teal' },
+  { color: '#3B82F6', labelKey: 'colors.blue' },
+  { color: '#dc3545', labelKey: 'colors.red' },
+  { color: '#8B5CF6', labelKey: 'colors.purple' },
 ];
 
 const ACTIVITY_ICONS = [
-  { icon: '🏃', label: 'Running' },
-  { icon: '🏃‍♂️', label: 'Runner' },
-  { icon: '🚴', label: 'Cycling' },
-  { icon: '🚴‍♂️', label: 'Cyclist' },
-  { icon: '🥾', label: 'Hiking' },
-  { icon: '🚶', label: 'Walking' },
-  { icon: '🚶‍♂️', label: 'Walker' },
-  { icon: '⛷️', label: 'Skiing' },
-  { icon: '🏊', label: 'Swimming' },
-  { icon: '🧗', label: 'Climbing' },
-  { icon: '🏇', label: 'Horse' },
-  { icon: '🛶', label: 'Kayak' },
-  { icon: '🛹', label: 'Skate' },
-  { icon: '🎿', label: 'Ski' },
-  { icon: '🏂', label: 'Snowboard' },
-  { icon: '🚗', label: 'Car' },
-  { icon: '✈️', label: 'Plane' },
-  { icon: '🚂', label: 'Train' },
+  { icon: '🏃', labelKey: 'activities.running' },
+  { icon: '🏃‍♂️', labelKey: 'activities.runner' },
+  { icon: '🚴', labelKey: 'activities.cycling' },
+  { icon: '🚴‍♂️', labelKey: 'activities.cyclist' },
+  { icon: '🥾', labelKey: 'activities.hiking' },
+  { icon: '🚶', labelKey: 'activities.walking' },
+  { icon: '🚶‍♂️', labelKey: 'activities.walker' },
+  { icon: '⛷️', labelKey: 'activities.skiing' },
+  { icon: '🏊', labelKey: 'activities.swimming' },
+  { icon: '🧗', labelKey: 'activities.climbing' },
+  { icon: '🏇', labelKey: 'activities.horse' },
+  { icon: '🛶', labelKey: 'activities.kayak' },
+  { icon: '🛹', labelKey: 'activities.skate' },
+  { icon: '🎿', labelKey: 'activities.ski' },
+  { icon: '🏂', labelKey: 'activities.snowboard' },
+  { icon: '🚗', labelKey: 'activities.car' },
+  { icon: '✈️', labelKey: 'activities.plane' },
+  { icon: '🚂', labelKey: 'activities.train' },
 ];
 
 // ─── Inline name editor ────────────────────────────────────────────────────
@@ -39,10 +40,12 @@ function InlineName({
   name,
   color,
   onSave,
+  renameTitle,
 }: {
   name: string;
   color: string;
   onSave: (name: string) => void;
+  renameTitle: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
@@ -73,7 +76,7 @@ function InlineName({
     <span
       className="flex-1 min-w-0 text-sm font-semibold truncate cursor-text hover:underline decoration-dotted"
       style={{ color }}
-      title="Click to rename"
+      title={renameTitle}
       onClick={() => { setDraft(name); setEditing(true); }}
     >
       {name}
@@ -88,12 +91,20 @@ function TrackStyleSection({
   name,
   onColorChange,
   onNameChange,
+  nameLabel,
+  colorLabel,
+  renameTitle,
+  resolveColorLabel,
 }: {
   label: string;
   color: string;
   name: string;
   onColorChange: (c: string) => void;
   onNameChange: (n: string) => void;
+  nameLabel: string;
+  colorLabel: string;
+  renameTitle: string;
+  resolveColorLabel: (key: string) => string;
 }) {
   return (
     <div className="space-y-3 rounded-lg border border-[var(--evergreen)]/15 p-3 bg-[var(--evergreen)]/3">
@@ -105,13 +116,13 @@ function TrackStyleSection({
 
       {/* Name row */}
       <div className="flex items-center gap-2">
-        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">Name</Label>
-        <InlineName name={name} color={color} onSave={onNameChange} />
+        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">{nameLabel}</Label>
+        <InlineName name={name} color={color} onSave={onNameChange} renameTitle={renameTitle} />
       </div>
 
       {/* Color row */}
       <div className="flex items-center gap-3">
-        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">Color</Label>
+        <Label className="text-xs text-[var(--evergreen-60)] w-10 flex-shrink-0">{colorLabel}</Label>
         <input
           type="color"
           value={color}
@@ -119,11 +130,11 @@ function TrackStyleSection({
           className="w-8 h-8 rounded cursor-pointer border-2 border-[var(--evergreen)]/20 flex-shrink-0"
         />
         <div className="flex gap-1.5 flex-wrap">
-          {COLOR_PRESETS.map(({ color: preset, label: pl }) => (
+          {COLOR_PRESETS.map(({ color: preset, labelKey }) => (
             <button
               key={preset}
               onClick={() => onColorChange(preset)}
-              title={pl}
+              title={resolveColorLabel(labelKey)}
               className={`w-6 h-6 rounded-full border-2 transition-all ${
                 color === preset
                   ? 'border-[var(--evergreen)] scale-110'
@@ -140,6 +151,7 @@ function TrackStyleSection({
 
 // ─── Main panel ────────────────────────────────────────────────────────────
 export function AnnotationsPanel() {
+  const { t } = useI18n();
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const setTrailStyle = useAppStore((state) => state.setTrailStyle);
 
@@ -170,22 +182,26 @@ export function AnnotationsPanel() {
       {/* ── Track colour & name sections ─────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          {hasMultiple ? 'Tracks' : 'Trail'}
+          {hasMultiple ? t('annotations.tracksTitle') : t('annotations.trailTitle')}
         </h3>
 
         {tracks.length === 0 && comparisonTracks.length === 0 && (
-          <p className="text-xs text-[var(--evergreen-60)]">Load a GPX track to set its colour and name.</p>
+          <p className="text-xs text-[var(--evergreen-60)]">{t('annotations.noTracks')}</p>
         )}
 
         {/* Main tracks */}
         {tracks.map((track, i) => (
           <TrackStyleSection
             key={track.id}
-            label={hasMultiple ? `Track ${i + 1}` : 'Main Track'}
+            label={hasMultiple ? t('annotations.trackLabel', { index: i + 1 }) : t('annotations.mainTrack')}
             color={track.color}
             name={track.name}
             onColorChange={(c) => handleMainColorChange(track.id, c)}
             onNameChange={(n) => updateTrackName(track.id, n)}
+            nameLabel={t('common.name')}
+            colorLabel={t('common.color')}
+            renameTitle={t('common.clickRename')}
+            resolveColorLabel={(key) => t(key)}
           />
         ))}
 
@@ -193,11 +209,19 @@ export function AnnotationsPanel() {
         {comparisonTracks.map((ct, i) => (
           <TrackStyleSection
             key={ct.id}
-            label={`Comparison ${comparisonTracks.length > 1 ? i + 1 : ''}`}
+            label={
+              comparisonTracks.length > 1
+                ? t('annotations.comparisonNumbered', { index: i + 1 })
+                : t('annotations.comparisonSingle')
+            }
             color={ct.color}
             name={ct.name}
             onColorChange={(c) => updateComparisonColor(ct.id, c)}
             onNameChange={(n) => updateComparisonTrackName(ct.id, n)}
+            nameLabel={t('common.name')}
+            colorLabel={t('common.color')}
+            renameTitle={t('common.clickRename')}
+            resolveColorLabel={(key) => t(key)}
           />
         ))}
       </div>
@@ -205,10 +229,10 @@ export function AnnotationsPanel() {
       {/* ── Label visibility ─────────────────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          Labels
+          {t('annotations.labelsTitle')}
         </h3>
         <div className="flex items-center justify-between">
-          <Label className="text-sm text-[var(--evergreen)]">Show on map</Label>
+          <Label className="text-sm text-[var(--evergreen)]">{t('annotations.showOnMap')}</Label>
           <Switch
             checked={trailStyle.showTrackLabels}
             onCheckedChange={(checked) => setTrailStyle({ showTrackLabels: checked })}
@@ -216,7 +240,7 @@ export function AnnotationsPanel() {
         </div>
         {trailStyle.showTrackLabels && (
           <p className="text-xs text-[var(--evergreen-60)]">
-            Each track's name floats next to its marker on the map.
+            {t('annotations.labelsHint')}
           </p>
         )}
       </div>
@@ -224,12 +248,12 @@ export function AnnotationsPanel() {
       {/* ── Marker settings ──────────────────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-          Marker
+          {t('annotations.markerTitle')}
         </h3>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-[var(--evergreen)]">Show Marker</Label>
+            <Label className="text-sm text-[var(--evergreen)]">{t('annotations.showMarker')}</Label>
             <Switch
               checked={trailStyle.showMarker}
               onCheckedChange={(checked) => setTrailStyle({ showMarker: checked })}
@@ -240,7 +264,7 @@ export function AnnotationsPanel() {
             <>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm text-[var(--evergreen)]">Size</Label>
+                  <Label className="text-sm text-[var(--evergreen)]">{t('annotations.size')}</Label>
                   <span className="text-xs text-[var(--evergreen-60)]">
                     {trailStyle.markerSize.toFixed(1)}x
                   </span>
@@ -256,7 +280,7 @@ export function AnnotationsPanel() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm text-[var(--evergreen)]">Activity Icon</Label>
+                <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center text-2xl">
                     {trailStyle.currentIcon}
@@ -265,13 +289,13 @@ export function AnnotationsPanel() {
                     onClick={() => setShowIconPicker(true)}
                     className="tr-btn tr-btn-secondary text-sm"
                   >
-                    Change Icon
+                    {t('annotations.changeIcon')}
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-[var(--evergreen)]">Glow Circle</Label>
+                <Label className="text-sm text-[var(--evergreen)]">{t('annotations.glowCircle')}</Label>
                 <Switch
                   checked={trailStyle.showCircle}
                   onCheckedChange={(checked) => setTrailStyle({ showCircle: checked })}
@@ -287,14 +311,14 @@ export function AnnotationsPanel() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4">
-              Select Activity Icon
+              {t('annotations.selectIcon')}
             </h3>
             <div className="grid grid-cols-6 gap-2 mb-6">
-              {ACTIVITY_ICONS.map(({ icon, label }) => (
+              {ACTIVITY_ICONS.map(({ icon, labelKey }) => (
                 <button
                   key={icon}
                   onClick={() => { setTrailStyle({ currentIcon: icon }); setShowIconPicker(false); }}
-                  title={label}
+                  title={t(labelKey)}
                   className={`
                     flex items-center justify-center p-2 rounded-lg border-2 transition-colors
                     ${trailStyle.currentIcon === icon
@@ -311,7 +335,7 @@ export function AnnotationsPanel() {
               onClick={() => setShowIconPicker(false)}
               className="w-full tr-btn tr-btn-secondary"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>

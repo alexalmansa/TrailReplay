@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import type { PictureAnnotation } from '@/types';
+import { useI18n } from '@/i18n/useI18n';
 import { X, MapPin, Calendar } from 'lucide-react';
 
 interface PicturePopupProps {
@@ -8,6 +9,7 @@ interface PicturePopupProps {
 }
 
 export function PicturePopup({ picture, onClose }: PicturePopupProps) {
+  const { t } = useI18n();
   const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
@@ -98,7 +100,7 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
           {imageSrc ? (
             <img
               src={imageSrc}
-              alt={picture.title || 'Trail picture'}
+              alt={picture.title || t('media.trailPictureAlt')}
               className="w-72 h-52 object-cover"
               onError={() => {
                 if (picture.file && imageSrc === picture.url) {
@@ -108,7 +110,7 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
             />
           ) : (
             <div className="w-72 h-52 flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm">
-              Image unavailable
+              {t('media.imageUnavailable')}
             </div>
           )}
           

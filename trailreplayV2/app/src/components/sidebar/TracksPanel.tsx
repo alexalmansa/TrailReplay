@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { parseGPX } from '@/utils/gpxParser';
 import { formatDistance, formatDuration, formatSpeed } from '@/utils/units';
+import { useI18n } from '@/i18n/useI18n';
 import {
   Upload,
   GripVertical,
@@ -44,6 +45,7 @@ interface TrackItemProps {
 }
 
 function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisibility, onColorChange, onNameChange, onReorder, settings }: TrackItemProps) {
+  const { t } = useI18n();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -131,7 +133,7 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
                 className="font-medium text-sm truncate flex-1 cursor-text hover:underline decoration-dotted"
                 style={{ color: track.color }}
                 onClick={() => { setEditName(track.name); setIsEditingName(true); }}
-                title="Click to rename"
+                title={t('tracks.clickRename')}
               >
                 {track.name}
               </span>
@@ -172,7 +174,7 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
             <div className="bg-[var(--evergreen)]/5 rounded p-2">
               <div className="flex items-center gap-1 text-[var(--evergreen-60)] mb-1">
                 <Navigation className="w-3 h-3" />
-                <span>Distance</span>
+                <span>{t('tracks.distance')}</span>
               </div>
               <span className="font-semibold text-[var(--evergreen)]">
                 {formatDistance(track.totalDistance, settings.unitSystem)}
@@ -182,7 +184,7 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
             <div className="bg-[var(--evergreen)]/5 rounded p-2">
               <div className="flex items-center gap-1 text-[var(--evergreen-60)] mb-1">
                 <Clock className="w-3 h-3" />
-                <span>Time</span>
+                <span>{t('tracks.time')}</span>
               </div>
               <span className="font-semibold text-[var(--evergreen)]">
                 {formatDuration(track.movingTime || track.totalTime)}
@@ -192,7 +194,7 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
             <div className="bg-[var(--evergreen)]/5 rounded p-2">
               <div className="flex items-center gap-1 text-[var(--evergreen-60)] mb-1">
                 <TrendingUp className="w-3 h-3" />
-                <span>Speed</span>
+                <span>{t('tracks.speed')}</span>
               </div>
               <span className="font-semibold text-[var(--evergreen)]">
                 {formatSpeed(track.avgMovingSpeed || track.avgSpeed, settings.unitSystem)}
@@ -207,10 +209,10 @@ function TrackItem({ track, index, isActive, onActivate, onRemove, onToggleVisib
           
           {/* Additional Stats */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-[var(--evergreen-60)]">
-            <span>↑ {formatDistance(track.elevationGain, settings.unitSystem)} gain</span>
-            <span>↓ {formatDistance(track.elevationLoss, settings.unitSystem)} loss</span>
-            <span>⚡ {formatSpeed(track.maxSpeed, settings.unitSystem)} max</span>
-            <span>{track.points.length.toLocaleString()} points</span>
+            <span>↑ {formatDistance(track.elevationGain, settings.unitSystem)} {t('tracks.gain')}</span>
+            <span>↓ {formatDistance(track.elevationLoss, settings.unitSystem)} {t('tracks.loss')}</span>
+            <span>⚡ {formatSpeed(track.maxSpeed, settings.unitSystem)} {t('tracks.max')}</span>
+            <span>{track.points.length.toLocaleString()} {t('tracks.points')}</span>
           </div>
         </div>
       </div>
@@ -251,6 +253,7 @@ function ComparisonTrackItem({
   onNameChange: (name: string) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(ct.name);
 
@@ -282,7 +285,7 @@ function ComparisonTrackItem({
           <span
             className="text-sm font-medium text-[var(--evergreen)] truncate flex-1 cursor-text hover:underline decoration-dotted"
             onClick={() => { setEditName(ct.name); setIsEditing(true); }}
-            title="Click to rename"
+            title={t('tracks.clickRename')}
           >
             {ct.name}
           </span>
@@ -299,6 +302,7 @@ function ComparisonTrackItem({
 }
 
 export function TracksPanel() {
+  const { t } = useI18n();
   const { parseFiles, isParsing } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
   const activeTrackId = useAppStore((state) => state.activeTrackId);
@@ -309,6 +313,8 @@ export function TracksPanel() {
   const toggleTrackVisibility = useAppStore((state) => state.toggleTrackVisibility);
   const reorderTracks = useAppStore((state) => state.reorderTracks);
   const settings = useAppStore((state) => state.settings);
+  const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
+  const setExploreMode = useAppStore((state) => state.setExploreMode);
 
   // Comparison track state
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -378,10 +384,10 @@ export function TracksPanel() {
         <input {...getInputProps()} />
         <Upload className="w-10 h-10 mx-auto mb-3 text-[var(--evergreen-60)]" />
         <p className="text-sm font-medium text-[var(--evergreen)]">
-          {isDragActive ? 'Drop GPX files here' : 'Drag & drop GPX files'}
+          {isDragActive ? t('tracks.dropActive') : t('tracks.dropTitle')}
         </p>
         <p className="text-xs text-[var(--evergreen-60)] mt-1">
-          or click to browse
+          {t('tracks.dropBrowse')}
         </p>
       </div>
       
@@ -389,7 +395,7 @@ export function TracksPanel() {
       {isParsing && (
         <div className="flex items-center justify-center gap-2 py-4">
           <div className="w-5 h-5 border-2 border-[var(--trail-orange)] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-[var(--evergreen)]">Parsing GPX files...</span>
+          <span className="text-sm text-[var(--evergreen)]">{t('tracks.parsing')}</span>
         </div>
       )}
       
@@ -398,10 +404,10 @@ export function TracksPanel() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-              Loaded Tracks ({tracks.length})
+              {t('tracks.loadedTracks', { count: tracks.length })}
             </h3>
             <span className="text-xs text-[var(--evergreen-60)]">
-              Drag to reorder
+              {t('tracks.dragReorder')}
             </span>
           </div>
           <div className="space-y-2">
@@ -433,17 +439,17 @@ export function TracksPanel() {
           >
             <GitCompareArrows className="w-4 h-4 text-[var(--evergreen-60)]" />
             <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-              Comparison Mode
+              {t('tracks.comparisonTitle')}
             </h3>
             <span className="text-xs text-[var(--evergreen-60)] ml-auto">
-              {showComparison ? '▾' : '▸'}
+              {showComparison ? t('tracks.comparisonToggleOpen') : t('tracks.comparisonToggleClosed')}
             </span>
           </button>
 
           {showComparison && (
             <div className="space-y-3">
               <p className="text-xs text-[var(--evergreen-60)]">
-                Add a second GPX track to compare side-by-side during animation.
+                {t('tracks.comparisonHint')}
               </p>
 
               {/* Comparison track list */}
@@ -471,7 +477,7 @@ export function TracksPanel() {
                   disabled={isParsingComparison}
                   className="tr-btn tr-btn-secondary w-full text-sm"
                 >
-                  {isParsingComparison ? 'Parsing...' : '+ Add Comparison Track'}
+                  {isParsingComparison ? t('tracks.parsingComparison') : t('tracks.addComparison')}
                 </button>
               </div>
             </div>
@@ -482,8 +488,17 @@ export function TracksPanel() {
       {/* Empty State */}
       {tracks.length === 0 && !isParsing && (
         <div className="text-center py-8 text-[var(--evergreen-60)]">
-          <p className="text-sm">No tracks loaded yet</p>
-          <p className="text-xs mt-1">Upload GPX files to get started</p>
+          <p className="text-sm">{t('tracks.emptyTitle')}</p>
+          <p className="text-xs mt-1">{t('tracks.emptySubtitle')}</p>
+          <button
+            onClick={() => {
+              setExploreMode(true);
+              setSidebarOpen(false);
+            }}
+            className="tr-btn tr-btn-secondary w-full text-sm mt-4"
+          >
+            {t('tracks.explore')}
+          </button>
         </div>
       )}
     </div>

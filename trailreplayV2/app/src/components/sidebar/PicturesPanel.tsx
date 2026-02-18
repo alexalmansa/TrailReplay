@@ -3,11 +3,13 @@ import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { usePhotos } from '@/hooks/usePhotos';
 import { isImageFile } from '@/utils/files';
+import { useI18n } from '@/i18n/useI18n';
 import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2 } from 'lucide-react';
 
 const DEFAULT_DISPLAY_DURATION = 5000; // 5 seconds
 
 export function PicturesPanel() {
+  const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
   const videos = useAppStore((state) => state.videos);
   const removePicture = useAppStore((state) => state.removePicture);
@@ -58,7 +60,7 @@ export function PicturesPanel() {
           `}
         >
           <ImageIcon className="w-4 h-4" />
-          Pictures ({pictures.length})
+          {t('media.picturesTab', { count: pictures.length })}
         </button>
         <button
           onClick={() => setActiveTab('videos')}
@@ -71,7 +73,7 @@ export function PicturesPanel() {
           `}
         >
           <Video className="w-4 h-4" />
-          Videos ({videos.length})
+          {t('media.videosTab', { count: videos.length })}
         </button>
       </div>
       
@@ -90,10 +92,14 @@ export function PicturesPanel() {
           <Video className="w-8 h-8 mx-auto mb-2 text-[var(--evergreen-60)]" />
         )}
         <p className="text-sm font-medium text-[var(--evergreen)]">
-          {isDragActive ? 'Drop files here' : `Drag & drop ${activeTab}`}
+          {isDragActive
+            ? t('media.dropFiles')
+            : activeTab === 'pictures'
+              ? t('media.dragDropPictures')
+              : t('media.dragDropVideos')}
         </p>
         <p className="text-xs text-[var(--evergreen-60)] mt-1">
-          or click to browse
+          {t('media.dropBrowse')}
         </p>
       </div>
       
@@ -101,7 +107,7 @@ export function PicturesPanel() {
       {isProcessing && (
         <div className="flex items-center justify-center gap-2 py-4">
           <div className="w-5 h-5 border-2 border-[var(--trail-orange)] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-[var(--evergreen)]">Processing...</span>
+          <span className="text-sm text-[var(--evergreen)]">{t('common.processing')}</span>
         </div>
       )}
       
@@ -110,8 +116,8 @@ export function PicturesPanel() {
         <div>
           {pictures.length === 0 ? (
             <div className="text-center py-8 text-[var(--evergreen-60)]">
-              <p className="text-sm">No pictures uploaded</p>
-              <p className="text-xs mt-1">Add pictures to show on the map</p>
+              <p className="text-sm">{t('media.noPictures')}</p>
+              <p className="text-xs mt-1">{t('media.noPicturesHint')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -126,11 +132,11 @@ export function PicturesPanel() {
                       type="button"
                       onClick={() => setSelectedPictureId(picture.id)}
                       className="w-16 h-16 rounded-lg overflow-hidden border border-[var(--evergreen)]/20 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--trail-orange)]"
-                      title="Preview picture"
+                      title={t('media.previewPicture')}
                     >
                       <img
                         src={picture.url}
-                        alt="Trail"
+                        alt={t('media.trailAlt')}
                         className="w-full h-full object-cover"
                       />
                     </button>
@@ -141,11 +147,11 @@ export function PicturesPanel() {
                         {picture.lat && picture.lon && (
                           <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" />
-                            GPS
+                            {t('media.gps')}
                           </span>
                         )}
                         <span className="text-xs text-[var(--evergreen-60)]">
-                          {(picture.progress * 100).toFixed(0)}% of journey
+                          {t('media.percentOfJourney', { percent: (picture.progress * 100).toFixed(0) })}
                         </span>
                       </div>
                       
@@ -153,7 +159,9 @@ export function PicturesPanel() {
                       <div className="flex items-center gap-2 text-xs">
                         <Clock className="w-3 h-3 text-[var(--evergreen-60)]" />
                         <span className="text-[var(--evergreen)]">
-                          {(picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000}s display
+                          {t('media.displayDuration', {
+                            seconds: ((picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000).toFixed(0),
+                          })}
                         </span>
                       </div>
                     </div>
@@ -166,7 +174,7 @@ export function PicturesPanel() {
                           setDurationValue((picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000);
                         }}
                         className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"
-                        title="Edit duration"
+                        title={t('media.editDuration')}
                       >
                         <Settings2 className="w-4 h-4 text-[var(--evergreen-60)]" />
                       </button>
@@ -189,7 +197,7 @@ export function PicturesPanel() {
                   {editingPicture === picture.id && (
                     <div className="mt-2 pt-2 border-t border-[var(--evergreen)]/10">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--evergreen-60)]">Display for:</span>
+                        <span className="text-xs text-[var(--evergreen-60)]">{t('media.displayFor')}</span>
                         <input
                           type="number"
                           value={durationValue}
@@ -198,18 +206,18 @@ export function PicturesPanel() {
                           min="1"
                           max="60"
                         />
-                        <span className="text-xs text-[var(--evergreen-60)]">seconds</span>
+                        <span className="text-xs text-[var(--evergreen-60)]">{t('media.seconds')}</span>
                         <button
                           onClick={() => handleSaveDuration(picture.id)}
                           className="ml-auto px-3 py-1 text-xs bg-[var(--trail-orange)] text-white rounded hover:bg-[var(--trail-orange)]/80"
                         >
-                          Save
+                          {t('common.save')}
                         </button>
                         <button
                           onClick={() => setEditingPicture(null)}
                           className="px-3 py-1 text-xs bg-[var(--evergreen)]/10 text-[var(--evergreen)] rounded hover:bg-[var(--evergreen)]/20"
                         >
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -226,8 +234,8 @@ export function PicturesPanel() {
         <div>
           {videos.length === 0 ? (
             <div className="text-center py-8 text-[var(--evergreen-60)]">
-              <p className="text-sm">No videos uploaded</p>
-              <p className="text-xs mt-1">Add videos to show on the map</p>
+              <p className="text-sm">{t('media.noVideos')}</p>
+              <p className="text-xs mt-1">{t('media.noVideosHint')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -245,7 +253,7 @@ export function PicturesPanel() {
                       {video.file.name}
                     </p>
                     <p className="text-xs text-[var(--evergreen-60)]">
-                      {(video.progress * 100).toFixed(0)}% of journey
+                      {t('media.percentOfJourney', { percent: (video.progress * 100).toFixed(0) })}
                     </p>
                   </div>
                   

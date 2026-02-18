@@ -114,7 +114,15 @@ export interface PlaybackState {
   segmentProgress: number;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'dark' | 'light';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback';
+export type LanguageCode = 'en' | 'es' | 'ca';
+
+export interface MapOverlays {
+  skiPistes: boolean;
+  slopeOverlay: boolean;
+  placeLabels: boolean;
+  aspectOverlay: boolean;
+}
 
 export interface MapStyleConfig {
   id: MapStyle;
@@ -185,7 +193,9 @@ export interface TrailStyleSettings {
 
 export interface AppSettings {
   unitSystem: UnitSystem;
+  language: LanguageCode;
   mapStyle: MapStyle;
+  mapOverlays: MapOverlays;
   show3DTerrain: boolean;
   showHeartRate: boolean;
   showPictures: boolean;
@@ -193,6 +203,8 @@ export interface AppSettings {
   defaultAnimationSpeed: number;
   defaultTotalTime: number;
   trailStyle: TrailStyleSettings;
+  waybackRelease: number | null;
+  waybackItemURL: string | null;
 }
 
 export interface LiveStats {

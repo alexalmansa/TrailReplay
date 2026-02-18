@@ -1,13 +1,15 @@
 import { useAppStore } from '@/store/useAppStore';
 import type { CameraMode } from '@/types';
+import { useI18n } from '@/i18n/useI18n';
 
-const CAMERA_MODES: { id: CameraMode; name: string; icon: string }[] = [
-  { id: 'overview', name: 'Overview', icon: '🗺️' },
-  { id: 'follow', name: 'Follow', icon: '🎯' },
-  { id: 'follow-behind', name: 'Behind', icon: '🎬' },
+const CAMERA_MODES: { id: CameraMode; nameKey: string; icon: string }[] = [
+  { id: 'overview', nameKey: 'settings.cameraModes.overview', icon: '🗺️' },
+  { id: 'follow', nameKey: 'settings.cameraModes.follow', icon: '🎯' },
+  { id: 'follow-behind', nameKey: 'settings.cameraModes.followBehind', icon: '🎬' },
 ];
 
 export function CameraControls() {
+  const { t } = useI18n();
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
 
@@ -17,7 +19,7 @@ export function CameraControls() {
         <button
           key={mode.id}
           onClick={() => setCameraMode(mode.id)}
-          title={mode.name}
+          title={t(mode.nameKey)}
           className={`
             p-2 rounded-md text-sm transition-colors flex items-center gap-1
             ${cameraSettings.mode === mode.id
@@ -27,7 +29,7 @@ export function CameraControls() {
           `}
         >
           <span>{mode.icon}</span>
-          <span className="hidden sm:inline text-xs">{mode.name}</span>
+          <span className="hidden sm:inline text-xs">{t(mode.nameKey)}</span>
         </button>
       ))}
     </div>
