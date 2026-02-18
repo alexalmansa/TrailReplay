@@ -95,7 +95,6 @@ function registerSlopeProtocol() {
         const idxU = (Math.max(0, sy - 1) * w + sx) * 4;
         const idxD = (Math.min(w - 1, sy + 1) * w + sx) * 4;
 
-        const hC = terrariumHeight(src[idx], src[idx + 1], src[idx + 2]);
         const hL = terrariumHeight(src[idxL], src[idxL + 1], src[idxL + 2]);
         const hR = terrariumHeight(src[idxR], src[idxR + 1], src[idxR + 2]);
         const hU = terrariumHeight(src[idxU], src[idxU + 1], src[idxU + 2]);
