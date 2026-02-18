@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { TransportMode, JourneySegment, TransportSegment } from '@/types';
 import { formatDistance, formatDuration } from '@/utils/units';
 import { calculateDistance } from '@/utils/journeyUtils';
+import { useI18n } from '@/i18n/useI18n';
 import {
   Plus,
   Car,
@@ -22,14 +23,14 @@ import {
   GitCompareArrows,
 } from 'lucide-react';
 
-const TRANSPORT_MODES: { mode: TransportMode; icon: typeof Car; label: string; color: string }[] = [
-  { mode: 'car', icon: Car, label: 'Car', color: '#3B82F6' },
-  { mode: 'bus', icon: Bus, label: 'Bus', color: '#8B5CF6' },
-  { mode: 'train', icon: Train, label: 'Train', color: '#10B981' },
-  { mode: 'plane', icon: Plane, label: 'Plane', color: '#06B6D4' },
-  { mode: 'bike', icon: Bike, label: 'Bike', color: '#F59E0B' },
-  { mode: 'walk', icon: Footprints, label: 'Walk', color: '#EC4899' },
-  { mode: 'ferry', icon: Ship, label: 'Ferry', color: '#6366F1' },
+const TRANSPORT_MODES: { mode: TransportMode; icon: typeof Car; labelKey: string; color: string }[] = [
+  { mode: 'car', icon: Car, labelKey: 'stats.transportLabels.car', color: '#3B82F6' },
+  { mode: 'bus', icon: Bus, labelKey: 'stats.transportLabels.bus', color: '#8B5CF6' },
+  { mode: 'train', icon: Train, labelKey: 'stats.transportLabels.train', color: '#10B981' },
+  { mode: 'plane', icon: Plane, labelKey: 'stats.transportLabels.plane', color: '#06B6D4' },
+  { mode: 'bike', icon: Bike, labelKey: 'stats.transportLabels.bike', color: '#F59E0B' },
+  { mode: 'walk', icon: Footprints, labelKey: 'stats.transportLabels.walk', color: '#EC4899' },
+  { mode: 'ferry', icon: Ship, labelKey: 'stats.transportLabels.ferry', color: '#6366F1' },
 ];
 
 const TRANSPORT_ICONS: Record<TransportMode, string> = {
@@ -43,6 +44,7 @@ const TRANSPORT_ICONS: Record<TransportMode, string> = {
 };
 
 export function JourneyPanel() {
+  const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -195,11 +197,11 @@ export function JourneyPanel() {
       <div className="bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg p-3">
         <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide mb-2 flex items-center gap-1">
           <Settings2 className="w-3 h-3" />
-          Default Settings
+          {t('journey.defaultSettings')}
         </h3>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-[var(--evergreen-60)]">Default Track Time</label>
+            <label className="text-xs text-[var(--evergreen-60)]">{t('journey.defaultTrackTime')}</label>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -208,11 +210,11 @@ export function JourneyPanel() {
                 className="w-16 px-2 py-1 text-xs border border-[var(--evergreen)]/30 rounded bg-[var(--canvas)]"
                 min="1"
               />
-              <span className="text-xs text-[var(--evergreen-60)]">s</span>
+              <span className="text-xs text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>
             </div>
           </div>
           <p className="text-[10px] text-[var(--evergreen-60)]">
-            Each track will take this time to complete in the animation
+            {t('journey.defaultTrackTimeHint')}
           </p>
         </div>
       </div>
@@ -221,15 +223,15 @@ export function JourneyPanel() {
       {journeySegments.length > 0 && (
         <div className="bg-[var(--evergreen)] text-[var(--canvas)] p-3 rounded-lg">
           <div className="flex justify-between text-sm">
-            <span>Total Distance:</span>
+            <span>{t('journey.totalDistance')}</span>
             <span className="font-bold">{formatDistance(totalDistance, settings.unitSystem)}</span>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>Total Duration:</span>
+            <span>{t('journey.totalDuration')}</span>
             <span className="font-bold">{formatDuration(totalDuration / 1000)}</span>
           </div>
           <div className="flex justify-between text-sm mt-1">
-            <span>Segments:</span>
+            <span>{t('journey.totalSegments')}</span>
             <span className="font-bold">{journeySegments.length}</span>
           </div>
         </div>
@@ -239,24 +241,24 @@ export function JourneyPanel() {
       {tracks.length > 0 && (
         <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)]/30 rounded-lg p-3">
           <h3 className="text-xs font-bold text-[var(--trail-orange)] uppercase tracking-wide mb-2">
-            Quick Start
+            {t('journey.quickStart')}
           </h3>
           <p className="text-xs text-[var(--evergreen)]">
-            1) Add tracks below. 2) Drag to reorder. 3) Use “Add Transport” between tracks.
+            {t('journey.quickStartHint')}
           </p>
           <div className="mt-3 flex gap-2">
             <button
               onClick={addAllTracksToJourney}
               className="flex-1 tr-btn tr-btn-primary"
             >
-              Add All Tracks
+              {t('journey.addAllTracks')}
             </button>
             {journeySegments.length > 0 && (
               <button
                 onClick={() => clearJourney()}
                 className="flex-1 tr-btn tr-btn-secondary"
               >
-                Clear Journey
+                {t('journey.clearJourney')}
               </button>
             )}
           </div>
@@ -267,10 +269,10 @@ export function JourneyPanel() {
       {tracks.length > 0 && (
         <div>
           <h3 className="text-sm font-bold text-[var(--evergreen)] mb-2 uppercase tracking-wide">
-            Add Tracks to Journey
+            {t('journey.addTracksTitle')}
           </h3>
           <p className="text-xs text-[var(--evergreen-60)] mb-2">
-            Click a track to add it to the timeline. Added tracks are disabled.
+            {t('journey.addTracksHint')}
           </p>
           <div className="space-y-1">
             {tracks.map((track) => {
@@ -291,7 +293,7 @@ export function JourneyPanel() {
                 >
                   <Plus className="w-4 h-4" />
                   <span className="flex-1 truncate">{track.name}</span>
-                  {isInJourney && <span className="text-xs">(added)</span>}
+                  {isInJourney && <span className="text-xs">({t('journey.added')})</span>}
                 </button>
               );
             })}
@@ -304,19 +306,19 @@ export function JourneyPanel() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide flex items-center gap-2">
             <Route className="w-4 h-4" />
-            Journey Timeline
+            {t('journey.timelineTitle')}
           </h3>
           {journeySegments.length > 0 && (
             <span className="text-xs text-[var(--evergreen-60)]">
-              Drag to reorder
+              {t('journey.dragToReorder')}
             </span>
           )}
         </div>
         
         {journeySegments.length === 0 ? (
           <div className="text-center py-8 text-[var(--evergreen-60)] border-2 border-dashed border-[var(--evergreen)]/20 rounded-lg">
-            <p className="text-sm">No segments in journey</p>
-            <p className="text-xs mt-1">Add tracks and transport modes</p>
+            <p className="text-sm">{t('journey.emptyTitle')}</p>
+            <p className="text-xs mt-1">{t('journey.emptySubtitle')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -367,7 +369,7 @@ export function JourneyPanel() {
                     className="ml-8 mt-1 text-xs text-[var(--trail-orange)] hover:underline flex items-center gap-1 bg-[var(--trail-orange-15)] px-2 py-1 rounded"
                   >
                     <Plus className="w-3 h-3" />
-                    Add Transport
+                    {t('journey.addTransport')}
                   </button>
                 )}
               </div>
@@ -382,12 +384,12 @@ export function JourneyPanel() {
           <div className="flex items-center gap-2 mb-3">
             <GitCompareArrows className="w-4 h-4 text-[var(--evergreen-60)]" />
             <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
-              Runs Simultaneously
+              {t('journey.runsSimultaneously')}
             </h3>
           </div>
           <div className="rounded-lg border-2 border-dashed border-[var(--evergreen)]/30 p-3 space-y-2 bg-[var(--evergreen)]/3">
             <p className="text-xs text-[var(--evergreen-60)] mb-2">
-              These tracks animate at the same time as your main journey, from start to finish.
+              {t('journey.runsSimultaneouslyHint')}
             </p>
             {comparisonTracks.map((ct) => (
               <div
@@ -411,7 +413,7 @@ export function JourneyPanel() {
                       <div className="h-full w-full rounded-full" style={{ backgroundColor: ct.color, opacity: 0.7 }} />
                     </div>
                   </div>
-                  <span className="text-[9px] text-[var(--evergreen-60)]">full journey</span>
+                  <span className="text-[9px] text-[var(--evergreen-60)]">{t('journey.fullJourney')}</span>
                 </div>
               </div>
             ))}
@@ -424,20 +426,20 @@ export function JourneyPanel() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-2">
-              Select Transport Mode
+              {t('journey.selectTransportTitle')}
             </h3>
             <p className="text-sm text-[var(--evergreen-60)] mb-4">
-              How did you travel between these tracks?
+              {t('journey.selectTransportHint')}
             </p>
             <div className="grid grid-cols-3 gap-3">
-              {TRANSPORT_MODES.map(({ mode, icon: Icon, label, color }) => (
+              {TRANSPORT_MODES.map(({ mode, icon: Icon, labelKey, color }) => (
                 <button
                   key={mode}
                   onClick={() => addTransport(mode)}
                   className="flex flex-col items-center gap-2 p-3 border-2 border-[var(--evergreen)]/20 rounded-lg hover:border-[var(--trail-orange)] hover:bg-[var(--trail-orange-15)] transition-colors"
                 >
                   <Icon className="w-6 h-6" style={{ color }} />
-                  <span className="text-xs text-[var(--evergreen)]">{label}</span>
+                  <span className="text-xs text-[var(--evergreen)]">{t(labelKey)}</span>
                 </button>
               ))}
             </div>
@@ -448,7 +450,7 @@ export function JourneyPanel() {
               }}
               className="mt-4 w-full tr-btn tr-btn-secondary"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -460,12 +462,12 @@ export function JourneyPanel() {
           <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Edit Duration
+              {t('journey.editDurationTitle')}
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-[var(--evergreen-60)] mb-1 block">
-                  Duration (seconds)
+                  {t('journey.durationSeconds')}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -476,10 +478,10 @@ export function JourneyPanel() {
                     min="1"
                     autoFocus
                   />
-                  <span className="text-sm text-[var(--evergreen-60)]">s</span>
+                  <span className="text-sm text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>
                 </div>
                 <p className="text-xs text-[var(--evergreen-60)] mt-2">
-                  This is how long this segment will take in the animation
+                  {t('journey.durationHint')}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -487,13 +489,13 @@ export function JourneyPanel() {
                   onClick={() => setEditingSegment(null)}
                   className="flex-1 tr-btn tr-btn-secondary"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => updateSegmentDuration(editingSegment, customDuration)}
                   className="flex-1 tr-btn tr-btn-primary"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
               </div>
             </div>
@@ -519,6 +521,7 @@ function TrackSegmentItem({
   onEditDuration,
   onSeek
 }: SegmentItemProps) {
+  const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const settings = useAppStore((state) => state.settings);
   
@@ -570,7 +573,7 @@ function TrackSegmentItem({
         <button
           onClick={onSeek}
           className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"
-          title="Go to this segment"
+          title={t('journey.goToSegment')}
         >
           <Play className="w-4 h-4 text-[var(--evergreen-60)]" />
         </button>
@@ -592,10 +595,12 @@ function TransportSegmentItem({
   onEditDuration,
   onSeek
 }: SegmentItemProps) {
+  const { t } = useI18n();
   if (segment.type !== 'transport') return null;
   
   const durationSeconds = (segment.duration || 0) / 1000;
   const modeInfo = TRANSPORT_MODES.find(m => m.mode === segment.mode);
+  const modeLabel = t(`stats.transportLabels.${segment.mode}`);
   
   return (
     <div className="bg-[var(--evergreen)]/10 border-2 border-dashed border-[var(--evergreen)]/30 rounded-lg flex items-center gap-2 group cursor-move p-2 ml-4">
@@ -614,8 +619,8 @@ function TransportSegmentItem({
       </div>
       
       <div className="flex-1">
-        <p className="font-medium text-sm text-[var(--evergreen)] capitalize">
-          {segment.mode} Transport
+        <p className="font-medium text-sm text-[var(--evergreen)]">
+          {t('journey.transportSegment', { mode: modeLabel })}
         </p>
         
         {/* Duration - prominently displayed and clickable */}
@@ -633,7 +638,7 @@ function TransportSegmentItem({
         <button
           onClick={onSeek}
           className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"
-          title="Go to this segment"
+          title={t('journey.goToSegment')}
         >
           <Play className="w-4 h-4 text-[var(--evergreen-60)]" />
         </button>

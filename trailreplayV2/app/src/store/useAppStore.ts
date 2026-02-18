@@ -19,6 +19,7 @@ import type {
   TransportMode,
   TrailStyleSettings,
 } from '@/types';
+import { getInitialLanguage } from '@/i18n/translations';
 
 interface AppState {
   // Tracks
@@ -162,6 +163,7 @@ const defaultPlayback: PlaybackState = {
 };
 
 const defaultSettings: AppSettings = {
+  language: getInitialLanguage(),
   unitSystem: 'metric',
   mapStyle: 'esri-clarity',
   show3DTerrain: true,

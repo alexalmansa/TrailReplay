@@ -7,6 +7,7 @@ import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackPr
 import { MapElevationProfile } from './MapElevationProfile';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { mapGlobalRef } from '@/utils/mapRef';
+import { useI18n } from '@/i18n/useI18n';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -389,6 +390,7 @@ function calculateTerrainAwareAdjustments(
 }
 
 export function TrailMap({}: TrailMapProps) {
+  const { t } = useI18n();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -1271,7 +1273,7 @@ export function TrailMap({}: TrailMapProps) {
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--canvas)]">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-2 border-[var(--trail-orange)] border-t-transparent rounded-full animate-spin" />
-            <span className="text-[var(--evergreen)]">Loading map...</span>
+            <span className="text-[var(--evergreen)]">{t('map.loading')}</span>
           </div>
         </div>
       )}

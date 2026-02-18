@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, UnitSystem, MapOverlays } from '@/types';
+import { useI18n } from '@/i18n/useI18n';
+import { languageLabels } from '@/i18n/translations';
 import {
   Map as MapIcon,
   Video,
@@ -10,33 +12,33 @@ import {
   Globe
 } from 'lucide-react';
 
-const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
-  { id: 'satellite', name: 'Satellite', icon: '🛰️' },
-  { id: 'topo', name: 'Topographic', icon: '🗺️' },
-  { id: 'street', name: 'Streets', icon: '🏙️' },
-  { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
-  { id: 'esri-clarity', name: 'Esri Clarity', icon: '📡' },
-  { id: 'wayback', name: 'Wayback', icon: '🕰️' },
+const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
+  { id: 'satellite', nameKey: 'settings.mapStyles.satellite', icon: '🛰️' },
+  { id: 'topo', nameKey: 'settings.mapStyles.topo', icon: '🗺️' },
+  { id: 'street', nameKey: 'settings.mapStyles.street', icon: '🏙️' },
+  { id: 'outdoor', nameKey: 'settings.mapStyles.outdoor', icon: '🌲' },
+  { id: 'esri-clarity', nameKey: 'settings.mapStyles.esri', icon: '📡' },
+  { id: 'wayback', nameKey: 'settings.mapStyles.wayback', icon: '🕰️' },
 ];
 
-const MAP_OVERLAYS: { id: string; name: string; icon: string; description: string }[] = [
-  { id: 'placeLabels', name: 'Place Names', icon: '🗺️', description: 'Carto place labels overlay' },
-  { id: 'skiPistes', name: 'Ski Pistes', icon: '⛷️', description: 'OpenSnowMap ski runs overlay' },
-  { id: 'slopeOverlay', name: 'Slope', icon: '📐', description: 'Color-coded terrain steepness' },
-  { id: 'aspectOverlay', name: 'Aspect', icon: '🧭', description: 'Terrain orientation (N/E/S/W) colors' },
+const MAP_OVERLAYS: { id: string; nameKey: string; icon: string; descriptionKey: string }[] = [
+  { id: 'placeLabels', nameKey: 'settings.overlays.placeLabels', icon: '🗺️', descriptionKey: 'settings.overlays.placeLabelsDesc' },
+  { id: 'skiPistes', nameKey: 'settings.overlays.skiPistes', icon: '⛷️', descriptionKey: 'settings.overlays.skiPistesDesc' },
+  { id: 'slopeOverlay', nameKey: 'settings.overlays.slope', icon: '📐', descriptionKey: 'settings.overlays.slopeDesc' },
+  { id: 'aspectOverlay', nameKey: 'settings.overlays.aspect', icon: '🧭', descriptionKey: 'settings.overlays.aspectDesc' },
 ];
 
-const CAMERA_MODES: { id: CameraMode; name: string; description: string }[] = [
-  { id: 'overview', name: 'Overview', description: 'Fixed view of entire track' },
-  { id: 'follow', name: 'Follow', description: 'Follow marker from above' },
-  { id: 'follow-behind', name: 'Follow Behind', description: 'Cinematic view from behind' },
+const CAMERA_MODES: { id: CameraMode; nameKey: string; descriptionKey: string }[] = [
+  { id: 'overview', nameKey: 'settings.cameraModes.overview', descriptionKey: 'settings.cameraModes.overviewDesc' },
+  { id: 'follow', nameKey: 'settings.cameraModes.follow', descriptionKey: 'settings.cameraModes.followDesc' },
+  { id: 'follow-behind', nameKey: 'settings.cameraModes.followBehind', descriptionKey: 'settings.cameraModes.followBehindDesc' },
 ];
 
 const FOLLOW_PRESETS = [
-  { id: 'very-close', name: 'Very Close', zoom: 17, pitch: 65 },
-  { id: 'close', name: 'Close', zoom: 16, pitch: 60 },
-  { id: 'medium', name: 'Medium', zoom: 15, pitch: 55 },
-  { id: 'far', name: 'Far', zoom: 14, pitch: 45 },
+  { id: 'very-close', nameKey: 'settings.followPresets.veryClose', zoom: 17, pitch: 65 },
+  { id: 'close', nameKey: 'settings.followPresets.close', zoom: 16, pitch: 60 },
+  { id: 'medium', nameKey: 'settings.followPresets.medium', zoom: 15, pitch: 55 },
+  { id: 'far', nameKey: 'settings.followPresets.far', zoom: 14, pitch: 45 },
 ];
 
 type WaybackItem = {
@@ -80,6 +82,7 @@ const getWaybackItems = async (): Promise<WaybackItem[]> => {
 };
 
 export function SettingsPanel() {
+  const { t, language, setLanguage } = useI18n();
   const settings = useAppStore((state) => state.settings);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const setSettings = useAppStore((state) => state.setSettings);
@@ -111,7 +114,7 @@ export function SettingsPanel() {
         }
       } catch (err) {
         if (!cancelled) {
-          setWaybackError('Unable to load Wayback dates.');
+          setWaybackError(t('settings.waybackError'));
         }
       } finally {
         if (!cancelled) {
@@ -124,7 +127,7 @@ export function SettingsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [settings.mapStyle, setSettings]);
+  }, [settings.mapStyle, setSettings, t]);
 
   const toggleOverlay = (key: keyof MapOverlays) => {
     setSettings({ mapOverlays: { ...settings.mapOverlays, [key]: !settings.mapOverlays?.[key] } });
@@ -136,7 +139,7 @@ export function SettingsPanel() {
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
           <MapIcon className="w-4 h-4" />
-          Map Style
+          {t('settings.title')}
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {MAP_STYLES.map((style) => (
@@ -152,7 +155,7 @@ export function SettingsPanel() {
               `}
             >
               <span className="text-xl">{style.icon}</span>
-              <span className="text-sm font-medium text-[var(--evergreen)]">{style.name}</span>
+              <span className="text-sm font-medium text-[var(--evergreen)]">{t(style.nameKey)}</span>
             </button>
           ))}
         </div>
@@ -162,10 +165,10 @@ export function SettingsPanel() {
           <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg space-y-3">
             <div>
               <label className="block text-xs font-medium text-[var(--evergreen)] mb-1">
-                Wayback date
+                {t('settings.waybackDate')}
               </label>
               {waybackLoading ? (
-                <p className="text-xs text-[var(--evergreen-60)]">Loading dates...</p>
+                <p className="text-xs text-[var(--evergreen-60)]">{t('settings.waybackLoading')}</p>
               ) : (
                 <select
                   value={settings.waybackRelease ?? ''}
@@ -180,7 +183,7 @@ export function SettingsPanel() {
                   }}
                   className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-2 py-1.5 focus:outline-none focus:border-[var(--trail-orange)]"
                 >
-                  <option value="" disabled>Select a date</option>
+                  <option value="" disabled>{t('settings.waybackSelect')}</option>
                   {waybackItems.map((item) => (
                     <option key={item.releaseNum} value={item.releaseNum}>
                       {item.releaseDateLabel || item.releaseDate}
@@ -193,7 +196,7 @@ export function SettingsPanel() {
               )}
             </div>
             <p className="text-xs text-[var(--evergreen-60)]">
-              Esri Wayback imagery releases (publish dates, not exact capture dates).
+              {t('settings.waybackNote')}
             </p>
           </div>
         )}
@@ -204,7 +207,7 @@ export function SettingsPanel() {
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
           <MapIcon className="w-4 h-4" />
-          Overlays
+          {t('settings.overlaysTitle')}
         </h3>
         <div className="space-y-2">
           {MAP_OVERLAYS.map((overlay) => {
@@ -223,8 +226,8 @@ export function SettingsPanel() {
               >
                 <span className="text-xl">{overlay.icon}</span>
                 <div className="flex-1">
-                  <span className="text-sm font-medium text-[var(--evergreen)] block">{overlay.name}</span>
-                  <span className="text-xs text-[var(--evergreen-60)]">{overlay.description}</span>
+                  <span className="text-sm font-medium text-[var(--evergreen)] block">{t(overlay.nameKey)}</span>
+                  <span className="text-xs text-[var(--evergreen-60)]">{t(overlay.descriptionKey)}</span>
                 </div>
                 {isActive && <div className="w-3 h-3 rounded-full bg-[var(--trail-orange)] flex-shrink-0" />}
               </button>
@@ -248,17 +251,17 @@ export function SettingsPanel() {
         {/* Slope overlay legend */}
         {settings.mapOverlays?.slopeOverlay && (
           <div className="mt-2 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
-            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">Slope Steepness</p>
+            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">{t('settings.slopeLegendTitle')}</p>
             <div className="space-y-1 text-xs text-[var(--evergreen-60)]">
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,255,0)'}}></span>&lt;25° — Mild</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,200,0)'}}></span>25–30° — Moderate</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,120,0)'}}></span>30–35° — Steep</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,50,0)'}}></span>35–40° — Very Steep</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(220,0,0)'}}></span>40–45° — Extreme</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(160,0,80)'}}></span>&gt;45° — Cliff</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,255,0)'}}></span>{t('settings.slopeLegendMild')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,200,0)'}}></span>{t('settings.slopeLegendModerate')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,120,0)'}}></span>{t('settings.slopeLegendSteep')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,50,0)'}}></span>{t('settings.slopeLegendVerySteep')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(220,0,0)'}}></span>{t('settings.slopeLegendExtreme')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(160,0,80)'}}></span>{t('settings.slopeLegendCliff')}</p>
             </div>
             <p className="text-xs text-[var(--evergreen-60)] mt-2">
-              Computed from AWS Terrain Tiles elevation data
+              {t('settings.slopeLegendFooter')}
             </p>
           </div>
         )}
@@ -266,19 +269,19 @@ export function SettingsPanel() {
         {/* Aspect overlay legend */}
         {settings.mapOverlays?.aspectOverlay && (
           <div className="mt-2 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
-            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">Aspect (Terrain Orientation)</p>
+            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">{t('settings.aspectLegendTitle')}</p>
             <div className="grid grid-cols-2 gap-1 text-xs text-[var(--evergreen-60)]">
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,122,255)'}}></span>North</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,255)'}}></span>Northeast</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,90)'}}></span>East</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(180,220,0)'}}></span>Southeast</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,165,0)'}}></span>South</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,80,0)'}}></span>Southwest</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(200,0,200)'}}></span>West</p>
-              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(120,0,255)'}}></span>Northwest</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,122,255)'}}></span>{t('settings.aspectLegendNorth')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,255)'}}></span>{t('settings.aspectLegendNortheast')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,90)'}}></span>{t('settings.aspectLegendEast')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(180,220,0)'}}></span>{t('settings.aspectLegendSoutheast')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,165,0)'}}></span>{t('settings.aspectLegendSouth')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,80,0)'}}></span>{t('settings.aspectLegendSouthwest')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(200,0,200)'}}></span>{t('settings.aspectLegendWest')}</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(120,0,255)'}}></span>{t('settings.aspectLegendNorthwest')}</p>
             </div>
             <p className="text-xs text-[var(--evergreen-60)] mt-2">
-              Transparent on very flat terrain
+              {t('settings.aspectLegendFooter')}
             </p>
           </div>
         )}
@@ -288,7 +291,7 @@ export function SettingsPanel() {
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
           <Video className="w-4 h-4" />
-          Camera Mode
+          {t('settings.cameraTitle')}
         </h3>
         <div className="space-y-2">
           {CAMERA_MODES.map((mode) => (
@@ -305,10 +308,10 @@ export function SettingsPanel() {
             >
               <div className="text-left">
                 <span className="text-sm font-medium text-[var(--evergreen)] block">
-                  {mode.name}
+                  {t(mode.nameKey)}
                 </span>
                 <span className="text-xs text-[var(--evergreen-60)]">
-                  {mode.description}
+                  {t(mode.descriptionKey)}
                 </span>
               </div>
               {cameraSettings.mode === mode.id && (
@@ -321,7 +324,7 @@ export function SettingsPanel() {
         {/* Follow Behind Presets */}
         {cameraSettings.mode === 'follow-behind' && (
           <div className="mt-3 p-3 bg-[var(--evergreen)]/5 rounded-lg">
-            <p className="text-xs text-[var(--evergreen-60)] mb-2">Distance Preset</p>
+            <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.followPresets.title')}</p>
             <div className="flex gap-2">
               {FOLLOW_PRESETS.map((preset) => (
                 <button
@@ -335,7 +338,7 @@ export function SettingsPanel() {
                     }
                   `}
                 >
-                  {preset.name}
+                  {t(preset.nameKey)}
                 </button>
               ))}
             </div>
@@ -347,14 +350,14 @@ export function SettingsPanel() {
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
           <Globe className="w-4 h-4" />
-          Display Options
+          {t('settings.displayOptions')}
         </h3>
         
         <div className="space-y-3">
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <Mountain className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">3D Terrain</span>
+              <span className="text-sm text-[var(--evergreen)]">{t('settings.show3dTerrain')}</span>
             </div>
             <input
               type="checkbox"
@@ -367,7 +370,7 @@ export function SettingsPanel() {
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <Heart className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">Heart Rate Colors</span>
+              <span className="text-sm text-[var(--evergreen)]">{t('settings.showHeartRate')}</span>
             </div>
             <input
               type="checkbox"
@@ -380,7 +383,7 @@ export function SettingsPanel() {
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <MapIcon className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">Show Pictures</span>
+              <span className="text-sm text-[var(--evergreen)]">{t('settings.showPictures')}</span>
             </div>
             <input
               type="checkbox"
@@ -396,7 +399,7 @@ export function SettingsPanel() {
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
           <Ruler className="w-4 h-4" />
-          Units
+          {t('settings.units')}
         </h3>
         <div className="flex gap-2">
           {(['metric', 'imperial'] as UnitSystem[]).map((unit) => (
@@ -411,10 +414,27 @@ export function SettingsPanel() {
                 }
               `}
             >
-              {unit}
+              {unit === 'metric' ? t('settings.unitMetric') : t('settings.unitImperial')}
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Language */}
+      <div>
+        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
+          <Globe className="w-4 h-4" />
+          {t('settings.language')}
+        </h3>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as keyof typeof languageLabels)}
+          className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-3 py-2 focus:outline-none focus:border-[var(--trail-orange)]"
+        >
+          {Object.entries(languageLabels).map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
       </div>
     </div>
   );

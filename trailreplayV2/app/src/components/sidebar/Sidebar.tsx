@@ -5,6 +5,7 @@ import { AnnotationsPanel } from './AnnotationsPanel';
 import { PicturesPanel } from './PicturesPanel';
 import { ExportPanel } from './ExportPanel';
 import { SettingsPanel } from './SettingsPanel';
+import { useI18n } from '@/i18n/useI18n';
 import {
   MapPin,
   Route,
@@ -17,18 +18,19 @@ import {
 export function Sidebar() {
   const activeTab = useAppStore((state) => state.activePanel);
   const setActiveTab = useAppStore((state) => state.setActivePanel);
+  const { t } = useI18n();
 
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const pictures = useAppStore((state) => state.pictures);
 
   const tabs = [
-    { id: 'tracks' as const, label: 'Tracks', icon: MapPin, count: tracks.length },
-    { id: 'journey' as const, label: 'Journey', icon: Route, count: journeySegments.length },
-    { id: 'annotations' as const, label: 'Style', icon: Palette, count: 0 },
-    { id: 'pictures' as const, label: 'Media', icon: Image, count: pictures.length },
-    { id: 'export' as const, label: 'Export', icon: Video, count: 0 },
-    { id: 'settings' as const, label: 'Settings', icon: Settings, count: 0 },
+    { id: 'tracks' as const, label: t('sidebar.tabs.tracks'), icon: MapPin, count: tracks.length },
+    { id: 'journey' as const, label: t('sidebar.tabs.journey'), icon: Route, count: journeySegments.length },
+    { id: 'annotations' as const, label: t('sidebar.tabs.annotations'), icon: Palette, count: 0 },
+    { id: 'pictures' as const, label: t('sidebar.tabs.pictures'), icon: Image, count: pictures.length },
+    { id: 'export' as const, label: t('sidebar.tabs.export'), icon: Video, count: 0 },
+    { id: 'settings' as const, label: t('sidebar.tabs.settings'), icon: Settings, count: 0 },
   ];
 
   return (
@@ -79,15 +81,15 @@ export function Sidebar() {
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
               <img src="/media/images/simplelogo.png" alt="TrailReplay" className="w-10 h-10 object-contain" />
             </div>
-            <h4 className="font-bold text-[var(--evergreen)]">Trail Replay</h4>
-            <p className="text-xs text-[var(--evergreen-60)]">GPX Visualization v2.0</p>
+            <h4 className="font-bold text-[var(--evergreen)]">{t('sidebar.footerTitle')}</h4>
+            <p className="text-xs text-[var(--evergreen-60)]">{t('sidebar.footerSubtitle')}</p>
             <a
               href="https://github.com/alexalmansa/TrailReplay"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-[var(--trail-orange)] hover:underline mt-2 inline-block"
             >
-              View on GitHub
+              {t('sidebar.footerGithub')}
             </a>
           </div>
         </div>

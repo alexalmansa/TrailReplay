@@ -115,6 +115,7 @@ export interface PlaybackState {
 }
 
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback';
+export type LanguageCode = 'en' | 'es' | 'ca';
 
 export interface MapOverlays {
   skiPistes: boolean;
@@ -192,6 +193,7 @@ export interface TrailStyleSettings {
 
 export interface AppSettings {
   unitSystem: UnitSystem;
+  language: LanguageCode;
   mapStyle: MapStyle;
   mapOverlays: MapOverlays;
   show3DTerrain: boolean;
