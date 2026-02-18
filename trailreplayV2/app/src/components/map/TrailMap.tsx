@@ -259,12 +259,6 @@ const MAP_STYLE = {
       tileSize: 256,
       attribution: '© OpenTopography/ASTER GDEM'
     },
-    's2maps': {
-      type: 'raster',
-      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'],
-      tileSize: 256,
-      attribution: 'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)'
-    },
     'opensnowmap': {
       type: 'raster',
       tiles: ['https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png'],
@@ -301,7 +295,6 @@ const MAP_STYLE = {
   },
   layers: [
     { id: 'background', type: 'raster', source: 'satellite' },
-    { id: 's2maps', type: 'raster', source: 's2maps', layout: { visibility: 'none' } },
     { id: 'esri-clarity', type: 'raster', source: 'esri-clarity', layout: { visibility: 'none' } },
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
@@ -323,12 +316,10 @@ const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   street: { name: 'Street', icon: '🛣️' },
   opentopomap: { name: 'Topo', icon: '⛰️' },
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
-  s2maps: { name: 'Sentinel-2', icon: '🌍' },
   'esri-clarity': { name: 'Esri Clarity', icon: '📡' },
   wayback: { name: 'Wayback', icon: '🕰️' },
 };
 
-const S2MAPS_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
 // Smooth bearing using exponential moving average
 function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.015): number {
@@ -583,14 +574,13 @@ export function TrailMap({}: TrailMapProps) {
       topo: 'opentopomap',
       outdoor: 'opentopomap',
       'esri-clarity': 'esri-clarity',
-      s2maps: 's2maps',
       wayback: 'wayback',
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
 
     // Hide all base layers
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 's2maps', 'esri-clarity', 'wayback'].forEach(layerId => {
+    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 'esri-clarity', 'wayback'].forEach(layerId => {
       if (map.current?.getLayer(layerId)) {
         map.current.setLayoutProperty(layerId, 'visibility', 'none');
       }
@@ -630,28 +620,6 @@ export function TrailMap({}: TrailMapProps) {
     settings.mapOverlays?.aspectOverlay,
     isMapLoaded
   ]);
-
-  // Update S2Maps tile source when year changes
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const year = settings.s2mapsYear ?? 2024;
-    const layerName = year <= 2016 ? 's2cloudless_3857' : `s2cloudless-${year}_3857`;
-    const url = `https://tiles.maps.eox.at/wmts/1.0.0/${layerName}/default/g/{z}/{y}/{x}.jpg`;
-    const attribution = `Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data ${year})`;
-    const isS2Active = settings.mapStyle === 's2maps';
-
-    // Remove existing s2maps layer + source, then re-add with new year URL
-    if (map.current.getLayer('s2maps')) map.current.removeLayer('s2maps');
-    if (map.current.getSource('s2maps')) map.current.removeSource('s2maps');
-
-    map.current.addSource('s2maps', { type: 'raster', tiles: [url], tileSize: 256, attribution });
-    // Insert before carto-labels so place labels render on top
-    map.current.addLayer(
-      { id: 's2maps', type: 'raster', source: 's2maps', layout: { visibility: isS2Active ? 'visible' : 'none' } },
-      'carto-labels'
-    );
-  }, [settings.s2mapsYear, isMapLoaded]);
 
   // Update Wayback imagery tile source when date changes
   useEffect(() => {
@@ -1316,4 +1284,4 @@ export function TrailMap({}: TrailMapProps) {
   );
 }
 
-export { MAP_LAYERS, S2MAPS_YEARS };
+export { MAP_LAYERS };

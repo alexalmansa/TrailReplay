@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, UnitSystem, MapOverlays } from '@/types';
-import { S2MAPS_YEARS } from '@/components/map/TrailMap';
 import {
   Map as MapIcon,
   Video,
@@ -17,7 +16,6 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
   { id: 'street', name: 'Streets', icon: '🏙️' },
   { id: 'outdoor', name: 'Outdoor', icon: '🌲' },
   { id: 'esri-clarity', name: 'Esri Clarity', icon: '📡' },
-  { id: 's2maps', name: 'Sentinel-2', icon: '🌍' },
   { id: 'wayback', name: 'Wayback', icon: '🕰️' },
 ];
 
@@ -158,33 +156,6 @@ export function SettingsPanel() {
             </button>
           ))}
         </div>
-
-        {/* S2Maps options — year selector */}
-        {settings.mapStyle === 's2maps' && (
-          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-[var(--evergreen)] mb-1">
-                Satellite year
-              </label>
-              <select
-                value={settings.s2mapsYear ?? 2024}
-                onChange={(e) => setSettings({ s2mapsYear: Number(e.target.value) })}
-                className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-2 py-1.5 focus:outline-none focus:border-[var(--trail-orange)]"
-              >
-                {S2MAPS_YEARS.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-            <p className="text-xs text-[var(--evergreen-60)]">
-              Sentinel-2 cloudless imagery by{' '}
-              <a href="https://s2maps.eu" target="_blank" rel="noopener noreferrer"
-                className="underline hover:text-[var(--trail-orange)]">EOX IT Services
-              </a>
-              {' '}· CC-BY-NC-SA 4.0
-            </p>
-          </div>
-        )}
 
         {/* Wayback options — date selector */}
         {settings.mapStyle === 'wayback' && (

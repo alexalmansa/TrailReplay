@@ -39,10 +39,10 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
             Built With
           </h3>
           <p className="text-sm text-[var(--evergreen-60)] leading-relaxed">
-            MapLibre GL JS, React, Three.js, Elevation Data, and many amazing open source projects.
+            MapLibre GL JS, React, Vite, and a stack of open mapping data providers.
           </p>
           <a
-            href="/acknowledgments.html"
+            href="/app/acknowledgments.html"
             className="inline-flex items-center gap-1 text-sm text-[var(--trail-orange)] hover:underline"
           >
             <span>See all acknowledgments</span>
@@ -57,19 +57,11 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           </h3>
           <div className="space-y-3 text-xs text-[var(--evergreen-60)]">
             <div>
-              <a href="https://s2maps.eu" target="_blank" rel="noopener noreferrer"
+              <a href="https://www.esri.com/en-us/arcgis/products/arcgis-online" target="_blank" rel="noopener noreferrer"
                 className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
-                Sentinel-2 Cloudless
+                Esri World Imagery & Wayback
               </a>
-              {' '}by{' '}
-              <a href="https://eox.at" target="_blank" rel="noopener noreferrer"
-                className="hover:text-[var(--trail-orange)] underline">EOX IT Services GmbH
-              </a>
-              . Contains modified Copernicus Sentinel data.
-              Licensed under{' '}
-              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer"
-                className="hover:text-[var(--trail-orange)] underline">CC-BY-NC-SA 4.0
-              </a>.
+              {' '}satellite basemaps and historical releases.
             </div>
             <div>
               <a href="https://www.opensnowmap.org" target="_blank" rel="noopener noreferrer"
@@ -92,7 +84,10 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
               <a href="https://carto.com" target="_blank" rel="noopener noreferrer"
                 className="hover:text-[var(--trail-orange)] underline">CartoDB
               </a>
-              {' '}labels
+              {' '}labels ·{' '}
+              <a href="https://www.opentopography.org/" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">OpenTopography (ASTER GDEM)
+              </a>
             </div>
           </div>
         </div>
@@ -145,12 +140,12 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           </h3>
           <div className="space-y-1">
             <InfoLink
-              href="/privacy"
+              href="/app/privacy.html"
               icon={<Shield className="w-4 h-4" />}
               label="Privacy Policy"
             />
             <InfoLink
-              href="/terms"
+              href="/app/terms.html"
               icon={<FileText className="w-4 h-4" />}
               label="Terms of Service"
             />

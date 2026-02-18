@@ -82,6 +82,8 @@ function App() {
   const tracks = useAppStore((state) => state.tracks);
   const showSidebar = useAppStore((state) => state.isSidebarOpen);
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
+  const exploreMode = useAppStore((state) => state.exploreMode);
+  const setExploreMode = useAppStore((state) => state.setExploreMode);
   const pictures = useAppStore((state) => state.pictures);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
@@ -267,7 +269,7 @@ function App() {
               />
 
               {/* No tracks message */}
-              {!hasTracks && (
+              {!hasTracks && !exploreMode && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-8 text-center max-w-md">
                     {/* Logo */}
@@ -302,6 +304,15 @@ function App() {
                       >
                         <Upload className="w-4 h-4" />
                         Upload GPX Files
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExploreMode(true);
+                          setShowSidebar(false);
+                        }}
+                        className="tr-btn tr-btn-secondary"
+                      >
+                        Explore Map
                       </button>
                     </div>
                   </div>

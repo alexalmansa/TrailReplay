@@ -310,6 +310,7 @@ export function TracksPanel() {
   const reorderTracks = useAppStore((state) => state.reorderTracks);
   const settings = useAppStore((state) => state.settings);
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
+  const setExploreMode = useAppStore((state) => state.setExploreMode);
 
   // Comparison track state
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -486,7 +487,10 @@ export function TracksPanel() {
           <p className="text-sm">No tracks loaded yet</p>
           <p className="text-xs mt-1">Upload GPX files to get started</p>
           <button
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => {
+              setExploreMode(true);
+              setSidebarOpen(false);
+            }}
             className="tr-btn tr-btn-secondary w-full text-sm mt-4"
           >
             Explore Map

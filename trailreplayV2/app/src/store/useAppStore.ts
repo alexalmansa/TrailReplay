@@ -55,6 +55,7 @@ interface AppState {
   
   // UI State
   isSidebarOpen: boolean;
+  exploreMode: boolean;
   activePanel: 'tracks' | 'journey' | 'annotations' | 'pictures' | 'export' | 'settings';
   isLoading: boolean;
   error: string | null;
@@ -140,6 +141,7 @@ interface AppState {
   
   // UI
   setSidebarOpen: (isOpen: boolean) => void;
+  setExploreMode: (enabled: boolean) => void;
   setActivePanel: (panel: AppState['activePanel']) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -186,7 +188,6 @@ const defaultSettings: AppSettings = {
     trackLabel: 'Track 1',
   },
   mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
-  s2mapsYear: 2024,
   waybackRelease: null,
   waybackItemURL: null,
 };
@@ -243,6 +244,7 @@ export const useAppStore = create<AppState>()(
     exportProgress: 0,
     exportStage: '',
     isSidebarOpen: true,
+    exploreMode: false,
     activePanel: 'tracks',
     isLoading: false,
     error: null,
@@ -256,6 +258,7 @@ export const useAppStore = create<AppState>()(
         const trackColor = track.color || trackColors[colorIndex];
         const trackWithColor = { ...track, color: trackColor, visible: true };
         state.tracks.push(trackWithColor);
+        state.exploreMode = false;
         if (!state.activeTrackId) {
           state.activeTrackId = track.id;
           // Sync trail color with first active track
@@ -627,6 +630,10 @@ export const useAppStore = create<AppState>()(
     setSidebarOpen: (isOpen) =>
       set((state) => {
         state.isSidebarOpen = isOpen;
+      }),
+    setExploreMode: (enabled) =>
+      set((state) => {
+        state.exploreMode = enabled;
       }),
 
     setActivePanel: (panel) =>
