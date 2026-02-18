@@ -166,6 +166,7 @@ function App() {
           <div className="flex-1 flex flex-col relative">
             {/* Map Container */}
             <div
+              id="map-capture-container"
               ref={mapContainerRef}
               className="flex-1 relative"
             >

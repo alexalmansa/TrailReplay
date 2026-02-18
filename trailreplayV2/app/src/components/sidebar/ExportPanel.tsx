@@ -79,6 +79,11 @@ export function ExportPanel() {
   const isRecordingRef = useRef(false);
   const frameRequestRef = useRef<number | null>(null);
 
+  // Overlay capture refs — updated async via html2canvas, drawn sync each frame
+  const cachedOverlayRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayBusyRef = useRef(false);
+  const overlayLastUpdateRef = useRef(0);
+
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
 
   // Watch for animation phase changes to stop recording
@@ -103,74 +108,89 @@ export function ExportPanel() {
     }
   }, [animationPhase, playback.progress]);
 
-  // Capture frame to composite canvas
+  // Load html2canvas dynamically (same as v1)
+  const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
+    if ((window as any).html2canvas) return true;
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      script.crossOrigin = 'anonymous';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Async overlay update — captures the whole map container (map + all HTML overlays).
+  // MapLibre has preserveDrawingBuffer:true so html2canvas can read the WebGL canvas.
+  const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
+    if (overlayBusyRef.current) return;
+    overlayBusyRef.current = true;
+    try {
+      const container = document.getElementById('map-capture-container');
+      if (!container || !(window as any).html2canvas) return;
+
+      const result: HTMLCanvasElement = await (window as any).html2canvas(container, {
+        backgroundColor: null,
+        scale: 1,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        // Ignore sidebar / controls — only the map container is targeted
+        ignoreElements: (el: Element) =>
+          el.tagName === 'SCRIPT' || el.tagName === 'STYLE',
+      });
+
+      // Resize to recording resolution
+      const overlay = document.createElement('canvas');
+      overlay.width = recordW;
+      overlay.height = recordH;
+      const ctx = overlay.getContext('2d')!;
+      ctx.drawImage(result, 0, 0, recordW, recordH);
+      cachedOverlayRef.current = overlay;
+    } catch (e) {
+      // Silently ignore — the map canvas will still be recorded
+    } finally {
+      overlayBusyRef.current = false;
+      overlayLastUpdateRef.current = Date.now();
+    }
+  }, []);
+
+  // Capture frame: draw map canvas (sync, fast) + cached overlay (sync).
+  // Trigger async overlay refresh every ~150ms in the background.
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;
 
     const ctx = recordingContextRef.current;
     const { width, height } = videoExportSettings.resolution;
 
-    // Clear canvas
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
-
-    // 1. Draw the map canvas
+    // 1. Draw the MapLibre WebGL canvas
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement;
     if (mapCanvas) {
       ctx.drawImage(mapCanvas, 0, 0, width, height);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, width, height);
     }
 
-    // 2. Draw the elevation profile if enabled
-    if (videoExportSettings.includeElevation) {
-      const elevationProfile = document.getElementById('mapElevationProfile');
-      if (elevationProfile) {
-        // Draw elevation profile at bottom of canvas
-        const profileHeight = 80; // Height for elevation profile area
-        const profileY = height - profileHeight;
-
-        // Draw semi-transparent background
-        ctx.fillStyle = 'rgba(248, 246, 240, 0.9)';
-        ctx.fillRect(0, profileY, width, profileHeight);
-
-        // Draw the SVG elevation profile
-        const svgElement = elevationProfile.querySelector('svg');
-        if (svgElement) {
-          // Convert SVG to image and draw
-          const svgData = new XMLSerializer().serializeToString(svgElement);
-          const img = new Image();
-          const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(svgBlob);
-
-          img.onload = () => {
-            ctx.drawImage(img, 50, profileY + 10, width - 100, profileHeight - 20);
-            URL.revokeObjectURL(url);
-          };
-          img.src = url;
-        }
-
-        // Draw current elevation label if visible
-        const elevLabel = elevationProfile.querySelector('[class*="bg-\\[var\\(--trail-orange\\)\\]"]');
-        if (elevLabel) {
-          const labelText = elevLabel.textContent || '';
-          ctx.fillStyle = '#C1652F';
-          ctx.font = 'bold 12px JetBrains Mono, monospace';
-          ctx.textAlign = 'center';
-          const labelX = (playback.progress * (width - 100)) + 50;
-          ctx.fillText(labelText, labelX, height - 10);
-        }
-      }
+    // 2. Composite the last captured overlay (stats + elevation profile)
+    if (cachedOverlayRef.current) {
+      ctx.drawImage(cachedOverlayRef.current, 0, 0, width, height);
     }
-  }, [videoExportSettings, playback.progress]);
+
+    // 3. Kick off async overlay refresh (throttled to ~150ms)
+    if (Date.now() - overlayLastUpdateRef.current > 150) {
+      updateOverlayAsync(width, height);
+    }
+  }, [videoExportSettings.resolution, updateOverlayAsync]);
 
   // Frame capture loop using requestAnimationFrame
   const startFrameCapture = useCallback(() => {
     const captureLoop = () => {
       if (!isRecordingRef.current) return;
-
       captureFrame();
       frameRequestRef.current = requestAnimationFrame(captureLoop);
     };
-
     frameRequestRef.current = requestAnimationFrame(captureLoop);
   }, [captureFrame]);
 
@@ -206,6 +226,9 @@ export function ExportPanel() {
     setExportStage('Preparing...');
     setExportedBlob(null);
     recordedChunksRef.current = [];
+    cachedOverlayRef.current = null;
+    overlayBusyRef.current = false;
+    overlayLastUpdateRef.current = 0;
 
     try {
       const { width, height } = videoExportSettings.resolution;
@@ -219,6 +242,13 @@ export function ExportPanel() {
       recordingCanvasRef.current.width = width;
       recordingCanvasRef.current.height = height;
       recordingContextRef.current = recordingCanvasRef.current.getContext('2d');
+
+      // Step 1b: Load html2canvas for overlay capture (stats + elevation profile)
+      setExportStage('Loading overlay capture library...');
+      await loadHtml2Canvas();
+
+      // Pre-warm the overlay cache before recording starts
+      await updateOverlayAsync(width, height);
 
       // Step 2: Reset playback to beginning
       setExportStage('Resetting to start...');
@@ -290,10 +320,12 @@ export function ExportPanel() {
       setIsExporting(false);
       isRecordingRef.current = false;
     }
-  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture]);
+  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture, loadHtml2Canvas, updateOverlayAsync]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
+    cachedOverlayRef.current = null;
+    overlayBusyRef.current = false;
 
     if (frameRequestRef.current) {
       cancelAnimationFrame(frameRequestRef.current);
@@ -363,22 +395,10 @@ export function ExportPanel() {
       {/* Info about how export works */}
       <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)] rounded-lg p-3">
         <p className="text-xs text-[var(--evergreen)]">
-          <strong>How it works:</strong> Recording captures the map animation including intro zoom-in,
-          the track playback, and outro zoom-out. The animation resets to the beginning before recording starts.
+          <strong>How it works:</strong> Recording captures the full map view — including the stats overlay,
+          elevation profile, and track animation — exactly as it appears on screen.
+          The animation resets to the beginning before recording starts.
         </p>
-      </div>
-
-      {/* Export Options */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm text-[var(--evergreen)]">
-          <input
-            type="checkbox"
-            checked={videoExportSettings.includeElevation}
-            onChange={(e) => setVideoExportSettings({ includeElevation: e.target.checked })}
-            className="w-4 h-4 accent-[var(--trail-orange)]"
-          />
-          Include Elevation Profile
-        </label>
       </div>
 
       {/* Export Button */}
