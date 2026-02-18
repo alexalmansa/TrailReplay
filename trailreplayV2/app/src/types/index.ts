@@ -119,6 +119,7 @@ export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clari
 export interface MapOverlays {
   skiPistes: boolean;
   slopeOverlay: boolean;
+  placeLabels: boolean;
 }
 
 export interface MapStyleConfig {
@@ -200,7 +201,6 @@ export interface AppSettings {
   defaultTotalTime: number;
   trailStyle: TrailStyleSettings;
   s2mapsYear: number;
-  s2mapsLabels: boolean;
 }
 
 export interface LiveStats {

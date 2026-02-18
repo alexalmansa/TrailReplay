@@ -495,13 +495,13 @@ export function TrailMap({}: TrailMapProps) {
         settings.mapOverlays?.slopeOverlay ? 'visible' : 'none');
     }
 
-    // Labels: shown for street/topo/outdoor, and for s2maps when labels enabled
+    // Labels: always on for street/topo/outdoor, optional overlay for any map style
     const showLabels = ['street', 'topo', 'outdoor'].includes(settings.mapStyle)
-      || (settings.mapStyle === 's2maps' && settings.s2mapsLabels);
+      || !!settings.mapOverlays?.placeLabels;
     if (map.current.getLayer('carto-labels')) {
       map.current.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
     }
-  }, [settings.mapStyle, settings.s2mapsLabels, settings.mapOverlays?.skiPistes, settings.mapOverlays?.slopeOverlay, isMapLoaded]);
+  }, [settings.mapStyle, settings.mapOverlays?.placeLabels, settings.mapOverlays?.skiPistes, settings.mapOverlays?.slopeOverlay, isMapLoaded]);
 
   // Update S2Maps tile source when year changes
   useEffect(() => {

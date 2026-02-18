@@ -20,6 +20,7 @@ const MAP_STYLES: { id: MapStyle; name: string; icon: string }[] = [
 ];
 
 const MAP_OVERLAYS: { id: string; name: string; icon: string; description: string }[] = [
+  { id: 'placeLabels', name: 'Place Names', icon: '🗺️', description: 'Carto place labels overlay' },
   { id: 'skiPistes', name: 'Ski Pistes', icon: '⛷️', description: 'OpenSnowMap ski runs overlay' },
   { id: 'slopeOverlay', name: 'Slope', icon: '📐', description: 'Color-coded terrain steepness' },
 ];
@@ -77,7 +78,7 @@ export function SettingsPanel() {
           ))}
         </div>
 
-        {/* S2Maps options — year selector + labels toggle */}
+        {/* S2Maps options — year selector */}
         {settings.mapStyle === 's2maps' && (
           <div className="mt-3 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg space-y-3">
             <div>
@@ -94,19 +95,6 @@ export function SettingsPanel() {
                 ))}
               </select>
             </div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => setSettings({ s2mapsLabels: !settings.s2mapsLabels })}
-                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                  settings.s2mapsLabels ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                }`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  settings.s2mapsLabels ? 'translate-x-5' : 'translate-x-0.5'
-                }`} />
-              </div>
-              <span className="text-sm text-[var(--evergreen)]">Show place names</span>
-            </label>
             <p className="text-xs text-[var(--evergreen-60)]">
               Sentinel-2 cloudless imagery by{' '}
               <a href="https://s2maps.eu" target="_blank" rel="noopener noreferrer"
