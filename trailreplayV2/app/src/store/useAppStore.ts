@@ -161,7 +161,7 @@ const defaultPlayback: PlaybackState = {
 
 const defaultSettings: AppSettings = {
   unitSystem: 'metric',
-  mapStyle: 'satellite',
+  mapStyle: 'esri-clarity',
   show3DTerrain: true,
   showHeartRate: false,
   showPictures: true,
@@ -185,7 +185,7 @@ const defaultSettings: AppSettings = {
     showTrackLabels: false,
     trackLabel: 'Track 1',
   },
-  mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: false, aspectOverlay: false },
+  mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
   s2mapsYear: 2024,
   waybackRelease: null,
   waybackItemURL: null,

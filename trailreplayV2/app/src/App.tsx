@@ -76,11 +76,12 @@ function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
+  const showSidebar = useAppStore((state) => state.isSidebarOpen);
+  const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
   const pictures = useAppStore((state) => state.pictures);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
