@@ -23,6 +23,7 @@ const MAP_OVERLAYS: { id: string; name: string; icon: string; description: strin
   { id: 'placeLabels', name: 'Place Names', icon: '🗺️', description: 'Carto place labels overlay' },
   { id: 'skiPistes', name: 'Ski Pistes', icon: '⛷️', description: 'OpenSnowMap ski runs overlay' },
   { id: 'slopeOverlay', name: 'Slope', icon: '📐', description: 'Color-coded terrain steepness' },
+  { id: 'aspectOverlay', name: 'Aspect', icon: '🧭', description: 'Terrain orientation (N/E/S/W) colors' },
 ];
 
 const CAMERA_MODES: { id: CameraMode; name: string; description: string }[] = [
@@ -166,6 +167,26 @@ export function SettingsPanel() {
             </div>
             <p className="text-xs text-[var(--evergreen-60)] mt-2">
               Computed from AWS Terrain Tiles elevation data
+            </p>
+          </div>
+        )}
+
+        {/* Aspect overlay legend */}
+        {settings.mapOverlays?.aspectOverlay && (
+          <div className="mt-2 p-3 bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg">
+            <p className="text-xs font-medium text-[var(--evergreen)] mb-2">Aspect (Terrain Orientation)</p>
+            <div className="grid grid-cols-2 gap-1 text-xs text-[var(--evergreen-60)]">
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,122,255)'}}></span>North</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,255)'}}></span>Northeast</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(0,200,90)'}}></span>East</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(180,220,0)'}}></span>Southeast</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,165,0)'}}></span>South</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(255,80,0)'}}></span>Southwest</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(200,0,200)'}}></span>West</p>
+              <p><span className="inline-block w-3 h-3 rounded mr-1" style={{backgroundColor:'rgb(120,0,255)'}}></span>Northwest</p>
+            </div>
+            <p className="text-xs text-[var(--evergreen-60)] mt-2">
+              Transparent on very flat terrain
             </p>
           </div>
         )}

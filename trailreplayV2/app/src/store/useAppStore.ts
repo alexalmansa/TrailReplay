@@ -185,7 +185,7 @@ const defaultSettings: AppSettings = {
     showTrackLabels: false,
     trackLabel: 'Track 1',
   },
-  mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: false },
+  mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: false, aspectOverlay: false },
   s2mapsYear: 2024,
 };
 

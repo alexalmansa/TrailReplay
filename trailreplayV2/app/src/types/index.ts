@@ -120,6 +120,7 @@ export interface MapOverlays {
   skiPistes: boolean;
   slopeOverlay: boolean;
   placeLabels: boolean;
+  aspectOverlay: boolean;
 }
 
 export interface MapStyleConfig {
