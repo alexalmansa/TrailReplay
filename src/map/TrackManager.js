@@ -7,12 +7,43 @@ export class TrackManager {
         this.renderer.gpxParser = this.gpxParser; // Make it accessible from renderer
     }
 
-    loadTrack(trackData) {
+    loadTrack(trackData, attempt = 0) {
         this.gpxParser = new GPXParser();
         this.renderer.gpxParser = this.gpxParser;
         this.renderer.trackData = trackData;
         this.gpxParser.trackPoints = trackData.trackPoints;
         this.gpxParser.stats = trackData.stats;
+
+        if (!this.renderer.map) {
+            throw new Error('Map instance is not available');
+        }
+
+        const missingCoreSources = () => (
+            !this.renderer.map.getSource('trail-line') ||
+            !this.renderer.map.getSource('trail-completed') ||
+            !this.renderer.map.getSource('current-position')
+        );
+
+        const retryWhenReady = (eventName, reason) => {
+            if (attempt >= 5) {
+                throw new Error(`Map is not ready to load track data (${reason})`);
+            }
+
+            this.renderer.map.once(eventName, () => {
+                this.loadTrack(trackData, attempt + 1);
+            });
+
+            return true;
+        };
+
+        if (!this.renderer.map.isStyleLoaded()) {
+            if (retryWhenReady('load', 'style not loaded')) return;
+        }
+
+        if (missingCoreSources()) {
+            // Give map setup a moment to finish wiring custom sources/layers.
+            if (retryWhenReady('idle', 'missing track sources')) return;
+        }
 
         this.renderer.heartRateSegments = [];
         this.renderer.heartRateSegmentCollection = { type: 'FeatureCollection', features: [] };
