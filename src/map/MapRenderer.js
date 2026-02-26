@@ -218,6 +218,13 @@ export class MapRenderer {
         this.terrainController.setTerrainExaggeration(exaggeration);
     }
 
+    // Backward-compatible delegate used by TrackManager after terrain modularization
+    update3DTrailRendering() {
+        if (this.terrainController?.update3DTrailRendering) {
+            this.terrainController.update3DTrailRendering();
+        }
+    }
+
     isTerrainSupported() {
         return this.terrainController.isTerrainSupported();
     }
