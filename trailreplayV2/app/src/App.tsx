@@ -14,16 +14,78 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info } from 'lucide-react';
 import { gsap } from 'gsap';
+import { useI18n } from '@/i18n/useI18n';
+
+import type { AspectRatio } from '@/types';
+
+/** Dark letterbox bars showing what will be cropped for the selected aspect ratio */
+function CropPreviewBars({
+  ratio,
+  containerRef,
+}: {
+  ratio: AspectRatio;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [bars, setBars] = useState<{ left: number; right: number; top: number; bottom: number } | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const W = el.clientWidth;
+      const H = el.clientHeight;
+      const containerAspect = W / H;
+      let targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
+      if (containerAspect > targetAspect) {
+        // Crop left/right
+        const cropW = H * targetAspect;
+        const bar = (W - cropW) / 2;
+        setBars({ left: bar, right: bar, top: 0, bottom: 0 });
+      } else {
+        // Crop top/bottom
+        const cropH = W / targetAspect;
+        const bar = (H - cropH) / 2;
+        setBars({ left: 0, right: 0, top: bar, bottom: bar });
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ratio, containerRef]);
+
+  if (!bars) return null;
+  return (
+    <>
+      {bars.left > 0 && <>
+        <div className="absolute inset-y-0 left-0 bg-black/55 z-30 pointer-events-none" style={{ width: bars.left }} />
+        <div className="absolute inset-y-0 right-0 bg-black/55 z-30 pointer-events-none" style={{ width: bars.right }} />
+      </>}
+      {bars.top > 0 && <>
+        <div className="absolute inset-x-0 top-0 bg-black/55 z-30 pointer-events-none" style={{ height: bars.top }} />
+        <div className="absolute inset-x-0 bottom-0 bg-black/55 z-30 pointer-events-none" style={{ height: bars.bottom }} />
+      </>}
+      {/* Label */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+        Export crop: {ratio}
+      </div>
+    </>
+  );
+}
 
 function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
+  const showSidebar = useAppStore((state) => state.isSidebarOpen);
+  const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
+  const exploreMode = useAppStore((state) => state.exploreMode);
+  const setExploreMode = useAppStore((state) => state.setExploreMode);
+  const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
@@ -31,6 +93,8 @@ function App() {
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const activePanel = useAppStore((state) => state.activePanel);
+  const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
   
   // Show error toast
   useEffect(() => {
@@ -107,14 +171,14 @@ function App() {
             <div className="flex items-center gap-2">
               <div className="bg-white rounded-md p-1">
                 <img
-                  src="/app/media/images/logohorizontal.svg"
+                  src="/media/images/simplelogo.png"
                   alt="TrailReplay"
-                  className="h-5 w-auto"
+                  className="h-6 w-6 object-contain"
                 />
               </div>
               <div>
-                <h1 className="font-bold text-sm tracking-wide">Trail Replay</h1>
-                <p className="text-[10px] opacity-70">GPX VISUALIZATION</p>
+                <h1 className="font-bold text-sm tracking-wide">{t('app.title')}</h1>
+                <p className="text-[10px] opacity-70">{t('app.subtitle')}</p>
               </div>
             </div>
           </div>
@@ -139,14 +203,14 @@ function App() {
             <button
               onClick={toggleFullscreen}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Toggle fullscreen"
+              title={t('app.fullscreen')}
             >
               {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
             </button>
             <button
               onClick={() => setShowInfoPanel(!showInfoPanel)}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="About & Info"
+              title={t('app.aboutTitle')}
             >
               {showInfoPanel ? <X className="w-5 h-5" /> : <Info className="w-5 h-5" />}
             </button>
@@ -166,11 +230,17 @@ function App() {
           <div className="flex-1 flex flex-col relative">
             {/* Map Container */}
             <div
+              id="map-capture-container"
               ref={mapContainerRef}
               className="flex-1 relative"
             >
               <TrailMap mapContainerRef={mapContainerRef} />
-              
+
+              {/* Aspect ratio crop preview when in Export panel */}
+              {activePanel === 'export' && exportAspectRatio !== '16:9' && (
+                <CropPreviewBars ratio={exportAspectRatio} containerRef={mapContainerRef} />
+              )}
+
               {/* Stats Overlay */}
               {hasTracks && (
                 <div className="absolute top-4 left-4 z-10">
@@ -201,7 +271,7 @@ function App() {
               />
 
               {/* No tracks message */}
-              {!hasTracks && (
+              {!hasTracks && !exploreMode && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-8 text-center max-w-md">
                     {/* Logo */}
@@ -213,10 +283,10 @@ function App() {
                       />
                     </div>
                     <h2 className="text-xl font-bold text-[var(--evergreen)] mb-2">
-                      Welcome to Trail Replay v2
+                      {t('app.welcomeTitle')}
                     </h2>
                     <p className="text-[var(--evergreen-60)] mb-4">
-                      Upload GPX files to visualize your trails, create journeys, and export stunning videos.
+                      {t('app.welcomeBody')}
                     </p>
 
                     {/* v1/v2 notice */}
@@ -224,7 +294,7 @@ function App() {
                       <div className="flex items-center justify-center gap-2 text-xs text-[var(--evergreen-60)]">
                         <ArrowLeftRight className="w-4 h-4" />
                         <span>
-                          New v2 experience! Switch between versions using the toggle in the header.
+                          {t('app.welcomeNotice')}
                         </span>
                       </div>
                     </div>
@@ -235,7 +305,16 @@ function App() {
                         className="tr-btn tr-btn-primary flex items-center gap-2"
                       >
                         <Upload className="w-4 h-4" />
-                        Upload GPX Files
+                        {t('app.uploadButton')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExploreMode(true);
+                          setShowSidebar(false);
+                        }}
+                        className="tr-btn tr-btn-secondary"
+                      >
+                        {t('app.exploreButton')}
                       </button>
                     </div>
                   </div>

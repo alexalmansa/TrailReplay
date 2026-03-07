@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react';
 import { parseGPXFiles } from '@/utils/gpxParser';
 import { useAppStore } from '@/store/useAppStore';
+import { useI18n } from '@/i18n/useI18n';
 
 export function useGPX() {
+  const { t } = useI18n();
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const addTrack = useAppStore((state) => state.addTrack);
@@ -19,7 +21,7 @@ export function useGPX() {
       const tracks = await parseGPXFiles(fileArray);
       
       if (tracks.length === 0) {
-        throw new Error('No valid GPX files found');
+        throw new Error(t('errors.noValidGpx'));
       }
       
       tracks.forEach((track) => {
@@ -28,14 +30,14 @@ export function useGPX() {
       
       return tracks;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to parse GPX files';
+      const message = error instanceof Error ? error.message : t('errors.parseGpxFailed');
       setParseError(message);
       setError(message);
       throw error;
     } finally {
       setIsParsing(false);
     }
-  }, [addTrack, setError]);
+  }, [addTrack, setError, t]);
 
   return {
     parseFiles,

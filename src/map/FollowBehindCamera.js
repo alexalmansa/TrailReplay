@@ -78,6 +78,7 @@ export class FollowBehindCamera {
         this.lastBearing = 0;
         this.targetBearing = 0;
         this.lastFrameTime = null; // For frame-rate independent smoothing
+        this.isVideoExport = false; // Set by VideoExportController to use video-specific cinematic
         const preset = this.getCurrentPresetSettings();
         this.followZoom = preset.ZOOM;
         this.followPitch = preset.PITCH;
@@ -170,24 +171,24 @@ export class FollowBehindCamera {
     async startCinematicSequence() {
         if (!this.mapRenderer.trackData || !this.map) {
             console.warn('🎬 Cannot start cinematic sequence: missing trackData or map');
-            return Promise.resolve();
+            return;
         }
 
         console.log('🎬 Starting pre-animation zoom-in sequence');
 
-        // Ensure gpxParser is available
         if (!this.gpxParser) {
             console.warn('🎬 Cannot start cinematic sequence: gpxParser not available');
-            return Promise.resolve();
+            return;
         }
 
-        // Get start point (marker should be at position 0 before animation starts)
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
         if (!startPoint || typeof startPoint.lat === 'undefined' || typeof startPoint.lon === 'undefined') {
             console.warn('🎬 No valid start point available');
-            return Promise.resolve();
+            return;
         }
-        
+
+        // Wait for DEM tiles to actually load before positioning camera
+        await this.waitForTerrainToLoad();
 
         this.updateFollowViewIfNeeded(0, { force: true });
         const preset = this.getCurrentPresetSettings();
@@ -199,47 +200,39 @@ export class FollowBehindCamera {
         this.lastCameraPitch = targetPitch;
         this.lastElevation = startElevation;
 
-        // Get current map state (zoom, pitch, bearing)
-        const currentZoom = this.map.getZoom();
-        const currentPitch = this.map.getPitch();
-        const currentBearing = this.map.getBearing();
-        const currentCenter = this.map.getCenter();
-
-        // Calculate bearing for start position
         const bearing = this.calculateBearing(0);
         this.lastBearing = bearing;
 
-        console.log(`🎬 Starting smooth zoom from current zoom ${currentZoom.toFixed(1)} to ${preset.name}: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
-
-        // Proactively preload tiles for the target view to avoid white flashes
+        // Preload tiles for the target view
         try {
-            const pitch = this.map.getPitch();
-            const bufferScale = 1.3 + Math.min(pitch, 60) / 120; // ~1.3..1.8
+            const bufferScale = 1.3 + Math.min(targetPitch, 60) / 120;
             this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, targetZoom, this.mapRenderer.currentMapStyle, { bufferScale });
         } catch (_) {}
 
-        // Return promise that resolves when zoom-in completes
-        return new Promise((resolve) => {
-            // Give the preloading a short head start
-            setTimeout(() => {
-            // Smooth transition from current position to animation position with elevation-adjusted zoom
-            this.map.easeTo({
-                center: [startPoint.lon, startPoint.lat],
-                zoom: targetZoom,
-                pitch: targetPitch,
-                bearing: bearing,
-                duration: FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION,
-                easing: (t) => 1 - Math.pow(1 - t, 3) // Smooth ease-out cubic
-            });
-            }, 120);
+        // Prime MapLibre's terrain elevation by doing a fake zoom-out-and-back.
+        // MapLibre ignores terrain elevation on the first camera move after enabling
+        // terrain. A manual zoom change fixes it, so we simulate one programmatically.
+        await this.primeTerrainElevation([startPoint.lon, startPoint.lat], targetPitch, bearing);
 
-            // Resolve when zoom-in completes
+        const currentZoom = this.map.getZoom();
+        console.log(`🎬 Starting smooth zoom from zoom ${currentZoom.toFixed(1)} to ${preset.name}: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
+
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                this.map.easeTo({
+                    center: [startPoint.lon, startPoint.lat],
+                    zoom: targetZoom,
+                    pitch: targetPitch,
+                    bearing: bearing,
+                    duration: FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION,
+                    easing: (t) => 1 - Math.pow(1 - t, 3)
+                });
+            }, 50);
+
             setTimeout(() => {
                 console.log('🎬 Pre-animation zoom-in completed, ready to start trail animation');
-                // After cinematic zoom, stay near the safe zoom but allow user preset bias
                 this.followZoom = targetZoom;
                 this.followPitch = targetPitch;
-                this.forceZoomRefresh([startPoint.lon, startPoint.lat], targetZoom, targetPitch, bearing);
                 resolve();
             }, FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION);
         });
@@ -549,6 +542,45 @@ export class FollowBehindCamera {
     }
 
     /**
+     * Prime MapLibre's terrain elevation by pre-visiting the target zoom level.
+     * MapLibre ignores terrain elevation on the first camera move after enabling terrain.
+     * By jumping to the target zoom, waiting for DEM tiles, nudging the zoom, and jumping
+     * back to overview, we force the internal terrain calculations to initialize.
+     */
+    async primeTerrainElevation(center, pitch, bearing) {
+        if (!this.map) return;
+
+        console.log('🎬 Priming terrain elevation with zoom cycle');
+
+        const preset = this.getCurrentPresetSettings();
+        const targetZoom = this.followZoom || preset.ZOOM;
+
+        // Jump to the actual target zoom so MapLibre loads DEM tiles at that level
+        this.map.jumpTo({ center, zoom: targetZoom, pitch, bearing });
+
+        // Wait for DEM tiles to load at this zoom level
+        await new Promise(resolve => {
+            let resolved = false;
+            const done = () => { if (!resolved) { resolved = true; resolve(); } };
+            this.map.once('idle', done);
+            setTimeout(done, 1500);
+        });
+
+        // Nudge zoom to force MapLibre's internal terrain recalculation
+        this.map.jumpTo({ center, zoom: targetZoom - 1, pitch, bearing });
+        this.map.jumpTo({ center, zoom: targetZoom + 0.5, pitch, bearing });
+        this.map.jumpTo({ center, zoom: targetZoom, pitch, bearing });
+
+        // Wait for the recalculation to take effect
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        // Jump back to overview position for the cinematic start
+        this.map.jumpTo({ center, zoom: 6, pitch: 0, bearing: 0 });
+
+        console.log('🎬 Terrain elevation primed successfully');
+    }
+
+    /**
      * Work around a MapLibre quirk where the first zoom after enabling terrain sometimes ignores elevation
      * until the user nudges the zoom manually. We emulate that tiny nudge programmatically right after
      * the cinematic completes so the camera always stabilizes at the correct altitude.
@@ -557,21 +589,14 @@ export class FollowBehindCamera {
         if (!this.map || !center) {
             return;
         }
-        
-        const delta = 0.001;
+
+        // Use a visible delta to force MapLibre to fully recalculate terrain-aware
+        // camera positioning. A tiny 0.001 delta is often not enough to trigger the
+        // internal elevation recalculation on first terrain render.
         try {
-            this.map.jumpTo({
-                center,
-                zoom: zoom + delta,
-                pitch,
-                bearing
-            });
-            this.map.jumpTo({
-                center,
-                zoom,
-                pitch,
-                bearing
-            });
+            this.map.jumpTo({ center, zoom: zoom - 1, pitch, bearing });
+            this.map.jumpTo({ center, zoom: zoom + 1, pitch, bearing });
+            this.map.jumpTo({ center, zoom, pitch, bearing });
         } catch (error) {
             console.warn('🎬 FollowBehindCamera: forceZoomRefresh failed', error);
         }
@@ -648,30 +673,49 @@ export class FollowBehindCamera {
     }
     
     /**
-     * Wait for terrain to load
+     * Wait for terrain DEM tiles to actually load (not just the terrain object).
+     * Uses queryTerrainElevation to verify real elevation data is available.
      */
     async waitForTerrainToLoad() {
-        return new Promise((resolve) => {
-            const checkTerrain = () => {
-                // Check if terrain is actually applied and ready
-                if (this.map.getTerrain && this.map.getTerrain()) {
-                    console.log('🎬 Terrain confirmed loaded');
-                    resolve();
-                } else {
-                    console.log('🎬 Waiting for terrain to load...');
-                    setTimeout(checkTerrain, 500);
-                }
-            };
-            
-            // Start checking immediately, but with a fallback timeout
-            checkTerrain();
-            
-            // Fallback: resolve after 3 seconds even if terrain check fails
-            setTimeout(() => {
-                console.log('🎬 Terrain load timeout, proceeding anyway');
-                resolve();
-            }, 3000);
-        });
+        const startTime = performance.now();
+        const maxWaitMs = 5000;
+
+        // Phase 1: Wait for terrain object to exist
+        while (!this.map.getTerrain || !this.map.getTerrain()) {
+            if (performance.now() - startTime > maxWaitMs) {
+                console.warn('🎬 Terrain object timeout, proceeding anyway');
+                return;
+            }
+            await new Promise(r => setTimeout(r, 100));
+        }
+        console.log('🎬 Terrain object confirmed');
+
+        // Phase 2: Wait for DEM tiles to load (queryTerrainElevation returns non-null)
+        const testPoint = this.gpxParser?.getInterpolatedPoint(0);
+        if (testPoint && typeof testPoint.lat !== 'undefined') {
+            while (performance.now() - startTime < maxWaitMs) {
+                try {
+                    const elev = this.map.queryTerrainElevation(
+                        { lng: testPoint.lon, lat: testPoint.lat }
+                    );
+                    if (elev !== null && elev !== undefined) {
+                        console.log(`🎬 DEM tiles loaded, terrain elevation at start: ${elev.toFixed(1)}m`);
+                        return;
+                    }
+                } catch (_) {}
+                await new Promise(r => setTimeout(r, 150));
+            }
+            console.warn('🎬 DEM tile load timeout, proceeding with terrain object only');
+        } else {
+            // No test point available, just wait for idle
+            await new Promise(r => {
+                let resolved = false;
+                const onIdle = () => { if (!resolved) { resolved = true; r(); } };
+                this.map.once('idle', onIdle);
+                setTimeout(() => { if (!resolved) { resolved = true; r(); } }, 2000);
+            });
+            console.log('🎬 Terrain wait completed via idle fallback');
+        }
     }
     
     /**
@@ -685,6 +729,7 @@ export class FollowBehindCamera {
         this.lastCameraZoom = FOLLOW_BEHIND_SETTINGS.BASE_ZOOM;
         this.lastCameraPitch = FOLLOW_BEHIND_SETTINGS.BASE_PITCH;
         this.lastFrameTime = null;
+        this.isVideoExport = false;
         this.originalMarkerSize = null;
         const preset = this.getCurrentPresetSettings();
         this.followZoom = preset.ZOOM;
@@ -782,30 +827,30 @@ export class FollowBehindCamera {
     async startCinematicSequenceForVideoExport() {
         if (!this.mapRenderer.trackData || !this.map) {
             console.warn('🎬 Cannot start cinematic sequence for video export: missing trackData or map');
-            return Promise.resolve();
+            return;
         }
 
         console.log('🎬 Starting pre-animation zoom-in sequence for video export');
 
-        // Ensure gpxParser is available
         if (!this.gpxParser) {
             console.warn('🎬 Cannot start cinematic sequence for video export: gpxParser not available');
-            return Promise.resolve();
+            return;
         }
 
-        // Get start point (marker should be at position 0 before animation starts)
         const startPoint = this.gpxParser.getInterpolatedPoint(0);
         if (!startPoint || typeof startPoint.lat === 'undefined' || typeof startPoint.lon === 'undefined') {
             console.warn('🎬 No valid start point available for video export');
-            return Promise.resolve();
+            return;
         }
-        
+
+        // Wait for DEM tiles before positioning camera
+        await this.waitForTerrainToLoad();
 
         // For video export, always start from a fixed overview position for consistent timing
         console.log('🎬 Setting fixed overview starting position for video export');
         this.map.jumpTo({
             center: [startPoint.lon, startPoint.lat],
-            zoom: 5,  // Fixed overview for consistent video export timing
+            zoom: 5,
             pitch: 0,
             bearing: 0
         });
@@ -821,22 +866,30 @@ export class FollowBehindCamera {
         this.lastCameraPitch = targetPitch;
         this.lastElevation = startElevation;
 
-        // Calculate bearing for start position
         const bearing = this.calculateBearing(0);
         this.lastBearing = bearing;
 
         console.log(`🎬 Video export: zooming from overview (zoom 5) to ${preset.name}: zoom=${targetZoom.toFixed(1)}, pitch=${targetPitch.toFixed(1)}° (${FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION/1000}s)`);
 
-        // Preload tiles for target zoom and DEM if needed
+        // Preload tiles for target zoom
         try {
             const pitch = this.map.getPitch();
             const bufferScale = 1.3 + Math.min(pitch, 60) / 120;
             this.mapRenderer.preloadTilesAtPosition(startPoint.lat, startPoint.lon, targetZoom, this.mapRenderer.currentMapStyle, { bufferScale });
         } catch (_) {}
 
-        // Return promise that resolves when zoom-in completes
+        // Prime terrain elevation before cinematic (same fix as regular cinematic)
+        await this.primeTerrainElevation([startPoint.lon, startPoint.lat], targetPitch, bearing);
+
+        // Reset to fixed overview position after priming
+        this.map.jumpTo({
+            center: [startPoint.lon, startPoint.lat],
+            zoom: 5,
+            pitch: 0,
+            bearing: 0
+        });
+
         return new Promise((resolve) => {
-            // Small delay to ensure the overview position is set, then zoom-in with elevation-adjusted zoom
             setTimeout(() => {
                 this.map.easeTo({
                     center: [startPoint.lon, startPoint.lat],
@@ -844,18 +897,16 @@ export class FollowBehindCamera {
                     pitch: targetPitch,
                     bearing: bearing,
                     duration: FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION,
-                    easing: (t) => 1 - Math.pow(1 - t, 3) // Smooth ease-out cubic
+                    easing: (t) => 1 - Math.pow(1 - t, 3)
                 });
 
-                // Resolve when zoom-in completes
                 setTimeout(() => {
                     console.log('🎬 Video export: pre-animation zoom-in completed, ready to start trail animation');
                     this.followZoom = targetZoom;
                     this.followPitch = targetPitch;
-                    this.forceZoomRefresh([startPoint.lon, startPoint.lat], targetZoom, targetPitch, bearing);
                     resolve();
                 }, FOLLOW_BEHIND_SETTINGS.CINEMATIC_DURATION);
-            }, 100); // Short delay to ensure overview position is applied
+            }, 100);
         });
     }
 }

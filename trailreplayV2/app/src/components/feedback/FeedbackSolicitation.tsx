@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, X, ThumbsUp, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 
 const STORAGE_KEY = 'trailreplay_v2_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_v2_activity';
@@ -14,6 +15,7 @@ interface ActivityData {
 }
 
 export function FeedbackSolicitation() {
+  const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [preference, setPreference] = useState<'v1' | 'v2' | 'both' | null>(null);
@@ -102,9 +104,9 @@ export function FeedbackSolicitation() {
 
     // Build the feedback message
     const preferenceLabels = {
-      v1: 'Prefers v1 (Classic)',
-      v2: 'Prefers v2 (New)',
-      both: 'Likes both versions',
+      v1: t('feedback.v1'),
+      v2: t('feedback.v2'),
+      both: t('feedback.both'),
     };
     const message = [
       `Version Preference: ${preference ? preferenceLabels[preference] : 'Not specified'}`,
@@ -140,10 +142,10 @@ export function FeedbackSolicitation() {
         }, 3000);
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.error || 'Something went wrong. Please try again.');
+        setError(data?.error || t('feedback.error'));
       }
     } catch (err) {
-      setError('Failed to send feedback. Please try again.');
+      setError(t('feedback.errorSend'));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,28 +171,28 @@ export function FeedbackSolicitation() {
                 <MessageCircle className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold mb-1">Share your thoughts?</h3>
+                <h3 className="font-bold mb-1">{t('feedback.promptTitle')}</h3>
                 <p className="text-sm opacity-90 mb-3">
-                  We'd love to hear which version you prefer - v1 or v2!
+                  {t('feedback.promptBody')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleYes}
                     className="px-3 py-1.5 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
                   >
-                    Sure!
+                    {t('feedback.yes')}
                   </button>
                   <button
                     onClick={handleMaybeLater}
                     className="px-3 py-1.5 bg-white/10 rounded-md text-sm hover:bg-white/20 transition-colors"
                   >
-                    Maybe later
+                    {t('feedback.maybeLater')}
                   </button>
                   <button
                     onClick={handleDismiss}
                     className="px-3 py-1.5 text-sm opacity-60 hover:opacity-100 transition-opacity"
                   >
-                    Don't ask again
+                    {t('feedback.dontAsk')}
                   </button>
                 </div>
               </div>
@@ -215,17 +217,17 @@ export function FeedbackSolicitation() {
                   <ThumbsUp className="w-8 h-8 text-green-600" />
                 </div>
                 <h3 className="text-xl font-bold text-[var(--evergreen)] mb-2">
-                  Thank you!
+                  {t('feedback.thanksTitle')}
                 </h3>
                 <p className="text-[var(--evergreen-60)]">
-                  Your feedback helps us improve Trail Replay.
+                  {t('feedback.thanksBody')}
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-[var(--evergreen)]">
-                    Version Comparison Feedback
+                    {t('feedback.formHeader')}
                   </h3>
                   <button
                     onClick={handleCloseForm}
@@ -237,7 +239,7 @@ export function FeedbackSolicitation() {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Which version do you prefer?
+                    {t('feedback.formTitle')}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
@@ -249,7 +251,7 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <div className="font-bold text-[var(--evergreen)]">v1</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">Classic</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v1Label')}</div>
                     </button>
                     <button
                       onClick={() => setPreference('v2')}
@@ -260,7 +262,7 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <div className="font-bold text-[var(--evergreen)]">v2</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">New</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v2Label')}</div>
                     </button>
                     <button
                       onClick={() => setPreference('both')}
@@ -271,32 +273,32 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <ArrowLeftRight className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
-                      <div className="text-xs text-[var(--evergreen-60)]">Both</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.both')}</div>
                     </button>
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Your email (optional, for follow-up)
+                    {t('feedback.emailLabel')}
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
+                    placeholder={t('feedback.emailPlaceholder')}
                     className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg text-sm focus:border-[var(--trail-orange)] focus:outline-none"
                   />
                 </div>
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Any additional feedback? (optional)
+                    {t('feedback.additional')}
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="What do you like or dislike about each version?"
+                    placeholder={t('feedback.additionalPlaceholder')}
                     className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg resize-none h-24 text-sm focus:border-[var(--trail-orange)] focus:outline-none"
                   />
                 </div>
@@ -313,7 +315,7 @@ export function FeedbackSolicitation() {
                     disabled={isSubmitting}
                     className="flex-1 py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors disabled:opacity-50"
                   >
-                    Skip
+                    {t('feedback.skip')}
                   </button>
                   <button
                     onClick={handleSubmitFeedback}
@@ -323,10 +325,10 @@ export function FeedbackSolicitation() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
+                        {t('feedback.submitting')}
                       </>
                     ) : (
-                      'Submit'
+                      t('feedback.submit')
                     )}
                   </button>
                 </div>
