@@ -160,59 +160,63 @@ function App() {
     <PlaybackProvider>
       <div className="app-container min-h-screen bg-[var(--canvas)] flex flex-col">
         {/* Header */}
-        <header className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-4 z-50">
-          <div className="flex items-center gap-3">
+        <header className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-2 sm:px-4 z-50">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
             >
-              {showSidebar ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {showSidebar ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
-            <div className="flex items-center gap-2">
-              <div className="bg-white rounded-md p-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="bg-white rounded-md p-0.5 sm:p-1">
                 <img
                   src="/media/images/simplelogo.png"
                   alt="TrailReplay"
-                  className="h-6 w-6 object-contain"
+                  className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
                 />
               </div>
-              <div>
-                <h1 className="font-bold text-sm tracking-wide">{t('app.title')}</h1>
-                <p className="text-[10px] opacity-70">{t('app.subtitle')}</p>
+              <div className="min-w-0">
+                <h1 className="font-bold text-[11px] sm:text-sm tracking-[0.02em] leading-none truncate">
+                  {t('app.title')}
+                </h1>
+                <p className="hidden sm:block text-[10px] opacity-70 leading-tight truncate">
+                  {t('app.subtitle')}
+                </p>
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 ml-2 shrink-0">
             <SupportButton />
             <div className="flex items-center rounded-full border border-white/30 bg-white/10 p-0.5">
               <a
                 href="/app"
-                className="px-3 py-1 text-xs font-semibold rounded-full bg-white/90 text-[var(--evergreen)]"
+                className="px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-white/90 text-[var(--evergreen)]"
                 aria-current="page"
               >
                 v2
               </a>
               <a
                 href="/app-v1.html"
-                className="px-3 py-1 text-xs font-semibold rounded-full text-white/90 hover:text-white"
+                className="px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full text-white/90 hover:text-white"
               >
                 v1
               </a>
             </div>
             <button
               onClick={toggleFullscreen}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
               title={t('app.fullscreen')}
             >
-              {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
             <button
               onClick={() => setShowInfoPanel(!showInfoPanel)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
               title={t('app.aboutTitle')}
             >
-              {showInfoPanel ? <X className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+              {showInfoPanel ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Info className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
           </div>
         </header>
