@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import { useI18n } from '@/i18n/useI18n';
 import {
   Route,
   Timer,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export function StatsOverlay() {
+  const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
@@ -26,6 +28,7 @@ export function StatsOverlay() {
     isInTransport,
     totalDistance,
     segmentTimings,
+    activeTrack,
   } = useComputedJourney();
 
   const currentStats = useMemo(() => {
@@ -35,13 +38,38 @@ export function StatsOverlay() {
     // totalDistance is in meters (from gpxParser using Haversine)
     const distanceAtProgress = totalDistance * playback.progress;
 
-    // Calculate average pace (m/s) from distance covered and time elapsed
-    const durationSeconds = playback.currentTime / 1000;
-    const averageSpeedMps = durationSeconds > 0 ? distanceAtProgress / durationSeconds : 0;
+    // Calculate real elapsed time from actual track data (not animation time)
+    // For single track: use track's totalTime proportional to progress
+    // For multi-segment journeys: sum real track durations proportionally
+    let realElapsedSeconds = 0;
+    if (segmentTimings.length > 0) {
+      // Multi-segment journey: sum real track time up to current progress
+      for (const timing of segmentTimings) {
+        if (timing.type !== 'track' || !timing.trackId) continue;
+        const track = tracks.find((t) => t.id === timing.trackId);
+        if (!track) continue;
+        const trackRealTime = track.movingTime || track.totalTime;
+        if (playback.progress >= timing.progressEndRatio) {
+          realElapsedSeconds += trackRealTime;
+        } else if (playback.progress > timing.progressStartRatio) {
+          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
+          const localProgress = segmentSpan > 0
+            ? (playback.progress - timing.progressStartRatio) / segmentSpan
+            : 0;
+          realElapsedSeconds += trackRealTime * localProgress;
+        }
+      }
+    } else if (activeTrack) {
+      // Single track mode: use track's real time proportional to progress
+      const trackRealTime = activeTrack.movingTime || activeTrack.totalTime;
+      realElapsedSeconds = trackRealTime * playback.progress;
+    }
+
+    const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
     return {
       distance: distanceAtProgress, // in meters
-      duration: durationSeconds,
+      duration: realElapsedSeconds,
       averageSpeed: averageSpeedMps, // m/s for pace calculation
       currentSpeed: currentPosition.speed || 0, // km/h for transport display
       elevation: currentPosition.elevation || 0,
@@ -49,7 +77,7 @@ export function StatsOverlay() {
       cadence: currentPosition.cadence,
       power: currentPosition.power,
     };
-  }, [currentPosition, playback.progress, playback.currentTime, totalDistance]);
+  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks]);
 
   // Get current track info
   const currentTrackInfo = useMemo(() => {
@@ -65,24 +93,24 @@ export function StatsOverlay() {
     } else if (currentSegment.segment.type === 'transport') {
       const mode = currentSegment.segment.transportMode || 'car';
       const modeLabels: Record<string, string> = {
-        car: 'Driving',
-        bus: 'Bus',
-        train: 'Train',
-        plane: 'Flying',
-        bike: 'Cycling',
-        walk: 'Walking',
-        ferry: 'Ferry',
+        car: t('stats.transportLabels.car'),
+        bus: t('stats.transportLabels.bus'),
+        train: t('stats.transportLabels.train'),
+        plane: t('stats.transportLabels.plane'),
+        bike: t('stats.transportLabels.bike'),
+        walk: t('stats.transportLabels.walk'),
+        ferry: t('stats.transportLabels.ferry'),
       };
       return {
         type: 'transport' as const,
-        name: modeLabels[mode] || 'Transport',
+        name: modeLabels[mode] || t('stats.transport'),
         mode,
         color: '#888888',
       };
     }
 
     return null;
-  }, [currentSegment, tracks]);
+  }, [currentSegment, tracks, t]);
 
   // Don't show if no data
   if (!currentStats || journeySegments.length === 0) return null;
@@ -97,17 +125,17 @@ export function StatsOverlay() {
       <div className="grid grid-cols-3 gap-4 mb-4">
         <StatItem
           icon={<Route className="w-4 h-4" />}
-          label="Distance"
+          label={t('stats.distance')}
           value={formatDistance(currentStats.distance, settings.unitSystem)}
         />
         <StatItem
           icon={<Timer className="w-4 h-4" />}
-          label="Duration"
+          label={t('stats.duration')}
           value={formatDuration(currentStats.duration)}
         />
         <StatItem
           icon={<Clock className="w-4 h-4" />}
-          label="Avg Pace"
+          label={t('stats.avgPace')}
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
         />
       </div>
@@ -116,7 +144,7 @@ export function StatsOverlay() {
       <div className="grid grid-cols-4 gap-2 pt-4 border-t border-[var(--evergreen)]/20">
         <SmallStatItem
           icon={<Mountain className="w-3 h-3" />}
-          label="Elev"
+          label={t('stats.elev')}
           value={isInTransport ? '--' : formatElevation(currentStats.elevation, settings.unitSystem)}
         />
 
@@ -133,7 +161,7 @@ export function StatsOverlay() {
         {currentStats.cadence && !isInTransport && (
           <SmallStatItem
             icon={<Zap className="w-3 h-3" />}
-            label="Cadence"
+            label={t('stats.cadence')}
             value={`${Math.round(currentStats.cadence)}`}
             unit="rpm"
           />
@@ -142,7 +170,7 @@ export function StatsOverlay() {
         {currentStats.power && !isInTransport && (
           <SmallStatItem
             icon={<TrendingUp className="w-3 h-3" />}
-            label="Power"
+            label={t('stats.power')}
             value={`${Math.round(currentStats.power)}`}
             unit="w"
           />
@@ -168,7 +196,7 @@ export function StatsOverlay() {
                 style={{ backgroundColor: currentTrackInfo?.color || '#C1652F' }}
               />
               <span className="text-sm font-medium text-[var(--evergreen)] truncate max-w-[150px]">
-                {currentTrackInfo?.name || 'Track'}
+                {currentTrackInfo?.name || t('stats.track')}
               </span>
             </>
           )}

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, X, ThumbsUp, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 
 const STORAGE_KEY = 'trailreplay_v2_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_v2_activity';
 const MAYBE_LATER_KEY = 'trailreplay_v2_maybe_later';
 const MIN_ACTIVITY = 3;
 const MAYBE_LATER_COOLDOWN = 86400000; // 24 hours
+const MIN_WIDTH_FOR_POPUP = 900;
 
 interface ActivityData {
   count: number;
@@ -13,7 +15,24 @@ interface ActivityData {
   lastActivity: number;
 }
 
+const safeStorageGet = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeStorageSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`Could not persist "${key}" in localStorage:`, e);
+  }
+};
+
 export function FeedbackSolicitation() {
+  const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [preference, setPreference] = useState<'v1' | 'v2' | 'both' | null>(null);
@@ -22,9 +41,67 @@ export function FeedbackSolicitation() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < MIN_WIDTH_FOR_POPUP : false
+  );
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsNarrowScreen(window.innerWidth < MIN_WIDTH_FOR_POPUP);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isNarrowScreen) {
+      setShowPopup(false);
+      setShowForm(false);
+    }
+  }, [isNarrowScreen]);
+
+  const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
+    if (isNarrowScreen) {
+      return;
+    }
+
+    // Don't show if already solicited
+    if (safeStorageGet(STORAGE_KEY) === 'true') {
+      return;
+    }
+
+    // Check maybe later cooldown
+    const maybeLater = safeStorageGet(MAYBE_LATER_KEY);
+    if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
+      return;
+    }
+
+    // Check activity threshold
+    if (activity.count < MIN_ACTIVITY) {
+      return;
+    }
+
+    // Check if user has been using app for at least 1 minute
+    if (Date.now() - activity.firstVisit < 60000) {
+      return;
+    }
+
+    // Show popup after a short delay
+    setTimeout(() => setShowPopup(true), 2000);
+  }, [isNarrowScreen]);
 
   // Track activity
   useEffect(() => {
+    if (isNarrowScreen) {
+      return;
+    }
+
     const trackActivity = () => {
       try {
         const stored = localStorage.getItem(ACTIVITY_KEY);
@@ -53,33 +130,7 @@ export function FeedbackSolicitation() {
     return () => {
       document.removeEventListener('click', handleClick);
     };
-  }, []);
-
-  const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
-    // Don't show if already solicited
-    if (localStorage.getItem(STORAGE_KEY) === 'true') {
-      return;
-    }
-
-    // Check maybe later cooldown
-    const maybeLater = localStorage.getItem(MAYBE_LATER_KEY);
-    if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
-      return;
-    }
-
-    // Check activity threshold
-    if (activity.count < MIN_ACTIVITY) {
-      return;
-    }
-
-    // Check if user has been using app for at least 1 minute
-    if (Date.now() - activity.firstVisit < 60000) {
-      return;
-    }
-
-    // Show popup after a short delay
-    setTimeout(() => setShowPopup(true), 2000);
-  }, []);
+  }, [checkAndShowSolicitation, isNarrowScreen]);
 
   const handleYes = () => {
     setShowPopup(false);
@@ -87,13 +138,13 @@ export function FeedbackSolicitation() {
   };
 
   const handleMaybeLater = () => {
-    localStorage.setItem(MAYBE_LATER_KEY, Date.now().toString());
     setShowPopup(false);
+    safeStorageSet(MAYBE_LATER_KEY, Date.now().toString());
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
     setShowPopup(false);
+    safeStorageSet(STORAGE_KEY, 'true');
   };
 
   const handleSubmitFeedback = async () => {
@@ -102,9 +153,9 @@ export function FeedbackSolicitation() {
 
     // Build the feedback message
     const preferenceLabels = {
-      v1: 'Prefers v1 (Classic)',
-      v2: 'Prefers v2 (New)',
-      both: 'Likes both versions',
+      v1: t('feedback.v1'),
+      v2: t('feedback.v2'),
+      both: t('feedback.both'),
     };
     const message = [
       `Version Preference: ${preference ? preferenceLabels[preference] : 'Not specified'}`,
@@ -132,7 +183,7 @@ export function FeedbackSolicitation() {
       });
 
       if (res.ok) {
-        localStorage.setItem(STORAGE_KEY, 'true');
+        safeStorageSet(STORAGE_KEY, 'true');
         setSubmitted(true);
         setTimeout(() => {
           setShowForm(false);
@@ -140,21 +191,21 @@ export function FeedbackSolicitation() {
         }, 3000);
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.error || 'Something went wrong. Please try again.');
+        setError(data?.error || t('feedback.error'));
       }
     } catch (err) {
-      setError('Failed to send feedback. Please try again.');
+      setError(t('feedback.errorSend'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCloseForm = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
     setShowForm(false);
+    safeStorageSet(STORAGE_KEY, 'true');
   };
 
-  if (!showPopup && !showForm) {
+  if (isNarrowScreen || (!showPopup && !showForm)) {
     return null;
   }
 
@@ -162,41 +213,42 @@ export function FeedbackSolicitation() {
     <>
       {/* Solicitation Popup */}
       {showPopup && (
-        <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
-          <div className="bg-[var(--evergreen)] text-[var(--canvas)] rounded-xl p-4 shadow-lg max-w-sm">
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[max(env(safe-area-inset-bottom),1rem)] md:inset-x-auto md:bottom-24 md:right-4 md:w-auto">
+          <div className="bg-[var(--evergreen)] text-[var(--canvas)] rounded-xl p-4 shadow-lg w-full max-w-sm mx-auto animate-slide-up">
             <div className="flex items-start gap-3">
               <div className="bg-[var(--trail-orange)] rounded-full p-2">
                 <MessageCircle className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold mb-1">Share your thoughts?</h3>
+                <h3 className="font-bold mb-1">{t('feedback.promptTitle')}</h3>
                 <p className="text-sm opacity-90 mb-3">
-                  We'd love to hear which version you prefer - v1 or v2!
+                  {t('feedback.promptBody')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleYes}
                     className="px-3 py-1.5 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
                   >
-                    Sure!
+                    {t('feedback.yes')}
                   </button>
                   <button
                     onClick={handleMaybeLater}
                     className="px-3 py-1.5 bg-white/10 rounded-md text-sm hover:bg-white/20 transition-colors"
                   >
-                    Maybe later
+                    {t('feedback.maybeLater')}
                   </button>
                   <button
                     onClick={handleDismiss}
                     className="px-3 py-1.5 text-sm opacity-60 hover:opacity-100 transition-opacity"
                   >
-                    Don't ask again
+                    {t('feedback.dontAsk')}
                   </button>
                 </div>
               </div>
               <button
                 onClick={handleDismiss}
-                className="opacity-60 hover:opacity-100 transition-opacity"
+                className="opacity-80 hover:opacity-100 transition-opacity p-1"
+                aria-label={t('common.close')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -207,25 +259,31 @@ export function FeedbackSolicitation() {
 
       {/* Feedback Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full animate-fade-in">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseForm}
+        >
+          <div
+            className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
             {submitted ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <ThumbsUp className="w-8 h-8 text-green-600" />
                 </div>
                 <h3 className="text-xl font-bold text-[var(--evergreen)] mb-2">
-                  Thank you!
+                  {t('feedback.thanksTitle')}
                 </h3>
                 <p className="text-[var(--evergreen-60)]">
-                  Your feedback helps us improve Trail Replay.
+                  {t('feedback.thanksBody')}
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-[var(--evergreen)]">
-                    Version Comparison Feedback
+                    {t('feedback.formHeader')}
                   </h3>
                   <button
                     onClick={handleCloseForm}
@@ -237,7 +295,7 @@ export function FeedbackSolicitation() {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Which version do you prefer?
+                    {t('feedback.formTitle')}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
@@ -249,7 +307,7 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <div className="font-bold text-[var(--evergreen)]">v1</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">Classic</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v1Label')}</div>
                     </button>
                     <button
                       onClick={() => setPreference('v2')}
@@ -260,7 +318,7 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <div className="font-bold text-[var(--evergreen)]">v2</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">New</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v2Label')}</div>
                     </button>
                     <button
                       onClick={() => setPreference('both')}
@@ -271,32 +329,32 @@ export function FeedbackSolicitation() {
                       }`}
                     >
                       <ArrowLeftRight className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
-                      <div className="text-xs text-[var(--evergreen-60)]">Both</div>
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.both')}</div>
                     </button>
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Your email (optional, for follow-up)
+                    {t('feedback.emailLabel')}
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
+                    placeholder={t('feedback.emailPlaceholder')}
                     className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg text-sm focus:border-[var(--trail-orange)] focus:outline-none"
                   />
                 </div>
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    Any additional feedback? (optional)
+                    {t('feedback.additional')}
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="What do you like or dislike about each version?"
+                    placeholder={t('feedback.additionalPlaceholder')}
                     className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg resize-none h-24 text-sm focus:border-[var(--trail-orange)] focus:outline-none"
                   />
                 </div>
@@ -313,7 +371,7 @@ export function FeedbackSolicitation() {
                     disabled={isSubmitting}
                     className="flex-1 py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors disabled:opacity-50"
                   >
-                    Skip
+                    {t('feedback.skip')}
                   </button>
                   <button
                     onClick={handleSubmitFeedback}
@@ -323,10 +381,10 @@ export function FeedbackSolicitation() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
+                        {t('feedback.submitting')}
                       </>
                     ) : (
-                      'Submit'
+                      t('feedback.submit')
                     )}
                   </button>
                 </div>

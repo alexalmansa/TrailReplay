@@ -1,15 +1,17 @@
 import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 
 interface InfoPanelProps {
   onClose: () => void;
 }
 
 export function InfoPanel({ onClose }: InfoPanelProps) {
+  const { t } = useI18n();
   return (
     <div className="h-full bg-[var(--canvas)] border-l-2 border-[var(--evergreen)] flex flex-col">
       {/* Header */}
       <div className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-4">
-        <h2 className="font-bold text-sm">About Trail Replay</h2>
+        <h2 className="font-bold text-sm">{t('info.title')}</h2>
         <button
           onClick={onClose}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -36,36 +38,77 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
         {/* Tech Stack */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
-            Built With
+            {t('info.builtWith')}
           </h3>
           <p className="text-sm text-[var(--evergreen-60)] leading-relaxed">
-            MapLibre GL JS, React, Three.js, Elevation Data, and many amazing open source projects.
+            {t('info.builtWithBody')}
           </p>
           <a
-            href="/acknowledgments.html"
+            href="/app/acknowledgments.html"
             className="inline-flex items-center gap-1 text-sm text-[var(--trail-orange)] hover:underline"
           >
-            <span>See all acknowledgments</span>
+            <span>{t('info.acknowledgments')}</span>
             <ExternalLink className="w-3 h-3" />
           </a>
+        </div>
+
+        {/* Map Data Sources */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
+            {t('info.mapSources')}
+          </h3>
+          <div className="space-y-3 text-xs text-[var(--evergreen-60)]">
+            <div>
+              <a href="https://www.esri.com/en-us/arcgis/products/arcgis-online" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                Esri World Imagery & Wayback
+              </a>
+              {' '}{t('info.esri')}
+            </div>
+            <div>
+              <a href="https://www.opensnowmap.org" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                OpenSnowMap.org
+              </a>
+              {' '}{t('info.opensnow')}
+            </div>
+            <div>
+              <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer"
+                className="font-medium text-[var(--evergreen)] hover:text-[var(--trail-orange)] underline">
+                OpenStreetMap
+              </a>
+              {' '}{t('info.osmContrib')}{' '}
+              <a href="https://opentopomap.org" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">OpenTopoMap
+              </a>
+              {' '}{t('info.osmOpenTopo')}{' '}
+              <a href="https://carto.com" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">CartoDB
+              </a>
+              {' '}{t('info.osmLabels')}{' '}
+              <a href="https://www.opentopography.org/" target="_blank" rel="noopener noreferrer"
+                className="hover:text-[var(--trail-orange)] underline">{t('info.osmOpenTopography')}
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Links */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
-            Connect
+            {t('info.connect')}
           </h3>
           <div className="space-y-1">
             <InfoLink
               href="https://github.com/alexalmansa/TrailReplay"
               icon={<Github className="w-4 h-4" />}
-              label="View on GitHub"
+              label={t('info.github')}
               external
             />
             <InfoLink
               href="https://www.instagram.com/trailreplay/"
               icon={<Instagram className="w-4 h-4" />}
-              label="Follow on Instagram"
+              label={t('info.instagram')}
               external
             />
           </div>
@@ -74,7 +117,7 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
         {/* Support */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
-            Support the Project
+            {t('info.support')}
           </h3>
           <a
             href="https://ko-fi.com/alexalmansa"
@@ -84,8 +127,8 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           >
             <Heart className="w-5 h-5 text-[var(--trail-orange)]" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-[var(--evergreen)]">Buy me a coffee</p>
-              <p className="text-xs text-[var(--evergreen-60)]">Help keep TrailReplay free</p>
+              <p className="text-sm font-medium text-[var(--evergreen)]">{t('info.donateTitle')}</p>
+              <p className="text-xs text-[var(--evergreen-60)]">{t('info.donateSubtitle')}</p>
             </div>
             <ExternalLink className="w-4 h-4 text-[var(--evergreen-60)] group-hover:text-[var(--trail-orange)]" />
           </a>
@@ -94,18 +137,18 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
         {/* Legal */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
-            Legal
+            {t('info.legal')}
           </h3>
           <div className="space-y-1">
             <InfoLink
-              href="/privacy"
+              href="/app/privacy.html"
               icon={<Shield className="w-4 h-4" />}
-              label="Privacy Policy"
+              label={t('info.privacy')}
             />
             <InfoLink
-              href="/terms"
+              href="/app/terms.html"
               icon={<FileText className="w-4 h-4" />}
-              label="Terms of Service"
+              label={t('info.terms')}
             />
           </div>
         </div>
@@ -113,7 +156,7 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
         {/* Feedback */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
-            Feedback
+            {t('info.feedback')}
           </h3>
           <a
             href="https://github.com/alexalmansa/TrailReplay/issues"
@@ -123,8 +166,8 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           >
             <MessageSquare className="w-5 h-5 text-[var(--evergreen)]" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-[var(--evergreen)]">Send Feedback</p>
-              <p className="text-xs text-[var(--evergreen-60)]">Report bugs or suggest features</p>
+              <p className="text-sm font-medium text-[var(--evergreen)]">{t('info.feedbackTitle')}</p>
+              <p className="text-xs text-[var(--evergreen-60)]">{t('info.feedbackSubtitle')}</p>
             </div>
             <ExternalLink className="w-4 h-4 text-[var(--evergreen-60)] group-hover:text-[var(--evergreen)]" />
           </a>
@@ -134,7 +177,7 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
       {/* Footer */}
       <div className="p-4 border-t border-[var(--evergreen)]/20 text-center">
         <p className="text-xs text-[var(--evergreen-60)]">
-          Made with love for outdoor enthusiasts
+          {t('info.footer')}
         </p>
       </div>
     </div>

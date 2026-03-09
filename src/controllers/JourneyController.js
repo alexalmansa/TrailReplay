@@ -168,24 +168,27 @@ export class JourneyController {
                         segmentIndex++;
                     }
 
+                    const pointOffset = pointInSegment;
                     let speed = 0;
                     let time = null;
+                    let originalPoint = null;
+                    let currentSegment = null;
 
                     if (segmentIndex < journeyData.segments.length) {
-                        const segment = journeyData.segments[segmentIndex];
+                        currentSegment = journeyData.segments[segmentIndex];
 
                         // If this segment has original track data with speed, try to use it
-                        if (segment.type === 'track' && segment.data && segment.data.data &&
-                            segment.data.data.trackPoints && segment.data.data.trackPoints[pointInSegment]) {
+                        if (currentSegment.type === 'track' && currentSegment.data && currentSegment.data.data &&
+                            currentSegment.data.data.trackPoints && currentSegment.data.data.trackPoints[pointOffset]) {
 
-                            const originalPoint = segment.data.data.trackPoints[pointInSegment];
+                            originalPoint = currentSegment.data.data.trackPoints[pointOffset];
                             speed = originalPoint.speed || 0;
                             // IMPORTANT: Preserve time data even if null - don't default to null
                             time = originalPoint.time;
                             console.log(`Preserving time data for point ${index}:`, time);
-                        } else if (segment.type === 'track' && segment.data && segment.data.stats) {
+                        } else if (currentSegment.type === 'track' && currentSegment.data && currentSegment.data.stats) {
                             // Estimate speed from segment stats
-                            const segmentStats = segment.data.stats;
+                            const segmentStats = currentSegment.data.stats;
                             if (segmentStats.avgSpeed && segmentStats.avgSpeed > 0) {
                                 speed = segmentStats.avgSpeed;
                             }
@@ -203,9 +206,7 @@ export class JourneyController {
                         speed: speed,
                         time: time,
                         // Preserve heart rate data from original track points
-                        heartRate: segment.type === 'track' && segment.data && segment.data.data &&
-                                 segment.data.data.trackPoints && segment.data.data.trackPoints[pointInSegment - 1] ?
-                                 segment.data.data.trackPoints[pointInSegment - 1].heartRate || null : null
+                        heartRate: originalPoint?.heartRate || null
                     };
                 });
 

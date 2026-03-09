@@ -19,6 +19,7 @@ import type {
   TransportMode,
   TrailStyleSettings,
 } from '@/types';
+import { getInitialLanguage } from '@/i18n/translations';
 
 interface AppState {
   // Tracks
@@ -55,6 +56,7 @@ interface AppState {
   
   // UI State
   isSidebarOpen: boolean;
+  exploreMode: boolean;
   activePanel: 'tracks' | 'journey' | 'annotations' | 'pictures' | 'export' | 'settings';
   isLoading: boolean;
   error: string | null;
@@ -68,14 +70,17 @@ interface AppState {
   removeTrack: (trackId: string) => void;
   setActiveTrack: (trackId: string | null) => void;
   updateTrackColor: (trackId: string, color: string) => void;
+  updateTrackName: (trackId: string, name: string) => void;
   toggleTrackVisibility: (trackId: string) => void;
   reorderTracks: (fromIndex: number, toIndex: number) => void;
-  
+
   // Comparison
   addComparisonTrack: (track: ComparisonTrack) => void;
   removeComparisonTrack: (trackId: string) => void;
   toggleComparisonTrack: (trackId: string) => void;
   updateComparisonOffset: (trackId: string, offset: number) => void;
+  updateComparisonTrackName: (trackId: string, name: string) => void;
+  updateComparisonColor: (trackId: string, color: string) => void;
   
   // Journey
   createJourney: (name: string) => void;
@@ -137,6 +142,7 @@ interface AppState {
   
   // UI
   setSidebarOpen: (isOpen: boolean) => void;
+  setExploreMode: (enabled: boolean) => void;
   setActivePanel: (panel: AppState['activePanel']) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -157,8 +163,9 @@ const defaultPlayback: PlaybackState = {
 };
 
 const defaultSettings: AppSettings = {
+  language: getInitialLanguage(),
   unitSystem: 'metric',
-  mapStyle: 'satellite',
+  mapStyle: 'esri-clarity',
   show3DTerrain: true,
   showHeartRate: false,
   showPictures: true,
@@ -182,6 +189,9 @@ const defaultSettings: AppSettings = {
     showTrackLabels: false,
     trackLabel: 'Track 1',
   },
+  mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
+  waybackRelease: null,
+  waybackItemURL: null,
 };
 
 const defaultCameraSettings: CameraSettings = {
@@ -197,10 +207,14 @@ const defaultVideoExportSettings: VideoExportSettings = {
   quality: 'high',
   fps: 30,
   resolution: { width: 1920, height: 1080 },
+  aspectRatio: '16:9',
   includeStats: true,
   includeElevation: true,
   includeAudio: false,
 };
+
+const defaultSidebarOpen =
+  typeof window === 'undefined' ? true : window.innerWidth >= 768;
 
 const trackColors = [
   '#C1652F', // trail-orange
@@ -234,7 +248,8 @@ export const useAppStore = create<AppState>()(
     isExporting: false,
     exportProgress: 0,
     exportStage: '',
-    isSidebarOpen: true,
+    isSidebarOpen: defaultSidebarOpen,
+    exploreMode: false,
     activePanel: 'tracks',
     isLoading: false,
     error: null,
@@ -248,6 +263,7 @@ export const useAppStore = create<AppState>()(
         const trackColor = track.color || trackColors[colorIndex];
         const trackWithColor = { ...track, color: trackColor, visible: true };
         state.tracks.push(trackWithColor);
+        state.exploreMode = false;
         if (!state.activeTrackId) {
           state.activeTrackId = track.id;
           // Sync trail color with first active track
@@ -307,6 +323,12 @@ export const useAppStore = create<AppState>()(
         }
       }),
 
+    updateTrackName: (trackId, name) =>
+      set((state) => {
+        const track = state.tracks.find((t) => t.id === trackId);
+        if (track) track.name = name;
+      }),
+
     toggleTrackVisibility: (trackId) =>
       set((state) => {
         const track = state.tracks.find((t) => t.id === trackId);
@@ -340,6 +362,18 @@ export const useAppStore = create<AppState>()(
       set((state) => {
         const track = state.comparisonTracks.find((t) => t.id === trackId);
         if (track) track.offset = offset;
+      }),
+
+    updateComparisonTrackName: (trackId, name) =>
+      set((state) => {
+        const track = state.comparisonTracks.find((t) => t.id === trackId);
+        if (track) track.name = name;
+      }),
+
+    updateComparisonColor: (trackId, color) =>
+      set((state) => {
+        const track = state.comparisonTracks.find((t) => t.id === trackId);
+        if (track) track.color = color;
       }),
 
     // Journey Actions
@@ -601,6 +635,10 @@ export const useAppStore = create<AppState>()(
     setSidebarOpen: (isOpen) =>
       set((state) => {
         state.isSidebarOpen = isOpen;
+      }),
+    setExploreMode: (enabled) =>
+      set((state) => {
+        state.exploreMode = enabled;
       }),
 
     setActivePanel: (panel) =>
