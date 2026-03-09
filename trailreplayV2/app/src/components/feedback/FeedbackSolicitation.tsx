@@ -14,6 +14,22 @@ interface ActivityData {
   lastActivity: number;
 }
 
+const safeStorageGet = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeStorageSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`Could not persist "${key}" in localStorage:`, e);
+  }
+};
+
 export function FeedbackSolicitation() {
   const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
@@ -59,12 +75,12 @@ export function FeedbackSolicitation() {
 
   const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
     // Don't show if already solicited
-    if (localStorage.getItem(STORAGE_KEY) === 'true') {
+    if (safeStorageGet(STORAGE_KEY) === 'true') {
       return;
     }
 
     // Check maybe later cooldown
-    const maybeLater = localStorage.getItem(MAYBE_LATER_KEY);
+    const maybeLater = safeStorageGet(MAYBE_LATER_KEY);
     if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
       return;
     }
@@ -89,13 +105,13 @@ export function FeedbackSolicitation() {
   };
 
   const handleMaybeLater = () => {
-    localStorage.setItem(MAYBE_LATER_KEY, Date.now().toString());
     setShowPopup(false);
+    safeStorageSet(MAYBE_LATER_KEY, Date.now().toString());
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
     setShowPopup(false);
+    safeStorageSet(STORAGE_KEY, 'true');
   };
 
   const handleSubmitFeedback = async () => {
@@ -134,7 +150,7 @@ export function FeedbackSolicitation() {
       });
 
       if (res.ok) {
-        localStorage.setItem(STORAGE_KEY, 'true');
+        safeStorageSet(STORAGE_KEY, 'true');
         setSubmitted(true);
         setTimeout(() => {
           setShowForm(false);
@@ -152,8 +168,8 @@ export function FeedbackSolicitation() {
   };
 
   const handleCloseForm = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
     setShowForm(false);
+    safeStorageSet(STORAGE_KEY, 'true');
   };
 
   if (!showPopup && !showForm) {
@@ -164,8 +180,8 @@ export function FeedbackSolicitation() {
     <>
       {/* Solicitation Popup */}
       {showPopup && (
-        <div className="fixed bottom-24 right-4 z-50 animate-slide-up">
-          <div className="bg-[var(--evergreen)] text-[var(--canvas)] rounded-xl p-4 shadow-lg max-w-sm">
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[max(env(safe-area-inset-bottom),1rem)] md:inset-x-auto md:bottom-24 md:right-4 md:w-auto">
+          <div className="bg-[var(--evergreen)] text-[var(--canvas)] rounded-xl p-4 shadow-lg w-full max-w-sm mx-auto animate-slide-up">
             <div className="flex items-start gap-3">
               <div className="bg-[var(--trail-orange)] rounded-full p-2">
                 <MessageCircle className="w-5 h-5" />
@@ -198,7 +214,8 @@ export function FeedbackSolicitation() {
               </div>
               <button
                 onClick={handleDismiss}
-                className="opacity-60 hover:opacity-100 transition-opacity"
+                className="opacity-80 hover:opacity-100 transition-opacity p-1"
+                aria-label={t('common.close')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -209,8 +226,14 @@ export function FeedbackSolicitation() {
 
       {/* Feedback Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full animate-fade-in">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseForm}
+        >
+          <div
+            className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
             {submitted ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">

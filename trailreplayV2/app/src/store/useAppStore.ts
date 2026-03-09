@@ -213,6 +213,9 @@ const defaultVideoExportSettings: VideoExportSettings = {
   includeAudio: false,
 };
 
+const defaultSidebarOpen =
+  typeof window === 'undefined' ? true : window.innerWidth >= 768;
+
 const trackColors = [
   '#C1652F', // trail-orange
   '#3B82F6', // blue
@@ -245,7 +248,7 @@ export const useAppStore = create<AppState>()(
     isExporting: false,
     exportProgress: 0,
     exportStage: '',
-    isSidebarOpen: true,
+    isSidebarOpen: defaultSidebarOpen,
     exploreMode: false,
     activePanel: 'tracks',
     isLoading: false,
