@@ -78,6 +78,9 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 900 : false
+  );
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -155,6 +158,20 @@ function App() {
   const activePicture = selectedPicture || playbackPicture;
   
   const hasTracks = tracks.length > 0;
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsNarrowScreen(window.innerWidth < 900);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, []);
   
   return (
     <PlaybackProvider>
@@ -275,7 +292,7 @@ function App() {
               />
 
               {/* No tracks message */}
-              {!hasTracks && !exploreMode && (
+              {!hasTracks && !exploreMode && !isNarrowScreen && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                   <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-8 text-center max-w-md">
                     {/* Logo */}
