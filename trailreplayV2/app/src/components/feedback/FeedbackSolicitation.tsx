@@ -7,6 +7,7 @@ const ACTIVITY_KEY = 'trailreplay_v2_activity';
 const MAYBE_LATER_KEY = 'trailreplay_v2_maybe_later';
 const MIN_ACTIVITY = 3;
 const MAYBE_LATER_COOLDOWN = 86400000; // 24 hours
+const MIN_WIDTH_FOR_POPUP = 900;
 
 interface ActivityData {
   count: number;
@@ -40,9 +41,67 @@ export function FeedbackSolicitation() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < MIN_WIDTH_FOR_POPUP : false
+  );
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setIsNarrowScreen(window.innerWidth < MIN_WIDTH_FOR_POPUP);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isNarrowScreen) {
+      setShowPopup(false);
+      setShowForm(false);
+    }
+  }, [isNarrowScreen]);
+
+  const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
+    if (isNarrowScreen) {
+      return;
+    }
+
+    // Don't show if already solicited
+    if (safeStorageGet(STORAGE_KEY) === 'true') {
+      return;
+    }
+
+    // Check maybe later cooldown
+    const maybeLater = safeStorageGet(MAYBE_LATER_KEY);
+    if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
+      return;
+    }
+
+    // Check activity threshold
+    if (activity.count < MIN_ACTIVITY) {
+      return;
+    }
+
+    // Check if user has been using app for at least 1 minute
+    if (Date.now() - activity.firstVisit < 60000) {
+      return;
+    }
+
+    // Show popup after a short delay
+    setTimeout(() => setShowPopup(true), 2000);
+  }, [isNarrowScreen]);
 
   // Track activity
   useEffect(() => {
+    if (isNarrowScreen) {
+      return;
+    }
+
     const trackActivity = () => {
       try {
         const stored = localStorage.getItem(ACTIVITY_KEY);
@@ -71,33 +130,7 @@ export function FeedbackSolicitation() {
     return () => {
       document.removeEventListener('click', handleClick);
     };
-  }, []);
-
-  const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
-    // Don't show if already solicited
-    if (safeStorageGet(STORAGE_KEY) === 'true') {
-      return;
-    }
-
-    // Check maybe later cooldown
-    const maybeLater = safeStorageGet(MAYBE_LATER_KEY);
-    if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
-      return;
-    }
-
-    // Check activity threshold
-    if (activity.count < MIN_ACTIVITY) {
-      return;
-    }
-
-    // Check if user has been using app for at least 1 minute
-    if (Date.now() - activity.firstVisit < 60000) {
-      return;
-    }
-
-    // Show popup after a short delay
-    setTimeout(() => setShowPopup(true), 2000);
-  }, []);
+  }, [checkAndShowSolicitation, isNarrowScreen]);
 
   const handleYes = () => {
     setShowPopup(false);
@@ -172,7 +205,7 @@ export function FeedbackSolicitation() {
     safeStorageSet(STORAGE_KEY, 'true');
   };
 
-  if (!showPopup && !showForm) {
+  if (isNarrowScreen || (!showPopup && !showForm)) {
     return null;
   }
 
