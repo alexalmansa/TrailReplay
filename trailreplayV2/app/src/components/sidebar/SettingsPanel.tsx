@@ -390,17 +390,24 @@ export function SettingsPanel() {
           {settings.showHeartRate && (
             <div className="space-y-3 bg-[var(--evergreen)]/5 p-3 rounded-lg">
               <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">Heart Rate Zones</h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {settings.trailStyle.heartRateZones.map((zone, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded border border-[var(--evergreen)]/30"
-                        style={{ backgroundColor: zone.color }}
+                  <div key={idx} className="bg-[var(--canvas)] p-2 rounded border border-[var(--evergreen)]/10">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="color"
+                        value={zone.color}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].color = e.target.value;
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-6 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
                       />
-                      <span className="text-xs text-[var(--evergreen)] flex-1">Zone {idx + 1}</span>
+                      <span className="text-xs font-semibold text-[var(--evergreen)]">Zone {idx + 1}</span>
+                      <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
                     </div>
-                    <div className="flex items-center gap-2 ml-6">
+                    <div className="flex items-center gap-1">
                       <input
                         type="number"
                         min="0"
@@ -411,10 +418,9 @@ export function SettingsPanel() {
                           newZones[idx].min = Math.max(0, parseInt(e.target.value) || 0);
                           setTrailStyle({ heartRateZones: newZones });
                         }}
-                        className="w-12 px-1 py-0.5 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/20 rounded text-[var(--evergreen)]"
-                        placeholder="Min"
+                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
                       />
-                      <span className="text-xs text-[var(--evergreen-60)]">-</span>
+                      <span className="text-xs text-[var(--evergreen-60)] font-semibold">-</span>
                       <input
                         type="number"
                         min="0"
@@ -425,23 +431,9 @@ export function SettingsPanel() {
                           newZones[idx].max = Math.max(0, parseInt(e.target.value) || 0);
                           setTrailStyle({ heartRateZones: newZones });
                         }}
-                        className="w-12 px-1 py-0.5 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/20 rounded text-[var(--evergreen)]"
-                        placeholder="Max"
+                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
                       />
                       <span className="text-xs text-[var(--evergreen-60)]">bpm</span>
-                    </div>
-                    <div className="flex items-center gap-2 ml-6">
-                      <input
-                        type="color"
-                        value={zone.color}
-                        onChange={(e) => {
-                          const newZones = [...settings.trailStyle.heartRateZones];
-                          newZones[idx].color = e.target.value;
-                          setTrailStyle({ heartRateZones: newZones });
-                        }}
-                        className="w-8 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
-                      />
-                      <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
                     </div>
                   </div>
                 ))}
