@@ -828,36 +828,12 @@ export function TrailMap({}: TrailMapProps) {
             });
           }, 100);
 
-          // After 2 seconds, simulate mouse movement and fire wheel events at the map center
+          // After 2 seconds, zoom out to force tile reload
           setTimeout(() => {
-            const container = map.current?.getContainer();
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-
-            // Simulate mouse movement to center
-            container.dispatchEvent(new MouseEvent('mousemove', {
-              bubbles: true,
-              cancelable: true,
-              clientX: cx,
-              clientY: cy,
-              view: window,
-            }));
-
-            // Fire a few scroll-down (zoom-out) wheel ticks
-            for (let i = 0; i < 4; i++) {
-              setTimeout(() => {
-                container.dispatchEvent(new WheelEvent('wheel', {
-                  bubbles: true,
-                  cancelable: true,
-                  clientX: cx,
-                  clientY: cy,
-                  deltaY: 120,      // positive = scroll down = zoom out
-                  deltaMode: 0,     // DOM_DELTA_PIXEL
-                }));
-              }, i * 80);
-            }
+            if (!map.current) return;
+            const currentZoom = map.current.getZoom();
+            // Zoom out by ~2 levels to force tile reload and refresh
+            map.current.zoomTo(Math.max(currentZoom - 2, 0), { duration: 400 });
           }, 2000);
         } else {
           // Subsequent track changes: just fit bounds directly
