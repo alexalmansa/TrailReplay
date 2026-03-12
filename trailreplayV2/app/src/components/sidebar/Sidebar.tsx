@@ -36,15 +36,15 @@ export function Sidebar() {
   return (
     <div className="h-full flex flex-col bg-[var(--canvas)]">
       {/* Tabs */}
-      <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto">
+      <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto flex-shrink-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`
               flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors
-              ${activeTab === tab.id 
-                ? 'bg-[var(--evergreen)] text-[var(--canvas)]' 
+              ${activeTab === tab.id
+                ? 'bg-[var(--evergreen)] text-[var(--canvas)]'
                 : 'text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10'
               }
             `}
@@ -54,8 +54,8 @@ export function Sidebar() {
             {tab.count > 0 && (
               <span className={`
                 ml-1 px-1.5 py-0.5 rounded-full text-[10px]
-                ${activeTab === tab.id 
-                  ? 'bg-[var(--trail-orange)]' 
+                ${activeTab === tab.id
+                  ? 'bg-[var(--trail-orange)]'
                   : 'bg-[var(--evergreen)]/20'
                 }
               `}>
@@ -65,9 +65,9 @@ export function Sidebar() {
           </button>
         ))}
       </div>
-      
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col min-h-0">
         <div className="flex-1">
           {activeTab === 'tracks' && <TracksPanel />}
           {activeTab === 'journey' && <JourneyPanel />}

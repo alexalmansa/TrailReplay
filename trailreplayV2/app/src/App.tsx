@@ -242,7 +242,7 @@ function App() {
         <main className="flex-1 flex overflow-hidden">
           {/* Sidebar */}
           {showSidebar && (
-            <div className="w-80 h-full flex-shrink-0 border-r-2 border-[var(--evergreen)] overflow-y-auto">
+            <div className="w-80 h-full flex-shrink-0 border-r-2 border-[var(--evergreen)] overflow-hidden">
               <Sidebar />
             </div>
           )}
@@ -356,7 +356,7 @@ function App() {
 
           {/* Info Panel (Right Side) */}
           {showInfoPanel && (
-            <div className="w-80 h-full flex-shrink-0 overflow-y-auto">
+            <div className="w-80 h-full flex-shrink-0 overflow-hidden">
               <InfoPanel onClose={() => setShowInfoPanel(false)} />
             </div>
           )}
