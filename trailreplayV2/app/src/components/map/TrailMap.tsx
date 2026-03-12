@@ -828,7 +828,7 @@ export function TrailMap({}: TrailMapProps) {
             });
           }, 100);
 
-          // After the view has settled, simulate mouse movement and fire wheel events at the map center
+          // After 2 seconds, simulate mouse movement and fire wheel events at the map center
           setTimeout(() => {
             const container = map.current?.getContainer();
             if (!container) return;
@@ -858,7 +858,7 @@ export function TrailMap({}: TrailMapProps) {
                 }));
               }, i * 80);
             }
-          }, 2200);
+          }, 2000);
         } else {
           // Subsequent track changes: just fit bounds directly
           setTimeout(() => {
