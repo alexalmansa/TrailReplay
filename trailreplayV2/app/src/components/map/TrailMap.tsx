@@ -828,13 +828,23 @@ export function TrailMap({}: TrailMapProps) {
             });
           }, 100);
 
-          // After the view has settled, fire wheel events at the map center
+          // After the view has settled, simulate mouse movement and fire wheel events at the map center
           setTimeout(() => {
             const container = map.current?.getContainer();
             if (!container) return;
             const rect = container.getBoundingClientRect();
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
+
+            // Simulate mouse movement to center
+            container.dispatchEvent(new MouseEvent('mousemove', {
+              bubbles: true,
+              cancelable: true,
+              clientX: cx,
+              clientY: cy,
+              view: window,
+            }));
+
             // Fire a few scroll-down (zoom-out) wheel ticks
             for (let i = 0; i < 4; i++) {
               setTimeout(() => {
