@@ -90,6 +90,10 @@ export function SettingsPanel() {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
   const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+  const setTrailStyle = useAppStore((state) => state.setTrailStyle);
+  const tracks = useAppStore((state) => state.tracks);
+  const activeTrackId = useAppStore((state) => state.activeTrackId);
+  const activeTrack = activeTrackId ? tracks.find((t) => t.id === activeTrackId) : null;
   const [waybackItems, setWaybackItems] = useState<WaybackItem[]>([]);
   const [waybackLoading, setWaybackLoading] = useState(false);
   const [waybackError, setWaybackError] = useState<string | null>(null);
@@ -379,6 +383,21 @@ export function SettingsPanel() {
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />
           </label>
+
+          {activeTrack?.points?.some((p) => p.heartRate != null) && (
+            <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
+              <div className="flex items-center gap-2">
+                <Heart className="w-4 h-4 text-[var(--trail-orange)]" />
+                <span className="text-sm text-[var(--evergreen)]">{t('settings.colorByHeartRate') || 'Color by Heart Rate'}</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.trailStyle.colorMode === 'heartRate'}
+                onChange={(e) => setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' })}
+                className="w-5 h-5 accent-[var(--trail-orange)]"
+              />
+            </label>
+          )}
 
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
