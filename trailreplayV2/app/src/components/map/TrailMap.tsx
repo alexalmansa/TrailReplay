@@ -900,6 +900,7 @@ export function TrailMap({}: TrailMapProps) {
       if (!markerRef.current) {
         const el = document.createElement('div');
         el.className = 'tr-marker';
+        el.style.zIndex = '100';
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
@@ -910,7 +911,7 @@ export function TrailMap({}: TrailMapProps) {
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
         `;
 
         markerRef.current = new maplibregl.Marker({
@@ -922,6 +923,7 @@ export function TrailMap({}: TrailMapProps) {
       } else {
         markerRef.current.setLngLat([currentPosition.lon, currentPosition.lat]);
         const el = markerRef.current.getElement();
+        el.style.zIndex = '100';
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
@@ -932,7 +934,7 @@ export function TrailMap({}: TrailMapProps) {
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
         `;
       }
     }
