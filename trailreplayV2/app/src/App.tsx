@@ -175,7 +175,7 @@ function App() {
   
   return (
     <PlaybackProvider>
-      <div className="app-container min-h-screen bg-[var(--canvas)] flex flex-col">
+      <div className="app-container h-screen bg-[var(--canvas)] flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-2 sm:px-4 z-50">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
