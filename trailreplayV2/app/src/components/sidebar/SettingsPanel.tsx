@@ -90,6 +90,7 @@ export function SettingsPanel() {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
   const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+  const setTrailStyle = useAppStore((state) => state.setTrailStyle);
   const [waybackItems, setWaybackItems] = useState<WaybackItem[]>([]);
   const [waybackLoading, setWaybackLoading] = useState(false);
   const [waybackError, setWaybackError] = useState<string | null>(null);
@@ -375,7 +376,10 @@ export function SettingsPanel() {
             <input
               type="checkbox"
               checked={settings.showHeartRate}
-              onChange={(e) => setSettings({ showHeartRate: e.target.checked })}
+              onChange={(e) => {
+                setSettings({ showHeartRate: e.target.checked });
+                setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' });
+              }}
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />
           </label>
