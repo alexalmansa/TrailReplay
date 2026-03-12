@@ -377,8 +377,10 @@ export function SettingsPanel() {
               type="checkbox"
               checked={settings.showHeartRate}
               onChange={(e) => {
+                console.log('🏃 Heart rate toggle:', e.target.checked);
                 setSettings({ showHeartRate: e.target.checked });
                 setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' });
+                console.log('🏃 Set colorMode to:', e.target.checked ? 'heartRate' : 'fixed');
               }}
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />
