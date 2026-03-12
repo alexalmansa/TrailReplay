@@ -722,7 +722,7 @@ export function TrailMap({}: TrailMapProps) {
     // Build HR-colored trail when in heart rate mode
     if (trailStyle.colorMode === 'heartRate' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
       // Build features with color properties based on heart rate
-      const features: maplibregl.Feature[] = [];
+      const features: any[] = [];
 
       // Get the heart rate points - support both single-track and journey modes
       let hrPoints: Array<{ heartRate: number | null }> = [];
@@ -754,7 +754,7 @@ export function TrailMap({}: TrailMapProps) {
             type: 'LineString',
             coordinates: [startCoord, endCoord]
           }
-        } as maplibregl.Feature);
+        });
       }
 
       (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
@@ -934,7 +934,7 @@ export function TrailMap({}: TrailMapProps) {
     if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
       if (trailStyle.colorMode === 'heartRate') {
         // Build HR-colored features for completed portion
-        const features: maplibregl.Feature[] = [];
+        const features: any[] = [];
 
         let hrPoints: Array<{ heartRate: number | null }> = [];
         if (activeTrack && !computedJourney) {
@@ -960,7 +960,7 @@ export function TrailMap({}: TrailMapProps) {
               type: 'LineString',
               coordinates: [startCoord, endCoord]
             }
-          } as maplibregl.Feature);
+          });
         }
 
         (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
