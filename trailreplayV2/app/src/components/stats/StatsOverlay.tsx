@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
-import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Route,
@@ -24,7 +23,6 @@ export function StatsOverlay() {
   // Use computed journey for multi-track support
   const {
     currentPosition,
-    currentSegment,
     isInTransport,
     totalDistance,
     segmentTimings,
@@ -79,38 +77,6 @@ export function StatsOverlay() {
     };
   }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks]);
 
-  // Get current track info
-  const currentTrackInfo = useMemo(() => {
-    if (!currentSegment) return null;
-
-    if (currentSegment.segment.type === 'track' && currentSegment.segment.trackId) {
-      const track = tracks.find((t) => t.id === currentSegment.segment.trackId);
-      return {
-        type: 'track' as const,
-        name: track?.name || 'Track',
-        color: track?.color || '#C1652F',
-      };
-    } else if (currentSegment.segment.type === 'transport') {
-      const mode = currentSegment.segment.transportMode || 'car';
-      const modeLabels: Record<string, string> = {
-        car: t('stats.transportLabels.car'),
-        bus: t('stats.transportLabels.bus'),
-        train: t('stats.transportLabels.train'),
-        plane: t('stats.transportLabels.plane'),
-        bike: t('stats.transportLabels.bike'),
-        walk: t('stats.transportLabels.walk'),
-        ferry: t('stats.transportLabels.ferry'),
-      };
-      return {
-        type: 'transport' as const,
-        name: modeLabels[mode] || t('stats.transport'),
-        mode,
-        color: '#888888',
-      };
-    }
-
-    return null;
-  }, [currentSegment, tracks, t]);
 
   // Don't show if no data
   if (!currentStats || journeySegments.length === 0) return null;
@@ -177,42 +143,15 @@ export function StatsOverlay() {
         )}
       </div>
 
-      {/* Current Segment Info */}
-      <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {currentTrackInfo?.type === 'transport' ? (
-            <>
-              <span className="text-lg">
-                {TRANSPORT_ICONS[currentTrackInfo.mode || 'car']}
-              </span>
-              <span className="text-sm font-medium text-[var(--evergreen)]">
-                {currentTrackInfo.name}
-              </span>
-            </>
-          ) : (
-            <>
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: currentTrackInfo?.color || '#C1652F' }}
-              />
-              <span className="text-sm font-medium text-[var(--evergreen)] truncate max-w-[150px]">
-                {currentTrackInfo?.name || t('stats.track')}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {segmentTimings.length > 1 && (
-            <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
-              {trackCount} track{trackCount !== 1 ? 's' : ''}
-              {transportCount > 0 && ` + ${transportCount} transport`}
-            </span>
-          )}
-          <span className="text-xs text-[var(--evergreen-60)]">
-            {(playback.progress * 100).toFixed(1)}%
+      {/* Multi-segment indicator (show only if journey has multiple segments) */}
+      {segmentTimings.length > 1 && (
+        <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-center">
+          <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
+            {trackCount} track{trackCount !== 1 ? 's' : ''}
+            {transportCount > 0 && ` + ${transportCount} transport`}
           </span>
         </div>
-      </div>
+      )}
     </div>
   );
 }
