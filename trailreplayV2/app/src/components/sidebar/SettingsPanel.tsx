@@ -386,6 +386,69 @@ export function SettingsPanel() {
             />
           </label>
 
+          {/* Heart Rate Zones Legend */}
+          {settings.showHeartRate && (
+            <div className="space-y-3 bg-[var(--evergreen)]/5 p-3 rounded-lg">
+              <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">Heart Rate Zones</h4>
+              <div className="space-y-2">
+                {settings.trailStyle.heartRateZones.map((zone, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded border border-[var(--evergreen)]/30"
+                        style={{ backgroundColor: zone.color }}
+                      />
+                      <span className="text-xs text-[var(--evergreen)] flex-1">Zone {idx + 1}</span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-6">
+                      <input
+                        type="number"
+                        min="0"
+                        max="300"
+                        value={zone.min}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].min = Math.max(0, parseInt(e.target.value) || 0);
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-12 px-1 py-0.5 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/20 rounded text-[var(--evergreen)]"
+                        placeholder="Min"
+                      />
+                      <span className="text-xs text-[var(--evergreen-60)]">-</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="300"
+                        value={zone.max}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].max = Math.max(0, parseInt(e.target.value) || 0);
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-12 px-1 py-0.5 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/20 rounded text-[var(--evergreen)]"
+                        placeholder="Max"
+                      />
+                      <span className="text-xs text-[var(--evergreen-60)]">bpm</span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-6">
+                      <input
+                        type="color"
+                        value={zone.color}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].color = e.target.value;
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-8 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
+                      />
+                      <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <MapIcon className="w-4 h-4 text-[var(--evergreen)]" />
