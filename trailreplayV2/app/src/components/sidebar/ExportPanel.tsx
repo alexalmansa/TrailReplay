@@ -267,7 +267,22 @@ export function ExportPanel() {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    // 3. Draw logo watermark — always top-right corner (no background)
+    // 3. Draw activity marker emoji at the correct position
+    const markerEl = document.querySelector('.tr-marker span') as HTMLElement | null;
+    if (markerEl && markerEl.textContent) {
+      const markerRect = markerEl.getBoundingClientRect();
+      const scaleX = recordW / cropW;
+      const scaleY = recordH / cropH;
+      const markerX = (markerRect.left + markerRect.width / 2 - containerRect.left - cropX) * scaleX;
+      const markerY = (markerRect.top + markerRect.height / 2 - containerRect.top - cropY) * scaleY;
+      const fontSize = Math.round(markerRect.height * 0.8);
+      ctx.font = `${fontSize}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(markerEl.textContent, markerX, markerY);
+    }
+
+    // 4. Draw logo watermark — always top-right corner (no background)
     if (cachedLogoRef.current) {
       // logohorizontal.svg viewBox 500×200 → aspect ratio 2.5:1
       const logoW = Math.round(recordW * 0.14);
@@ -281,7 +296,7 @@ export function ExportPanel() {
       ctx.restore();
     }
 
-    // 4. Kick off async overlay refresh (throttled)
+    // 5. Kick off async overlay refresh (throttled)
     if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }

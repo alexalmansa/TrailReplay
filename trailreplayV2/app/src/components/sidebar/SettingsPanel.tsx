@@ -379,7 +379,7 @@ export function SettingsPanel() {
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />
           </label>
-          
+
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <MapIcon className="w-4 h-4 text-[var(--evergreen)]" />

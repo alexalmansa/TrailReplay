@@ -8,6 +8,7 @@ import { MapElevationProfile } from './MapElevationProfile';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { getHeartRateColor } from '@/utils/gpxParser';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -425,6 +426,7 @@ export function TrailMap({}: TrailMapProps) {
     segmentTimings,
     elevationData,
     activeTrack,
+    computedJourney,
   } = useComputedJourney();
 
   // Derive the current track name for the label
@@ -655,13 +657,24 @@ export function TrailMap({}: TrailMapProps) {
 
     const color = currentTrackColor || trailStyle.trailColor;
 
-    if (map.current.getLayer('trail-line')) {
-      map.current.setPaintProperty('trail-line', 'line-color', color);
+    if (trailStyle.colorMode !== 'heartRate') {
+      // Fixed color mode: set flat color
+      if (map.current.getLayer('trail-line')) {
+        map.current.setPaintProperty('trail-line', 'line-color', color);
+      }
+      if (map.current.getLayer('trail-completed')) {
+        map.current.setPaintProperty('trail-completed', 'line-color', color);
+      }
+    } else {
+      // HR mode: use color property from features
+      if (map.current.getLayer('trail-line')) {
+        map.current.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
+      }
+      if (map.current.getLayer('trail-completed')) {
+        map.current.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
+      }
     }
-    if (map.current.getLayer('trail-completed')) {
-      map.current.setPaintProperty('trail-completed', 'line-color', color);
-    }
-  }, [trailStyle.trailColor, currentTrackColor, isMapLoaded]);
+  }, [trailStyle.trailColor, trailStyle.colorMode, currentTrackColor, isMapLoaded]);
 
   // Update track label visibility, text, and color
   useEffect(() => {
@@ -706,8 +719,50 @@ export function TrailMap({}: TrailMapProps) {
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    // Update full trail line with all journey coordinates
-    if (allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+    // Build HR-colored trail when in heart rate mode
+    if (trailStyle.colorMode === 'heartRate' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+      // Build features with color properties based on heart rate
+      const features: maplibregl.Feature[] = [];
+
+      // Get the heart rate points - support both single-track and journey modes
+      let hrPoints: Array<{ heartRate: number | null }> = [];
+
+      if (activeTrack && !computedJourney) {
+        // Single track mode
+        hrPoints = activeTrack.points;
+      } else if (computedJourney) {
+        // Journey mode - coordinates are JourneyPoint objects with heartRate
+        hrPoints = computedJourney.coordinates;
+      }
+
+      // Build 2-point line segments with colors
+      for (let i = 0; i < allCoordinates.length - 1; i++) {
+        const startCoord = allCoordinates[i];
+        const endCoord = allCoordinates[i + 1];
+        const hrData = hrPoints[i];
+
+        let color = trailStyle.trailColor; // Default color
+
+        if (hrData?.heartRate) {
+          color = getHeartRateColor(hrData.heartRate, 180);
+        }
+
+        features.push({
+          type: 'Feature',
+          properties: { color },
+          geometry: {
+            type: 'LineString',
+            coordinates: [startCoord, endCoord]
+          }
+        } as maplibregl.Feature);
+      }
+
+      (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
+        type: 'FeatureCollection',
+        features
+      });
+    } else if (trailStyle.colorMode === 'fixed' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+      // Fixed color mode - simple LineString
       (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
         properties: {},
@@ -802,7 +857,7 @@ export function TrailMap({}: TrailMapProps) {
         }
       }
     }
-  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
+  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress, trailStyle.colorMode, trailStyle.heartRateZones, trailStyle.trailColor, activeTrack, computedJourney]);
 
   // Update completed trail and marker position
   useEffect(() => {
@@ -875,13 +930,51 @@ export function TrailMap({}: TrailMapProps) {
       }
     }
 
-    // Update completed track line
+    // Update completed track line with HR coloring if needed
     if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
-      (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: completedCoordinates },
-      });
+      if (trailStyle.colorMode === 'heartRate') {
+        // Build HR-colored features for completed portion
+        const features: maplibregl.Feature[] = [];
+
+        let hrPoints: Array<{ heartRate: number | null }> = [];
+        if (activeTrack && !computedJourney) {
+          hrPoints = activeTrack.points;
+        } else if (computedJourney) {
+          hrPoints = computedJourney.coordinates;
+        }
+
+        for (let i = 0; i < completedCoordinates.length - 1; i++) {
+          const startCoord = completedCoordinates[i];
+          const endCoord = completedCoordinates[i + 1];
+          const hrData = hrPoints[i];
+
+          let color = trailStyle.trailColor;
+          if (hrData?.heartRate) {
+            color = getHeartRateColor(hrData.heartRate, 180);
+          }
+
+          features.push({
+            type: 'Feature',
+            properties: { color },
+            geometry: {
+              type: 'LineString',
+              coordinates: [startCoord, endCoord]
+            }
+          } as maplibregl.Feature);
+        }
+
+        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
+          type: 'FeatureCollection',
+          features
+        });
+      } else {
+        // Fixed color mode
+        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: completedCoordinates },
+        });
+      }
     }
 
     // Update track label position to follow marker
