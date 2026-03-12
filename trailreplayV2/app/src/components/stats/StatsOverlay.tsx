@@ -65,12 +65,37 @@ export function StatsOverlay() {
 
     const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
+    // Calculate cumulative elevation gain based on journey progress
+    let cumulativeElevationGain = 0;
+    if (segmentTimings.length > 0) {
+      // Multi-segment journey: sum elevation gain up to current progress
+      for (const timing of segmentTimings) {
+        if (timing.type !== 'track' || !timing.trackId) continue;
+        const track = tracks.find((t) => t.id === timing.trackId);
+        if (!track) continue;
+        const trackElevationGain = track.elevationGain || 0;
+        if (playback.progress >= timing.progressEndRatio) {
+          cumulativeElevationGain += trackElevationGain;
+        } else if (playback.progress > timing.progressStartRatio) {
+          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
+          const localProgress = segmentSpan > 0
+            ? (playback.progress - timing.progressStartRatio) / segmentSpan
+            : 0;
+          cumulativeElevationGain += trackElevationGain * localProgress;
+        }
+      }
+    } else if (activeTrack) {
+      // Single track mode: use track's elevation gain proportional to progress
+      const trackElevationGain = activeTrack.elevationGain || 0;
+      cumulativeElevationGain = trackElevationGain * playback.progress;
+    }
+
     return {
       distance: distanceAtProgress, // in meters
       duration: realElapsedSeconds,
       averageSpeed: averageSpeedMps, // m/s for pace calculation
       currentSpeed: currentPosition.speed || 0, // km/h for transport display
-      elevation: currentPosition.elevation || 0,
+      elevationGain: cumulativeElevationGain, // meters
       heartRate: currentPosition.heartRate,
       cadence: currentPosition.cadence,
       power: currentPosition.power,
@@ -111,7 +136,7 @@ export function StatsOverlay() {
         <SmallStatItem
           icon={<Mountain className="w-3 h-3" />}
           label={t('stats.elev')}
-          value={isInTransport ? '--' : formatElevation(currentStats.elevation, settings.unitSystem)}
+          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
         />
 
         {settings.showHeartRate && currentStats.heartRate && !isInTransport && (
