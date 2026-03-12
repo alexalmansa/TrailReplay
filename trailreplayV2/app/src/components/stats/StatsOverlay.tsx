@@ -27,7 +27,27 @@ export function StatsOverlay() {
     totalDistance,
     segmentTimings,
     activeTrack,
+    computedJourney,
   } = useComputedJourney();
+
+  /**
+   * Calculate elevation gain by summing positive elevation differences between consecutive points
+   */
+  const calculateElevationGainFromPoints = (points: Array<{ elevation: number }>, upToIndex: number): number => {
+    if (upToIndex <= 0 || points.length === 0) return 0;
+
+    let elevationGain = 0;
+    const endIndex = Math.min(upToIndex, points.length - 1);
+
+    for (let i = 1; i <= endIndex; i++) {
+      const elevationDiff = points[i].elevation - points[i - 1].elevation;
+      if (elevationDiff > 0) {
+        elevationGain += elevationDiff;
+      }
+    }
+
+    return elevationGain;
+  };
 
   const currentStats = useMemo(() => {
     if (!currentPosition) return null;
@@ -65,29 +85,48 @@ export function StatsOverlay() {
 
     const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
-    // Calculate cumulative elevation gain based on journey progress
+    // Calculate cumulative elevation gain by summing actual elevation differences
     let cumulativeElevationGain = 0;
-    if (segmentTimings.length > 0) {
-      // Multi-segment journey: sum elevation gain up to current progress
+    if (computedJourney && segmentTimings.length > 0) {
+      // Multi-segment journey: find current coordinate index and sum elevation gain up to it
       for (const timing of segmentTimings) {
-        if (timing.type !== 'track' || !timing.trackId) continue;
-        const track = tracks.find((t) => t.id === timing.trackId);
-        if (!track) continue;
-        const trackElevationGain = track.elevationGain || 0;
+        if (timing.type !== 'track') {
+          // Skip transport segments in elevation calculation
+          continue;
+        }
+
         if (playback.progress >= timing.progressEndRatio) {
-          cumulativeElevationGain += trackElevationGain;
+          // Completed segment: add all elevation gain
+          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
+          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, segmentCoords.length - 1);
         } else if (playback.progress > timing.progressStartRatio) {
+          // Partial segment: add elevation gain up to current progress
           const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
           const localProgress = segmentSpan > 0
             ? (playback.progress - timing.progressStartRatio) / segmentSpan
             : 0;
-          cumulativeElevationGain += trackElevationGain * localProgress;
+
+          const segmentLength = timing.endCoordIndex - timing.startCoordIndex + 1;
+          const upToIndex = Math.floor(localProgress * (segmentLength - 1));
+          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
+          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, upToIndex);
+          break;
         }
       }
     } else if (activeTrack) {
-      // Single track mode: use track's elevation gain proportional to progress
-      const trackElevationGain = activeTrack.elevationGain || 0;
-      cumulativeElevationGain = trackElevationGain * playback.progress;
+      // Single track mode: find current point and sum elevation gain up to it
+      const targetDistance = activeTrack.totalDistance * playback.progress;
+      let currentPointIndex = 0;
+
+      for (let i = 0; i < activeTrack.points.length; i++) {
+        if (activeTrack.points[i].distance >= targetDistance) {
+          currentPointIndex = i;
+          break;
+        }
+        currentPointIndex = i;
+      }
+
+      cumulativeElevationGain = calculateElevationGainFromPoints(activeTrack.points, currentPointIndex);
     }
 
     return {
@@ -100,7 +139,7 @@ export function StatsOverlay() {
       cadence: currentPosition.cadence,
       power: currentPosition.power,
     };
-  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks]);
+  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
 
 
   // Don't show if no data
