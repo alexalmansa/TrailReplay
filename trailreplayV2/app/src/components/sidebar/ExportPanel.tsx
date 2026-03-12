@@ -189,14 +189,14 @@ export function ExportPanel() {
 
       // Stats overlay — fixed at TOP-LEFT (always visible in any aspect ratio)
       if (videoExportSettings.includeStats) {
-        const statsEl = document.querySelector('.tr-stats-overlay')?.parentElement as HTMLElement | null;
+        const statsEl = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
         if (statsEl) {
           try {
             const cap: HTMLCanvasElement = await (window as any).html2canvas(statsEl, {
-              backgroundColor: null, scale: 1, logging: false, useCORS: true,
+              backgroundColor: null, scale: 2, logging: false, useCORS: true, allowTaint: true,
             });
-            const dw = cap.width * scaleToRec;
-            const dh = cap.height * scaleToRec;
+            const dw = cap.width * scaleToRec / 2;
+            const dh = cap.height * scaleToRec / 2;
             octx.drawImage(cap, 0, 0, cap.width, cap.height, margin, margin, dw, dh);
           } catch { /* skip */ }
         }
@@ -267,7 +267,47 @@ export function ExportPanel() {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    // 3. Draw logo watermark — always top-right corner (no background)
+    // 3. Draw activity marker (circle + emoji)
+    const markerContainer = document.querySelector('.tr-marker') as HTMLElement | null;
+    if (markerContainer && container) {
+      const markerRect = markerContainer.getBoundingClientRect();
+      const scaleX = recordW / cropW;
+      const scaleY = recordH / cropH;
+      const markerX = (markerRect.left + markerRect.width / 2 - containerRect.left - cropX) * scaleX;
+      const markerY = (markerRect.top + markerRect.height / 2 - containerRect.top - cropY) * scaleY;
+
+      // Draw circle (if present)
+      const circleEl = markerContainer.querySelector('div') as HTMLElement | null;
+      if (circleEl) {
+        const circleSize = parseFloat(circleEl.style.width || '0');
+        const scaledRadius = (circleSize / 2) * scaleX;
+        const borderColor = circleEl.style.borderColor || '#FF9800';
+
+        // Draw circle background with opacity
+        ctx.fillStyle = circleEl.style.background || 'rgba(255, 152, 0, 0.25)';
+        ctx.beginPath();
+        ctx.arc(markerX, markerY, scaledRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw circle border
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 2 * scaleX;
+        ctx.stroke();
+      }
+
+      // Draw emoji text on top
+      const markerEl = markerContainer.querySelector('span') as HTMLElement | null;
+      if (markerEl && markerEl.textContent) {
+        const fontSize = Math.round(parseFloat(markerEl.style.fontSize || '24') * scaleX);
+        ctx.font = `${fontSize}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000000';
+        ctx.fillText(markerEl.textContent, markerX, markerY);
+      }
+    }
+
+    // 4. Draw logo watermark — always top-right corner (no background)
     if (cachedLogoRef.current) {
       // logohorizontal.svg viewBox 500×200 → aspect ratio 2.5:1
       const logoW = Math.round(recordW * 0.14);
@@ -281,7 +321,7 @@ export function ExportPanel() {
       ctx.restore();
     }
 
-    // 4. Kick off async overlay refresh (throttled)
+    // 5. Kick off async overlay refresh (throttled)
     if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }

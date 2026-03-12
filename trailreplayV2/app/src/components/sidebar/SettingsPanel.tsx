@@ -90,6 +90,7 @@ export function SettingsPanel() {
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
   const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+  const setTrailStyle = useAppStore((state) => state.setTrailStyle);
   const [waybackItems, setWaybackItems] = useState<WaybackItem[]>([]);
   const [waybackLoading, setWaybackLoading] = useState(false);
   const [waybackError, setWaybackError] = useState<string | null>(null);
@@ -375,11 +376,71 @@ export function SettingsPanel() {
             <input
               type="checkbox"
               checked={settings.showHeartRate}
-              onChange={(e) => setSettings({ showHeartRate: e.target.checked })}
+              onChange={(e) => {
+                console.log('🏃 Heart rate toggle:', e.target.checked);
+                setSettings({ showHeartRate: e.target.checked });
+                setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' });
+                console.log('🏃 Set colorMode to:', e.target.checked ? 'heartRate' : 'fixed');
+              }}
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />
           </label>
-          
+
+          {/* Heart Rate Zones Legend */}
+          {settings.showHeartRate && (
+            <div className="space-y-3 bg-[var(--evergreen)]/5 p-3 rounded-lg">
+              <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">Heart Rate Zones</h4>
+              <div className="space-y-3">
+                {settings.trailStyle.heartRateZones.map((zone, idx) => (
+                  <div key={idx} className="bg-[var(--canvas)] p-2 rounded border border-[var(--evergreen)]/10">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="color"
+                        value={zone.color}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].color = e.target.value;
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-6 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
+                      />
+                      <span className="text-xs font-semibold text-[var(--evergreen)]">Zone {idx + 1}</span>
+                      <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="300"
+                        value={zone.min}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].min = Math.max(0, parseInt(e.target.value) || 0);
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
+                      />
+                      <span className="text-xs text-[var(--evergreen-60)] font-semibold">-</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="300"
+                        value={zone.max}
+                        onChange={(e) => {
+                          const newZones = [...settings.trailStyle.heartRateZones];
+                          newZones[idx].max = Math.max(0, parseInt(e.target.value) || 0);
+                          setTrailStyle({ heartRateZones: newZones });
+                        }}
+                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
+                      />
+                      <span className="text-xs text-[var(--evergreen-60)]">bpm</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
             <div className="flex items-center gap-2">
               <MapIcon className="w-4 h-4 text-[var(--evergreen)]" />

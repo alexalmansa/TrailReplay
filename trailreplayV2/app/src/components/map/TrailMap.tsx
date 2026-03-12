@@ -8,6 +8,7 @@ import { MapElevationProfile } from './MapElevationProfile';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { getHeartRateColor } from '@/utils/gpxParser';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -425,6 +426,7 @@ export function TrailMap({}: TrailMapProps) {
     segmentTimings,
     elevationData,
     activeTrack,
+    computedJourney,
   } = useComputedJourney();
 
   // Derive the current track name for the label
@@ -655,13 +657,24 @@ export function TrailMap({}: TrailMapProps) {
 
     const color = currentTrackColor || trailStyle.trailColor;
 
-    if (map.current.getLayer('trail-line')) {
-      map.current.setPaintProperty('trail-line', 'line-color', color);
+    if (trailStyle.colorMode !== 'heartRate') {
+      // Fixed color mode: set flat color
+      if (map.current.getLayer('trail-line')) {
+        map.current.setPaintProperty('trail-line', 'line-color', color);
+      }
+      if (map.current.getLayer('trail-completed')) {
+        map.current.setPaintProperty('trail-completed', 'line-color', color);
+      }
+    } else {
+      // HR mode: use color property from features
+      if (map.current.getLayer('trail-line')) {
+        map.current.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
+      }
+      if (map.current.getLayer('trail-completed')) {
+        map.current.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
+      }
     }
-    if (map.current.getLayer('trail-completed')) {
-      map.current.setPaintProperty('trail-completed', 'line-color', color);
-    }
-  }, [trailStyle.trailColor, currentTrackColor, isMapLoaded]);
+  }, [trailStyle.trailColor, trailStyle.colorMode, currentTrackColor, isMapLoaded]);
 
   // Update track label visibility, text, and color
   useEffect(() => {
@@ -706,8 +719,57 @@ export function TrailMap({}: TrailMapProps) {
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    // Update full trail line with all journey coordinates
-    if (allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+    // Build HR-colored trail when in heart rate mode
+    if (trailStyle.colorMode === 'heartRate' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+      console.log('🏃 Building heart rate trail - colorMode:', trailStyle.colorMode, 'coords:', allCoordinates.length);
+
+      // Build features with color properties based on heart rate
+      const features: any[] = [];
+
+      // Get the heart rate points - support both single-track and journey modes
+      let hrPoints: Array<{ heartRate: number | null }> = [];
+
+      if (activeTrack && !computedJourney) {
+        // Single track mode
+        hrPoints = activeTrack.points;
+        console.log('🏃 Using activeTrack points:', hrPoints.length, 'sample:', hrPoints.slice(0, 3));
+      } else if (computedJourney) {
+        // Journey mode - coordinates are JourneyPoint objects with heartRate
+        hrPoints = computedJourney.coordinates;
+        console.log('🏃 Using computedJourney coordinates:', hrPoints.length, 'sample:', hrPoints.slice(0, 3));
+      }
+
+      // Build 2-point line segments with colors
+      let hrCount = 0;
+      for (let i = 0; i < allCoordinates.length - 1; i++) {
+        const startCoord = allCoordinates[i];
+        const endCoord = allCoordinates[i + 1];
+        const hrData = hrPoints[i];
+
+        let color = trailStyle.trailColor; // Default color
+
+        if (hrData?.heartRate) {
+          hrCount++;
+          color = getHeartRateColor(hrData.heartRate, 180);
+        }
+
+        features.push({
+          type: 'Feature',
+          properties: { color },
+          geometry: {
+            type: 'LineString',
+            coordinates: [startCoord, endCoord]
+          }
+        });
+      }
+
+      console.log('🏃 Built', features.length, 'features with', hrCount, 'having HR data');
+      (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
+        type: 'FeatureCollection',
+        features
+      });
+    } else if (trailStyle.colorMode === 'fixed' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
+      // Fixed color mode - simple LineString
       (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
         properties: {},
@@ -766,27 +828,51 @@ export function TrailMap({}: TrailMapProps) {
             });
           }, 100);
 
-          // After the view has settled, fire wheel events at the map center
+          // After 2 seconds, simulate mouse movement and wheel scroll to force tile reload
           setTimeout(() => {
-            const container = map.current?.getContainer();
-            if (!container) return;
-            const rect = container.getBoundingClientRect();
+            if (!map.current) return;
+            const container = map.current.getContainer();
+            const canvas = container.querySelector('canvas');
+            if (!canvas) return;
+
+            const rect = canvas.getBoundingClientRect();
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
-            // Fire a few scroll-down (zoom-out) wheel ticks
+
+            // Move mouse to center
+            canvas.dispatchEvent(new MouseEvent('mouseenter', {
+              bubbles: true,
+              cancelable: true,
+              clientX: cx,
+              clientY: cy,
+              view: window,
+            }));
+
+            canvas.dispatchEvent(new MouseEvent('mousemove', {
+              bubbles: true,
+              cancelable: true,
+              clientX: cx,
+              clientY: cy,
+              view: window,
+            }));
+
+            // Dispatch multiple wheel events to zoom out
             for (let i = 0; i < 4; i++) {
               setTimeout(() => {
-                container.dispatchEvent(new WheelEvent('wheel', {
+                canvas.dispatchEvent(new WheelEvent('wheel', {
                   bubbles: true,
                   cancelable: true,
                   clientX: cx,
                   clientY: cy,
-                  deltaY: 120,      // positive = scroll down = zoom out
-                  deltaMode: 0,     // DOM_DELTA_PIXEL
+                  screenX: cx,
+                  screenY: cy,
+                  deltaY: 100,
+                  deltaMode: 0,
+                  view: window,
                 }));
-              }, i * 80);
+              }, i * 50);
             }
-          }, 2200);
+          }, 2000);
         } else {
           // Subsequent track changes: just fit bounds directly
           setTimeout(() => {
@@ -802,7 +888,7 @@ export function TrailMap({}: TrailMapProps) {
         }
       }
     }
-  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress]);
+  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress, trailStyle.colorMode, trailStyle.heartRateZones, trailStyle.trailColor, activeTrack, computedJourney]);
 
   // Update completed trail and marker position
   useEffect(() => {
@@ -838,6 +924,7 @@ export function TrailMap({}: TrailMapProps) {
       if (!markerRef.current) {
         const el = document.createElement('div');
         el.className = 'tr-marker';
+        el.style.zIndex = '100';
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
@@ -848,7 +935,7 @@ export function TrailMap({}: TrailMapProps) {
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
         `;
 
         markerRef.current = new maplibregl.Marker({
@@ -860,6 +947,7 @@ export function TrailMap({}: TrailMapProps) {
       } else {
         markerRef.current.setLngLat([currentPosition.lon, currentPosition.lat]);
         const el = markerRef.current.getElement();
+        el.style.zIndex = '100';
         el.innerHTML = `
           ${showCircle ? `<div style="
             position: absolute;
@@ -870,18 +958,56 @@ export function TrailMap({}: TrailMapProps) {
             border-radius: 50%;
             animation: pulse 1.5s ease-in-out infinite;
           "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 1;">${icon}</span>
+          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
         `;
       }
     }
 
-    // Update completed track line
+    // Update completed track line with HR coloring if needed
     if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
-      (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: completedCoordinates },
-      });
+      if (trailStyle.colorMode === 'heartRate') {
+        // Build HR-colored features for completed portion
+        const features: any[] = [];
+
+        let hrPoints: Array<{ heartRate: number | null }> = [];
+        if (activeTrack && !computedJourney) {
+          hrPoints = activeTrack.points;
+        } else if (computedJourney) {
+          hrPoints = computedJourney.coordinates;
+        }
+
+        for (let i = 0; i < completedCoordinates.length - 1; i++) {
+          const startCoord = completedCoordinates[i];
+          const endCoord = completedCoordinates[i + 1];
+          const hrData = hrPoints[i];
+
+          let color = trailStyle.trailColor;
+          if (hrData?.heartRate) {
+            color = getHeartRateColor(hrData.heartRate, 180);
+          }
+
+          features.push({
+            type: 'Feature',
+            properties: { color },
+            geometry: {
+              type: 'LineString',
+              coordinates: [startCoord, endCoord]
+            }
+          });
+        }
+
+        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
+          type: 'FeatureCollection',
+          features
+        });
+      } else {
+        // Fixed color mode
+        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: completedCoordinates },
+        });
+      }
     }
 
     // Update track label position to follow marker

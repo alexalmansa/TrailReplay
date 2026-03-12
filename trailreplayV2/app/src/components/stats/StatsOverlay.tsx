@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
-import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Route,
@@ -24,12 +23,31 @@ export function StatsOverlay() {
   // Use computed journey for multi-track support
   const {
     currentPosition,
-    currentSegment,
     isInTransport,
     totalDistance,
     segmentTimings,
     activeTrack,
+    computedJourney,
   } = useComputedJourney();
+
+  /**
+   * Calculate elevation gain by summing positive elevation differences between consecutive points
+   */
+  const calculateElevationGainFromPoints = (points: Array<{ elevation: number }>, upToIndex: number): number => {
+    if (upToIndex <= 0 || points.length === 0) return 0;
+
+    let elevationGain = 0;
+    const endIndex = Math.min(upToIndex, points.length - 1);
+
+    for (let i = 1; i <= endIndex; i++) {
+      const elevationDiff = points[i].elevation - points[i - 1].elevation;
+      if (elevationDiff > 0) {
+        elevationGain += elevationDiff;
+      }
+    }
+
+    return elevationGain;
+  };
 
   const currentStats = useMemo(() => {
     if (!currentPosition) return null;
@@ -67,50 +85,62 @@ export function StatsOverlay() {
 
     const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
+    // Calculate cumulative elevation gain by summing actual elevation differences
+    let cumulativeElevationGain = 0;
+    if (computedJourney && segmentTimings.length > 0) {
+      // Multi-segment journey: find current coordinate index and sum elevation gain up to it
+      for (const timing of segmentTimings) {
+        if (timing.type !== 'track') {
+          // Skip transport segments in elevation calculation
+          continue;
+        }
+
+        if (playback.progress >= timing.progressEndRatio) {
+          // Completed segment: add all elevation gain
+          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
+          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, segmentCoords.length - 1);
+        } else if (playback.progress > timing.progressStartRatio) {
+          // Partial segment: add elevation gain up to current progress
+          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
+          const localProgress = segmentSpan > 0
+            ? (playback.progress - timing.progressStartRatio) / segmentSpan
+            : 0;
+
+          const segmentLength = timing.endCoordIndex - timing.startCoordIndex + 1;
+          const upToIndex = Math.floor(localProgress * (segmentLength - 1));
+          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
+          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, upToIndex);
+          break;
+        }
+      }
+    } else if (activeTrack) {
+      // Single track mode: find current point and sum elevation gain up to it
+      const targetDistance = activeTrack.totalDistance * playback.progress;
+      let currentPointIndex = 0;
+
+      for (let i = 0; i < activeTrack.points.length; i++) {
+        if (activeTrack.points[i].distance >= targetDistance) {
+          currentPointIndex = i;
+          break;
+        }
+        currentPointIndex = i;
+      }
+
+      cumulativeElevationGain = calculateElevationGainFromPoints(activeTrack.points, currentPointIndex);
+    }
+
     return {
       distance: distanceAtProgress, // in meters
       duration: realElapsedSeconds,
       averageSpeed: averageSpeedMps, // m/s for pace calculation
       currentSpeed: currentPosition.speed || 0, // km/h for transport display
-      elevation: currentPosition.elevation || 0,
+      elevationGain: cumulativeElevationGain, // meters
       heartRate: currentPosition.heartRate,
       cadence: currentPosition.cadence,
       power: currentPosition.power,
     };
-  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks]);
+  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
 
-  // Get current track info
-  const currentTrackInfo = useMemo(() => {
-    if (!currentSegment) return null;
-
-    if (currentSegment.segment.type === 'track' && currentSegment.segment.trackId) {
-      const track = tracks.find((t) => t.id === currentSegment.segment.trackId);
-      return {
-        type: 'track' as const,
-        name: track?.name || 'Track',
-        color: track?.color || '#C1652F',
-      };
-    } else if (currentSegment.segment.type === 'transport') {
-      const mode = currentSegment.segment.transportMode || 'car';
-      const modeLabels: Record<string, string> = {
-        car: t('stats.transportLabels.car'),
-        bus: t('stats.transportLabels.bus'),
-        train: t('stats.transportLabels.train'),
-        plane: t('stats.transportLabels.plane'),
-        bike: t('stats.transportLabels.bike'),
-        walk: t('stats.transportLabels.walk'),
-        ferry: t('stats.transportLabels.ferry'),
-      };
-      return {
-        type: 'transport' as const,
-        name: modeLabels[mode] || t('stats.transport'),
-        mode,
-        color: '#888888',
-      };
-    }
-
-    return null;
-  }, [currentSegment, tracks, t]);
 
   // Don't show if no data
   if (!currentStats || journeySegments.length === 0) return null;
@@ -145,7 +175,7 @@ export function StatsOverlay() {
         <SmallStatItem
           icon={<Mountain className="w-3 h-3" />}
           label={t('stats.elev')}
-          value={isInTransport ? '--' : formatElevation(currentStats.elevation, settings.unitSystem)}
+          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
         />
 
         {settings.showHeartRate && currentStats.heartRate && !isInTransport && (
@@ -177,42 +207,15 @@ export function StatsOverlay() {
         )}
       </div>
 
-      {/* Current Segment Info */}
-      <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {currentTrackInfo?.type === 'transport' ? (
-            <>
-              <span className="text-lg">
-                {TRANSPORT_ICONS[currentTrackInfo.mode || 'car']}
-              </span>
-              <span className="text-sm font-medium text-[var(--evergreen)]">
-                {currentTrackInfo.name}
-              </span>
-            </>
-          ) : (
-            <>
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: currentTrackInfo?.color || '#C1652F' }}
-              />
-              <span className="text-sm font-medium text-[var(--evergreen)] truncate max-w-[150px]">
-                {currentTrackInfo?.name || t('stats.track')}
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {segmentTimings.length > 1 && (
-            <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
-              {trackCount} track{trackCount !== 1 ? 's' : ''}
-              {transportCount > 0 && ` + ${transportCount} transport`}
-            </span>
-          )}
-          <span className="text-xs text-[var(--evergreen-60)]">
-            {(playback.progress * 100).toFixed(1)}%
+      {/* Multi-segment indicator (show only if journey has multiple segments) */}
+      {segmentTimings.length > 1 && (
+        <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-center">
+          <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
+            {trackCount} track{trackCount !== 1 ? 's' : ''}
+            {transportCount > 0 && ` + ${transportCount} transport`}
           </span>
         </div>
-      </div>
+      )}
     </div>
   );
 }

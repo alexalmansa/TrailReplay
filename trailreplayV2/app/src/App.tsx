@@ -175,7 +175,7 @@ function App() {
   
   return (
     <PlaybackProvider>
-      <div className="app-container min-h-screen bg-[var(--canvas)] flex flex-col">
+      <div className="app-container h-screen bg-[var(--canvas)] flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-2 sm:px-4 z-50">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
@@ -242,7 +242,7 @@ function App() {
         <main className="flex-1 flex overflow-hidden">
           {/* Sidebar */}
           {showSidebar && (
-            <div className="w-80 flex-shrink-0 border-r-2 border-[var(--evergreen)] overflow-hidden">
+            <div className="w-80 h-full flex-shrink-0 border-r-2 border-[var(--evergreen)] overflow-hidden">
               <Sidebar />
             </div>
           )}
@@ -356,7 +356,7 @@ function App() {
 
           {/* Info Panel (Right Side) */}
           {showInfoPanel && (
-            <div className="w-80 flex-shrink-0 overflow-hidden">
+            <div className="w-80 h-full flex-shrink-0 overflow-hidden">
               <InfoPanel onClose={() => setShowInfoPanel(false)} />
             </div>
           )}
