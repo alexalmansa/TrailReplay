@@ -285,7 +285,7 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,application/gpx+xml"
+                accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
