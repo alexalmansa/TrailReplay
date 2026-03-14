@@ -351,11 +351,11 @@ export function TracksPanel() {
   }, [addComparisonTrack, comparisonTracks.length]);
   
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const gpxFiles = acceptedFiles.filter(
-      (file) => file.name.endsWith('.gpx') || file.type === 'application/gpx+xml'
+    const trailFiles = acceptedFiles.filter(
+      (file) => file.name.endsWith('.gpx') || file.name.endsWith('.kml') || file.type === 'application/gpx+xml' || file.type === 'application/vnd.google-earth.kml+xml'
     );
-    if (gpxFiles.length > 0) {
-      await parseFiles(gpxFiles as unknown as FileList);
+    if (trailFiles.length > 0) {
+      await parseFiles(trailFiles as unknown as FileList);
     }
   }, [parseFiles]);
   
@@ -363,6 +363,7 @@ export function TracksPanel() {
     onDrop,
     accept: {
       'application/gpx+xml': ['.gpx'],
+      'application/vnd.google-earth.kml+xml': ['.kml'],
     },
     multiple: true,
   });
@@ -468,7 +469,7 @@ export function TracksPanel() {
                 <input
                   ref={comparisonFileRef}
                   type="file"
-                  accept=".gpx"
+                  accept=".gpx,.kml"
                   onChange={handleComparisonFile}
                   className="hidden"
                 />
