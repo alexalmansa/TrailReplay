@@ -182,7 +182,7 @@ html, body {
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.7rem 0.8rem;
+  padding: 0.5rem 0.6rem;
   border-width: 1.5px;
   border-radius: 10px;
 }
