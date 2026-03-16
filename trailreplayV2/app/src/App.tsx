@@ -35,7 +35,7 @@ function CropPreviewBars({
       const W = el.clientWidth;
       const H = el.clientHeight;
       const containerAspect = W / H;
-      let targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
+      const targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
       if (containerAspect > targetAspect) {
         // Crop left/right
         const cropW = H * targetAspect;
@@ -78,9 +78,15 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [autoPlaybackPictureId, setAutoPlaybackPictureId] = useState<string | null>(null);
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
   );
+  const shownPlaybackPictureIdsRef = useRef<Set<string>>(new Set());
+  const queuedPlaybackPictureIdsRef = useRef<string[]>([]);
+  const lastPlaybackProgressRef = useRef(0);
+  const resumePlaybackAfterPictureQueueRef = useRef(false);
+  const pendingQueuedPictureOpenRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -96,8 +102,36 @@ function App() {
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const play = useAppStore((state) => state.play);
+  const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
   const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
+
+  const openNextQueuedPlaybackPicture = useCallback(() => {
+    const nextPictureId = queuedPlaybackPictureIdsRef.current.shift();
+    if (!nextPictureId) {
+      setAutoPlaybackPictureId(null);
+      return false;
+    }
+
+    setAutoPlaybackPictureId(nextPictureId);
+    return true;
+  }, []);
+
+  const clearPendingQueuedPictureOpen = useCallback(() => {
+    if (pendingQueuedPictureOpenRef.current !== null) {
+      window.clearTimeout(pendingQueuedPictureOpenRef.current);
+      pendingQueuedPictureOpenRef.current = null;
+    }
+  }, []);
+
+  const scheduleNextQueuedPlaybackPicture = useCallback(() => {
+    clearPendingQueuedPictureOpen();
+    pendingQueuedPictureOpenRef.current = window.setTimeout(() => {
+      pendingQueuedPictureOpenRef.current = null;
+      openNextQueuedPlaybackPicture();
+    }, 0);
+  }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
   
   // Show error toast
   useEffect(() => {
@@ -140,22 +174,111 @@ function App() {
         fileInputRef.current.value = '';
       }
     },
-    [parseFiles]
+    [parseFiles, setShowSidebar]
   );
 
   // Trigger file picker
   const openFilePicker = () => {
     fileInputRef.current?.click();
   };
+
+  useEffect(() => {
+    shownPlaybackPictureIdsRef.current.clear();
+    queuedPlaybackPictureIdsRef.current = [];
+    resumePlaybackAfterPictureQueueRef.current = false;
+    clearPendingQueuedPictureOpen();
+    lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
+  }, [clearPendingQueuedPictureOpen, pictures, tracks]);
+
+  useEffect(() => {
+    return () => {
+      clearPendingQueuedPictureOpen();
+    };
+  }, [clearPendingQueuedPictureOpen]);
+
+  useEffect(() => {
+    const currentProgress = playback.progress;
+    const previousProgress = lastPlaybackProgressRef.current;
+
+    if (currentProgress + 0.001 < previousProgress) {
+      shownPlaybackPictureIdsRef.current.clear();
+      queuedPlaybackPictureIdsRef.current = [];
+      resumePlaybackAfterPictureQueueRef.current = false;
+      clearPendingQueuedPictureOpen();
+    }
+
+    if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
+      lastPlaybackProgressRef.current = currentProgress;
+      return;
+    }
+
+    const progressEpsilon = 0.005;
+    const lowerBound = Math.max(0, previousProgress - progressEpsilon);
+    const upperBound = Math.min(1, currentProgress + progressEpsilon);
+    const queuedIds = new Set(queuedPlaybackPictureIdsRef.current);
+    const triggeredPictures = pictures
+      .filter((picture) => (
+        !shownPlaybackPictureIdsRef.current.has(picture.id)
+        && !queuedIds.has(picture.id)
+        && picture.progress >= lowerBound
+        && picture.progress <= upperBound
+      ))
+      .sort((a, b) => a.progress - b.progress);
+
+    if (triggeredPictures.length > 0) {
+      triggeredPictures.forEach((picture) => {
+        shownPlaybackPictureIdsRef.current.add(picture.id);
+      });
+      queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
+      resumePlaybackAfterPictureQueueRef.current = true;
+      pause();
+      scheduleNextQueuedPlaybackPicture();
+    }
+
+    lastPlaybackProgressRef.current = currentProgress;
+  }, [
+    autoPlaybackPictureId,
+    clearPendingQueuedPictureOpen,
+    openNextQueuedPlaybackPicture,
+    pause,
+    pictures,
+    playback.isPlaying,
+    playback.progress,
+    scheduleNextQueuedPlaybackPicture,
+    selectedPictureId,
+  ]);
+
+  const closeActivePicture = useCallback(() => {
+    clearPendingQueuedPictureOpen();
+
+    if (selectedPictureId) {
+      setSelectedPictureId(null);
+      return;
+    }
+
+    if (autoPlaybackPictureId) {
+      setAutoPlaybackPictureId(null);
+    }
+
+    if (queuedPlaybackPictureIdsRef.current.length > 0) {
+      scheduleNextQueuedPlaybackPicture();
+      return;
+    }
+
+    if (resumePlaybackAfterPictureQueueRef.current) {
+      resumePlaybackAfterPictureQueueRef.current = false;
+      play();
+    }
+  }, [autoPlaybackPictureId, clearPendingQueuedPictureOpen, play, scheduleNextQueuedPlaybackPicture, selectedPictureId, setSelectedPictureId]);
   
   // Get active picture for current progress
   const selectedPicture = selectedPictureId
     ? pictures.find((p) => p.id === selectedPictureId)
     : undefined;
-  const playbackPicture = pictures.find(
-    (p) => Math.abs(p.progress - playback.progress) < 0.005 && playback.isPlaying
-  );
-  const activePicture = selectedPicture || playbackPicture;
+  const autoPlaybackPicture = autoPlaybackPictureId
+    ? pictures.find((p) => p.id === autoPlaybackPictureId)
+    : undefined;
+  const activePicture = selectedPicture || autoPlaybackPicture;
   
   const hasTracks = tracks.length > 0;
 
@@ -272,12 +395,9 @@ function App() {
               {/* Picture Popup */}
               {activePicture && settings.showPictures && (
                 <PicturePopup 
+                  key={activePicture.id}
                   picture={activePicture} 
-                  onClose={() => {
-                    if (selectedPictureId === activePicture.id) {
-                      setSelectedPictureId(null);
-                    }
-                  }} 
+                  onClose={closeActivePicture}
                 />
               )}
               
