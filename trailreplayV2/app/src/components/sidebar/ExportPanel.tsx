@@ -239,6 +239,18 @@ export function ExportPanel() {
               allowTaint: true,
             });
             octx.drawImage(cap, 0, 0, cap.width, cap.height, popupDx, popupDy, popupDw, popupDh);
+
+            // Draw the uploaded picture into the same cached overlay. html2canvas
+            // can omit blob: images, but the DOM <img> already has the decoded pixels.
+            const popupImageEl = picturePopupEl.querySelector('img') as HTMLImageElement | null;
+            if (popupImageEl && popupImageEl.complete && popupImageEl.naturalWidth > 0) {
+              const imageRect = popupImageEl.getBoundingClientRect();
+              const imageDx = (imageRect.left - containerRect.left - cropX) * scaleToRec;
+              const imageDy = (imageRect.top - containerRect.top - cropY) * scaleToRec;
+              const imageDw = imageRect.width * scaleToRec;
+              const imageDh = imageRect.height * scaleToRec;
+              octx.drawImage(popupImageEl, imageDx, imageDy, imageDw, imageDh);
+            }
           }
         } catch { /* skip */ }
       }
@@ -288,22 +300,6 @@ export function ExportPanel() {
     // 2. Composite overlay (stats + elevation profile), updated async in background
     if (cachedOverlayRef.current) {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
-    }
-
-    // 2b. Draw the active picture image directly. html2canvas can miss blob:
-    // URLs from local uploads, but the DOM image element already has decoded data.
-    const activePictureImg = document.querySelector('.tr-picture-popup img') as HTMLImageElement | null;
-    if (activePictureImg && activePictureImg.complete && activePictureImg.naturalWidth > 0) {
-      try {
-        const pictureRect = activePictureImg.getBoundingClientRect();
-        const scaleX = recordW / cropW;
-        const scaleY = recordH / cropH;
-        const pictureX = (pictureRect.left - containerRect.left - cropX) * scaleX;
-        const pictureY = (pictureRect.top - containerRect.top - cropY) * scaleY;
-        const pictureW = pictureRect.width * scaleX;
-        const pictureH = pictureRect.height * scaleY;
-        ctx.drawImage(activePictureImg, pictureX, pictureY, pictureW, pictureH);
-      } catch { /* skip */ }
     }
 
     // 3. Draw activity marker (circle + emoji)
