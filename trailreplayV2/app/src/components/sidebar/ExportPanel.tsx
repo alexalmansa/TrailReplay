@@ -3,72 +3,37 @@ import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { ExportSettingsModal } from './export/ExportSettingsModal';
+import {
+  getSupportedMimeType,
+  getVideoBitrate,
+  MP4_MIME_TYPES,
+  QUALITY_OPTIONS,
+} from './export/exportConfig';
 import {
   Download,
   Settings,
   Check,
   X,
-  Film,
-  Monitor,
-  AlertTriangle
+  Film
 } from 'lucide-react';
 
-const MP4_MIME_TYPES = [
-  'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-  'video/mp4;codecs=avc1.4D401E,mp4a.40.2',
-  'video/mp4;codecs=avc1.64001E,mp4a.40.2',
-  'video/mp4;codecs=h264',
-  'video/mp4',
-];
-
-const WEBM_MIME_TYPES = [
-  'video/webm;codecs=vp9',
-  'video/webm;codecs=vp8',
-  'video/webm',
-];
-
-function getSupportedMimeType(format: 'mp4' | 'webm'): { mimeType: string; actualFormat: 'mp4' | 'webm' } {
-  if (format === 'mp4') {
-    const mp4 = MP4_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t));
-    if (mp4) return { mimeType: mp4, actualFormat: 'mp4' };
-    // Fall back to WebM if MP4 not natively supported
-    const webm = WEBM_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
-    return { mimeType: webm, actualFormat: 'webm' };
+type Html2Canvas = (
+  element: HTMLElement,
+  options: {
+    backgroundColor: string | null;
+    scale: number;
+    logging: boolean;
+    useCORS: boolean;
+    allowTaint?: boolean;
   }
-  const webm = WEBM_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
-  return { mimeType: webm, actualFormat: 'webm' };
-}
+) => Promise<HTMLCanvasElement>;
 
-import type { AspectRatio } from '@/types';
-
-const QUALITY_OPTIONS = [
-  { value: 'low',   label: '720p'  },
-  { value: 'medium', label: '1080p' },
-  { value: 'high',  label: '1440p' },
-  { value: 'ultra', label: '4K'    },
-];
-
-// Long-edge pixel counts per quality tier
-const QUALITY_LONG_EDGE: Record<string, number> = {
-  low: 1280, medium: 1920, high: 2560, ultra: 3840,
-};
-
-const ASPECT_RATIO_OPTIONS: { id: AspectRatio; label: string; icon: string; descriptionKey: string }[] = [
-  { id: '16:9', label: '16:9', icon: '▬', descriptionKey: 'export.aspectLandscape' },
-  { id: '1:1',  label: '1:1',  icon: '■', descriptionKey: 'export.aspectSquare' },
-  { id: '9:16', label: '9:16', icon: '▮', descriptionKey: 'export.aspectPortrait' },
-];
-
-function getResolution(quality: string, aspectRatio: AspectRatio): { width: number; height: number } {
-  const long = QUALITY_LONG_EDGE[quality] ?? 1920;
-  switch (aspectRatio) {
-    case '16:9': return { width: long, height: Math.round(long * 9 / 16) };
-    case '1:1':  { const s = Math.round(long * 9 / 16); return { width: s, height: s }; }
-    case '9:16': { const h = long; const w = Math.round(long * 9 / 16); return { width: w, height: h }; }
+declare global {
+  interface Window {
+    html2canvas?: Html2Canvas;
   }
 }
-
-const FPS_OPTIONS = [24, 30, 60];
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -113,6 +78,8 @@ export function ExportPanel() {
 
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
 
+  const html2canvas = useCallback(() => window.html2canvas ?? null, []);
+
   // Watch for animation phase changes to stop recording
   useEffect(() => {
     if (!isRecordingRef.current) return;
@@ -137,7 +104,7 @@ export function ExportPanel() {
 
   // Load html2canvas dynamically (same as v1)
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
-    if ((window as any).html2canvas) return true;
+    if (html2canvas()) return true;
     return new Promise((resolve) => {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -146,7 +113,7 @@ export function ExportPanel() {
       script.onerror = () => resolve(false);
       document.head.appendChild(script);
     });
-  }, []);
+  }, [html2canvas]);
 
   // Calculate center-crop region so the map canvas is cropped to target aspect ratio.
   // Returns pixel coordinates within the map container's CSS rect.
@@ -170,7 +137,8 @@ export function ExportPanel() {
   // Draws them at FIXED positions within the recording canvas so they're always
   // visible regardless of aspect ratio crop (stats top-left, elevation bottom).
   const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
-    if (overlayBusyRef.current || !(window as any).html2canvas) return;
+    const capture = html2canvas();
+    if (overlayBusyRef.current || !capture) return;
     overlayBusyRef.current = true;
     overlayLastUpdateRef.current = Date.now();
     try {
@@ -192,7 +160,7 @@ export function ExportPanel() {
         const statsEl = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
         if (statsEl) {
           try {
-            const cap: HTMLCanvasElement = await (window as any).html2canvas(statsEl, {
+            const cap = await capture(statsEl, {
               backgroundColor: null, scale: 2, logging: false, useCORS: true, allowTaint: true,
             });
             const dw = cap.width * scaleToRec / 2;
@@ -207,7 +175,7 @@ export function ExportPanel() {
         const elevEl = document.getElementById('mapElevationProfile') as HTMLElement | null;
         if (elevEl) {
           try {
-            const cap: HTMLCanvasElement = await (window as any).html2canvas(elevEl, {
+            const cap = await capture(elevEl, {
               backgroundColor: null, scale: 1, logging: false, useCORS: true,
             });
             const rawDw = cap.width * scaleToRec;
@@ -231,7 +199,7 @@ export function ExportPanel() {
           const popupDh = popupRect.height * scaleToRec;
 
           if (popupDw > 0 && popupDh > 0) {
-            const cap: HTMLCanvasElement = await (window as any).html2canvas(picturePopupEl, {
+            const cap = await capture(picturePopupEl, {
               backgroundColor: null,
               scale: 1,
               logging: false,
@@ -259,7 +227,7 @@ export function ExportPanel() {
     } catch { /* silently ignore */ } finally {
       overlayBusyRef.current = false;
     }
-  }, [getCropRegion, videoExportSettings.includeStats, videoExportSettings.includeElevation]);
+  }, [getCropRegion, html2canvas, videoExportSettings.includeStats, videoExportSettings.includeElevation]);
 
   // Capture frame:
   // 1. Draw the MapLibre canvas DIRECTLY (always works, preserveDrawingBuffer:true)
@@ -543,7 +511,7 @@ export function ExportPanel() {
       setIsExporting(false);
       isRecordingRef.current = false;
     }
-  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture, loadHtml2Canvas, updateOverlayAsync, getCropRegion, t]);
+  }, [videoExportSettings, setIsExporting, setExportProgress, setExportStage, resetPlayback, setCinematicPlayed, play, startFrameCapture, loadHtml2Canvas, updateOverlayAsync, t]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
@@ -709,196 +677,15 @@ export function ExportPanel() {
       )}
 
       {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-[var(--evergreen)] mb-4">
-              {t('export.title')}
-            </h3>
-
-            {/* Format */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                {t('export.format')}
-              </label>
-              <div className="flex gap-2">
-                {(['mp4', 'webm'] as const).map((fmt) => (
-                  <button
-                    key={fmt}
-                    onClick={() => setVideoExportSettings({ format: fmt })}
-                    className={`
-                      flex-1 py-2 px-3 rounded-lg text-sm font-medium uppercase transition-colors
-                      ${videoExportSettings.format === fmt
-                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                      }
-                    `}
-                  >
-                    {fmt}
-                  </button>
-                ))}
-              </div>
-              {videoExportSettings.format === 'mp4' && !mp4Supported && (
-                <div className="mt-2 flex items-start gap-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-                  <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  {t('export.mp4Unsupported')}
-                </div>
-              )}
-              {videoExportSettings.format === 'mp4' && mp4Supported && (
-                <p className="mt-1 text-xs text-[var(--evergreen-60)]">{t('export.mp4Supported')}</p>
-              )}
-            </div>
-
-            {/* Aspect Ratio */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                {t('export.aspectRatio')}
-              </label>
-              <div className="flex gap-2">
-                {ASPECT_RATIO_OPTIONS.map((ar) => (
-                  <button
-                    key={ar.id}
-                    onClick={() => setVideoExportSettings({
-                      aspectRatio: ar.id,
-                      resolution: getResolution(videoExportSettings.quality, ar.id),
-                    })}
-                    className={`
-                      flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-xs font-medium transition-colors
-                      ${videoExportSettings.aspectRatio === ar.id
-                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                      }
-                    `}
-                  >
-                    {/* Visual ratio icon */}
-                    <span className={`
-                      border-2 rounded-sm
-                      ${videoExportSettings.aspectRatio === ar.id ? 'border-white/70' : 'border-[var(--evergreen)]/40'}
-                      ${ar.id === '16:9' ? 'w-8 h-[18px]' : ar.id === '1:1' ? 'w-5 h-5' : 'w-[11px] h-5'}
-                    `} />
-                    <span className="font-bold">{ar.label}</span>
-                    <span className="opacity-70 text-[10px]">{t(ar.descriptionKey)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Quality */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                {t('export.quality')}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {QUALITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setVideoExportSettings({
-                      quality: opt.value as any,
-                      resolution: getResolution(opt.value, videoExportSettings.aspectRatio),
-                    })}
-                    className={`
-                      py-2 px-3 rounded-lg text-sm font-medium transition-colors
-                      ${videoExportSettings.quality === opt.value
-                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                      }
-                    `}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* FPS */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                {t('export.frameRate')}
-              </label>
-              <div className="flex gap-2">
-                {FPS_OPTIONS.map((fps) => (
-                  <button
-                    key={fps}
-                    onClick={() => setVideoExportSettings({ fps })}
-                    className={`
-                      flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors
-                      ${videoExportSettings.fps === fps
-                        ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                        : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                      }
-                    `}
-                  >
-                    {t('export.fpsLabel', { fps })}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Overlays */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                {t('export.overlays')}
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    onClick={() => setVideoExportSettings({ includeStats: !videoExportSettings.includeStats })}
-                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                      videoExportSettings.includeStats ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      videoExportSettings.includeStats ? 'translate-x-5' : 'translate-x-0.5'
-                    }`} />
-                  </div>
-                  <span className="text-sm text-[var(--evergreen)]">{t('export.statsOverlay')}</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    onClick={() => setVideoExportSettings({ includeElevation: !videoExportSettings.includeElevation })}
-                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                      videoExportSettings.includeElevation ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      videoExportSettings.includeElevation ? 'translate-x-5' : 'translate-x-0.5'
-                    }`} />
-                  </div>
-                  <span className="text-sm text-[var(--evergreen)]">{t('export.elevationProfile')}</span>
-                </label>
-                <p className="text-xs text-[var(--evergreen-60)] pl-13">{t('export.logoNote')}</p>
-              </div>
-            </div>
-
-            {/* Estimated Size + Resolution */}
-            <div className="bg-[var(--evergreen)]/10 rounded-lg p-3 flex items-center gap-2 mb-4">
-              <Monitor className="w-4 h-4 text-[var(--evergreen-60)]" />
-              <span className="text-sm text-[var(--evergreen)]">
-                <strong>{videoExportSettings.resolution.width}×{videoExportSettings.resolution.height}</strong>
-                <span className="text-[var(--evergreen-60)] ml-2">≈ {estimatedSize}</span>
-              </span>
-            </div>
-
-            <button
-              onClick={() => setShowSettings(false)}
-              className="w-full tr-btn tr-btn-primary"
-            >
-              {t('common.done')}
-            </button>
-          </div>
-        </div>
-      )}
+      <ExportSettingsModal
+        estimatedSize={estimatedSize}
+        isOpen={showSettings}
+        mp4Supported={mp4Supported}
+        onClose={() => setShowSettings(false)}
+        setVideoExportSettings={setVideoExportSettings}
+        t={t}
+        videoExportSettings={videoExportSettings}
+      />
     </div>
   );
-}
-
-// Helper function for video bitrate
-function getVideoBitrate(quality: string): number {
-  const bitrates: Record<string, number> = {
-    low: 2_000_000,
-    medium: 5_000_000,
-    high: 10_000_000,
-    ultra: 20_000_000,
-  };
-  return bitrates[quality] || bitrates.high;
 }

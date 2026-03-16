@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/store/useAppStore';
@@ -10,390 +11,26 @@ import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
 import { getHeartRateColor } from '@/utils/gpxParser';
 import { calculateDistance } from '@/utils/journeyUtils';
+import { registerAspectProtocol, registerSlopeProtocol } from './terrainProtocols';
+import { MAP_LAYERS, MAP_STYLE } from './mapStyle';
+import {
+  calculateTerrainAwareAdjustments,
+  smoothBearing,
+  TERRAIN_CAMERA_SETTINGS,
+} from './cameraUtils';
+import { setupTrackSources } from './mapSetup';
+import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
+import { usePictureMarkers } from './hooks/usePictureMarkers';
+import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-// ── Slope protocol: computes slope from Terrarium elevation tiles ──────────
-// Terrarium encoding: elevation = (R * 256 + G + B / 256) - 32768
-function terrariumHeight(r: number, g: number, b: number): number {
-  return (r * 256 + g + b / 256) - 32768;
-}
-
-// Meters per pixel at a given zoom level (at equator; good enough for slope)
-function metersPerPixel(zoom: number): number {
-  return 40075016.686 / (256 * Math.pow(2, zoom));
-}
-
-// Slope color ramp (degrees → RGBA) — ski/mountaineering standard
-function slopeColor(degrees: number): [number, number, number, number] {
-  if (degrees < 15) return [0, 0, 0, 0];                // flat — transparent
-  if (degrees < 25) return [255, 255, 0, 120];           // yellow — mild
-  if (degrees < 30) return [255, 200, 0, 150];           // amber — moderate
-  if (degrees < 35) return [255, 120, 0, 180];           // orange — steep
-  if (degrees < 40) return [255, 50, 0, 200];            // red-orange — very steep
-  if (degrees < 45) return [220, 0, 0, 210];             // red — extreme
-  return [160, 0, 80, 220];                              // dark magenta — cliff
-}
-
-let slopeProtocolRegistered = false;
-let aspectProtocolRegistered = false;
-
-function registerSlopeProtocol() {
-  if (slopeProtocolRegistered) return;
-  slopeProtocolRegistered = true;
-
-  maplibregl.addProtocol('slope', async (params, _abortController) => {
-    // URL format: slope://{z}/{x}/{y}
-    const parts = params.url.replace('slope://', '').split('/');
-    const z = parseInt(parts[0]);
-    const x = parseInt(parts[1]);
-    const y = parseInt(parts[2]);
-
-    // Clamp to maxzoom 15 (Terrarium tiles max)
-    const tz = Math.min(z, 15);
-    // Scale tile coords if we're beyond maxzoom
-    const scale = Math.pow(2, z - tz);
-    const tx = Math.floor(x / scale);
-    const ty = Math.floor(y / scale);
-
-    const tileUrl = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${tz}/${tx}/${ty}.png`;
-
-    const response = await fetch(tileUrl);
-    if (!response.ok) throw new Error(`Tile fetch error: ${response.statusText}`);
-    const blob = await response.blob();
-    const bitmap = await createImageBitmap(blob);
-
-    const size = 256;
-    // Draw source tile to read pixels (oversized to read neighbor pixels at edges)
-    const srcCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const srcCtx = srcCanvas.getContext('2d')!;
-    srcCtx.drawImage(bitmap, 0, 0);
-    const srcData = srcCtx.getImageData(0, 0, bitmap.width, bitmap.height);
-    const src = srcData.data;
-    const w = bitmap.width;
-
-    // If beyond maxzoom, we need to extract a sub-region of the parent tile
-    const subSize = Math.floor(w / scale);
-    const offX = Math.floor((x % scale) * subSize);
-    const offY = Math.floor((y % scale) * subSize);
-
-    // Output canvas
-    const outCanvas = new OffscreenCanvas(size, size);
-    const outCtx = outCanvas.getContext('2d')!;
-    const outImg = outCtx.createImageData(size, size);
-    const out = outImg.data;
-
-    const cellSize = metersPerPixel(z);
-
-    for (let py = 0; py < size; py++) {
-      for (let px = 0; px < size; px++) {
-        // Map output pixel to source pixel
-        const sx = Math.min(Math.floor(offX + px * subSize / size), w - 1);
-        const sy = Math.min(Math.floor(offY + py * subSize / size), w - 1);
-
-        const idxL = (sy * w + Math.max(0, sx - 1)) * 4;
-        const idxR = (sy * w + Math.min(w - 1, sx + 1)) * 4;
-        const idxU = (Math.max(0, sy - 1) * w + sx) * 4;
-        const idxD = (Math.min(w - 1, sy + 1) * w + sx) * 4;
-
-        const hL = terrariumHeight(src[idxL], src[idxL + 1], src[idxL + 2]);
-        const hR = terrariumHeight(src[idxR], src[idxR + 1], src[idxR + 2]);
-        const hU = terrariumHeight(src[idxU], src[idxU + 1], src[idxU + 2]);
-        const hD = terrariumHeight(src[idxD], src[idxD + 1], src[idxD + 2]);
-
-        const dzdx = (hR - hL) / (2 * cellSize);
-        const dzdy = (hD - hU) / (2 * cellSize);
-        const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
-
-        const [r, g, b, a] = slopeColor(slopeDeg);
-        const oi = (py * size + px) * 4;
-        out[oi] = r;
-        out[oi + 1] = g;
-        out[oi + 2] = b;
-        out[oi + 3] = a;
-      }
-    }
-
-    outCtx.putImageData(outImg, 0, 0);
-    const outBlob = await outCanvas.convertToBlob({ type: 'image/png' });
-    const arrayBuffer = await outBlob.arrayBuffer();
-    return { data: arrayBuffer };
-  });
-}
-
-// Aspect color ramp (degrees from north → RGBA)
-function aspectColor(aspectDegrees: number, slopeDegrees: number): [number, number, number, number] {
-  if (slopeDegrees < 5) return [0, 0, 0, 0]; // flat — transparent
-
-  // Normalize to 0–360
-  const d = (aspectDegrees + 360) % 360;
-  const alpha = 170;
-
-  // 8-direction bins
-  if (d >= 337.5 || d < 22.5) return [0, 122, 255, alpha];      // N
-  if (d < 67.5) return [0, 200, 255, alpha];                    // NE
-  if (d < 112.5) return [0, 200, 90, alpha];                    // E
-  if (d < 157.5) return [180, 220, 0, alpha];                   // SE
-  if (d < 202.5) return [255, 165, 0, alpha];                   // S
-  if (d < 247.5) return [255, 80, 0, alpha];                    // SW
-  if (d < 292.5) return [200, 0, 200, alpha];                   // W
-  return [120, 0, 255, alpha];                                  // NW
-}
-
-function registerAspectProtocol() {
-  if (aspectProtocolRegistered) return;
-  aspectProtocolRegistered = true;
-
-  maplibregl.addProtocol('aspect', async (params, _abortController) => {
-    // URL format: aspect://{z}/{x}/{y}
-    const parts = params.url.replace('aspect://', '').split('/');
-    const z = parseInt(parts[0]);
-    const x = parseInt(parts[1]);
-    const y = parseInt(parts[2]);
-
-    // Clamp to maxzoom 15 (Terrarium tiles max)
-    const tz = Math.min(z, 15);
-    // Scale tile coords if we're beyond maxzoom
-    const scale = Math.pow(2, z - tz);
-    const tx = Math.floor(x / scale);
-    const ty = Math.floor(y / scale);
-
-    const tileUrl = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${tz}/${tx}/${ty}.png`;
-
-    const response = await fetch(tileUrl);
-    if (!response.ok) throw new Error(`Tile fetch error: ${response.statusText}`);
-    const blob = await response.blob();
-    const bitmap = await createImageBitmap(blob);
-
-    const size = 256;
-    // Draw source tile to read pixels (oversized to read neighbor pixels at edges)
-    const srcCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const srcCtx = srcCanvas.getContext('2d')!;
-    srcCtx.drawImage(bitmap, 0, 0);
-    const srcData = srcCtx.getImageData(0, 0, bitmap.width, bitmap.height);
-    const src = srcData.data;
-    const w = bitmap.width;
-
-    // If beyond maxzoom, we need to extract a sub-region of the parent tile
-    const subSize = Math.floor(w / scale);
-    const offX = Math.floor((x % scale) * subSize);
-    const offY = Math.floor((y % scale) * subSize);
-
-    // Output canvas
-    const outCanvas = new OffscreenCanvas(size, size);
-    const outCtx = outCanvas.getContext('2d')!;
-    const outImg = outCtx.createImageData(size, size);
-    const out = outImg.data;
-
-    const cellSize = metersPerPixel(z);
-
-    for (let py = 0; py < size; py++) {
-      for (let px = 0; px < size; px++) {
-        // Map output pixel to source pixel
-        const sx = Math.min(Math.floor(offX + px * subSize / size), w - 1);
-        const sy = Math.min(Math.floor(offY + py * subSize / size), w - 1);
-
-        const idxL = (sy * w + Math.max(0, sx - 1)) * 4;
-        const idxR = (sy * w + Math.min(w - 1, sx + 1)) * 4;
-        const idxU = (Math.max(0, sy - 1) * w + sx) * 4;
-        const idxD = (Math.min(w - 1, sy + 1) * w + sx) * 4;
-
-        const hL = terrariumHeight(src[idxL], src[idxL + 1], src[idxL + 2]);
-        const hR = terrariumHeight(src[idxR], src[idxR + 1], src[idxR + 2]);
-        const hU = terrariumHeight(src[idxU], src[idxU + 1], src[idxU + 2]);
-        const hD = terrariumHeight(src[idxD], src[idxD + 1], src[idxD + 2]);
-
-        const dzdx = (hR - hL) / (2 * cellSize);
-        const dzdy = (hD - hU) / (2 * cellSize);
-        const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
-        // Aspect in degrees clockwise from north
-        const aspectDeg = (Math.atan2(dzdy, -dzdx) * (180 / Math.PI) + 360) % 360;
-
-        const [r, g, b, a] = aspectColor(aspectDeg, slopeDeg);
-        const oi = (py * size + px) * 4;
-        out[oi] = r;
-        out[oi + 1] = g;
-        out[oi + 2] = b;
-        out[oi + 3] = a;
-      }
-    }
-
-    outCtx.putImageData(outImg, 0, 0);
-    const outBlob = await outCanvas.convertToBlob({ type: 'image/png' });
-    const arrayBuffer = await outBlob.arrayBuffer();
-    return { data: arrayBuffer };
-  });
-}
-
-// Map style configuration matching original TrailReplay
-const MAP_STYLE = {
-  version: 8,
-  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-  sources: {
-    'osm': {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors'
-    },
-    'opentopomap': {
-      type: 'raster',
-      tiles: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenTopoMap (CC-BY-SA)'
-    },
-    'satellite': {
-      type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: '© Esri'
-    },
-    'carto-labels': {
-      type: 'raster',
-      tiles: ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© CartoDB'
-    },
-    'enhanced-hillshade': {
-      type: 'raster',
-      tiles: ['https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/ASTER_GDEM/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenTopography/ASTER GDEM'
-    },
-    'opensnowmap': {
-      type: 'raster',
-      tiles: ['https://tiles.opensnowmap.org/pistes/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: 'Data © OpenStreetMap contributors ODbL, OpenSnowMap.org CC-BY-SA'
-    },
-    'esri-clarity': {
-      type: 'raster',
-      tiles: ['https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
-    },
-    'slope': {
-      type: 'raster',
-      tiles: ['slope://{z}/{x}/{y}'],
-      tileSize: 256,
-      maxzoom: 15,
-      attribution: 'Slope derived from AWS Terrain Tiles'
-    },
-    'aspect': {
-      type: 'raster',
-      tiles: ['aspect://{z}/{x}/{y}'],
-      tileSize: 256,
-      maxzoom: 15,
-      attribution: 'Aspect derived from AWS Terrain Tiles'
-    },
-    'terrain-dem': {
-      type: 'raster-dem',
-      tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      encoding: 'terrarium',
-      maxzoom: 15
-    }
-  },
-  layers: [
-    { id: 'background', type: 'raster', source: 'satellite' },
-    { id: 'esri-clarity', type: 'raster', source: 'esri-clarity', layout: { visibility: 'none' } },
-    { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
-    { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
-    { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
-    { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } },
-    { id: 'ski-pistes', type: 'raster', source: 'opensnowmap', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.9 } },
-    { id: 'slope-overlay', type: 'raster', source: 'slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7 } },
-    { id: 'aspect-overlay', type: 'raster', source: 'aspect', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7 } }
-  ],
-  terrain: {
-    source: 'terrain-dem',
-    exaggeration: 1.2
-  }
-};
-
-// Map layer names for UI
-const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
-  satellite: { name: 'Satellite', icon: '🛰️' },
-  street: { name: 'Street', icon: '🛣️' },
-  opentopomap: { name: 'Topo', icon: '⛰️' },
-  'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
-  'esri-clarity': { name: 'Esri Clarity', icon: '📡' },
-  wayback: { name: 'Wayback', icon: '🕰️' },
-};
-
-
-// Smooth bearing using exponential moving average
-function smoothBearing(currentBearing: number, targetBearing: number, smoothingFactor: number = 0.015): number {
-  let diff = targetBearing - currentBearing;
-  if (diff > 180) diff -= 360;
-  if (diff < -180) diff += 360;
-
-  const maxChange = 2;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
-
-  return (currentBearing + change + 360) % 360;
-}
-
-// Terrain-aware camera settings (based on v1 FollowBehindCamera)
-const TERRAIN_CAMERA_SETTINGS = {
-  // Risk thresholds
-  ELEVATION_RISK_METERS: 1200, // At this elevation, risk is 100%
-  STEEPNESS_RISK_FACTOR: 18,   // Multiplier for slope risk
-  LOOK_AHEAD_PROGRESS: 0.02,   // How far ahead/behind to check for slope
-
-  // Dynamic adjustments
-  MAX_ZOOM_OUT: 2,             // Max zoom levels to reduce
-  MAX_PITCH_REDUCE: 15,        // Max pitch degrees to reduce
-
-  // Limits (reduced to prevent white screen from tiles not loading)
-  MIN_ZOOM: 8,
-  MAX_ZOOM: 14,
-  MIN_PITCH: 15,
-  MAX_PITCH: 50,
-};
-
-// Calculate terrain-aware camera adjustments
-function calculateTerrainAwareAdjustments(
-  elevation: number,
-  elevationData: Array<{ elevation: number; progress: number }>,
-  currentProgress: number
-): { zoomAdjust: number; pitchAdjust: number } {
-  // Calculate elevation risk (0-1 based on how high we are)
-  const elevationRisk = Math.min(
-    Math.max(0, elevation) / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS,
-    1
-  );
-
-  // Calculate steepness risk based on elevation change
-  let steepnessRisk = 0;
-  if (elevationData.length > 2) {
-    const lookAhead = TERRAIN_CAMERA_SETTINGS.LOOK_AHEAD_PROGRESS;
-    const behindIdx = Math.max(0, Math.floor((currentProgress - lookAhead) * (elevationData.length - 1)));
-    const aheadIdx = Math.min(elevationData.length - 1, Math.floor((currentProgress + lookAhead) * (elevationData.length - 1)));
-
-    const behindElev = elevationData[behindIdx]?.elevation || elevation;
-    const aheadElev = elevationData[aheadIdx]?.elevation || elevation;
-    const elevChange = Math.abs(aheadElev - behindElev);
-
-    // Normalize steepness (higher change = more risk)
-    steepnessRisk = Math.min(elevChange / 100 * TERRAIN_CAMERA_SETTINGS.STEEPNESS_RISK_FACTOR / 100, 1);
-  }
-
-  // Combined risk is the maximum of elevation and steepness risks
-  const combinedRisk = Math.max(elevationRisk, steepnessRisk);
-
-  // Calculate adjustments
-  const zoomAdjust = combinedRisk * TERRAIN_CAMERA_SETTINGS.MAX_ZOOM_OUT;
-  const pitchAdjust = combinedRisk * TERRAIN_CAMERA_SETTINGS.MAX_PITCH_REDUCE;
-
-  return { zoomAdjust, pitchAdjust };
-}
-
-export function TrailMap({}: TrailMapProps) {
+export function TrailMap(_props: TrailMapProps) {
   const { t } = useI18n();
-  const mapContainer = useRef<HTMLDivElement>(null);
+  const internalMapContainerRef = useRef<HTMLDivElement>(null);
+  const mapContainer = _props.mapContainerRef ?? internalMapContainerRef;
   const map = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const smoothBearingRef = useRef<number>(0);
@@ -485,6 +122,31 @@ export function TrailMap({}: TrailMapProps) {
     };
   }, [activeTrack, computedJourney, playback.progress, tracks]);
 
+  useManualPicturePlacement({
+    addPicture,
+    findNearestRoutePoint,
+    isMapLoaded,
+    mapRef: map,
+    pendingPicturePlacements,
+    removePendingPicturePlacement,
+    t,
+  });
+
+  usePictureMarkers({
+    isMapLoaded,
+    mapRef: map,
+    pictures,
+    setSelectedPictureId,
+    showPictures: settings.showPictures,
+  });
+
+  useComparisonTrackLayers({
+    comparisonTracks,
+    isMapLoaded,
+    mapRef: map,
+    progress: playback.progress,
+  });
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -494,7 +156,7 @@ export function TrailMap({}: TrailMapProps) {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: MAP_STYLE as any,
+      style: MAP_STYLE as unknown as maplibregl.StyleSpecification,
       center: [0, 0],
       zoom: 2,
       pitch: 0,
@@ -502,7 +164,7 @@ export function TrailMap({}: TrailMapProps) {
       maxPitch: 85,
       preserveDrawingBuffer: true,
       attributionControl: false,
-    } as any);
+    } as ConstructorParameters<typeof maplibregl.Map>[0]);
 
     // Expose map instance globally so ExportPanel can call getCanvas() / triggerRepaint()
     mapGlobalRef.current = map.current;
@@ -511,7 +173,9 @@ export function TrailMap({}: TrailMapProps) {
       setIsMapLoaded(true);
       map.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
       map.current?.addControl(new maplibregl.FullscreenControl(), 'top-right');
-      setupTrackSources();
+      if (map.current) {
+        setupTrackSources(map.current, trailStyle.trailColor);
+      }
     });
 
     return () => {
@@ -520,104 +184,7 @@ export function TrailMap({}: TrailMapProps) {
       map.current = null;
       loadZoomDoneRef.current = false;
     };
-  }, []);
-
-  // Setup track sources
-  const setupTrackSources = useCallback(() => {
-    if (!map.current) return;
-
-    // Main trail line (full journey)
-    if (!map.current.getSource('trail-line')) {
-      map.current.addSource('trail-line', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
-      });
-    }
-
-    // Completed trail (animated portion)
-    if (!map.current.getSource('trail-completed')) {
-      map.current.addSource('trail-completed', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
-      });
-    }
-
-    // Transport segments (dashed line)
-    if (!map.current.getSource('transport-line')) {
-      map.current.addSource('transport-line', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: [] } }
-      });
-    }
-
-    // Track label source
-    if (!map.current.getSource('main-track-label')) {
-      map.current.addSource('main-track-label', {
-        type: 'geojson',
-        data: { type: 'Feature', properties: { label: '' }, geometry: { type: 'Point', coordinates: [0, 0] } }
-      });
-    }
-
-    // Add layers
-    if (!map.current.getLayer('trail-line')) {
-      map.current.addLayer({
-        id: 'trail-line',
-        type: 'line',
-        source: 'trail-line',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#C1652F', 'line-width': 4, 'line-opacity': 0.5 }
-      });
-    }
-
-    // Transport line (dashed)
-    if (!map.current.getLayer('transport-line')) {
-      map.current.addLayer({
-        id: 'transport-line',
-        type: 'line',
-        source: 'transport-line',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': '#888888',
-          'line-width': 3,
-          'line-opacity': 0.6,
-          'line-dasharray': [2, 2]
-        }
-      });
-    }
-
-    if (!map.current.getLayer('trail-completed')) {
-      map.current.addLayer({
-        id: 'trail-completed',
-        type: 'line',
-        source: 'trail-completed',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#C1652F', 'line-width': 6 }
-      });
-    }
-
-    // Track label layer
-    if (!map.current.getLayer('main-track-label')) {
-      map.current.addLayer({
-        id: 'main-track-label',
-        type: 'symbol',
-        source: 'main-track-label',
-        layout: {
-          'text-field': ['get', 'label'],
-          'text-size': 12,
-          'text-offset': [0, -2.5],
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'text-anchor': 'center',
-          'visibility': 'none',
-        },
-        paint: {
-          'text-color': trailStyle.trailColor,
-          'text-halo-color': '#FFFFFF',
-          'text-halo-width': 2,
-        },
-      });
-    }
-  }, []);
+  }, [trailStyle.trailColor]);
 
   // Update map layer visibility
   useEffect(() => {
@@ -762,7 +329,7 @@ export function TrailMap({}: TrailMapProps) {
         });
       }
     } else {
-      map.current.setTerrain(null as any);
+      map.current.setTerrain(null);
     }
   }, [settings.show3DTerrain, isMapLoaded]);
 
@@ -775,7 +342,7 @@ export function TrailMap({}: TrailMapProps) {
       console.log('🏃 Building heart rate trail - colorMode:', trailStyle.colorMode, 'coords:', allCoordinates.length);
 
       // Build features with color properties based on heart rate
-      const features: any[] = [];
+      const features: Array<Feature<LineString, { color: string }>> = [];
 
       // Get the heart rate points - support both single-track and journey modes
       let hrPoints: Array<{ heartRate: number | null }> = [];
@@ -1018,7 +585,7 @@ export function TrailMap({}: TrailMapProps) {
     if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
       if (trailStyle.colorMode === 'heartRate') {
         // Build HR-colored features for completed portion
-        const features: any[] = [];
+        const features: Array<Feature<LineString, { color: string }>> = [];
 
         let hrPoints: Array<{ heartRate: number | null }> = [];
         if (activeTrack && !computedJourney) {
@@ -1254,242 +821,6 @@ export function TrailMap({}: TrailMapProps) {
       map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
     }
   }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded, elevationData]);
-
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const canvas = map.current.getCanvas();
-    const previousCursor = canvas.style.cursor;
-    canvas.style.cursor = pendingPicturePlacements.length > 0 ? 'crosshair' : '';
-
-    return () => {
-      canvas.style.cursor = previousCursor;
-    };
-  }, [isMapLoaded, pendingPicturePlacements.length]);
-
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const handleMapClick = (event: maplibregl.MapMouseEvent) => {
-      const pendingPicture = useAppStore.getState().pendingPicturePlacements[0];
-      if (!pendingPicture) return;
-
-      const placement = findNearestRoutePoint(event.lngLat.lat, event.lngLat.lng);
-      if (!placement) {
-        useAppStore.getState().setError(t('media.manualPlacementNoRoute'));
-        return;
-      }
-
-      addPicture({
-        id: pendingPicture.id,
-        file: pendingPicture.file,
-        url: pendingPicture.url,
-        lat: placement.lat,
-        lon: placement.lon,
-        timestamp: pendingPicture.timestamp,
-        progress: placement.progress,
-        position: placement.progress,
-        placementSource: 'manual',
-        title: pendingPicture.title,
-        description: pendingPicture.description,
-        displayDuration: pendingPicture.displayDuration,
-      });
-      removePendingPicturePlacement(pendingPicture.id);
-    };
-
-    map.current.on('click', handleMapClick);
-    return () => {
-      map.current?.off('click', handleMapClick);
-    };
-  }, [addPicture, findNearestRoutePoint, isMapLoaded, removePendingPicturePlacement, t]);
-
-  // Add picture markers
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const existingMarkers = document.querySelectorAll('.tr-picture-marker');
-    existingMarkers.forEach((el) => el.remove());
-
-    if (!settings.showPictures) return;
-
-    pictures.forEach((picture) => {
-      if (picture.lat && picture.lon) {
-        const el = document.createElement('div');
-        el.className = 'tr-picture-marker';
-        el.style.cssText = `
-          width: 32px;
-          height: 32px;
-          background: var(--trail-orange);
-          border: 3px solid var(--canvas);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        `;
-        el.innerHTML = '📷';
-
-        el.addEventListener('click', (event) => {
-          event.stopPropagation();
-          setSelectedPictureId(picture.id);
-        });
-
-        new maplibregl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([picture.lon, picture.lat])
-          .addTo(map.current!);
-      }
-    });
-  }, [pictures, isMapLoaded, settings.showPictures, setSelectedPictureId]);
-
-  // Setup and update comparison track layers
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    // Clean up old comparison layers
-    ['comparison-trail-line', 'comparison-trail-completed', 'comparison-position-glow', 'comparison-track-label'].forEach((layerId) => {
-      if (map.current!.getLayer(layerId)) map.current!.removeLayer(layerId);
-    });
-    ['comparison-trail', 'comparison-trail-completed', 'comparison-position', 'comparison-track-label'].forEach((sourceId) => {
-      if (map.current!.getSource(sourceId)) map.current!.removeSource(sourceId);
-    });
-
-    if (comparisonTracks.length === 0) return;
-
-    const ct = comparisonTracks[0]; // Support first comparison track
-    const coords = ct.track.points.map((p) => [p.lon, p.lat]);
-
-    // Full trail
-    map.current.addSource('comparison-trail', {
-      type: 'geojson',
-      data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } },
-    });
-    map.current.addLayer({
-      id: 'comparison-trail-line',
-      type: 'line',
-      source: 'comparison-trail',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': ct.color, 'line-width': 4, 'line-opacity': 0.5 },
-    });
-
-    // Completed trail
-    map.current.addSource('comparison-trail-completed', {
-      type: 'geojson',
-      data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } },
-    });
-    map.current.addLayer({
-      id: 'comparison-trail-completed',
-      type: 'line',
-      source: 'comparison-trail-completed',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': ct.color, 'line-width': 6 },
-    });
-
-    // Marker glow
-    map.current.addSource('comparison-position', {
-      type: 'geojson',
-      data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: coords[0] || [0, 0] } },
-    });
-    map.current.addLayer({
-      id: 'comparison-position-glow',
-      type: 'circle',
-      source: 'comparison-position',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': ct.color,
-        'circle-opacity': 0.6,
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#FFFFFF',
-      },
-    });
-
-    // Label
-    map.current.addSource('comparison-track-label', {
-      type: 'geojson',
-      data: { type: 'Feature', properties: { label: ct.name }, geometry: { type: 'Point', coordinates: coords[0] || [0, 0] } },
-    });
-    map.current.addLayer({
-      id: 'comparison-track-label',
-      type: 'symbol',
-      source: 'comparison-track-label',
-      layout: {
-        'text-field': ['get', 'label'],
-        'text-size': 11,
-        'text-offset': [0, -2],
-        'text-allow-overlap': true,
-        'text-ignore-placement': true,
-        'text-anchor': 'center',
-      },
-      paint: {
-        'text-color': ct.color,
-        'text-halo-color': '#FFFFFF',
-        'text-halo-width': 2,
-      },
-    });
-  }, [comparisonTracks, isMapLoaded]);
-
-  // Update comparison track position during animation
-  useEffect(() => {
-    if (!map.current || !isMapLoaded || comparisonTracks.length === 0) return;
-
-    const ct = comparisonTracks[0];
-    if (!ct.visible) return;
-
-    const points = ct.track.points;
-    if (points.length === 0) return;
-
-    // Spatial-only: comparison progress matches main progress
-    const progress = playback.progress;
-    const targetDistance = ct.track.totalDistance * progress;
-
-    // Find the point at this distance
-    let pointIndex = 0;
-    for (let i = 0; i < points.length; i++) {
-      if (points[i].distance >= targetDistance) {
-        pointIndex = i;
-        break;
-      }
-      pointIndex = i;
-    }
-
-    const point = points[pointIndex];
-    const currentCoord: [number, number] = [point.lon, point.lat];
-
-    // Completed coordinates
-    const completed: number[][] = [];
-    for (const p of points) {
-      if (p.distance <= targetDistance) {
-        completed.push([p.lon, p.lat]);
-      } else {
-        break;
-      }
-    }
-
-    // Update sources
-    if (map.current.getSource('comparison-trail-completed') && completed.length > 1) {
-      (map.current.getSource('comparison-trail-completed') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: completed },
-      });
-    }
-
-    if (map.current.getSource('comparison-position')) {
-      (map.current.getSource('comparison-position') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'Point', coordinates: currentCoord },
-      });
-    }
-
-    if (map.current.getSource('comparison-track-label')) {
-      (map.current.getSource('comparison-track-label') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: { label: ct.name },
-        geometry: { type: 'Point', coordinates: currentCoord },
-      });
-    }
-  }, [comparisonTracks, playback.progress, isMapLoaded]);
 
   return (
     <div className="w-full h-full relative">
