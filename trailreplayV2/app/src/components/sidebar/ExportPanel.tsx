@@ -177,7 +177,7 @@ export function ExportPanel() {
       const container = document.getElementById('map-capture-container');
       if (!container) return;
       const containerRect = container.getBoundingClientRect();
-      const { cropW } = getCropRegion(containerRect, recordW, recordH);
+      const { cropX, cropY, cropW } = getCropRegion(containerRect, recordW, recordH);
       // Screen px → recording px conversion
       const scaleToRec = recordW / cropW;
       const margin = Math.round(recordW * 0.025);
@@ -218,6 +218,29 @@ export function ExportPanel() {
             octx.drawImage(cap, 0, 0, cap.width, cap.height, dx, dy, dw, dh);
           } catch { /* skip */ }
         }
+      }
+
+      // Active picture popup — draw at its on-screen position inside the crop.
+      const picturePopupEl = document.querySelector('.tr-picture-popup') as HTMLElement | null;
+      if (picturePopupEl) {
+        try {
+          const popupRect = picturePopupEl.getBoundingClientRect();
+          const popupDx = (popupRect.left - containerRect.left - cropX) * scaleToRec;
+          const popupDy = (popupRect.top - containerRect.top - cropY) * scaleToRec;
+          const popupDw = popupRect.width * scaleToRec;
+          const popupDh = popupRect.height * scaleToRec;
+
+          if (popupDw > 0 && popupDh > 0) {
+            const cap: HTMLCanvasElement = await (window as any).html2canvas(picturePopupEl, {
+              backgroundColor: null,
+              scale: 1,
+              logging: false,
+              useCORS: true,
+              allowTaint: true,
+            });
+            octx.drawImage(cap, 0, 0, cap.width, cap.height, popupDx, popupDy, popupDw, popupDh);
+          }
+        } catch { /* skip */ }
       }
 
       cachedOverlayRef.current = overlay;
