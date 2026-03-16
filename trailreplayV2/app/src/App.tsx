@@ -26,7 +26,16 @@ function CropPreviewBars({
   ratio: AspectRatio;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const [bars, setBars] = useState<{ left: number; right: number; top: number; bottom: number } | null>(null);
+  const [cropPreview, setCropPreview] = useState<{
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    frameLeft: number;
+    frameTop: number;
+    frameWidth: number;
+    frameHeight: number;
+  } | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -40,12 +49,30 @@ function CropPreviewBars({
         // Crop left/right
         const cropW = H * targetAspect;
         const bar = (W - cropW) / 2;
-        setBars({ left: bar, right: bar, top: 0, bottom: 0 });
+        setCropPreview({
+          left: bar,
+          right: bar,
+          top: 0,
+          bottom: 0,
+          frameLeft: bar,
+          frameTop: 0,
+          frameWidth: cropW,
+          frameHeight: H,
+        });
       } else {
         // Crop top/bottom
         const cropH = W / targetAspect;
         const bar = (H - cropH) / 2;
-        setBars({ left: 0, right: 0, top: bar, bottom: bar });
+        setCropPreview({
+          left: 0,
+          right: 0,
+          top: bar,
+          bottom: bar,
+          frameLeft: 0,
+          frameTop: bar,
+          frameWidth: W,
+          frameHeight: cropH,
+        });
       }
     };
     update();
@@ -54,17 +81,26 @@ function CropPreviewBars({
     return () => ro.disconnect();
   }, [ratio, containerRef]);
 
-  if (!bars) return null;
+  if (!cropPreview) return null;
   return (
     <>
-      {bars.left > 0 && <>
-        <div className="absolute inset-y-0 left-0 bg-black/55 z-30 pointer-events-none" style={{ width: bars.left }} />
-        <div className="absolute inset-y-0 right-0 bg-black/55 z-30 pointer-events-none" style={{ width: bars.right }} />
+      {cropPreview.left > 0 && <>
+        <div className="absolute inset-y-0 left-0 bg-black/55 z-30 pointer-events-none" style={{ width: cropPreview.left }} />
+        <div className="absolute inset-y-0 right-0 bg-black/55 z-30 pointer-events-none" style={{ width: cropPreview.right }} />
       </>}
-      {bars.top > 0 && <>
-        <div className="absolute inset-x-0 top-0 bg-black/55 z-30 pointer-events-none" style={{ height: bars.top }} />
-        <div className="absolute inset-x-0 bottom-0 bg-black/55 z-30 pointer-events-none" style={{ height: bars.bottom }} />
+      {cropPreview.top > 0 && <>
+        <div className="absolute inset-x-0 top-0 bg-black/55 z-30 pointer-events-none" style={{ height: cropPreview.top }} />
+        <div className="absolute inset-x-0 bottom-0 bg-black/55 z-30 pointer-events-none" style={{ height: cropPreview.bottom }} />
       </>}
+      <div
+        className="absolute z-30 pointer-events-none rounded-lg border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.08)]"
+        style={{
+          left: cropPreview.frameLeft,
+          top: cropPreview.frameTop,
+          width: cropPreview.frameWidth,
+          height: cropPreview.frameHeight,
+        }}
+      />
       {/* Label */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-black/70 text-white text-xs px-2 py-0.5 rounded">
         Export crop: {ratio}
@@ -106,6 +142,7 @@ function App() {
   const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
   const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
+  const isExporting = useAppStore((state) => state.isExporting);
 
   const openNextQueuedPlaybackPicture = useCallback(() => {
     const nextPictureId = queuedPlaybackPictureIdsRef.current.shift();
@@ -381,14 +418,14 @@ function App() {
               <TrailMap mapContainerRef={mapContainerRef} />
 
               {/* Aspect ratio crop preview when in Export panel */}
-              {activePanel === 'export' && exportAspectRatio !== '16:9' && (
+              {activePanel === 'export' && (
                 <CropPreviewBars ratio={exportAspectRatio} containerRef={mapContainerRef} />
               )}
 
               {/* Stats Overlay */}
               {hasTracks && (
                 <div className="absolute top-4 left-4 z-10">
-                  <StatsOverlay />
+                  <StatsOverlay compact={activePanel === 'export' || isExporting} />
                 </div>
               )}
               
