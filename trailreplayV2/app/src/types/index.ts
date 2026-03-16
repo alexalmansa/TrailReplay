@@ -78,6 +78,19 @@ export interface PictureAnnotation {
   displayDuration: number;
 }
 
+export interface PendingPicturePlacement {
+  id: string;
+  file: File;
+  url: string;
+  timestamp?: Date;
+  title?: string;
+  description?: string;
+  displayDuration: number;
+  originalLat?: number;
+  originalLon?: number;
+  mismatchDistanceMeters?: number;
+}
+
 export interface VideoAnnotation {
   id: string;
   file: File;

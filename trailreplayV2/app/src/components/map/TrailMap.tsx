@@ -9,6 +9,7 @@ import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
 import { getHeartRateColor } from '@/utils/gpxParser';
+import { calculateDistance } from '@/utils/journeyUtils';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -406,10 +407,13 @@ export function TrailMap({}: TrailMapProps) {
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const pictures = useAppStore((state) => state.pictures);
+  const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const addPicture = useAppStore((state) => state.addPicture);
+  const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -433,6 +437,53 @@ export function TrailMap({}: TrailMapProps) {
   const currentTrackName = currentSegment?.segment.type === 'track' && currentSegment.segment.trackId
     ? tracks.find((t) => t.id === currentSegment.segment.trackId)?.name
     : activeTrack?.name;
+
+  const findNearestRoutePoint = useCallback((lat: number, lon: number) => {
+    if (computedJourney && computedJourney.coordinates.length > 0) {
+      let closestIndex = 0;
+      let minDistanceKm = Infinity;
+
+      computedJourney.coordinates.forEach((point, index) => {
+        const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
+        if (distanceKm < minDistanceKm) {
+          minDistanceKm = distanceKm;
+          closestIndex = index;
+        }
+      });
+
+      const closestPoint = computedJourney.coordinates[closestIndex];
+      if (!closestPoint) return null;
+
+      return {
+        lat: closestPoint.lat,
+        lon: closestPoint.lon,
+        progress:
+          computedJourney.coordinates.length > 1
+            ? closestIndex / (computedJourney.coordinates.length - 1)
+            : playback.progress,
+      };
+    }
+
+    const track = activeTrack || tracks[0];
+    if (!track || track.points.length === 0) return null;
+
+    let closestPoint = track.points[0];
+    let minDistanceKm = Infinity;
+
+    track.points.forEach((point) => {
+      const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
+      if (distanceKm < minDistanceKm) {
+        minDistanceKm = distanceKm;
+        closestPoint = point;
+      }
+    });
+
+    return {
+      lat: closestPoint.lat,
+      lon: closestPoint.lon,
+      progress: track.totalDistance > 0 ? closestPoint.distance / track.totalDistance : playback.progress,
+    };
+  }, [activeTrack, computedJourney, playback.progress, tracks]);
 
   // Initialize map
   useEffect(() => {
@@ -1204,6 +1255,53 @@ export function TrailMap({}: TrailMapProps) {
     }
   }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded, elevationData]);
 
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const canvas = map.current.getCanvas();
+    const previousCursor = canvas.style.cursor;
+    canvas.style.cursor = pendingPicturePlacements.length > 0 ? 'crosshair' : '';
+
+    return () => {
+      canvas.style.cursor = previousCursor;
+    };
+  }, [isMapLoaded, pendingPicturePlacements.length]);
+
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const handleMapClick = (event: maplibregl.MapMouseEvent) => {
+      const pendingPicture = useAppStore.getState().pendingPicturePlacements[0];
+      if (!pendingPicture) return;
+
+      const placement = findNearestRoutePoint(event.lngLat.lat, event.lngLat.lng);
+      if (!placement) {
+        useAppStore.getState().setError(t('media.manualPlacementNoRoute'));
+        return;
+      }
+
+      addPicture({
+        id: pendingPicture.id,
+        file: pendingPicture.file,
+        url: pendingPicture.url,
+        lat: placement.lat,
+        lon: placement.lon,
+        timestamp: pendingPicture.timestamp,
+        progress: placement.progress,
+        position: placement.progress,
+        title: pendingPicture.title,
+        description: pendingPicture.description,
+        displayDuration: pendingPicture.displayDuration,
+      });
+      removePendingPicturePlacement(pendingPicture.id);
+    };
+
+    map.current.on('click', handleMapClick);
+    return () => {
+      map.current?.off('click', handleMapClick);
+    };
+  }, [addPicture, findNearestRoutePoint, isMapLoaded, removePendingPicturePlacement, t]);
+
   // Add picture markers
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
@@ -1231,7 +1329,8 @@ export function TrailMap({}: TrailMapProps) {
         `;
         el.innerHTML = '📷';
 
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (event) => {
+          event.stopPropagation();
           setSelectedPictureId(picture.id);
         });
 

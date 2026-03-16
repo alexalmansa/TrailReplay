@@ -12,7 +12,7 @@ import { InfoPanel } from '@/components/info/InfoPanel';
 import { FeedbackSolicitation } from '@/components/feedback/FeedbackSolicitation';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info } from 'lucide-react';
+import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info, MapPin } from 'lucide-react';
 import { gsap } from 'gsap';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -145,12 +145,15 @@ function App() {
   const setExploreMode = useAppStore((state) => state.setExploreMode);
   const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
+  const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
+  const clearPendingPicturePlacements = useAppStore((state) => state.clearPendingPicturePlacements);
   const play = useAppStore((state) => state.play);
   const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
@@ -348,6 +351,7 @@ function App() {
     ? pictures.find((p) => p.id === autoPlaybackPictureId)
     : undefined;
   const activePicture = selectedPicture || autoPlaybackPicture;
+  const activePendingPicturePlacement = pendingPicturePlacements[0];
   
   const hasTracks = tracks.length > 0;
 
@@ -458,6 +462,59 @@ function App() {
               {hasTracks && (
                 <div className="absolute top-4 left-4 z-10">
                   <StatsOverlay compact={activePanel === 'export' || isExporting} />
+                </div>
+              )}
+
+              {activePendingPicturePlacement && (
+                <div className="absolute top-4 right-4 z-40 w-[min(24rem,calc(100%-2rem))] rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--canvas)]/95 p-3 shadow-xl backdrop-blur">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={activePendingPicturePlacement.url}
+                      alt={activePendingPicturePlacement.file.name}
+                      className="h-16 w-16 rounded-xl object-cover border border-[var(--evergreen)]/10 flex-shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-[var(--trail-orange)] mb-1">
+                        <MapPin className="w-4 h-4" />
+                        <p className="text-sm font-semibold text-[var(--evergreen)]">
+                          {t('media.manualPlacementTitle')}
+                        </p>
+                      </div>
+                      <p className="text-xs text-[var(--evergreen-60)] leading-relaxed">
+                        {t('media.manualPlacementHint')}
+                      </p>
+                      <p className="mt-1 text-[11px] text-[var(--evergreen-60)] truncate">
+                        {activePendingPicturePlacement.file.name}
+                      </p>
+                      {activePendingPicturePlacement.mismatchDistanceMeters !== undefined && (
+                        <p className="mt-1 text-[11px] font-medium text-[var(--trail-orange)]">
+                          {t('media.manualPlacementDistance', {
+                            distance: Math.round(activePendingPicturePlacement.mismatchDistanceMeters),
+                          })}
+                        </p>
+                      )}
+                      <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+                        {t('media.manualPlacementCount', {
+                          current: 1,
+                          total: pendingPicturePlacements.length,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => removePendingPicturePlacement(activePendingPicturePlacement.id)}
+                      className="rounded-lg border border-[var(--evergreen)]/15 px-3 py-1.5 text-xs font-medium text-[var(--evergreen)] hover:bg-[var(--evergreen)]/5"
+                    >
+                      {t('media.manualPlacementSkip')}
+                    </button>
+                    <button
+                      onClick={clearPendingPicturePlacements}
+                      className="rounded-lg bg-[var(--evergreen)] px-3 py-1.5 text-xs font-medium text-[var(--canvas)] hover:bg-[var(--evergreen)]/90"
+                    >
+                      {t('media.manualPlacementCancelAll')}
+                    </button>
+                  </div>
                 </div>
               )}
               
