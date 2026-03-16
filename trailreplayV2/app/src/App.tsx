@@ -18,6 +18,50 @@ import { useI18n } from '@/i18n/useI18n';
 
 import type { AspectRatio } from '@/types';
 
+type CropPreviewMetrics = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  frameLeft: number;
+  frameTop: number;
+  frameWidth: number;
+  frameHeight: number;
+};
+
+function getCropPreviewMetrics(width: number, height: number, ratio: AspectRatio): CropPreviewMetrics {
+  const containerAspect = width / height;
+  const targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
+
+  if (containerAspect > targetAspect) {
+    const cropW = height * targetAspect;
+    const bar = (width - cropW) / 2;
+    return {
+      left: bar,
+      right: bar,
+      top: 0,
+      bottom: 0,
+      frameLeft: bar,
+      frameTop: 0,
+      frameWidth: cropW,
+      frameHeight: height,
+    };
+  }
+
+  const cropH = width / targetAspect;
+  const bar = (height - cropH) / 2;
+  return {
+    left: 0,
+    right: 0,
+    top: bar,
+    bottom: bar,
+    frameLeft: 0,
+    frameTop: bar,
+    frameWidth: width,
+    frameHeight: cropH,
+  };
+}
+
 /** Dark letterbox bars showing what will be cropped for the selected aspect ratio */
 function CropPreviewBars({
   ratio,
@@ -41,39 +85,7 @@ function CropPreviewBars({
     const el = containerRef.current;
     if (!el) return;
     const update = () => {
-      const W = el.clientWidth;
-      const H = el.clientHeight;
-      const containerAspect = W / H;
-      const targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
-      if (containerAspect > targetAspect) {
-        // Crop left/right
-        const cropW = H * targetAspect;
-        const bar = (W - cropW) / 2;
-        setCropPreview({
-          left: bar,
-          right: bar,
-          top: 0,
-          bottom: 0,
-          frameLeft: bar,
-          frameTop: 0,
-          frameWidth: cropW,
-          frameHeight: H,
-        });
-      } else {
-        // Crop top/bottom
-        const cropH = W / targetAspect;
-        const bar = (H - cropH) / 2;
-        setCropPreview({
-          left: 0,
-          right: 0,
-          top: bar,
-          bottom: bar,
-          frameLeft: 0,
-          frameTop: bar,
-          frameWidth: W,
-          frameHeight: cropH,
-        });
-      }
+      setCropPreview(getCropPreviewMetrics(el.clientWidth, el.clientHeight, ratio));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -118,6 +130,7 @@ function App() {
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
   );
+  const [exportCropMetrics, setExportCropMetrics] = useState<CropPreviewMetrics | null>(null);
   const shownPlaybackPictureIdsRef = useRef<Set<string>>(new Set());
   const queuedPlaybackPictureIdsRef = useRef<string[]>([]);
   const lastPlaybackProgressRef = useRef(0);
@@ -218,6 +231,25 @@ function App() {
   const openFilePicker = () => {
     fileInputRef.current?.click();
   };
+
+  useEffect(() => {
+    const shouldPreviewExportFrame = activePanel === 'export' || isExporting;
+    const el = mapContainerRef.current;
+    if (!shouldPreviewExportFrame || !el) return;
+
+    const update = () => {
+      setExportCropMetrics(getCropPreviewMetrics(el.clientWidth, el.clientHeight, exportAspectRatio));
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activePanel, exportAspectRatio, isExporting]);
+
+  const activeExportCropMetrics = activePanel === 'export' || isExporting
+    ? exportCropMetrics
+    : null;
 
   useEffect(() => {
     shownPlaybackPictureIdsRef.current.clear();
@@ -435,6 +467,7 @@ function App() {
                   key={activePicture.id}
                   picture={activePicture} 
                   onClose={closeActivePicture}
+                  exportFrame={activeExportCropMetrics}
                 />
               )}
               
