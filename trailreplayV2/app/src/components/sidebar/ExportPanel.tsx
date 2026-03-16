@@ -290,6 +290,22 @@ export function ExportPanel() {
       ctx.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
+    // 2b. Draw the active picture image directly. html2canvas can miss blob:
+    // URLs from local uploads, but the DOM image element already has decoded data.
+    const activePictureImg = document.querySelector('.tr-picture-popup img') as HTMLImageElement | null;
+    if (activePictureImg && activePictureImg.complete && activePictureImg.naturalWidth > 0) {
+      try {
+        const pictureRect = activePictureImg.getBoundingClientRect();
+        const scaleX = recordW / cropW;
+        const scaleY = recordH / cropH;
+        const pictureX = (pictureRect.left - containerRect.left - cropX) * scaleX;
+        const pictureY = (pictureRect.top - containerRect.top - cropY) * scaleY;
+        const pictureW = pictureRect.width * scaleX;
+        const pictureH = pictureRect.height * scaleY;
+        ctx.drawImage(activePictureImg, pictureX, pictureY, pictureW, pictureH);
+      } catch { /* skip */ }
+    }
+
     // 3. Draw activity marker (circle + emoji)
     const markerContainer = document.querySelector('.tr-marker') as HTMLElement | null;
     if (markerContainer && container) {
