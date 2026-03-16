@@ -152,11 +152,48 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   // Count segments
   const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
   const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
+  const secondaryStats = [
+    settings.showHeartRate && currentStats.heartRate && !isInTransport
+      ? {
+          key: 'heart-rate',
+          icon: <Heart className="w-3 h-3" />,
+          label: 'HR',
+          value: `${Math.round(currentStats.heartRate)}`,
+          unit: 'bpm',
+          color: 'text-red-500',
+        }
+      : null,
+    currentStats.cadence && !isInTransport
+      ? {
+          key: 'cadence',
+          icon: <Zap className="w-3 h-3" />,
+          label: t('stats.cadence'),
+          value: `${Math.round(currentStats.cadence)}`,
+          unit: 'rpm',
+        }
+      : null,
+    currentStats.power && !isInTransport
+      ? {
+          key: 'power',
+          icon: <TrendingUp className="w-3 h-3" />,
+          label: t('stats.power'),
+          value: `${Math.round(currentStats.power)}`,
+          unit: 'w',
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    unit?: string;
+    color?: string;
+  }>;
 
   return (
-    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[17rem]' : 'max-w-md'}`}>
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[22rem]' : 'max-w-[28rem]'}`}>
       {/* Main Stats Grid */}
-      <div className={`grid grid-cols-3 ${compact ? 'gap-2.5 mb-2.5' : 'gap-4 mb-4'}`}>
+      <div className={`grid grid-cols-4 ${compact ? 'gap-2 mb-2.5' : 'gap-3 mb-4'}`}>
         <StatItem
           icon={<Route className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.distance')}
@@ -175,48 +212,33 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
           compact={compact}
         />
-      </div>
-
-      {/* Secondary Stats */}
-      <div className={`grid grid-cols-4 gap-2 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2.5' : 'pt-4'}`}>
-        <SmallStatItem
-          icon={<Mountain className={compact ? 'w-3 h-3' : 'w-3 h-3'} />}
+        <StatItem
+          icon={<Mountain className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.elev')}
           value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
           compact={compact}
         />
-
-        {settings.showHeartRate && currentStats.heartRate && !isInTransport && (
-          <SmallStatItem
-            icon={<Heart className="w-3 h-3" />}
-            label="HR"
-            value={`${Math.round(currentStats.heartRate)}`}
-            unit="bpm"
-            color="text-red-500"
-            compact={compact}
-          />
-        )}
-
-        {currentStats.cadence && !isInTransport && (
-          <SmallStatItem
-            icon={<Zap className="w-3 h-3" />}
-            label={t('stats.cadence')}
-            value={`${Math.round(currentStats.cadence)}`}
-            unit="rpm"
-            compact={compact}
-          />
-        )}
-
-        {currentStats.power && !isInTransport && (
-          <SmallStatItem
-            icon={<TrendingUp className="w-3 h-3" />}
-            label={t('stats.power')}
-            value={`${Math.round(currentStats.power)}`}
-            unit="w"
-            compact={compact}
-          />
-        )}
       </div>
+
+      {/* Secondary Stats */}
+      {secondaryStats.length > 0 && (
+        <div
+          className={`grid gap-2 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2.5' : 'pt-4'}`}
+          style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
+        >
+          {secondaryStats.map((stat) => (
+            <SmallStatItem
+              key={stat.key}
+              icon={stat.icon}
+              label={stat.label}
+              value={stat.value}
+              unit={stat.unit}
+              color={stat.color}
+              compact={compact}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {segmentTimings.length > 1 && (
