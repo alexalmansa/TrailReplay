@@ -177,12 +177,12 @@ html, body {
   background: rgba(248, 246, 240, 0.95);
   border: 2px solid var(--evergreen);
   border-radius: 8px;
-  padding: 0.75rem 0.8rem;
+  padding: 0.85rem 0.95rem;
   font-family: var(--font-family-primary);
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.4rem 0.5rem;
+  padding: 0.55rem 0.7rem;
   border-width: 1px;
   border-radius: 10px;
 }
@@ -485,11 +485,11 @@ html, body {
   }
   
   .tr-stats-overlay {
-    padding: 0.45rem 0.5rem;
+    padding: 0.6rem 0.7rem;
     font-size: 0.875rem;
   }
 
   .tr-stats-overlay--compact {
-    padding: 0.35rem 0.45rem;
+    padding: 0.5rem 0.6rem;
   }
 }
