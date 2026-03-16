@@ -187,22 +187,276 @@ export function parseGPX(gpxContent: string, fileName: string): GPXTrack {
   };
 }
 
-// Parse multiple GPX files
+// Parse KML XML content
+export function parseKML(kmlContent: string, fileName: string): GPXTrack {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(kmlContent, 'text/xml');
+
+  // Check for parsing errors
+  const parseError = doc.querySelector('parsererror');
+  if (parseError) {
+    throw new Error('Invalid KML file format');
+  }
+
+  // Get track name
+  const nameElement = doc.querySelector('Placemark > name');
+  const name = nameElement?.textContent || fileName.replace('.kml', '');
+
+  const GX_NS = 'http://www.google.com/kml/ext/2.2';
+  const rawPoints: Array<{ lat: number; lon: number; elevation: number; time: Date | null; heartRate: number | null; cadence: number | null; power: number | null; temperature: number | null }> = [];
+
+  // Try gx:Track first (richest format)
+  const gxTracks = Array.from(doc.getElementsByTagNameNS(GX_NS, 'Track'));
+  if (gxTracks.length > 0) {
+    // Process gx:Track elements
+    for (const gxTrack of gxTracks) {
+      // Get when elements (timestamps)
+      const whenElements = Array.from(gxTrack.getElementsByTagName('when'));
+      const whenDates = whenElements.map(el => {
+        const text = el.textContent?.trim();
+        if (!text) return null;
+        const date = new Date(text);
+        return isNaN(date.getTime()) ? null : date;
+      });
+
+      // Get gx:coord elements
+      const coordElements = Array.from(gxTrack.getElementsByTagNameNS(GX_NS, 'coord'));
+      const coords = coordElements.map(el => {
+        const text = el.textContent?.trim() || '';
+        const parts = text.split(/\s+/);
+        const lon = parseFloat(parts[0]);
+        const lat = parseFloat(parts[1]);
+        const elevation = parseFloat(parts[2]) || 0;
+        return { lon, lat, elevation };
+      });
+
+      // Get sensor data from ExtendedData
+      const sensorData: { heartRate: (number | null)[]; cadence: (number | null)[]; power: (number | null)[]; temperature: (number | null)[] } = {
+        heartRate: [],
+        cadence: [],
+        power: [],
+        temperature: [],
+      };
+
+      const schemaData = gxTrack.querySelector('ExtendedData > SchemaData');
+      if (schemaData) {
+        const simpleArrayDatas = Array.from(schemaData.getElementsByTagNameNS(GX_NS, 'SimpleArrayData'));
+        for (const arrayData of simpleArrayDatas) {
+          const nameAttr = arrayData.getAttribute('name')?.toLowerCase();
+          const values = Array.from(arrayData.getElementsByTagNameNS(GX_NS, 'value')).map(
+            el => parseFloat(el.textContent || '0') || null
+          );
+
+          if (nameAttr === 'heartrate' || nameAttr === 'heart_rate' || nameAttr === 'hr') {
+            sensorData.heartRate = values;
+          } else if (nameAttr === 'cadence' || nameAttr === 'cad') {
+            sensorData.cadence = values;
+          } else if (nameAttr === 'power' || nameAttr === 'watts' || nameAttr === 'pwr') {
+            sensorData.power = values;
+          } else if (nameAttr === 'temperature' || nameAttr === 'temp') {
+            sensorData.temperature = values;
+          }
+        }
+      }
+
+      // Zip coordinates with timestamps and sensor data
+      const pointCount = Math.min(whenDates.length, coords.length);
+      for (let i = 0; i < pointCount; i++) {
+        const { lon, lat, elevation } = coords[i];
+        if (isNaN(lat) || isNaN(lon)) continue;
+
+        rawPoints.push({
+          lat,
+          lon,
+          elevation,
+          time: whenDates[i],
+          heartRate: sensorData.heartRate[i] || null,
+          cadence: sensorData.cadence[i] || null,
+          power: sensorData.power[i] || null,
+          temperature: sensorData.temperature[i] || null,
+        });
+      }
+    }
+  } else {
+    // Try LineString (standard KML format, no timestamps)
+    const lineStringElements = Array.from(
+      doc.querySelectorAll('LineString > coordinates, MultiGeometry > LineString > coordinates')
+    );
+
+    for (const coordElement of lineStringElements) {
+      const coordText = coordElement.textContent || '';
+      const tokens = coordText.trim().split(/\s+/);
+
+      for (const token of tokens) {
+        if (!token.trim()) continue;
+        const parts = token.split(',').map(p => parseFloat(p.trim()));
+        if (parts.length < 2) continue;
+
+        const lon = parts[0];
+        const lat = parts[1];
+        const elevation = parts[2] || 0;
+
+        if (isNaN(lat) || isNaN(lon)) continue;
+
+        rawPoints.push({
+          lat,
+          lon,
+          elevation,
+          time: null,
+          heartRate: null,
+          cadence: null,
+          power: null,
+          temperature: null,
+        });
+      }
+    }
+  }
+
+  if (rawPoints.length === 0) {
+    throw new Error('No coordinates found in KML file');
+  }
+
+  // Build GPXPoints with distance and speed calculations
+  const trackPoints: GPXPoint[] = [];
+  let totalDistance = 0;
+
+  for (let i = 0; i < rawPoints.length; i++) {
+    const raw = rawPoints[i];
+    let distance = totalDistance;
+    let speed = 0;
+
+    if (i > 0 && trackPoints.length > 0) {
+      const prev = rawPoints[i - 1];
+      const segmentDist = calculateDistance(prev.lat, prev.lon, raw.lat, raw.lon);
+      totalDistance += segmentDist;
+      distance = totalDistance;
+
+      // Calculate speed if both points have timestamps
+      if (raw.time && prev.time) {
+        const timeDiff = (raw.time.getTime() - prev.time.getTime()) / 1000; // seconds
+        if (timeDiff > 0) {
+          speed = (segmentDist / 1000) / (timeDiff / 3600); // km/h
+        }
+      }
+    }
+
+    trackPoints.push({
+      lat: raw.lat,
+      lon: raw.lon,
+      elevation: raw.elevation,
+      time: raw.time,
+      heartRate: raw.heartRate,
+      cadence: raw.cadence,
+      power: raw.power,
+      temperature: raw.temperature,
+      distance,
+      speed,
+    });
+  }
+
+  // Calculate track-level statistics
+  let elevationGain = 0;
+  let elevationLoss = 0;
+  let maxElevation = -Infinity;
+  let minElevation = Infinity;
+  let maxSpeed = 0;
+  let totalSpeed = 0;
+  let speedCount = 0;
+  let movingTime = 0;
+
+  const bounds = {
+    minLat: Infinity,
+    maxLat: -Infinity,
+    minLon: Infinity,
+    maxLon: -Infinity,
+  };
+
+  for (let i = 0; i < trackPoints.length; i++) {
+    const point = trackPoints[i];
+
+    // Bounds
+    bounds.minLat = Math.min(bounds.minLat, point.lat);
+    bounds.maxLat = Math.max(bounds.maxLat, point.lat);
+    bounds.minLon = Math.min(bounds.minLon, point.lon);
+    bounds.maxLon = Math.max(bounds.maxLon, point.lon);
+
+    // Elevation stats
+    maxElevation = Math.max(maxElevation, point.elevation);
+    minElevation = Math.min(minElevation, point.elevation);
+
+    if (i > 0) {
+      const elevDiff = point.elevation - trackPoints[i - 1].elevation;
+      if (elevDiff > 0) {
+        elevationGain += elevDiff;
+      } else {
+        elevationLoss += Math.abs(elevDiff);
+      }
+    }
+
+    // Speed stats
+    if (point.speed > 0.5) {
+      maxSpeed = Math.max(maxSpeed, point.speed);
+      totalSpeed += point.speed;
+      speedCount++;
+    }
+
+    // Moving time
+    if (i > 0 && point.speed > 0.5 && point.time && trackPoints[i - 1].time) {
+      movingTime += (point.time.getTime() - trackPoints[i - 1].time!.getTime()) / 1000;
+    }
+  }
+
+  // Calculate total time
+  let totalTime = 0;
+  if (trackPoints.length > 1 && trackPoints[0].time && trackPoints[trackPoints.length - 1].time) {
+    totalTime = (trackPoints[trackPoints.length - 1].time!.getTime() - trackPoints[0].time!.getTime()) / 1000;
+  }
+
+  // Calculate average speeds
+  const avgSpeed = totalTime > 0 ? (totalDistance / 1000) / (totalTime / 3600) : 0;
+  const avgMovingSpeed = speedCount > 0 ? totalSpeed / speedCount : 0;
+
+  return {
+    id: `kml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    points: trackPoints,
+    totalDistance,
+    totalTime,
+    movingTime,
+    elevationGain,
+    elevationLoss,
+    maxElevation,
+    minElevation,
+    maxSpeed,
+    avgSpeed,
+    avgMovingSpeed,
+    bounds,
+    color: '#C1652F',
+    visible: true,
+  };
+}
+
+// Parse multiple GPX/KML files
 export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
   const tracks: GPXTrack[] = [];
-  
+
   for (const file of files) {
-    if (!file.name.endsWith('.gpx')) continue;
-    
+    const isGPX = file.name.endsWith('.gpx');
+    const isKML = file.name.endsWith('.kml');
+
+    if (!isGPX && !isKML) continue;
+
     try {
       const content = await file.text();
-      const track = parseGPX(content, file.name);
+      const track = isGPX
+        ? parseGPX(content, file.name)
+        : parseKML(content, file.name);
       tracks.push(track);
     } catch (error) {
       console.error(`Error parsing ${file.name}:`, error);
     }
   }
-  
+
   return tracks;
 }
 
