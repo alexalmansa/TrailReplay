@@ -106,6 +106,19 @@ export function formatDuration(seconds: number): string {
   }
 }
 
+export function formatStatsDuration(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
+
+  const hours = Math.floor(seconds / 3600);
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 // Format time
 export function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

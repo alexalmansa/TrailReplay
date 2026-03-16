@@ -124,14 +124,14 @@ export function PicturesPanel() {
               {pictures.map((picture) => (
                 <div
                   key={picture.id}
-                  className="tr-journey-segment p-2"
+                  className="tr-journey-segment p-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
                     {/* Thumbnail */}
                     <button
                       type="button"
                       onClick={() => setSelectedPictureId(picture.id)}
-                      className="w-16 h-16 rounded-lg overflow-hidden border border-[var(--evergreen)]/20 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--trail-orange)]"
+                      className="w-20 h-20 rounded-xl overflow-hidden border border-[var(--evergreen)]/20 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--trail-orange)]"
                       title={t('media.previewPicture')}
                     >
                       <img
@@ -142,80 +142,91 @@ export function PicturesPanel() {
                     </button>
                     
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {picture.lat && picture.lon && (
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--evergreen)] truncate">
+                          {picture.file.name}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {picture.placementSource !== 'manual' && picture.lat && picture.lon && (
                           <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" />
                             {t('media.gps')}
                           </span>
                         )}
-                        <span className="text-xs text-[var(--evergreen-60)]">
+                        {picture.placementSource === 'manual' && (
+                          <span className="text-[10px] bg-[var(--trail-orange)] text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            {t('media.manual')}
+                          </span>
+                        )}
+                        <span className="text-[11px] bg-[var(--evergreen)]/8 text-[var(--evergreen-60)] px-1.5 py-0.5 rounded">
                           {t('media.percentOfJourney', { percent: (picture.progress * 100).toFixed(0) })}
                         </span>
                       </div>
                       
                       {/* Duration Display */}
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-xs text-[var(--evergreen)]">
                         <Clock className="w-3 h-3 text-[var(--evergreen-60)]" />
-                        <span className="text-[var(--evergreen)]">
+                        <span>
                           {t('media.displayDuration', {
                             seconds: ((picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000).toFixed(0),
                           })}
                         </span>
                       </div>
                     </div>
-                    
-                    {/* Actions */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingPicture(picture.id);
-                          setDurationValue((picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000);
-                        }}
-                        className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"
-                        title={t('media.editDuration')}
-                      >
-                        <Settings2 className="w-4 h-4 text-[var(--evergreen-60)]" />
-                      </button>
-                      <button
-                        onClick={() => seekToProgress(picture.progress)}
-                        className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"
-                      >
-                        <Play className="w-4 h-4 text-[var(--evergreen-60)]" />
-                      </button>
-                      <button
-                        onClick={() => removePicture(picture.id)}
-                        className="p-1.5 hover:bg-red-100 text-red-500 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingPicture(picture.id);
+                        setDurationValue((picture.displayDuration || DEFAULT_DISPLAY_DURATION) / 1000);
+                      }}
+                      className="flex items-center justify-center rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/5 px-3 py-2 hover:bg-[var(--evergreen)]/10"
+                      title={t('media.editDuration')}
+                    >
+                      <Settings2 className="w-4 h-4 text-[var(--evergreen-60)]" />
+                    </button>
+                    <button
+                      onClick={() => seekToProgress(picture.progress)}
+                      className="flex items-center justify-center rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/5 px-3 py-2 hover:bg-[var(--evergreen)]/10"
+                    >
+                      <Play className="w-4 h-4 text-[var(--evergreen-60)]" />
+                    </button>
+                    <button
+                      onClick={() => removePicture(picture.id)}
+                      className="flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 hover:bg-red-100"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
                   </div>
                   
                   {/* Duration Editor */}
                   {editingPicture === picture.id && (
-                    <div className="mt-2 pt-2 border-t border-[var(--evergreen)]/10">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--evergreen-60)]">{t('media.displayFor')}</span>
+                    <div className="mt-3 pt-3 border-t border-[var(--evergreen)]/10">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="w-full text-xs text-[var(--evergreen-60)]">{t('media.displayFor')}</span>
                         <input
                           type="number"
                           value={durationValue}
                           onChange={(e) => setDurationValue(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-16 px-2 py-1 text-xs border border-[var(--evergreen)]/30 rounded"
+                          className="w-16 px-2 py-1.5 text-xs border border-[var(--evergreen)]/30 rounded"
                           min="1"
                           max="60"
                         />
                         <span className="text-xs text-[var(--evergreen-60)]">{t('media.seconds')}</span>
                         <button
                           onClick={() => handleSaveDuration(picture.id)}
-                          className="ml-auto px-3 py-1 text-xs bg-[var(--trail-orange)] text-white rounded hover:bg-[var(--trail-orange)]/80"
+                          className="ml-auto px-3 py-1.5 text-xs bg-[var(--trail-orange)] text-white rounded hover:bg-[var(--trail-orange)]/80"
                         >
                           {t('common.save')}
                         </button>
                         <button
                           onClick={() => setEditingPicture(null)}
-                          className="px-3 py-1 text-xs bg-[var(--evergreen)]/10 text-[var(--evergreen)] rounded hover:bg-[var(--evergreen)]/20"
+                          className="px-3 py-1.5 text-xs bg-[var(--evergreen)]/10 text-[var(--evergreen)] rounded hover:bg-[var(--evergreen)]/20"
                         >
                           {t('common.cancel')}
                         </button>

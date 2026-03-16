@@ -73,9 +73,24 @@ export interface PictureAnnotation {
   timestamp?: Date;
   progress: number;
   position: number;
+  placementSource?: 'gps' | 'manual';
   title?: string;
   description?: string;
   displayDuration: number;
+}
+
+export interface PendingPicturePlacement {
+  id: string;
+  file: File;
+  url: string;
+  timestamp?: Date;
+  title?: string;
+  description?: string;
+  displayDuration: number;
+  placementReason: 'missing-gps' | 'route-mismatch';
+  originalLat?: number;
+  originalLon?: number;
+  mismatchDistanceMeters?: number;
 }
 
 export interface VideoAnnotation {

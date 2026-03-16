@@ -177,13 +177,13 @@ html, body {
   background: rgba(248, 246, 240, 0.95);
   border: 2px solid var(--evergreen);
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.85rem 0.95rem;
   font-family: var(--font-family-primary);
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.7rem 0.8rem;
-  border-width: 1.5px;
+  padding: 0.55rem 0.7rem;
+  border-width: 1px;
   border-radius: 10px;
 }
 
@@ -196,7 +196,7 @@ html, body {
 .tr-stat-value {
   font-weight: 700;
   color: var(--trail-orange);
-  font-size: 1.25rem;
+  font-size: inherit;
 }
 
 .tr-stat-label {
@@ -485,7 +485,11 @@ html, body {
   }
   
   .tr-stats-overlay {
-    padding: 0.5rem;
+    padding: 0.6rem 0.7rem;
     font-size: 0.875rem;
+  }
+
+  .tr-stats-overlay--compact {
+    padding: 0.5rem 0.6rem;
   }
 }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
+import { formatDistance, formatPace, formatStatsDuration, formatElevation } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Route,
@@ -191,9 +191,9 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   }>;
 
   return (
-    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[21rem]' : 'max-w-[26rem]'}`}>
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[18rem]' : 'max-w-[22rem]'}`}>
       {/* Main Stats Grid */}
-      <div className={`grid grid-cols-4 ${compact ? 'gap-1.5 mb-2.5' : 'gap-2.5 mb-4'}`}>
+      <div className={`grid grid-cols-4 ${compact ? 'gap-1 mb-2' : 'gap-1.5 mb-3'}`}>
         <StatItem
           icon={<Route className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.distance')}
@@ -203,7 +203,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
         <StatItem
           icon={<Timer className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.duration')}
-          value={formatDuration(currentStats.duration)}
+          value={formatStatsDuration(currentStats.duration)}
           compact={compact}
         />
         <StatItem
@@ -223,7 +223,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
       {/* Secondary Stats */}
       {secondaryStats.length > 0 && (
         <div
-          className={`grid gap-2 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2.5' : 'pt-4'}`}
+          className={`grid gap-1.5 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2' : 'pt-3'}`}
           style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
         >
           {secondaryStats.map((stat) => (
@@ -242,8 +242,8 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {segmentTimings.length > 1 && (
-        <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
-          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[10px]' : 'text-xs'}`}>
+        <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2 pt-2' : 'mt-3 pt-3'}`}>
+          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[9px]' : 'text-xs'}`}>
             {trackCount} track{trackCount !== 1 ? 's' : ''}
             {transportCount > 0 && ` + ${transportCount} transport`}
           </span>
@@ -262,12 +262,17 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
-    <div className="text-center">
-      <div className={`flex items-center justify-center text-[var(--evergreen-60)] ${compact ? 'gap-0.5 mb-0.5' : 'gap-1 mb-1'}`}>
+    <div className="text-center min-w-0">
+      <div className={`flex items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5' : 'gap-0.5 mb-0.5'}`}>
         {icon}
-        <span className={`${compact ? 'text-[8px]' : 'text-[9px]'} uppercase tracking-wide leading-none`}>{label}</span>
+        <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} uppercase tracking-[0.08em] leading-none truncate`}>{label}</span>
       </div>
-      <div className={`tr-stat-value whitespace-nowrap leading-none ${compact ? 'text-[13px]' : 'text-[15px]'}`}>{value}</div>
+      <div
+        className={`tr-stat-value block leading-none font-semibold tabular-nums tracking-[-0.03em] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${compact ? 'text-[8px]' : 'text-[9px]'}`}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -283,15 +288,18 @@ interface SmallStatItemProps {
 
 function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
   return (
-    <div className="text-center">
+    <div className="text-center min-w-0">
       <div className={`flex items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0' : 'mb-0.5'} ${color || ''}`}>
         {icon}
       </div>
-      <div className={`${compact ? 'text-[12px]' : 'text-[13px]'} font-bold whitespace-nowrap leading-none ${color || 'text-[var(--evergreen)]'}`}>
+      <div
+        className={`${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-none min-w-0 overflow-hidden text-ellipsis ${color || 'text-[var(--evergreen)]'}`}
+        title={unit ? `${value} ${unit}` : value}
+      >
         {value}
-        {unit && <span className={`${compact ? 'text-[9px]' : 'text-[10px]'} font-normal ml-0.5`}>{unit}</span>}
+        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-[var(--evergreen-60)] uppercase`}>{label}</div>
+      <div className={`${compact ? 'text-[6px]' : 'text-[7px]'} text-[var(--evergreen-60)] uppercase truncate`}>{label}</div>
     </div>
   );
 }

@@ -14,12 +14,14 @@ import {
   MapPin,
 } from 'lucide-react';
 import { formatDistance, formatDuration } from '@/utils/units';
+import { useI18n } from '@/i18n/useI18n';
 
 interface FileUploadProps {
   className?: string;
 }
 
 export function FileUpload({ className = '' }: FileUploadProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('gpx');
   const { parseFiles, isParsing, parseError } = useGPX();
   const { addPhotos, isProcessing: isProcessingPhotos } = usePhotos();
@@ -198,7 +200,7 @@ export function FileUpload({ className = '' }: FileUploadProps) {
                 Loaded Photos ({pictures.length})
               </h4>
               <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                {pictures.map((picture: { id: string; url: string; lat?: number; lon?: number }) => (
+                {pictures.map((picture: { id: string; url: string; lat?: number; lon?: number; placementSource?: 'gps' | 'manual' }) => (
                   <div
                     key={picture.id}
                     className="relative aspect-square rounded-lg overflow-hidden group"
@@ -208,9 +210,14 @@ export function FileUpload({ className = '' }: FileUploadProps) {
                       alt="Trail photo"
                       className="w-full h-full object-cover"
                     />
-                    {picture.lat && picture.lon && (
+                    {picture.placementSource !== 'manual' && picture.lat && picture.lon && (
                       <div className="absolute top-1 left-1 bg-green-500 text-white text-xs p-0.5 rounded">
                         <MapPin className="w-3 h-3" />
+                      </div>
+                    )}
+                    {picture.placementSource === 'manual' && (
+                      <div className="absolute top-1 left-1 bg-orange-500 text-white text-[10px] px-1 py-0.5 rounded">
+                        {t('media.manual')}
                       </div>
                     )}
                     <button

@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import type {
   GPXTrack,
   PictureAnnotation,
+  PendingPicturePlacement,
   VideoAnnotation,
   IconChange,
   TextAnnotation,
@@ -33,6 +34,7 @@ interface AppState {
   
   // Media
   pictures: PictureAnnotation[];
+  pendingPicturePlacements: PendingPicturePlacement[];
   videos: VideoAnnotation[];
   
   // Annotations
@@ -93,6 +95,9 @@ interface AppState {
   
   // Pictures
   addPicture: (picture: PictureAnnotation) => void;
+  queuePendingPicturePlacement: (picture: PendingPicturePlacement) => void;
+  removePendingPicturePlacement: (pictureId: string) => void;
+  clearPendingPicturePlacements: () => void;
   removePicture: (pictureId: string) => void;
   updatePicturePosition: (pictureId: string, progress: number) => void;
   updatePictureMetadata: (pictureId: string, title: string, description: string) => void;
@@ -236,6 +241,7 @@ export const useAppStore = create<AppState>()(
     journey: null,
     journeySegments: [],
     pictures: [],
+    pendingPicturePlacements: [],
     videos: [],
     iconChanges: [],
     textAnnotations: [],
@@ -436,6 +442,21 @@ export const useAppStore = create<AppState>()(
         state.pictures.push(picture);
       }),
 
+    queuePendingPicturePlacement: (picture) =>
+      set((state) => {
+        state.pendingPicturePlacements.push(picture);
+      }),
+
+    removePendingPicturePlacement: (pictureId) =>
+      set((state) => {
+        state.pendingPicturePlacements = state.pendingPicturePlacements.filter((p) => p.id !== pictureId);
+      }),
+
+    clearPendingPicturePlacements: () =>
+      set((state) => {
+        state.pendingPicturePlacements = [];
+      }),
+
     removePicture: (pictureId) =>
       set((state) => {
         state.pictures = state.pictures.filter((p) => p.id !== pictureId);
@@ -447,7 +468,10 @@ export const useAppStore = create<AppState>()(
     updatePicturePosition: (pictureId, progress) =>
       set((state) => {
         const picture = state.pictures.find((p) => p.id === pictureId);
-        if (picture) picture.progress = progress;
+        if (picture) {
+          picture.progress = progress;
+          picture.position = progress;
+        }
       }),
 
     updatePictureMetadata: (pictureId, title, description) =>
@@ -669,6 +693,7 @@ export const useAppStore = create<AppState>()(
         state.journey = null;
         state.journeySegments = [];
         state.pictures = [];
+        state.pendingPicturePlacements = [];
         state.videos = [];
         state.iconChanges = [];
         state.textAnnotations = [];
