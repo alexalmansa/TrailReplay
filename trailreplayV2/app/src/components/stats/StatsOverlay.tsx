@@ -13,7 +13,11 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-export function StatsOverlay() {
+interface StatsOverlayProps {
+  compact?: boolean;
+}
+
+export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
@@ -139,7 +143,7 @@ export function StatsOverlay() {
       cadence: currentPosition.cadence,
       power: currentPosition.power,
     };
-  }, [currentPosition, playback.progress, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
+  }, [currentPosition, playback, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
 
 
   // Don't show if no data
@@ -148,69 +152,98 @@ export function StatsOverlay() {
   // Count segments
   const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
   const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
+  const secondaryStats = [
+    settings.showHeartRate && currentStats.heartRate && !isInTransport
+      ? {
+          key: 'heart-rate',
+          icon: <Heart className="w-3 h-3" />,
+          label: 'HR',
+          value: `${Math.round(currentStats.heartRate)}`,
+          unit: 'bpm',
+          color: 'text-red-500',
+        }
+      : null,
+    currentStats.cadence && !isInTransport
+      ? {
+          key: 'cadence',
+          icon: <Zap className="w-3 h-3" />,
+          label: t('stats.cadence'),
+          value: `${Math.round(currentStats.cadence)}`,
+          unit: 'rpm',
+        }
+      : null,
+    currentStats.power && !isInTransport
+      ? {
+          key: 'power',
+          icon: <TrendingUp className="w-3 h-3" />,
+          label: t('stats.power'),
+          value: `${Math.round(currentStats.power)}`,
+          unit: 'w',
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    unit?: string;
+    color?: string;
+  }>;
 
   return (
-    <div className="tr-stats-overlay max-w-md">
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[21rem]' : 'max-w-[26rem]'}`}>
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className={`grid grid-cols-4 ${compact ? 'gap-1.5 mb-2.5' : 'gap-2.5 mb-4'}`}>
         <StatItem
-          icon={<Route className="w-4 h-4" />}
+          icon={<Route className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.distance')}
           value={formatDistance(currentStats.distance, settings.unitSystem)}
+          compact={compact}
         />
         <StatItem
-          icon={<Timer className="w-4 h-4" />}
+          icon={<Timer className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.duration')}
           value={formatDuration(currentStats.duration)}
+          compact={compact}
         />
         <StatItem
-          icon={<Clock className="w-4 h-4" />}
+          icon={<Clock className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.avgPace')}
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
+          compact={compact}
+        />
+        <StatItem
+          icon={<Mountain className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          label={t('stats.elev')}
+          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
+          compact={compact}
         />
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-4 gap-2 pt-4 border-t border-[var(--evergreen)]/20">
-        <SmallStatItem
-          icon={<Mountain className="w-3 h-3" />}
-          label={t('stats.elev')}
-          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
-        />
-
-        {settings.showHeartRate && currentStats.heartRate && !isInTransport && (
-          <SmallStatItem
-            icon={<Heart className="w-3 h-3" />}
-            label="HR"
-            value={`${Math.round(currentStats.heartRate)}`}
-            unit="bpm"
-            color="text-red-500"
-          />
-        )}
-
-        {currentStats.cadence && !isInTransport && (
-          <SmallStatItem
-            icon={<Zap className="w-3 h-3" />}
-            label={t('stats.cadence')}
-            value={`${Math.round(currentStats.cadence)}`}
-            unit="rpm"
-          />
-        )}
-
-        {currentStats.power && !isInTransport && (
-          <SmallStatItem
-            icon={<TrendingUp className="w-3 h-3" />}
-            label={t('stats.power')}
-            value={`${Math.round(currentStats.power)}`}
-            unit="w"
-          />
-        )}
-      </div>
+      {secondaryStats.length > 0 && (
+        <div
+          className={`grid gap-2 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2.5' : 'pt-4'}`}
+          style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
+        >
+          {secondaryStats.map((stat) => (
+            <SmallStatItem
+              key={stat.key}
+              icon={stat.icon}
+              label={stat.label}
+              value={stat.value}
+              unit={stat.unit}
+              color={stat.color}
+              compact={compact}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {segmentTimings.length > 1 && (
-        <div className="mt-4 pt-4 border-t border-[var(--evergreen)]/20 flex items-center justify-center">
-          <span className="text-xs text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded">
+        <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
+          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[10px]' : 'text-xs'}`}>
             {trackCount} track{trackCount !== 1 ? 's' : ''}
             {transportCount > 0 && ` + ${transportCount} transport`}
           </span>
@@ -224,16 +257,17 @@ interface StatItemProps {
   icon: React.ReactNode;
   label: string;
   value: string;
+  compact?: boolean;
 }
 
-function StatItem({ icon, label, value }: StatItemProps) {
+function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
     <div className="text-center">
-      <div className="flex items-center justify-center gap-1 text-[var(--evergreen-60)] mb-1">
+      <div className={`flex items-center justify-center text-[var(--evergreen-60)] ${compact ? 'gap-0.5 mb-0.5' : 'gap-1 mb-1'}`}>
         {icon}
-        <span className="text-[10px] uppercase tracking-wide">{label}</span>
+        <span className={`${compact ? 'text-[8px]' : 'text-[9px]'} uppercase tracking-wide leading-none`}>{label}</span>
       </div>
-      <div className="tr-stat-value text-lg">{value}</div>
+      <div className={`tr-stat-value whitespace-nowrap leading-none ${compact ? 'text-[13px]' : 'text-[15px]'}`}>{value}</div>
     </div>
   );
 }
@@ -244,19 +278,20 @@ interface SmallStatItemProps {
   value: string;
   unit?: string;
   color?: string;
+  compact?: boolean;
 }
 
-function SmallStatItem({ icon, label, value, unit, color }: SmallStatItemProps) {
+function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
   return (
     <div className="text-center">
-      <div className={`flex items-center justify-center gap-0.5 text-[var(--evergreen-60)] mb-0.5 ${color || ''}`}>
+      <div className={`flex items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0' : 'mb-0.5'} ${color || ''}`}>
         {icon}
       </div>
-      <div className={`text-sm font-bold ${color || 'text-[var(--evergreen)]'}`}>
+      <div className={`${compact ? 'text-[12px]' : 'text-[13px]'} font-bold whitespace-nowrap leading-none ${color || 'text-[var(--evergreen)]'}`}>
         {value}
-        {unit && <span className="text-[10px] font-normal ml-0.5">{unit}</span>}
+        {unit && <span className={`${compact ? 'text-[9px]' : 'text-[10px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className="text-[9px] text-[var(--evergreen-60)] uppercase">{label}</div>
+      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-[var(--evergreen-60)] uppercase`}>{label}</div>
     </div>
   );
 }

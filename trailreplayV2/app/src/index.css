@@ -181,6 +181,12 @@ html, body {
   font-family: var(--font-family-primary);
 }
 
+.tr-stats-overlay--compact {
+  padding: 0.7rem 0.8rem;
+  border-width: 1.5px;
+  border-radius: 10px;
+}
+
 .tr-stat-item {
   display: flex;
   align-items: center;

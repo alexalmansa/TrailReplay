@@ -6,9 +6,17 @@ import { X, MapPin, Calendar } from 'lucide-react';
 interface PicturePopupProps {
   picture: PictureAnnotation;
   onClose?: () => void;
+  exportFrame?: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    frameWidth: number;
+    frameHeight: number;
+  } | null;
 }
 
-export function PicturePopup({ picture, onClose }: PicturePopupProps) {
+export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProps) {
   const { t } = useI18n();
   const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
   const [displayProgress, setDisplayProgress] = useState(0);
@@ -16,13 +24,24 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const displayDuration = picture.displayDuration || 5000;
+  const isExportSafe = !!exportFrame;
+  const imageWidth = exportFrame
+    ? Math.max(200, Math.min(288, exportFrame.frameWidth * 0.32))
+    : 288;
+  const imageHeight = Math.round(imageWidth * (52 / 72));
+  const popupOffset = 16;
+  const popupStyle = exportFrame
+    ? {
+        right: exportFrame.right + popupOffset,
+        bottom: exportFrame.bottom + popupOffset,
+        maxWidth: Math.max(220, Math.min(exportFrame.frameWidth - 24, imageWidth + 80)),
+      }
+    : {
+        right: popupOffset,
+        bottom: popupOffset,
+      };
   
   useEffect(() => {
-    // Start with entering animation
-    setAnimationState('entering');
-    setDisplayProgress(0);
-    setImageSrc(picture.url);
-    
     // After entering animation, show the picture
     const enterTimer = setTimeout(() => {
       setAnimationState('visible');
@@ -52,7 +71,7 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [picture, displayDuration, onClose]);
+  }, [displayDuration, onClose]);
   
   const handleClose = () => {
     if (progressIntervalRef.current) {
@@ -79,7 +98,7 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
   };
 
   return (
-    <div className="absolute bottom-4 right-4 z-20">
+    <div className="absolute z-20" style={popupStyle}>
       <div 
         className={`
           tr-picture-popup
@@ -101,7 +120,8 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
             <img
               src={imageSrc}
               alt={picture.title || t('media.trailPictureAlt')}
-              className="w-72 h-52 object-cover"
+              className="object-cover"
+              style={{ width: imageWidth, height: imageHeight }}
               onError={() => {
                 if (picture.file && imageSrc === picture.url) {
                   setImageSrc(URL.createObjectURL(picture.file));
@@ -109,7 +129,10 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
               }}
             />
           ) : (
-            <div className="w-72 h-52 flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm">
+            <div
+              className="flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm"
+              style={{ width: imageWidth, height: imageHeight }}
+            >
               {t('media.imageUnavailable')}
             </div>
           )}
@@ -130,18 +153,18 @@ export function PicturePopup({ picture, onClose }: PicturePopupProps) {
         
         {/* Caption */}
         {(picture.title || picture.description) && (
-          <div className="caption">
+          <div className={`caption ${isExportSafe ? 'px-3 py-2' : ''}`}>
             {picture.title && (
-              <p className="font-medium text-sm">{picture.title}</p>
+              <p className={`font-medium ${isExportSafe ? 'text-xs' : 'text-sm'}`}>{picture.title}</p>
             )}
             {picture.description && (
-              <p className="text-xs opacity-80 mt-0.5">{picture.description}</p>
+              <p className={`${isExportSafe ? 'text-[11px]' : 'text-xs'} opacity-80 mt-0.5`}>{picture.description}</p>
             )}
           </div>
         )}
         
         {/* Metadata */}
-        <div className="px-3 py-2 bg-[var(--canvas)] border-t border-[var(--evergreen)]/20 flex items-center gap-3 text-xs text-[var(--evergreen-60)]">
+        <div className={`bg-[var(--canvas)] border-t border-[var(--evergreen)]/20 flex items-center gap-3 text-[var(--evergreen-60)] ${isExportSafe ? 'px-2.5 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'}`}>
           {picture.lat && picture.lon && (
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
