@@ -191,29 +191,29 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   }>;
 
   return (
-    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[18rem]' : 'max-w-[22rem]'}`}>
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[15rem]' : 'max-w-[18rem]'}`}>
       {/* Main Stats Grid */}
-      <div className={`grid grid-cols-4 ${compact ? 'gap-1 mb-2' : 'gap-1.5 mb-3'}`}>
+      <div className={`grid grid-cols-4 ${compact ? 'gap-0.5 mb-1.5' : 'gap-1 mb-2'}`}>
         <StatItem
-          icon={<Route className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Route className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />}
           label={t('stats.distance')}
           value={formatDistance(currentStats.distance, settings.unitSystem)}
           compact={compact}
         />
         <StatItem
-          icon={<Timer className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Timer className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />}
           label={t('stats.duration')}
           value={formatDuration(currentStats.duration)}
           compact={compact}
         />
         <StatItem
-          icon={<Clock className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Clock className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />}
           label={t('stats.avgPace')}
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
           compact={compact}
         />
         <StatItem
-          icon={<Mountain className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Mountain className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />}
           label={t('stats.elev')}
           value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
           compact={compact}
@@ -223,7 +223,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
       {/* Secondary Stats */}
       {secondaryStats.length > 0 && (
         <div
-          className={`grid gap-2 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2.5' : 'pt-4'}`}
+          className={`grid gap-1.5 border-t border-[var(--evergreen)]/20 ${compact ? 'pt-2' : 'pt-3'}`}
           style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
         >
           {secondaryStats.map((stat) => (
@@ -242,8 +242,8 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {segmentTimings.length > 1 && (
-        <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
-          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[10px]' : 'text-xs'}`}>
+        <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2 pt-2' : 'mt-3 pt-3'}`}>
+          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
             {trackCount} track{trackCount !== 1 ? 's' : ''}
             {transportCount > 0 && ` + ${transportCount} transport`}
           </span>
@@ -265,10 +265,10 @@ function StatItem({ icon, label, value, compact = false }: StatItemProps) {
     <div className="text-center min-w-0">
       <div className={`flex items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5' : 'gap-0.5 mb-0.5'}`}>
         {icon}
-        <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} uppercase tracking-wide leading-none truncate`}>{label}</span>
+        <span className={`${compact ? 'text-[6px]' : 'text-[7px]'} uppercase tracking-[0.08em] leading-none truncate`}>{label}</span>
       </div>
       <div
-        className={`tr-stat-value leading-none font-semibold tabular-nums min-w-0 overflow-hidden text-ellipsis ${compact ? 'text-[11px]' : 'text-[12px]'}`}
+        className={`tr-stat-value block leading-none font-semibold tabular-nums min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${compact ? 'text-[9px]' : 'text-[10px]'}`}
         title={value}
       >
         {value}
@@ -293,13 +293,13 @@ function SmallStatItem({ icon, label, value, unit, color, compact = false }: Sma
         {icon}
       </div>
       <div
-        className={`${compact ? 'text-[10px]' : 'text-[11px]'} font-bold whitespace-nowrap leading-none min-w-0 overflow-hidden text-ellipsis ${color || 'text-[var(--evergreen)]'}`}
+        className={`${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-none min-w-0 overflow-hidden text-ellipsis ${color || 'text-[var(--evergreen)]'}`}
         title={unit ? `${value} ${unit}` : value}
       >
         {value}
-        {unit && <span className={`${compact ? 'text-[9px]' : 'text-[10px]'} font-normal ml-0.5`}>{unit}</span>}
+        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[7px]' : 'text-[8px]'} text-[var(--evergreen-60)] uppercase truncate`}>{label}</div>
+      <div className={`${compact ? 'text-[6px]' : 'text-[7px]'} text-[var(--evergreen-60)] uppercase truncate`}>{label}</div>
     </div>
   );
 }
