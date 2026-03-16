@@ -219,6 +219,7 @@ export function usePhotos() {
       timestamp,
       progress: position,
       position,
+      placementSource: 'gps',
       displayDuration: 5000,
     };
     

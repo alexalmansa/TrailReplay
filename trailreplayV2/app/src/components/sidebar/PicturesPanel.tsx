@@ -144,10 +144,15 @@ export function PicturesPanel() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        {picture.lat && picture.lon && (
+                        {picture.placementSource !== 'manual' && picture.lat && picture.lon && (
                           <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" />
                             {t('media.gps')}
+                          </span>
+                        )}
+                        {picture.placementSource === 'manual' && (
+                          <span className="text-[10px] bg-[var(--trail-orange)] text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            {t('media.manual')}
                           </span>
                         )}
                         <span className="text-xs text-[var(--evergreen-60)]">

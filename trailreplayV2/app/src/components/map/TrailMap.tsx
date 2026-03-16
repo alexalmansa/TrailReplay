@@ -1289,6 +1289,7 @@ export function TrailMap({}: TrailMapProps) {
         timestamp: pendingPicture.timestamp,
         progress: placement.progress,
         position: placement.progress,
+        placementSource: 'manual',
         title: pendingPicture.title,
         description: pendingPicture.description,
         displayDuration: pendingPicture.displayDuration,

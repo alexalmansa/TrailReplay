@@ -73,6 +73,7 @@ export interface PictureAnnotation {
   timestamp?: Date;
   progress: number;
   position: number;
+  placementSource?: 'gps' | 'manual';
   title?: string;
   description?: string;
   displayDuration: number;
