@@ -86,6 +86,7 @@ export interface PendingPicturePlacement {
   title?: string;
   description?: string;
   displayDuration: number;
+  placementReason: 'missing-gps' | 'route-mismatch';
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;

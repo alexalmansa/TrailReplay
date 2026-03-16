@@ -32,6 +32,32 @@ function createPictureId() {
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function createPendingPlacement(params: {
+  id: string;
+  file: File;
+  url: string;
+  timestamp?: Date;
+  reason: PendingPicturePlacement['placementReason'];
+  originalLat?: number;
+  originalLon?: number;
+  mismatchDistanceMeters?: number;
+}): ProcessPhotoResult {
+  return {
+    kind: 'pending',
+    pendingPlacement: {
+      id: params.id,
+      file: params.file,
+      url: params.url,
+      timestamp: params.timestamp,
+      displayDuration: 5000,
+      placementReason: params.reason,
+      originalLat: params.originalLat,
+      originalLon: params.originalLon,
+      mismatchDistanceMeters: params.mismatchDistanceMeters,
+    },
+  };
+}
+
 export function usePhotos() {
   const { t } = useI18n();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -138,19 +164,16 @@ export function usePhotos() {
         const routeMatch = findPositionOnTrack(exifData.latitude, exifData.longitude);
 
         if (routeMatch && routeMatch.distanceMeters > GPS_ROUTE_MATCH_THRESHOLD_METERS) {
-          return {
-            kind: 'pending',
-            pendingPlacement: {
-              id,
-              file,
-              url,
-              timestamp,
-              displayDuration: 5000,
-              originalLat: exifData.latitude,
-              originalLon: exifData.longitude,
-              mismatchDistanceMeters: routeMatch.distanceMeters,
-            },
-          };
+          return createPendingPlacement({
+            id,
+            file,
+            url,
+            timestamp,
+            reason: 'route-mismatch',
+            originalLat: exifData.latitude,
+            originalLon: exifData.longitude,
+            mismatchDistanceMeters: routeMatch.distanceMeters,
+          });
         }
 
         if (routeMatch) {
@@ -158,10 +181,33 @@ export function usePhotos() {
           lon = routeMatch.lon;
           position = routeMatch.progress;
         } else {
-          lat = exifData.latitude;
-          lon = exifData.longitude;
+          return createPendingPlacement({
+            id,
+            file,
+            url,
+            timestamp,
+            reason: 'route-mismatch',
+            originalLat: exifData.latitude,
+            originalLon: exifData.longitude,
+          });
         }
+      } else {
+        return createPendingPlacement({
+          id,
+          file,
+          url,
+          timestamp,
+          reason: 'missing-gps',
+        });
       }
+    } else {
+      return createPendingPlacement({
+        id,
+        file,
+        url,
+        timestamp,
+        reason: 'missing-gps',
+      });
     }
     
     const picture: PictureAnnotation = {
