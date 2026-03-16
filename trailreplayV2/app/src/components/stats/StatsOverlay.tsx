@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatPace, formatDuration, formatElevation } from '@/utils/units';
+import { formatDistance, formatPace, formatStatsDuration, formatElevation } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Route,
@@ -203,7 +203,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
         <StatItem
           icon={<Timer className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.duration')}
-          value={formatDuration(currentStats.duration)}
+          value={formatStatsDuration(currentStats.duration)}
           compact={compact}
         />
         <StatItem
