@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://trailreplay.com/sitemap.xml
+
+Crawl-delay: 1
+
+Disallow: /node_modules/
+Disallow: /.git/
+Disallow: /src/
+Disallow: /dist/
+
+Allow: /index.html
+Allow: /tutorial.html
+Allow: /gpx-download-guide.html
+Allow: /acknowledgments.html
+Allow: /media/

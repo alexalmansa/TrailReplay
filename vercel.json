@@ -1,29 +1,80 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "outputDirectory": "app/dist",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/app",
-      "destination": "/app/index.html"
+      "destination": "/",
+      "permanent": true
     },
     {
       "source": "/app/",
-      "destination": "/app/index.html"
+      "destination": "/",
+      "permanent": true
     },
     {
-      "source": "/app/(.*)",
-      "destination": "/app/index.html"
+      "source": "/app/tutorial",
+      "destination": "/tutorial.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/tutorial.html",
+      "destination": "/tutorial.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/gpx-download-guide",
+      "destination": "/gpx-download-guide.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/gpx-download-guide.html",
+      "destination": "/gpx-download-guide.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/privacy.html",
+      "destination": "/privacy.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/terms.html",
+      "destination": "/terms.html",
+      "permanent": true
+    },
+    {
+      "source": "/app/acknowledgments.html",
+      "destination": "/acknowledgments.html",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/app/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/app/media/(.*)",
+      "destination": "/media/$1"
+    },
+    {
+      "source": "/app/legal.css",
+      "destination": "/legal.css"
     },
     {
       "source": "/app-v1",
-      "destination": "/app-v1.html"
+      "destination": "/index.html"
     },
     {
       "source": "/app-v1/",
-      "destination": "/app-v1.html"
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app-v1.html",
+      "destination": "/index.html"
     },
     {
       "source": "/tutorial",
@@ -34,8 +85,28 @@
       "destination": "/tutorial.html"
     },
     {
+      "source": "/tutorial.html",
+      "destination": "/tutorial.html"
+    },
+    {
+      "source": "/gpx-download-guide",
+      "destination": "/gpx-download-guide.html"
+    },
+    {
+      "source": "/gpx-download-guide/",
+      "destination": "/gpx-download-guide.html"
+    },
+    {
+      "source": "/gpx-download-guide.html",
+      "destination": "/gpx-download-guide.html"
+    },
+    {
       "source": "/strava-callback",
-      "destination": "/app-v1.html"
+      "destination": "/index.html"
+    },
+    {
+      "source": "/strava-callback.html",
+      "destination": "/index.html"
     },
     {
       "source": "/privacy",
@@ -44,18 +115,6 @@
     {
       "source": "/terms",
       "destination": "/terms.html"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/public/robots.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/public/sitemap.xml"
-    },
-    {
-      "source": "/ads.txt",
-      "destination": "/public/ads.txt"
     }
   ],
   "headers": [
