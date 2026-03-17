@@ -6,14 +6,11 @@ The active product lives in [`app/`](./app), built with React and TypeScript, an
 
 ## Demo Videos
 
-<video controls src="https://raw.githubusercontent.com/alexalmansa/TrailReplay/v2-architecture-cleanup/app/public/media/video/path-export-with-stats.mp4" title="TrailReplay Path Export With Stats" style="max-width: 100%;"></video>
+<video controls src="media/video/trailreplay-segment-builder.mp4" title="TrailReplay Capture - Segment Builder" style="max-width: 100%;"></video>
 
-<video controls src="https://raw.githubusercontent.com/alexalmansa/TrailReplay/v2-architecture-cleanup/app/public/media/video/comparison-mode-demo.mp4" title="TrailReplay Comparison Mode Demo" style="max-width: 100%;"></video>
+<video controls src="media/video/trailreplay-export-flow.mp4" title="TrailReplay Capture - Export Flow" style="max-width: 100%;"></video>
 
-If inline playback does not appear in your viewer, use the direct files instead:
-- [Path export with stats video](./app/public/media/video/path-export-with-stats.mp4)
-- [Comparison mode video](./app/public/media/video/comparison-mode-demo.mp4)
-- [Live tutorial demos](https://trailreplay.com/tutorial.html#demo-videos)
+If inline playback does not appear on GitHub, use the download links instead: [segment builder](media/video/trailreplay-segment-builder.mp4), [export flow](media/video/trailreplay-export-flow.mp4).
 
 ## What TrailReplay Does
 
