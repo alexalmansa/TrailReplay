@@ -364,6 +364,8 @@ export const ca = {
   },
   map: {
     loading: 'Carregant mapa...',
+    threeDHint: 'Mode 3D: arrossega sobre el mapa per inclinar-lo i girar-lo. També pots mantenir Ctrl i arrossegar.',
+    threeDActiveHint: 'El mode 3D està actiu: arrossega sobre el mapa per inclinar-lo i girar-lo. També pots mantenir Ctrl i arrossegar.',
   },
   errors: {
     noValidGpx: 'No s\'han trobat fitxers GPX o KML vàlids',

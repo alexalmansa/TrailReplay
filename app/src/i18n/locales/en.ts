@@ -364,6 +364,8 @@ export const en = {
   },
   map: {
     loading: 'Loading map...',
+    threeDHint: '3D mode: drag on the map to tilt and rotate. You can also hold Ctrl and drag.',
+    threeDActiveHint: '3D mode is active: drag on the map to tilt and rotate. You can also hold Ctrl and drag.',
   },
   errors: {
     noValidGpx: 'No valid GPX or KML files found',

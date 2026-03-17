@@ -364,6 +364,8 @@ export const es = {
   },
   map: {
     loading: 'Cargando mapa...',
+    threeDHint: 'Modo 3D: arrastra sobre el mapa para inclinarlo y rotarlo. También puedes mantener Ctrl y arrastrar.',
+    threeDActiveHint: 'El modo 3D está activo: arrastra sobre el mapa para inclinarlo y rotarlo. También puedes mantener Ctrl y arrastrar.',
   },
   errors: {
     noValidGpx: 'No se encontraron archivos GPX o KML válidos',

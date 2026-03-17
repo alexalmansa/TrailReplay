@@ -14,6 +14,7 @@ import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
+import { useThreeDDragMode } from './hooks/useThreeDDragMode';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -76,6 +77,13 @@ export function TrailMap(_props: TrailMapProps) {
       loadZoomDoneRef.current = false;
     }
   }, []);
+  const {
+    isThreeDDragMode,
+    toggleThreeDDragMode,
+  } = useThreeDDragMode({
+    isMapLoaded,
+    mapRef: map,
+  });
 
   const findNearestRoutePoint = useCallback((lat: number, lon: number) => {
     if (computedJourney && computedJourney.coordinates.length > 0) {
@@ -225,6 +233,22 @@ export function TrailMap(_props: TrailMapProps) {
             <span className="text-[var(--evergreen)]">{t('map.loading')}</span>
           </div>
         </div>
+      )}
+
+      {isMapLoaded && (
+        <button
+          type="button"
+          onClick={toggleThreeDDragMode}
+          title={isThreeDDragMode ? t('map.threeDActiveHint') : t('map.threeDHint')}
+          aria-pressed={isThreeDDragMode}
+          className={`absolute right-3 top-32 z-30 rounded-lg border px-3 py-2 text-xs font-semibold shadow-lg transition-colors ${
+            isThreeDDragMode
+              ? 'border-[var(--trail-orange)] bg-[var(--trail-orange)] text-[var(--canvas)]'
+              : 'border-[var(--evergreen)]/15 bg-[var(--canvas)]/95 text-[var(--evergreen)] hover:bg-[var(--canvas)]'
+          }`}
+        >
+          3D
+        </button>
       )}
 
       {/* Elevation Profile at bottom of map */}
