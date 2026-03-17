@@ -74,6 +74,8 @@ export function TrailMap(_props: TrailMapProps) {
   const currentTrackName = currentSegment?.segment.type === 'track' && currentSegment.segment.trackId
     ? tracks.find((t) => t.id === currentSegment.segment.trackId)?.name
     : activeTrack?.name;
+  const cameraMode = cameraSettings.mode;
+  const followBehindPreset = cameraSettings.followBehindPreset;
 
   const findNearestRoutePoint = useCallback((lat: number, lon: number) => {
     if (computedJourney && computedJourney.coordinates.length > 0) {
@@ -184,7 +186,7 @@ export function TrailMap(_props: TrailMapProps) {
       map.current = null;
       loadZoomDoneRef.current = false;
     };
-  }, [trailStyle.trailColor]);
+  }, [mapContainer, trailStyle.trailColor]);
 
   // Update map layer visibility
   useEffect(() => {
@@ -638,8 +640,6 @@ export function TrailMap(_props: TrailMapProps) {
     }
 
     // Camera follow logic - simplified to match v1 approach
-    const { mode, followBehindPreset } = cameraSettings;
-
     // Presets matching v1 CameraController (VERY_CLOSE: 16/55, MEDIUM: 14/35, FAR: 11/30)
     const presets = {
       'very-close': { zoom: 16, pitch: 55 },
@@ -656,7 +656,7 @@ export function TrailMap(_props: TrailMapProps) {
     lastAnimationPhaseRef.current = animationPhase;
 
     // Handle intro phase - smooth cinematic zoom from overview to follow position (only once)
-    if (animationPhase === 'intro' && mode !== 'overview' && !introZoomTriggeredRef.current) {
+    if (animationPhase === 'intro' && cameraMode !== 'overview' && !introZoomTriggeredRef.current) {
       introZoomTriggeredRef.current = true;
       const cameraBearing = currentBearing || 0;
 
@@ -672,21 +672,21 @@ export function TrailMap(_props: TrailMapProps) {
       map.current.easeTo({
         center: [currentPosition.lon, currentPosition.lat],
         zoom: targetZoom,
-        pitch: mode === 'follow-behind' ? preset.pitch : 0,
-        bearing: mode === 'follow-behind' ? cameraBearing : 0,
+        pitch: cameraMode === 'follow-behind' ? preset.pitch : 0,
+        bearing: cameraMode === 'follow-behind' ? cameraBearing : 0,
         duration: 2000,
         easing: (t: number) => 1 - Math.pow(1 - t, 3), // Smooth ease-out cubic like v1
       });
     }
     // Handle playing phase - continuous follow with gradual zoom approach
-    else if (animationPhase === 'playing' && mode !== 'overview') {
+    else if (animationPhase === 'playing' && cameraMode !== 'overview') {
       const cameraBearing = smoothBearingRef.current;
       const currentZoom = map.current.getZoom();
 
       // Gradually approach target zoom (0.1 levels per frame) to allow tiles to load
       const zoomStep = 0.1;
 
-      if (mode === 'follow') {
+      if (cameraMode === 'follow') {
         const targetZoom = 14;
         const newZoom = currentZoom < targetZoom
           ? Math.min(currentZoom + zoomStep, targetZoom)
@@ -699,7 +699,7 @@ export function TrailMap(_props: TrailMapProps) {
           bearing: 0,
           duration: 100,
         });
-      } else if (mode === 'follow-behind') {
+      } else if (cameraMode === 'follow-behind') {
         // Gradually approach preset zoom to allow tiles to load
         const newZoom = currentZoom < preset.zoom
           ? Math.min(currentZoom + zoomStep, preset.zoom)
@@ -725,28 +725,25 @@ export function TrailMap(_props: TrailMapProps) {
       bearing: map.current.getBearing(),
     });
   }, [currentPosition, currentBearing, completedCoordinates, playback.progress, animationPhase,
-      cameraSettings, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData, currentTrackName]);
+      cameraMode, followBehindPreset, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData, currentTrackName, activeTrack, computedJourney]);
 
   // Handle camera mode changes
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    const { mode } = cameraSettings;
-
-    if (mode === 'overview') {
+    if (cameraMode === 'overview') {
       if (allCoordinates.length > 0) {
         const bounds = new maplibregl.LngLatBounds();
         allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
         map.current.fitBounds(bounds, { padding: 100, duration: 500 });
       }
     }
-  }, [cameraSettings.mode, allCoordinates, isMapLoaded]);
+  }, [cameraMode, allCoordinates, isMapLoaded]);
 
   // Handle intro and outro animations
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    const { followBehindPreset } = cameraSettings;
     const presets = {
       'very-close': { zoom: 17, pitch: 60 },
       'close': { zoom: 16, pitch: 55 },
@@ -820,7 +817,7 @@ export function TrailMap(_props: TrailMapProps) {
       allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
       map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
     }
-  }, [animationPhase, allCoordinates, cameraSettings.followBehindPreset, isMapLoaded, elevationData]);
+  }, [animationPhase, allCoordinates, followBehindPreset, isMapLoaded, elevationData]);
 
   return (
     <div className="w-full h-full relative">

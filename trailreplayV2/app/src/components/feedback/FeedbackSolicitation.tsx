@@ -193,7 +193,7 @@ export function FeedbackSolicitation() {
         const data = await res.json().catch(() => ({}));
         setError(data?.error || t('feedback.error'));
       }
-    } catch (err) {
+    } catch {
       setError(t('feedback.errorSend'));
     } finally {
       setIsSubmitting(false);

@@ -80,28 +80,6 @@ export function ExportPanel() {
 
   const html2canvas = useCallback(() => window.html2canvas ?? null, []);
 
-  // Watch for animation phase changes to stop recording
-  useEffect(() => {
-    if (!isRecordingRef.current) return;
-
-    // Update progress based on playback progress
-    if (animationPhase === 'playing') {
-      setExportProgress(playback.progress * 100);
-      setExportStage(t('export.recording'));
-    } else if (animationPhase === 'intro') {
-      setExportStage(t('export.recordingIntro'));
-    } else if (animationPhase === 'outro') {
-      setExportStage(t('export.recordingOutro'));
-    }
-
-    // Stop recording when animation ends
-    if (animationPhase === 'ended') {
-      setTimeout(() => {
-        finishRecording();
-      }, 1000); // Wait 1 second after ended to capture final frames
-    }
-  }, [animationPhase, playback.progress, setExportProgress, setExportStage, t]);
-
   // Load html2canvas dynamically (same as v1)
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (html2canvas()) return true;
@@ -393,6 +371,26 @@ export function ExportPanel() {
       mediaRecorderRef.current.stop();
     }
   }, [setExportStage, t]);
+
+  // Watch for animation phase changes to stop recording
+  useEffect(() => {
+    if (!isRecordingRef.current) return;
+
+    if (animationPhase === 'playing') {
+      setExportProgress(playback.progress * 100);
+      setExportStage(t('export.recording'));
+    } else if (animationPhase === 'intro') {
+      setExportStage(t('export.recordingIntro'));
+    } else if (animationPhase === 'outro') {
+      setExportStage(t('export.recordingOutro'));
+    }
+
+    if (animationPhase === 'ended') {
+      setTimeout(() => {
+        finishRecording();
+      }, 1000);
+    }
+  }, [animationPhase, finishRecording, playback.progress, setExportProgress, setExportStage, t]);
 
   const handleStartExport = useCallback(async () => {
     // Find the map canvas

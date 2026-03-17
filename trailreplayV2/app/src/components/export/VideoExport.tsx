@@ -106,7 +106,7 @@ export function VideoExport({ className = '', mapContainerRef }: VideoExportProp
       console.error('Export failed:', error);
       setIsExporting(false);
     }
-  }, [mapContainerRef, videoExportSettings, playback.totalDuration]);
+  }, [mapContainerRef, videoExportSettings]);
   
   const handleCancelExport = useCallback(() => {
     exporterRef.current?.cancel();

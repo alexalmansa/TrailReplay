@@ -447,7 +447,7 @@ export function getBearingAtProgress(
  */
 export function getJourneyElevationData(
   coordinates: JourneyPoint[],
-  _segmentTimings: SegmentTiming[]
+  segmentTimings: SegmentTiming[]
 ): Array<{
   distance: number;
   elevation: number;
@@ -455,6 +455,7 @@ export function getJourneyElevationData(
   segmentIndex: number;
   segmentType: 'track' | 'transport';
 }> {
+  void segmentTimings;
   if (coordinates.length === 0) return [];
 
   const data: Array<{

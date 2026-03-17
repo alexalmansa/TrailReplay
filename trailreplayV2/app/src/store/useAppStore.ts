@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { createId } from '@/utils/id';
 import type {
   GPXTrack,
   PictureAnnotation,
@@ -278,7 +279,7 @@ export const useAppStore = create<AppState>()(
         // Auto-create journey if it doesn't exist
         if (!state.journey) {
           state.journey = {
-            id: `journey-${Date.now()}`,
+            id: createId('journey'),
             name: 'My Journey',
             segments: [],
             totalDuration: 0,
@@ -287,7 +288,7 @@ export const useAppStore = create<AppState>()(
         }
         // Add track to journey with default 60s duration (user can adjust in Journey panel)
         state.journeySegments.push({
-          id: `segment-${Date.now()}-${track.id}`,
+          id: createId(`segment-${track.id}`),
           type: 'track',
           trackId: track.id,
           duration: 60000, // 60 seconds default
@@ -386,7 +387,7 @@ export const useAppStore = create<AppState>()(
     createJourney: (name) =>
       set((state) => {
         state.journey = {
-          id: `journey-${Date.now()}`,
+          id: createId('journey'),
           name,
           segments: [],
           totalDuration: 0,
@@ -420,7 +421,7 @@ export const useAppStore = create<AppState>()(
     addTransportSegment: (from, to, mode) =>
       set((state) => {
         state.journeySegments.push({
-          id: `transport-${Date.now()}`,
+          id: createId('transport'),
           type: 'transport',
           mode,
           from,

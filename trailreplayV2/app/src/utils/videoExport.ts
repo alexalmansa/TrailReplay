@@ -96,7 +96,7 @@ export class VideoExporter {
     
     // Configure video encoder
     const encoder = new VideoEncoder({
-      output: (_chunk, _metadata) => {
+      output: () => {
         // Handle encoded chunks
       },
       error: (error) => {

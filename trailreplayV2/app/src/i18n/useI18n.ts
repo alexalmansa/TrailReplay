@@ -10,7 +10,9 @@ export function useI18n() {
     setSettings({ language: lang });
     try {
       localStorage.setItem('trailReplayLang', lang);
-    } catch (_) {}
+    } catch {
+      return;
+    }
   }, [setSettings]);
 
   const t = useCallback((key: string, params?: Record<string, string | number>) => {
