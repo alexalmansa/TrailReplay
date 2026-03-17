@@ -37,6 +37,9 @@ export const ca = {
     dragReorder: 'Arrossega per reordenar',
     comparisonTitle: 'Mode comparació',
     comparisonHint: 'Afegeix una segona ruta GPX o KML per comparar en paral·lel durant l\'animació.',
+    mapControlsTitle: 'Controls del mapa',
+    mapControlsPan: 'Clic dret + arrossegar: moure\'t pel mapa.',
+    mapControlsCamera: 'Clic esquerre + arrossegar: moure la càmera.',
     addComparison: '+ Afegir ruta de comparació',
     parsingComparison: 'Analitzant...',
     emptyTitle: 'Cap ruta carregada',
@@ -364,8 +367,6 @@ export const ca = {
   },
   map: {
     loading: 'Carregant mapa...',
-    threeDHint: 'Mode 3D: arrossega sobre el mapa per inclinar-lo i girar-lo. També pots mantenir Ctrl i arrossegar.',
-    threeDActiveHint: 'El mode 3D està actiu: arrossega sobre el mapa per inclinar-lo i girar-lo. També pots mantenir Ctrl i arrossegar.',
   },
   errors: {
     noValidGpx: 'No s\'han trobat fitxers GPX o KML vàlids',

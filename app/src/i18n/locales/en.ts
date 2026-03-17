@@ -37,6 +37,9 @@ export const en = {
     dragReorder: 'Drag to reorder',
     comparisonTitle: 'Comparison Mode',
     comparisonHint: 'Add a second GPX or KML track to compare side-by-side during animation.',
+    mapControlsTitle: 'Map Controls',
+    mapControlsPan: 'Right click + drag: move through the map.',
+    mapControlsCamera: 'Left click + drag: move the camera.',
     addComparison: '+ Add Comparison Track',
     parsingComparison: 'Parsing...',
     emptyTitle: 'No tracks loaded yet',
@@ -364,8 +367,6 @@ export const en = {
   },
   map: {
     loading: 'Loading map...',
-    threeDHint: '3D mode: drag on the map to tilt and rotate. You can also hold Ctrl and drag.',
-    threeDActiveHint: '3D mode is active: drag on the map to tilt and rotate. You can also hold Ctrl and drag.',
   },
   errors: {
     noValidGpx: 'No valid GPX or KML files found',

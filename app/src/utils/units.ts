@@ -61,6 +61,14 @@ export function formatSpeed(mps: number, unitSystem: UnitSystem): string {
   }
 }
 
+export function formatSpeedFromKmh(kmh: number, unitSystem: UnitSystem): string {
+  if (unitSystem === 'metric') {
+    return `${kmh.toFixed(1)} km/h`;
+  }
+
+  return `${kmhToMph(kmh).toFixed(1)} mph`;
+}
+
 // Format pace (min/km or min/mile)
 export function formatPace(mps: number, unitSystem: UnitSystem): string {
   if (mps <= 0) return '--:--';

@@ -37,6 +37,9 @@ export const es = {
     dragReorder: 'Arrastra para reordenar',
     comparisonTitle: 'Modo de comparación',
     comparisonHint: 'Añade una segunda ruta GPX o KML para comparar lado a lado durante la animación.',
+    mapControlsTitle: 'Controles del mapa',
+    mapControlsPan: 'Clic derecho + arrastrar: moverte por el mapa.',
+    mapControlsCamera: 'Clic izquierdo + arrastrar: mover la cámara.',
     addComparison: '+ Añadir ruta de comparación',
     parsingComparison: 'Analizando...',
     emptyTitle: 'No hay rutas cargadas',
@@ -364,8 +367,6 @@ export const es = {
   },
   map: {
     loading: 'Cargando mapa...',
-    threeDHint: 'Modo 3D: arrastra sobre el mapa para inclinarlo y rotarlo. También puedes mantener Ctrl y arrastrar.',
-    threeDActiveHint: 'El modo 3D está activo: arrastra sobre el mapa para inclinarlo y rotarlo. También puedes mantener Ctrl y arrastrar.',
   },
   errors: {
     noValidGpx: 'No se encontraron archivos GPX o KML válidos',
