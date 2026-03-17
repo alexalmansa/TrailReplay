@@ -13,6 +13,7 @@ import {
 export function Sidebar() {
   const activeTab = useAppStore((state) => state.activePanel);
   const setActiveTab = useAppStore((state) => state.setActivePanel);
+  const isExporting = useAppStore((state) => state.isExporting);
   const { t } = useI18n();
 
   const tracks = useAppStore((state) => state.tracks);
@@ -32,16 +33,24 @@ export function Sidebar() {
     <div className="h-full flex flex-col bg-[var(--canvas)]">
       {/* Tabs */}
       <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto flex-shrink-0">
-        {tabs.map((tab) => (
+        {tabs.map((tab) => {
+          const isLockedByExport = isExporting && tab.id !== 'export';
+
+          return (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              if (isLockedByExport) return;
+              setActiveTab(tab.id);
+            }}
+            disabled={isLockedByExport}
             className={`
               flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors
               ${activeTab === tab.id
                 ? 'bg-[var(--evergreen)] text-[var(--canvas)]'
                 : 'text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10'
               }
+              ${isLockedByExport ? 'cursor-not-allowed opacity-45 hover:bg-transparent' : ''}
             `}
           >
             <tab.icon className="w-4 h-4" />
@@ -58,7 +67,8 @@ export function Sidebar() {
               </span>
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Content */}

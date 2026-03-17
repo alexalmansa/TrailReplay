@@ -76,6 +76,9 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   setIsExporting: (isExporting) =>
     set((state) => {
       state.isExporting = isExporting;
+      if (isExporting) {
+        state.activePanel = 'export';
+      }
       if (!isExporting) {
         state.exportProgress = 0;
         state.exportStage = '';

@@ -35,6 +35,9 @@ export const createUiSlice: AppSliceCreator<UiSlice> = (set) => ({
 
   setActivePanel: (panel) =>
     set((state) => {
+      if (state.isExporting && panel !== 'export') {
+        return;
+      }
       state.activePanel = panel;
     }),
 

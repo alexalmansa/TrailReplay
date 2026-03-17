@@ -114,4 +114,20 @@ describe('createAppStore', () => {
     expect(state.settings.trailStyle.trackLabel).toBe('Track 1');
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });
+
+  it('locks the sidebar on export while recording is active', () => {
+    const useStore = createAppStore();
+
+    useStore.getState().setActivePanel('settings');
+    useStore.getState().setIsExporting(true);
+
+    expect(useStore.getState().activePanel).toBe('export');
+
+    useStore.getState().setActivePanel('settings');
+    expect(useStore.getState().activePanel).toBe('export');
+
+    useStore.getState().setIsExporting(false);
+    useStore.getState().setActivePanel('settings');
+    expect(useStore.getState().activePanel).toBe('settings');
+  });
 });

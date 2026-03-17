@@ -191,7 +191,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   }>;
 
   return (
-    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[18.75rem]' : 'max-w-[24rem]'}`}>
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[19.5rem]' : 'max-w-[25.5rem]'}`}>
       {/* Main Stats Grid */}
       <div className={`grid grid-cols-4 ${compact ? 'gap-1 mb-2' : 'gap-1.5 mb-3'}`}>
         <StatItem
@@ -263,9 +263,9 @@ interface StatItemProps {
 function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
     <div className="min-w-0 text-center">
-      <div className={`flex min-h-[1.35rem] items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5 py-[2px]' : 'gap-0.5 mb-0.5 py-[2px]'}`}>
+      <div className={`flex min-h-[1.5rem] items-center justify-center text-[var(--evergreen-80)] min-w-0 ${compact ? 'gap-1 mb-0.5 py-[2px]' : 'gap-1 mb-0.5 py-[2px]'}`}>
         {icon}
-        <span className={`block ${compact ? 'text-[8px]' : 'text-[9px]'} font-medium uppercase tracking-[0.04em] leading-[1.25] truncate`}>
+        <span className={`block ${compact ? 'text-[9px]' : 'text-[10px]'} font-semibold uppercase tracking-[0.02em] leading-[1.2] truncate`}>
           {label}
         </span>
       </div>
@@ -291,7 +291,7 @@ interface SmallStatItemProps {
 function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
   return (
     <div className="min-w-0 text-center">
-      <div className={`flex min-h-[1.15rem] items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0 py-[1px]' : 'mb-0.5 py-[1px]'} ${color || ''}`}>
+      <div className={`flex min-h-[1.2rem] items-center justify-center gap-0.5 text-[var(--evergreen-80)] ${compact ? 'mb-0 py-[1px]' : 'mb-0.5 py-[1px]'} ${color || ''}`}>
         {icon}
       </div>
       <div
@@ -301,7 +301,7 @@ function SmallStatItem({ icon, label, value, unit, color, compact = false }: Sma
         {value}
         {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[7px]' : 'text-[8px]'} text-[var(--evergreen-60)] uppercase font-medium leading-[1.2] truncate`}>{label}</div>
+      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-[var(--evergreen-80)] uppercase font-semibold leading-[1.2] truncate`}>{label}</div>
     </div>
   );
 }
