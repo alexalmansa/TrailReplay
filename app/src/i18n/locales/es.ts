@@ -31,6 +31,7 @@ export const es = {
     dropTitle: 'Arrastra y suelta archivos GPX o KML',
     dropActive: 'Suelta los archivos GPX/KML aquí',
     dropBrowse: 'o haz clic para buscar',
+    languageHint: 'Cambia el idioma de la interfaz antes de importar tu ruta.',
     parsing: 'Analizando archivos GPX...',
     loadedTracks: 'Rutas cargadas ({count})',
     dragReorder: 'Arrastra para reordenar',

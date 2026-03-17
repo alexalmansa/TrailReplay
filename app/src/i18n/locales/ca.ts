@@ -31,6 +31,7 @@ export const ca = {
     dropTitle: 'Arrossega i deixa fitxers GPX o KML',
     dropActive: 'Deixa els fitxers GPX/KML aquí',
     dropBrowse: 'o fes clic per buscar',
+    languageHint: 'Canvia l’idioma de la interfície abans d’importar la ruta.',
     parsing: 'Analitzant fitxers GPX...',
     loadedTracks: 'Rutes carregades ({count})',
     dragReorder: 'Arrossega per reordenar',

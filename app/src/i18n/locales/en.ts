@@ -31,6 +31,7 @@ export const en = {
     dropTitle: 'Drag & drop GPX or KML files',
     dropActive: 'Drop GPX/KML files here',
     dropBrowse: 'or click to browse',
+    languageHint: 'Change the interface language before importing your route.',
     parsing: 'Parsing GPX files...',
     loadedTracks: 'Loaded Tracks ({count})',
     dragReorder: 'Drag to reorder',

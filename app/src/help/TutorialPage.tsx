@@ -10,6 +10,14 @@ export function TutorialPage() {
       eyebrow="Tutorial"
       title="Learn TrailReplay from the real workflow"
       description="This guide focuses on the current TrailReplay experience: importing tracks, shaping a journey, adding media, previewing the export crop, and recording a polished replay."
+      headerActions={[
+        {
+          href: '/gpx-download-guide.html',
+          icon: <Download className="h-3.5 w-3.5" />,
+          label: 'GPX guide',
+          tone: 'solid',
+        },
+      ]}
     >
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <article className="rounded-[1.5rem] border border-[var(--evergreen)]/12 bg-white/80 p-6 shadow-sm">

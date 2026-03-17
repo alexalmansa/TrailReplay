@@ -1,4 +1,4 @@
-import { Download, FileCode2, Globe2, MapPinned } from 'lucide-react';
+import { BookOpen, Download, FileCode2, Globe2, MapPinned } from 'lucide-react';
 import { HelpLayout } from './HelpLayout';
 import { gpxTips, otherProviders, providerGuides } from './helpContent';
 
@@ -8,6 +8,14 @@ export function GpxDownloadGuidePage() {
       eyebrow="GPX guide"
       title="How to get GPX files into TrailReplay"
       description="Use this page when your route still lives inside Strava, Wikiloc, Garmin Connect, or another platform. The goal is simple: export a clean GPX file and bring it straight into TrailReplay."
+      headerActions={[
+        {
+          href: '/tutorial.html',
+          icon: <BookOpen className="h-3.5 w-3.5" />,
+          label: 'Tutorial',
+          tone: 'solid',
+        },
+      ]}
     >
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#24372a)] p-6 text-[var(--canvas)] shadow-sm">
