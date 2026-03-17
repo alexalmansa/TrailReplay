@@ -1,14 +1,37 @@
 # TrailReplay
 
-TrailReplay is a browser-based GPX replay studio. The active product lives in `app/`, built with React and TypeScript. The repository root contains deployment config, the serverless feedback endpoint, and project documentation.
+TrailReplay turns raw GPX files into polished, shareable route stories. You can import one or more activities, replay them on a 3D map, add photos and annotations, compare tracks, and export the result as a video, all directly in the browser.
 
-## App
-- App folder: `app`
-- Live editor: [trailreplay.com](https://trailreplay.com)
+The active product lives in [`app/`](./app), built with React and TypeScript, and powers [trailreplay.com](https://trailreplay.com).
+
+## Demo Videos
+
+Watch the demos in the live tutorial:
+- [Path export with stats](https://trailreplay.com/tutorial.html#demo-videos)
+- [Comparison mode](https://trailreplay.com/tutorial.html#demo-videos)
+
+Or open the source video files from this repo:
+- [Path export with stats video](./app/public/media/video/path-export-with-stats.mp4)
+- [Comparison mode video](./app/public/media/video/comparison-mode-demo.mp4)
+
+## What TrailReplay Does
+
+- Import one or many GPX files and replay them on an interactive map.
+- Build a full journey by combining tracks, reordering them, and adding transport segments.
+- Display live stats, elevation, pace, and route progress during playback.
+- Attach photos to the route, either from GPS metadata or by manual placement on the map.
+- Compare activities side by side with different colors and timing offsets.
+- Export polished videos with map motion, stats overlays, elevation profile, and media popups.
+- Keep the core workflow local in the browser so GPX files and exported media are not uploaded by default.
+
+## Live Links
+
+- App: [trailreplay.com](https://trailreplay.com)
 - Tutorial: [trailreplay.com/tutorial.html](https://trailreplay.com/tutorial.html)
-- GPX guide: [trailreplay.com/gpx-download-guide.html](https://trailreplay.com/gpx-download-guide.html)
+- GPX download guide: [trailreplay.com/gpx-download-guide.html](https://trailreplay.com/gpx-download-guide.html)
 
 ## Local Development
+
 From the repo root:
 
 ```bash
@@ -25,20 +48,24 @@ npm install
 npm run dev
 ```
 
-Production build from the repo root:
+Useful commands:
 
 ```bash
+npm run lint
+npm run test
 npm run build
 ```
 
-That installs the app dependencies and builds the production site into `app/dist`.
+The root scripts delegate to the active app in `app/`.
 
 ## Repository Layout
-- `app/`: active product
-- `api/`: serverless endpoints used by the deployed site and feedback flow
-- `docs/`: project notes and internal documentation
+
+- `app/`: active TrailReplay frontend, help pages, public assets, and tests
+- `api/`: serverless feedback endpoint used by the deployed site
+- `docs/`: internal notes and branding assets
 
 ## Notes
+
 - V1 has been discontinued and is no longer part of the active runtime.
-- Legacy `/app`, `/app-v1`, tutorial, GPX guide, and Strava callback URLs are redirected to the current app entrypoints.
-- Feedback submissions still go through `api/contact.js`.
+- Legacy paths are redirected to the current root-served app and help pages.
+- Feedback submissions still go through [`api/contact.js`](./api/contact.js).

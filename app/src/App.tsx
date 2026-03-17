@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState, useCallback } from 'react'
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { TrailMap } from '@/components/map/TrailMap';
+import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
+import { CropPreviewBars } from '@/components/app/CropPreviewBars';
 import { PlaybackControls } from '@/components/playback/PlaybackControls';
 import { PlaybackProvider } from '@/components/playback/PlaybackProvider';
 import { StatsOverlay } from '@/components/stats/StatsOverlay';
@@ -13,96 +15,17 @@ import { Menu, X, Maximize2, Minimize2, Upload, Info, MapPin, BookOpen } from 'l
 import { gsap } from 'gsap';
 import { useI18n } from '@/i18n/useI18n';
 import { getCropPreviewMetrics, type CropPreviewMetrics } from '@/utils/crop';
-
-import type { AspectRatio } from '@/types';
+import {
+  getTriggeredPlaybackPictures,
+  hasPlaybackProgressRewound,
+} from '@/utils/playbackPictures';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
 const FeedbackSolicitation = lazy(() => import('@/components/feedback/FeedbackSolicitation').then((module) => ({ default: module.FeedbackSolicitation })));
 
-/** Dark letterbox bars showing what will be cropped for the selected aspect ratio */
-function CropPreviewBars({
-  ratio,
-  containerRef,
-}: {
-  ratio: AspectRatio;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const [cropPreview, setCropPreview] = useState<{
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-    frameLeft: number;
-    frameTop: number;
-    frameWidth: number;
-    frameHeight: number;
-  } | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      setCropPreview(getCropPreviewMetrics(el.clientWidth, el.clientHeight, ratio));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ratio, containerRef]);
-
-  if (!cropPreview) return null;
-  return (
-    <>
-      {cropPreview.left > 0 && <>
-        <div className="absolute inset-y-0 left-0 bg-black/55 z-30 pointer-events-none" style={{ width: cropPreview.left }} />
-        <div className="absolute inset-y-0 right-0 bg-black/55 z-30 pointer-events-none" style={{ width: cropPreview.right }} />
-      </>}
-      {cropPreview.top > 0 && <>
-        <div className="absolute inset-x-0 top-0 bg-black/55 z-30 pointer-events-none" style={{ height: cropPreview.top }} />
-        <div className="absolute inset-x-0 bottom-0 bg-black/55 z-30 pointer-events-none" style={{ height: cropPreview.bottom }} />
-      </>}
-      <div
-        className="absolute z-30 pointer-events-none rounded-lg border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.08)]"
-        style={{
-          left: cropPreview.frameLeft,
-          top: cropPreview.frameTop,
-          width: cropPreview.frameWidth,
-          height: cropPreview.frameHeight,
-        }}
-      />
-      {/* Label */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-        Export crop: {ratio}
-      </div>
-    </>
-  );
-}
-
 function SidebarFallback() {
   return <div className="h-full bg-[var(--canvas)]" />;
-}
-
-function AppLoadingOverlay() {
-  return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-[var(--canvas)]">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <div className="rounded-2xl border border-[var(--evergreen)]/10 bg-white p-4 shadow-lg">
-          <img
-            src="/media/images/simplelogo.png"
-            alt="TrailReplay"
-            className="h-12 w-12 object-contain"
-          />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold tracking-[0.08em] text-[var(--evergreen)]">
-            TrailReplay
-          </p>
-          <div className="mx-auto h-6 w-6 rounded-full border-2 border-[var(--trail-orange)] border-t-transparent animate-spin" />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function App() {
@@ -257,7 +180,7 @@ function App() {
     const currentProgress = playback.progress;
     const previousProgress = lastPlaybackProgressRef.current;
 
-    if (currentProgress + 0.001 < previousProgress) {
+    if (hasPlaybackProgressRewound(previousProgress, currentProgress)) {
       shownPlaybackPictureIdsRef.current.clear();
       queuedPlaybackPictureIdsRef.current = [];
       resumePlaybackAfterPictureQueueRef.current = false;
@@ -269,18 +192,13 @@ function App() {
       return;
     }
 
-    const progressEpsilon = 0.005;
-    const lowerBound = Math.max(0, previousProgress - progressEpsilon);
-    const upperBound = Math.min(1, currentProgress + progressEpsilon);
-    const queuedIds = new Set(queuedPlaybackPictureIdsRef.current);
-    const triggeredPictures = pictures
-      .filter((picture) => (
-        !shownPlaybackPictureIdsRef.current.has(picture.id)
-        && !queuedIds.has(picture.id)
-        && picture.progress >= lowerBound
-        && picture.progress <= upperBound
-      ))
-      .sort((a, b) => a.progress - b.progress);
+    const triggeredPictures = getTriggeredPlaybackPictures({
+      pictures,
+      previousProgress,
+      currentProgress,
+      shownPictureIds: shownPlaybackPictureIdsRef.current,
+      queuedPictureIds: queuedPlaybackPictureIdsRef.current,
+    });
 
     if (triggeredPictures.length > 0) {
       triggeredPictures.forEach((picture) => {
@@ -296,7 +214,6 @@ function App() {
   }, [
     autoPlaybackPictureId,
     clearPendingQueuedPictureOpen,
-    openNextQueuedPlaybackPicture,
     pause,
     pictures,
     playback.isPlaying,

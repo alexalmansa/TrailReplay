@@ -1,6 +1,6 @@
-# TrailReplay V2
+# TrailReplay App
 
-This package contains the active TrailReplay application.
+This package contains the active TrailReplay application: the browser-based GPX replay editor, the tutorial page, and the GPX download guide.
 
 ## Commands
 
@@ -18,17 +18,21 @@ npm run build
 ```
 
 ## Entry Points
-- `src/main.tsx`: main V2 app entry
+
+- `src/main.tsx`: main app entry
 - `src/help/tutorial-main.tsx`: tutorial page entry
-- `src/help/gpx-guide-main.tsx`: GPX download guide entry
+- `src/help/gpx-guide-main.tsx`: GPX guide page entry
 
 ## Structure
-- `src/components/`: UI and feature surfaces
-- `src/hooks/`: domain hooks
-- `src/store/`: Zustand state
-- `src/utils/`: shared domain logic
-- `src/help/`: standalone V2 help pages
-- `public/`: legal pages, media, and static assets
+
+- `src/components/`: main UI surfaces, map components, overlays, and panels
+- `src/hooks/`: feature hooks for GPX import, media handling, and computed journey data
+- `src/store/`: Zustand store factory, slices, and defaults
+- `src/utils/`: pure domain logic and testable helpers
+- `src/help/`: standalone help pages and shared help layout/content
+- `src/i18n/`: translations and i18n hooks
+- `public/`: static media, legal pages, and sample GPX/demo assets
 
 ## Build Output
+
 Vite builds this package for the site root, and production output is written to `app/dist`.

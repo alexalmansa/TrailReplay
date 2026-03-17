@@ -1,19 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
 import type { PictureAnnotation } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
+import {
+  getPicturePopupLayout,
+  type PicturePopupExportFrame,
+} from '@/utils/picturePopup';
 import { X, MapPin, Calendar } from 'lucide-react';
 
 interface PicturePopupProps {
   picture: PictureAnnotation;
   onClose?: () => void;
-  exportFrame?: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-    frameWidth: number;
-    frameHeight: number;
-  } | null;
+  exportFrame?: PicturePopupExportFrame | null;
 }
 
 export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProps) {
@@ -24,22 +21,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const displayDuration = picture.displayDuration || 5000;
-  const isExportSafe = !!exportFrame;
-  const imageWidth = exportFrame
-    ? Math.max(200, Math.min(288, exportFrame.frameWidth * 0.32))
-    : 288;
-  const imageHeight = Math.round(imageWidth * (52 / 72));
-  const popupOffset = 16;
-  const popupStyle = exportFrame
-    ? {
-        right: exportFrame.right + popupOffset,
-        bottom: exportFrame.bottom + popupOffset,
-        maxWidth: Math.max(220, Math.min(exportFrame.frameWidth - 24, imageWidth + 80)),
-      }
-    : {
-        right: popupOffset,
-        bottom: popupOffset,
-      };
+  const { imageWidth, imageHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
   
   useEffect(() => {
     // After entering animation, show the picture
