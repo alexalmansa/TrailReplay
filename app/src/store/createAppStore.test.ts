@@ -179,12 +179,16 @@ describe('createAppStore', () => {
 
     useStore.getState().setSettings({ mapStyle: 'street' });
     useStore.getState().setVideoExportSettings({ fps: 60, aspectRatio: '9:16' });
+    useStore.getState().setExportProgress(42);
+    useStore.getState().setExportStage('Rendering');
 
     const state = useStore.getState();
     expect(state.settings.mapStyle).toBe('street');
     expect(state.settings.cameraMode).toBe('follow-behind');
     expect(state.videoExportSettings.fps).toBe(60);
     expect(state.videoExportSettings.aspectRatio).toBe('9:16');
+    expect(state.exportProgress).toBe(42);
+    expect(state.exportStage).toBe('Rendering');
   });
 
   it('keeps playback controls internally consistent when seeking and resetting', () => {
