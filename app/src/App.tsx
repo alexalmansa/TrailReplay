@@ -305,7 +305,7 @@ function App() {
               {/* Stats Overlay */}
               {hasTracks && (
                 <div className="absolute top-4 left-4 z-10">
-                  <StatsOverlay compact={activePanel === 'export' || isExporting} />
+                  <StatsOverlay />
                 </div>
               )}
 

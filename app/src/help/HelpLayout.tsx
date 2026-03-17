@@ -19,11 +19,11 @@ interface HelpLayoutProps {
 export function HelpLayout({ eyebrow, title, description, headerActions = [], children }: HelpLayoutProps) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(193,101,47,0.16),transparent_32%),linear-gradient(180deg,#f8f4ee_0%,#fcfaf6_42%,#f3ede2_100%)] text-[var(--evergreen)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--evergreen)]/10 bg-[var(--evergreen)]/96 text-[var(--canvas)] backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <a
             href="/"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/14 bg-white/8 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] shadow-sm transition-colors hover:border-white/26 hover:bg-white/14"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] shadow-sm transition-colors hover:border-white/18 hover:bg-black/20"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to app
@@ -36,7 +36,7 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
             </div>
           )}
           <div className="flex items-center gap-3">
-            <img src="/media/images/simplelogo.png" alt="TrailReplay" className="h-9 w-9 rounded-md bg-white p-1 shadow-sm" />
+            <img src="/media/images/simplelogo.png" alt="TrailReplay" className="h-9 w-9 rounded-md bg-black/10 p-1 shadow-sm ring-1 ring-white/10" />
             <div className="text-right">
               <div className="text-[11px] uppercase tracking-[0.18em] text-white/60">{eyebrow}</div>
               <div className="text-sm font-bold text-[var(--canvas)]">TrailReplay</div>
@@ -96,7 +96,7 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
 function HeaderAction({ href, icon, label, tone = 'ghost' }: HelpHeaderAction) {
   const className = tone === 'solid'
     ? 'border-white/18 bg-[var(--trail-orange)] text-[var(--canvas)] hover:border-white/28 hover:bg-[var(--trail-orange)]/90'
-    : 'border-white/14 bg-white/8 text-[var(--canvas)] hover:border-white/24 hover:bg-white/14 hover:text-white';
+    : 'border-white/10 bg-black/10 text-[var(--canvas)] hover:border-white/18 hover:bg-black/20 hover:text-white';
 
   return (
     <a

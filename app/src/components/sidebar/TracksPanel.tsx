@@ -103,9 +103,6 @@ export function TracksPanel() {
           {t('tracks.dropBrowse')}
         </p>
       </div>
-
-      <LanguageSelectorCard />
-      
       {/* Loading */}
       {isParsing && (
         <div className="flex items-center justify-center gap-2 py-4">
@@ -216,6 +213,10 @@ export function TracksPanel() {
           </button>
         </div>
       )}
+
+      <div className="pt-1">
+        <LanguageSelectorCard />
+      </div>
     </div>
   );
 }
