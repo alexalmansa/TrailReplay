@@ -319,4 +319,112 @@ describe('createAppStore', () => {
     );
     expect(state.comparisonTracks).toEqual([]);
   });
+
+  it('updates journey state through creation, transport insertion, reorder, and clearing', () => {
+    const useStore = createAppStore();
+    const trackSegment = {
+      id: 'segment-track',
+      type: 'track' as const,
+      trackId: 'track-1',
+      duration: 45000,
+    };
+
+    useStore.getState().createJourney('Summer Tour');
+    useStore.getState().addJourneySegment(trackSegment);
+    useStore.getState().addTransportSegment({ lat: 41.1, lon: 2.1 }, { lat: 41.2, lon: 2.2 }, 'train');
+
+    let state = useStore.getState();
+    expect(state.journey?.name).toBe('Summer Tour');
+    expect(state.journeySegments).toHaveLength(2);
+    expect(state.journeySegments[1]).toMatchObject({
+      type: 'transport',
+      mode: 'train',
+      duration: 0,
+      distance: 0,
+    });
+
+    const transportSegmentId = state.journeySegments[1].id;
+    useStore.getState().updateJourneySegmentDuration(transportSegmentId, 90000);
+    const updatedTransportSegment = useStore.getState().journeySegments.find((segment) => segment.id === transportSegmentId);
+    if (!updatedTransportSegment) {
+      throw new Error('Expected transport segment');
+    }
+    useStore.getState().reorderJourneySegments([updatedTransportSegment, trackSegment]);
+    useStore.getState().removeJourneySegment(trackSegment.id);
+
+    state = useStore.getState();
+    expect(state.journeySegments).toHaveLength(1);
+    expect(state.journeySegments[0]).toMatchObject({
+      id: transportSegmentId,
+      duration: 90000,
+    });
+
+    useStore.getState().clearJourney();
+    state = useStore.getState();
+    expect(state.journey).toBeNull();
+    expect(state.journeySegments).toEqual([]);
+  });
+
+  it('applies settings, camera, and UI updates consistently', () => {
+    const useStore = createAppStore();
+
+    useStore.getState().setSettings({
+      mapStyle: 'street',
+      showHeartRate: true,
+      defaultAnimationSpeed: 1.5,
+    });
+    useStore.getState().setCameraSettings({
+      zoom: 12,
+      pitch: 40,
+    });
+    useStore.getState().setCameraMode('follow');
+    useStore.getState().setMapStyle('topo');
+    useStore.getState().setUnitSystem('imperial');
+    useStore.getState().setTrailStyle({
+      currentIcon: '🚴',
+      markerSize: 1.4,
+      showTrackLabels: true,
+    });
+    useStore.getState().setCameraPosition({
+      lat: 41.5,
+      lon: 2.3,
+      zoom: 10,
+      pitch: 35,
+      bearing: 120,
+    });
+    useStore.getState().setSidebarOpen(false);
+    useStore.getState().setExploreMode(true);
+    useStore.getState().setLoading(true);
+    useStore.getState().setError('Something happened');
+
+    const state = useStore.getState();
+    expect(state.settings).toMatchObject({
+      mapStyle: 'topo',
+      unitSystem: 'imperial',
+      showHeartRate: true,
+      defaultAnimationSpeed: 1.5,
+      cameraMode: 'follow',
+    });
+    expect(state.cameraSettings).toMatchObject({
+      mode: 'follow',
+      zoom: 12,
+      pitch: 40,
+    });
+    expect(state.settings.trailStyle).toMatchObject({
+      currentIcon: '🚴',
+      markerSize: 1.4,
+      showTrackLabels: true,
+    });
+    expect(state.cameraPosition).toMatchObject({
+      lat: 41.5,
+      lon: 2.3,
+      zoom: 10,
+      pitch: 35,
+      bearing: 120,
+    });
+    expect(state.isSidebarOpen).toBe(false);
+    expect(state.exploreMode).toBe(true);
+    expect(state.isLoading).toBe(true);
+    expect(state.error).toBe('Something happened');
+  });
 });
