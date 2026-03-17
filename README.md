@@ -6,11 +6,19 @@ The active product lives in [`app/`](./app), built with React and TypeScript, an
 
 ## Demo Videos
 
-<video controls src="media/video/trailreplay-segment-builder.mp4" title="TrailReplay Capture - Segment Builder" style="max-width: 100%;"></video>
+**Path Export with Stats** - Export a trail with detailed statistics and elevation data
 
-<video controls src="media/video/trailreplay-export-flow.mp4" title="TrailReplay Capture - Export Flow" style="max-width: 100%;"></video>
+https://github.com/user-attachments/assets/73c65611-8348-4b4d-b7c2-af661ab5e75f
 
-If inline playback does not appear on GitHub, use the download links instead: [segment builder](media/video/trailreplay-segment-builder.mp4), [export flow](media/video/trailreplay-export-flow.mp4).
+[▶ Watch Path Export Demo](https://trailreplay.com/tutorial.html#demo-videos)
+
+**Comparison Mode** - Compare two GPX files from the same timeframe to see where each person was at any moment
+
+https://github.com/user-attachments/assets/c42e5efd-6c08-4591-ab66-92cc16484f24
+
+[▶ Watch Comparison Mode Demo](https://trailreplay.com/tutorial.html#demo-videos)
+
+> If GitHub does not render the inline previews, you can still watch them in the tutorial or open the original MP4 files in [`media/video/`](./media/video).
 
 ## What TrailReplay Does
 
