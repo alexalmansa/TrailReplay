@@ -4,7 +4,7 @@ import maplibregl from 'maplibre-gl';
 import { getHeartRateColor } from '@/utils/gpxParser';
 
 const INITIAL_FIT_BOUNDS_DELAY_MS = 100;
-const INITIAL_ZOOM_OUT_DELAY_MS = 1400;
+const INITIAL_ZOOM_OUT_DELAY_MS = 2000;
 const INITIAL_ZOOM_OUT_STEPS = 4;
 const INITIAL_ZOOM_OUT_STEP_DELAY_MS = 50;
 

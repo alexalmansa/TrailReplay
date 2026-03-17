@@ -263,9 +263,11 @@ interface StatItemProps {
 function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
     <div className="min-w-0 text-center">
-      <div className={`flex min-h-[1.15rem] items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5 pt-px' : 'gap-0.5 mb-0.5 pt-px'}`}>
+      <div className={`flex min-h-[1.35rem] items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5 py-[2px]' : 'gap-0.5 mb-0.5 py-[2px]'}`}>
         {icon}
-        <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} uppercase tracking-[0.08em] leading-[1.15] truncate`}>{label}</span>
+        <span className={`block ${compact ? 'text-[8px]' : 'text-[9px]'} font-medium uppercase tracking-[0.04em] leading-[1.25] truncate`}>
+          {label}
+        </span>
       </div>
       <div
         className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.02em] whitespace-nowrap ${compact ? 'text-[9px] leading-[1.15]' : 'text-[10px] leading-[1.15]'}`}
@@ -289,7 +291,7 @@ interface SmallStatItemProps {
 function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
   return (
     <div className="min-w-0 text-center">
-      <div className={`flex min-h-[1.05rem] items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0 pt-px' : 'mb-0.5 pt-px'} ${color || ''}`}>
+      <div className={`flex min-h-[1.15rem] items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0 py-[1px]' : 'mb-0.5 py-[1px]'} ${color || ''}`}>
         {icon}
       </div>
       <div
@@ -299,7 +301,7 @@ function SmallStatItem({ icon, label, value, unit, color, compact = false }: Sma
         {value}
         {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[6px]' : 'text-[7px]'} text-[var(--evergreen-60)] uppercase leading-[1.15] truncate`}>{label}</div>
+      <div className={`${compact ? 'text-[7px]' : 'text-[8px]'} text-[var(--evergreen-60)] uppercase font-medium leading-[1.2] truncate`}>{label}</div>
     </div>
   );
 }

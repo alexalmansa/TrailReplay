@@ -6,9 +6,9 @@ The active product lives in [`app/`](./app), built with React and TypeScript, an
 
 ## Demo Videos
 
-<video controls src="app/public/media/video/path-export-with-stats.mp4" title="TrailReplay Path Export With Stats" style="max-width: 100%;"></video>
+<video controls src="https://raw.githubusercontent.com/alexalmansa/TrailReplay/v2-architecture-cleanup/app/public/media/video/path-export-with-stats.mp4" title="TrailReplay Path Export With Stats" style="max-width: 100%;"></video>
 
-<video controls src="app/public/media/video/comparison-mode-demo.mp4" title="TrailReplay Comparison Mode Demo" style="max-width: 100%;"></video>
+<video controls src="https://raw.githubusercontent.com/alexalmansa/TrailReplay/v2-architecture-cleanup/app/public/media/video/comparison-mode-demo.mp4" title="TrailReplay Comparison Mode Demo" style="max-width: 100%;"></video>
 
 If inline playback does not appear in your viewer, use the direct files instead:
 - [Path export with stats video](./app/public/media/video/path-export-with-stats.mp4)
