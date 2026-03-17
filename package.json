@@ -5,16 +5,14 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && npm --prefix trailreplayV2/app ci && npm --prefix trailreplayV2/app run build && node scripts/copy-v2.mjs",
-    "preview": "vite preview",
-    "postbuild": "cp public/robots.txt dist/robots.txt && cp public/sitemap.xml dist/sitemap.xml && cp public/ads.txt dist/ads.txt"
+    "dev": "npm --prefix app run dev",
+    "build": "npm --prefix app ci && npm --prefix app run build",
+    "lint": "npm --prefix app run lint",
+    "test": "npm --prefix app run test:run",
+    "preview": "npm --prefix app run preview"
   },
   "dependencies": {
     "resend": "^6.0.1"
-  },
-  "devDependencies": {
-    "vite": "^5.1.0"
   },
   "keywords": [
     "gpx",

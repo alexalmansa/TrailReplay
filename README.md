@@ -1,25 +1,26 @@
 # TrailReplay
 
-TrailReplay is a browser-based GPX replay studio. The active product is V2, built in React and TypeScript under `trailreplayV2/app`. The repository root now contains the lightweight marketing/static shell, deployment config, shared assets, and the serverless feedback endpoint used by V2.
+TrailReplay is a browser-based GPX replay studio. The active product lives in `app/`, built with React and TypeScript. The repository root contains deployment config, the serverless feedback endpoint, and project documentation.
 
-## Active App
-- V2 app: `trailreplayV2/app`
-- Live editor: [trailreplay.com/app](https://trailreplay.com/app)
-- Tutorial: [trailreplay.com/app/tutorial.html](https://trailreplay.com/app/tutorial.html)
-- GPX guide: [trailreplay.com/app/gpx-download-guide.html](https://trailreplay.com/app/gpx-download-guide.html)
+## App
+- App folder: `app`
+- Live editor: [trailreplay.com](https://trailreplay.com)
+- Tutorial: [trailreplay.com/tutorial.html](https://trailreplay.com/tutorial.html)
+- GPX guide: [trailreplay.com/gpx-download-guide.html](https://trailreplay.com/gpx-download-guide.html)
 
 ## Local Development
-Root shell:
+From the repo root:
 
 ```bash
 npm install
+npm --prefix app install
 npm run dev
 ```
 
-V2 app:
+From the app folder:
 
 ```bash
-cd trailreplayV2/app
+cd app
 npm install
 npm run dev
 ```
@@ -30,17 +31,14 @@ Production build from the repo root:
 npm run build
 ```
 
-That builds the root static shell, builds V2, and copies the V2 output into `dist/app`.
+That installs the app dependencies and builds the production site into `app/dist`.
 
 ## Repository Layout
-- `trailreplayV2/app/`: active V2 product
-- `public/`: root static assets and media
-- `src/`: root static-site bootstrap, styling, translations, and analytics helpers
-- `api/`: serverless endpoints used by the deployed site and V2 feedback
-- `scripts/`: build/deployment helpers
+- `app/`: active product
+- `api/`: serverless endpoints used by the deployed site and feedback flow
 - `docs/`: project notes and internal documentation
 
 ## Notes
 - V1 has been discontinued and is no longer part of the active runtime.
-- Legacy `/app-v1`, tutorial, GPX guide, and Strava callback URLs are redirected to the V2 experience.
+- Legacy `/app`, `/app-v1`, tutorial, GPX guide, and Strava callback URLs are redirected to the current app entrypoints.
 - Feedback submissions still go through `api/contact.js`.
