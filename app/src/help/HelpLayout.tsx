@@ -39,7 +39,7 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
             </div>
           )}
           <div className="flex items-center gap-3">
-            <img src="/media/images/simplelogo.png" alt="TrailReplay" className="h-9 w-9 rounded-md bg-black/10 p-1 shadow-sm ring-1 ring-white/10" />
+            <img src="/media/images/simplelogo.png" alt="TrailReplay" className="h-9 w-9 rounded-md bg-white p-1 shadow-sm ring-1 ring-white/10" />
             <div className="text-right">
               <div className="text-[11px] uppercase tracking-[0.18em] text-white/60">{eyebrow}</div>
               <div className="text-sm font-bold text-[var(--canvas)]">TrailReplay</div>

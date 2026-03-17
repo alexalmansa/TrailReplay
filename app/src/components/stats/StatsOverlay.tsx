@@ -157,9 +157,9 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
       ? {
           key: 'heart-rate',
           icon: <Heart className="w-3 h-3" />,
-          label: 'HR',
+          label: t('stats.heartRateShort'),
           value: `${Math.round(currentStats.heartRate)}`,
-          unit: 'bpm',
+          unit: t('stats.bpm'),
           color: 'text-red-500',
         }
       : null,
@@ -169,7 +169,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
           icon: <Zap className="w-3 h-3" />,
           label: t('stats.cadence'),
           value: `${Math.round(currentStats.cadence)}`,
-          unit: 'rpm',
+          unit: t('stats.rpm'),
         }
       : null,
     currentStats.power && !isInTransport
@@ -178,7 +178,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
           icon: <TrendingUp className="w-3 h-3" />,
           label: t('stats.power'),
           value: `${Math.round(currentStats.power)}`,
-          unit: 'w',
+          unit: t('stats.watts'),
         }
       : null,
   ].filter(Boolean) as Array<{
@@ -244,8 +244,8 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
       {segmentTimings.length > 1 && (
         <div className={`border-t border-[var(--evergreen)]/20 flex items-center justify-center ${compact ? 'mt-2 pt-2' : 'mt-3 pt-3'}`}>
           <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/10 px-2 py-0.5 rounded ${compact ? 'text-[9px]' : 'text-xs'}`}>
-            {trackCount} track{trackCount !== 1 ? 's' : ''}
-            {transportCount > 0 && ` + ${transportCount} transport`}
+            {trackCount} {trackCount === 1 ? t('stats.trackSingle') : t('stats.trackPlural')}
+            {transportCount > 0 && ` + ${transportCount} ${transportCount === 1 ? t('stats.transportSingle') : t('stats.transportPlural')}`}
           </span>
         </div>
       )}

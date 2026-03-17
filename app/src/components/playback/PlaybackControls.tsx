@@ -9,11 +9,13 @@ import {
   SkipForward, 
   RotateCcw
 } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 import { formatDuration } from '@/utils/units';
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 8];
 
 export function PlaybackControls() {
+  const { t } = useI18n();
   const isMobile = useIsMobile();
   const playback = useAppStore((state) => state.playback);
   const play = useAppStore((state) => state.play);
@@ -83,6 +85,8 @@ export function PlaybackControls() {
         <button
           onClick={skipBackward}
           className="p-1.5 sm:p-2 hover:bg-[var(--evergreen)]/10 rounded-lg transition-colors"
+          aria-label={t('playback.skipBackward')}
+          title={t('playback.skipBackward')}
         >
           <SkipBack className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--evergreen)]" />
         </button>
@@ -91,6 +95,8 @@ export function PlaybackControls() {
         <button
           onClick={restart}
           className={`p-1.5 sm:p-2 hover:bg-[var(--evergreen)]/10 rounded-lg transition-colors ${isMobile ? 'hidden' : 'inline-flex'}`}
+          aria-label={t('playback.restart')}
+          title={t('playback.restart')}
         >
           <RotateCcw className="w-5 h-5 text-[var(--evergreen)]" />
         </button>
@@ -100,7 +106,8 @@ export function PlaybackControls() {
           onClick={playback.isPlaying ? pause : play}
           className="tr-playback-btn shrink-0"
           style={isMobile ? { width: '48px', height: '48px' } : undefined}
-          aria-label={playback.isPlaying ? 'Pause' : 'Play'}
+          aria-label={playback.isPlaying ? t('playback.pause') : t('playback.play')}
+          title={playback.isPlaying ? t('playback.pause') : t('playback.play')}
         >
           {playback.isPlaying ? (
             <Pause className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
@@ -113,6 +120,8 @@ export function PlaybackControls() {
         <button
           onClick={skipForward}
           className="p-1.5 sm:p-2 hover:bg-[var(--evergreen)]/10 rounded-lg transition-colors"
+          aria-label={t('playback.skipForward')}
+          title={t('playback.skipForward')}
         >
           <SkipForward className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--evergreen)]" />
         </button>

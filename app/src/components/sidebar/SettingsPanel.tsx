@@ -394,7 +394,7 @@ export function SettingsPanel() {
           {/* Heart Rate Zones Legend */}
           {settings.showHeartRate && (
             <div className="space-y-3 bg-[var(--evergreen)]/5 p-3 rounded-lg">
-              <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">Heart Rate Zones</h4>
+              <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">{t('settings.heartRateZones')}</h4>
               <div className="space-y-3">
                 {settings.trailStyle.heartRateZones.map((zone, idx) => (
                   <div key={idx} className="bg-[var(--canvas)] p-2 rounded border border-[var(--evergreen)]/10">
@@ -409,7 +409,7 @@ export function SettingsPanel() {
                         }}
                         className="w-6 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
                       />
-                      <span className="text-xs font-semibold text-[var(--evergreen)]">Zone {idx + 1}</span>
+                      <span className="text-xs font-semibold text-[var(--evergreen)]">{t('settings.heartRateZone', { index: idx + 1 })}</span>
                       <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -438,7 +438,7 @@ export function SettingsPanel() {
                         }}
                         className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
                       />
-                      <span className="text-xs text-[var(--evergreen-60)]">bpm</span>
+                      <span className="text-xs text-[var(--evergreen-60)]">{t('stats.bpm')}</span>
                     </div>
                   </div>
                 ))}

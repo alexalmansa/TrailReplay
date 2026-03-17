@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { useI18n } from '@/i18n/useI18n';
 import { useAppStore } from '@/store/useAppStore';
 import type { AppState } from '@/store/storeTypes';
 
@@ -11,11 +12,13 @@ const ExportPanel = lazy(() => import('./ExportPanel').then((module) => ({ defau
 const SettingsPanel = lazy(() => import('./SettingsPanel').then((module) => ({ default: module.SettingsPanel })));
 
 function PanelFallback() {
+  const { t } = useI18n();
+
   return (
     <div className="flex h-48 items-center justify-center rounded-xl border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/3">
       <div className="flex items-center gap-3 text-sm text-[var(--evergreen-60)]">
         <div className="h-4 w-4 rounded-full border-2 border-[var(--trail-orange)] border-t-transparent animate-spin" />
-        <span>Loading panel…</span>
+        <span>{t('playback.loadingPanel')}</span>
       </div>
     </div>
   );
