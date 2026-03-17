@@ -1,62 +1,14 @@
 import { useCallback, useState } from 'react';
 import exifr from 'exifr';
 import { toast } from 'sonner';
-import type { PendingPicturePlacement, PictureAnnotation } from '@/types';
+import type { PendingPicturePlacement } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { isImageFile } from '@/utils/files';
 import { buildComputedJourney, calculateDistance } from '@/utils/journeyUtils';
-
-interface EXIFData {
-  latitude?: number;
-  longitude?: number;
-  DateTimeOriginal?: string;
-  GPSDateStamp?: string;
-  GPSTimeStamp?: string;
-}
-
-interface RouteMatch {
-  progress: number;
-  lat: number;
-  lon: number;
-  distanceMeters: number;
-}
-
-type ProcessPhotoResult =
-  | { kind: 'picture'; picture: PictureAnnotation }
-  | { kind: 'pending'; pendingPlacement: PendingPicturePlacement };
-
-const GPS_ROUTE_MATCH_THRESHOLD_METERS = 250;
-
-function createPictureId() {
-  return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-function createPendingPlacement(params: {
-  id: string;
-  file: File;
-  url: string;
-  timestamp?: Date;
-  reason: PendingPicturePlacement['placementReason'];
-  originalLat?: number;
-  originalLon?: number;
-  mismatchDistanceMeters?: number;
-}): ProcessPhotoResult {
-  return {
-    kind: 'pending',
-    pendingPlacement: {
-      id: params.id,
-      file: params.file,
-      url: params.url,
-      timestamp: params.timestamp,
-      displayDuration: 5000,
-      placementReason: params.reason,
-      originalLat: params.originalLat,
-      originalLon: params.originalLon,
-      mismatchDistanceMeters: params.mismatchDistanceMeters,
-    },
-  };
-}
+import { createId } from '@/utils/id';
+import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
+import { resolvePhotoPlacement } from '@/utils/photoPlacement';
 
 export function usePhotos() {
   const { t } = useI18n();
@@ -141,14 +93,11 @@ export function usePhotos() {
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
     const url = URL.createObjectURL(file);
-    const id = createPictureId();
+    const id = createId('photo');
     
     // Extract EXIF data
     const exifData = await extractGPSData(file);
     
-    let position = playback.progress;
-    let lat: number | undefined;
-    let lon: number | undefined;
     let timestamp: Date | undefined;
     
     if (exifData) {
@@ -158,72 +107,22 @@ export function usePhotos() {
       } else if (exifData.GPSDateStamp && exifData.GPSTimeStamp) {
         timestamp = new Date(`${exifData.GPSDateStamp} ${exifData.GPSTimeStamp}`);
       }
-
-      // Use GPS coordinates from EXIF
-      if (exifData.latitude !== undefined && exifData.longitude !== undefined) {
-        const routeMatch = findPositionOnTrack(exifData.latitude, exifData.longitude);
-
-        if (routeMatch && routeMatch.distanceMeters > GPS_ROUTE_MATCH_THRESHOLD_METERS) {
-          return createPendingPlacement({
-            id,
-            file,
-            url,
-            timestamp,
-            reason: 'route-mismatch',
-            originalLat: exifData.latitude,
-            originalLon: exifData.longitude,
-            mismatchDistanceMeters: routeMatch.distanceMeters,
-          });
-        }
-
-        if (routeMatch) {
-          lat = routeMatch.lat;
-          lon = routeMatch.lon;
-          position = routeMatch.progress;
-        } else {
-          return createPendingPlacement({
-            id,
-            file,
-            url,
-            timestamp,
-            reason: 'route-mismatch',
-            originalLat: exifData.latitude,
-            originalLon: exifData.longitude,
-          });
-        }
-      } else {
-        return createPendingPlacement({
-          id,
-          file,
-          url,
-          timestamp,
-          reason: 'missing-gps',
-        });
-      }
-    } else {
-      return createPendingPlacement({
-        id,
-        file,
-        url,
-        timestamp,
-        reason: 'missing-gps',
-      });
     }
-    
-    const picture: PictureAnnotation = {
+
+    const routeMatch =
+      exifData?.latitude !== undefined && exifData.longitude !== undefined
+        ? findPositionOnTrack(exifData.latitude, exifData.longitude)
+        : null;
+
+    return resolvePhotoPlacement({
       id,
       file,
       url,
-      lat,
-      lon,
       timestamp,
-      progress: position,
-      position,
-      placementSource: 'gps',
-      displayDuration: 5000,
-    };
-    
-    return { kind: 'picture', picture };
+      exifData,
+      routeMatch,
+      fallbackProgress: playback.progress,
+    });
   }, [extractGPSData, findPositionOnTrack, playback.progress]);
 
   const addPhotos = useCallback(async (files: FileList | File[] | null) => {

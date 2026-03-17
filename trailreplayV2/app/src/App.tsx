@@ -1,66 +1,24 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { TrailMap } from '@/components/map/TrailMap';
 import { PlaybackControls } from '@/components/playback/PlaybackControls';
 import { PlaybackProvider } from '@/components/playback/PlaybackProvider';
 import { StatsOverlay } from '@/components/stats/StatsOverlay';
-import { Sidebar } from '@/components/sidebar/Sidebar';
 import { PicturePopup } from '@/components/annotations/PicturePopup';
 import { SupportButton } from '@/components/header/SupportButton';
-import { InfoPanel } from '@/components/info/InfoPanel';
-import { FeedbackSolicitation } from '@/components/feedback/FeedbackSolicitation';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info, MapPin } from 'lucide-react';
 import { gsap } from 'gsap';
 import { useI18n } from '@/i18n/useI18n';
+import { getCropPreviewMetrics, type CropPreviewMetrics } from '@/utils/crop';
 
 import type { AspectRatio } from '@/types';
 
-type CropPreviewMetrics = {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-  frameLeft: number;
-  frameTop: number;
-  frameWidth: number;
-  frameHeight: number;
-};
-
-function getCropPreviewMetrics(width: number, height: number, ratio: AspectRatio): CropPreviewMetrics {
-  const containerAspect = width / height;
-  const targetAspect = ratio === '16:9' ? 16 / 9 : ratio === '1:1' ? 1 : 9 / 16;
-
-  if (containerAspect > targetAspect) {
-    const cropW = height * targetAspect;
-    const bar = (width - cropW) / 2;
-    return {
-      left: bar,
-      right: bar,
-      top: 0,
-      bottom: 0,
-      frameLeft: bar,
-      frameTop: 0,
-      frameWidth: cropW,
-      frameHeight: height,
-    };
-  }
-
-  const cropH = width / targetAspect;
-  const bar = (height - cropH) / 2;
-  return {
-    left: 0,
-    right: 0,
-    top: bar,
-    bottom: bar,
-    frameLeft: 0,
-    frameTop: bar,
-    frameWidth: width,
-    frameHeight: cropH,
-  };
-}
+const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
+const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
+const FeedbackSolicitation = lazy(() => import('@/components/feedback/FeedbackSolicitation').then((module) => ({ default: module.FeedbackSolicitation })));
 
 /** Dark letterbox bars showing what will be cropped for the selected aspect ratio */
 function CropPreviewBars({
@@ -119,6 +77,10 @@ function CropPreviewBars({
       </div>
     </>
   );
+}
+
+function SidebarFallback() {
+  return <div className="h-full bg-[var(--canvas)]" />;
 }
 
 function App() {
@@ -439,7 +401,9 @@ function App() {
           {/* Sidebar */}
           {showSidebar && (
             <div className="w-80 h-full flex-shrink-0 border-r-2 border-[var(--evergreen)] overflow-hidden">
-              <Sidebar />
+              <Suspense fallback={<SidebarFallback />}>
+                <Sidebar />
+              </Suspense>
             </div>
           )}
           
@@ -590,7 +554,11 @@ function App() {
               )}
 
               {/* Feedback Solicitation */}
-              {hasTracks && <FeedbackSolicitation />}
+              {hasTracks && (
+                <Suspense fallback={null}>
+                  <FeedbackSolicitation />
+                </Suspense>
+              )}
             </div>
             
             {/* Playback Controls */}
@@ -604,7 +572,9 @@ function App() {
           {/* Info Panel (Right Side) */}
           {showInfoPanel && (
             <div className="w-80 h-full flex-shrink-0 overflow-hidden">
-              <InfoPanel onClose={() => setShowInfoPanel(false)} />
+              <Suspense fallback={<SidebarFallback />}>
+                <InfoPanel onClose={() => setShowInfoPanel(false)} />
+              </Suspense>
             </div>
           )}
         </main>

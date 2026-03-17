@@ -1,10 +1,5 @@
 import { useAppStore } from '@/store/useAppStore';
-import { TracksPanel } from './TracksPanel';
-import { JourneyPanel } from './JourneyPanel';
-import { AnnotationsPanel } from './AnnotationsPanel';
-import { PicturesPanel } from './PicturesPanel';
-import { ExportPanel } from './ExportPanel';
-import { SettingsPanel } from './SettingsPanel';
+import { SidebarPanelContent } from './SidebarPanelContent';
 import { useI18n } from '@/i18n/useI18n';
 import {
   MapPin,
@@ -69,12 +64,7 @@ export function Sidebar() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col min-h-0">
         <div className="flex-1">
-          {activeTab === 'tracks' && <TracksPanel />}
-          {activeTab === 'journey' && <JourneyPanel />}
-          {activeTab === 'annotations' && <AnnotationsPanel />}
-          {activeTab === 'pictures' && <PicturesPanel />}
-          {activeTab === 'export' && <ExportPanel />}
-          {activeTab === 'settings' && <SettingsPanel />}
+          <SidebarPanelContent />
         </div>
         <div className="pt-6 pb-2 border-t-2 border-[var(--evergreen)]/20">
           <div className="text-center">

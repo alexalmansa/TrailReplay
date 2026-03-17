@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import type { TransportMode, TransportSegment } from '@/types';
+import type { TransportMode } from '@/types';
 import { formatDistance, formatDuration } from '@/utils/units';
-import { calculateDistance } from '@/utils/journeyUtils';
 import { useI18n } from '@/i18n/useI18n';
 import { createId } from '@/utils/id';
 import { TrackSegmentItem, TransportSegmentItem } from './journey/JourneySegmentItems';
 import { TRANSPORT_MODES } from './journey/journeyTransport';
+import { createTransportSegment } from './journey/createTransportSegment';
 import {
   Plus,
   Clock,
@@ -107,25 +107,7 @@ export function JourneyPanel() {
       }
     }
 
-    // Calculate distance between the two points
-    const distance = calculateDistance(from.lat, from.lon, to.lat, to.lon);
-
-    // Calculate default duration based on mode and distance
-    const speeds: Record<TransportMode, number> = {
-      car: 50, bus: 30, train: 80, plane: 500, bike: 15, walk: 4, ferry: 25,
-    };
-    const speed = speeds[mode] || 30;
-    const defaultDuration = Math.max(3000, (distance / speed) * 3600 * 1000); // min 3 seconds
-
-    const newTransportSegment: TransportSegment = {
-      id: createId('transport'),
-      type: 'transport',
-      mode,
-      from,
-      to,
-      duration: Math.min(defaultDuration, 10000), // Cap at 10 seconds for animation
-      distance,
-    };
+    const newTransportSegment = createTransportSegment(mode, from, to);
 
     // Insert the transport segment at the correct position
     const newSegments = [...journeySegments];

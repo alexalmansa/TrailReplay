@@ -22,6 +22,7 @@ import { setupTrackSources } from './mapSetup';
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
+import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -149,6 +150,15 @@ export function TrailMap(_props: TrailMapProps) {
     progress: playback.progress,
   });
 
+  useBaseMapPresentation({
+    currentTrackColor: currentTrackColor ?? null,
+    currentTrackName: currentTrackName ?? null,
+    isMapLoaded,
+    mapRef: map,
+    settings,
+    trailStyle,
+  });
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -187,153 +197,6 @@ export function TrailMap(_props: TrailMapProps) {
       loadZoomDoneRef.current = false;
     };
   }, [mapContainer, trailStyle.trailColor]);
-
-  // Update map layer visibility
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const layerMap: Record<string, string> = {
-      satellite: 'background',
-      street: 'street',
-      topo: 'opentopomap',
-      outdoor: 'opentopomap',
-      'esri-clarity': 'esri-clarity',
-      wayback: 'wayback',
-    };
-
-    const targetLayer = layerMap[settings.mapStyle] || 'background';
-
-    // Hide all base layers
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 'esri-clarity', 'wayback'].forEach(layerId => {
-      if (map.current?.getLayer(layerId)) {
-        map.current.setLayoutProperty(layerId, 'visibility', 'none');
-      }
-    });
-
-    if (map.current.getLayer(targetLayer)) {
-      map.current.setLayoutProperty(targetLayer, 'visibility', 'visible');
-    }
-
-    // Overlays — controlled independently of base map
-    if (map.current.getLayer('ski-pistes')) {
-      map.current.setLayoutProperty('ski-pistes', 'visibility',
-        settings.mapOverlays?.skiPistes ? 'visible' : 'none');
-    }
-
-    if (map.current.getLayer('slope-overlay')) {
-      map.current.setLayoutProperty('slope-overlay', 'visibility',
-        settings.mapOverlays?.slopeOverlay ? 'visible' : 'none');
-    }
-
-    if (map.current.getLayer('aspect-overlay')) {
-      map.current.setLayoutProperty('aspect-overlay', 'visibility',
-        settings.mapOverlays?.aspectOverlay ? 'visible' : 'none');
-    }
-
-    // Labels: always on for street/topo/outdoor, optional overlay for any map style
-    const showLabels = ['street', 'topo', 'outdoor'].includes(settings.mapStyle)
-      || !!settings.mapOverlays?.placeLabels;
-    if (map.current.getLayer('carto-labels')) {
-      map.current.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
-    }
-  }, [
-    settings.mapStyle,
-    settings.mapOverlays?.placeLabels,
-    settings.mapOverlays?.skiPistes,
-    settings.mapOverlays?.slopeOverlay,
-    settings.mapOverlays?.aspectOverlay,
-    isMapLoaded
-  ]);
-
-  // Update Wayback imagery tile source when date changes
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-    if (!settings.waybackItemURL) return;
-
-    const tileUrl = settings.waybackItemURL
-      .replace('{level}', '{z}')
-      .replace('{row}', '{y}')
-      .replace('{col}', '{x}');
-    const isWaybackActive = settings.mapStyle === 'wayback';
-
-    if (map.current.getLayer('wayback')) map.current.removeLayer('wayback');
-    if (map.current.getSource('wayback')) map.current.removeSource('wayback');
-
-    map.current.addSource('wayback', {
-      type: 'raster',
-      tiles: [tileUrl],
-      tileSize: 256,
-      attribution: '© Esri — Source: Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
-    });
-    map.current.addLayer(
-      { id: 'wayback', type: 'raster', source: 'wayback', layout: { visibility: isWaybackActive ? 'visible' : 'none' } },
-      'carto-labels'
-    );
-  }, [settings.waybackItemURL, settings.mapStyle, isMapLoaded]);
-
-  // Update trail colors when trailStyle changes
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const color = currentTrackColor || trailStyle.trailColor;
-
-    if (trailStyle.colorMode !== 'heartRate') {
-      // Fixed color mode: set flat color
-      if (map.current.getLayer('trail-line')) {
-        map.current.setPaintProperty('trail-line', 'line-color', color);
-      }
-      if (map.current.getLayer('trail-completed')) {
-        map.current.setPaintProperty('trail-completed', 'line-color', color);
-      }
-    } else {
-      // HR mode: use color property from features
-      if (map.current.getLayer('trail-line')) {
-        map.current.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
-      }
-      if (map.current.getLayer('trail-completed')) {
-        map.current.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
-      }
-    }
-  }, [trailStyle.trailColor, trailStyle.colorMode, currentTrackColor, isMapLoaded]);
-
-  // Update track label visibility, text, and color
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    if (map.current.getLayer('main-track-label')) {
-      map.current.setLayoutProperty(
-        'main-track-label',
-        'visibility',
-        trailStyle.showTrackLabels ? 'visible' : 'none'
-      );
-      const color = currentTrackColor || trailStyle.trailColor;
-      map.current.setPaintProperty('main-track-label', 'text-color', color);
-    }
-
-    if (map.current.getSource('main-track-label')) {
-      (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: { label: currentTrackName || '' },
-        geometry: { type: 'Point', coordinates: [0, 0] },
-      });
-    }
-  }, [trailStyle.showTrackLabels, currentTrackName, trailStyle.trailColor, currentTrackColor, isMapLoaded]);
-
-  // Toggle 3D terrain
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    if (settings.show3DTerrain) {
-      if (map.current.getSource('terrain-dem')) {
-        map.current.setTerrain({
-          source: 'terrain-dem',
-          exaggeration: 1.5
-        });
-      }
-    } else {
-      map.current.setTerrain(null);
-    }
-  }, [settings.show3DTerrain, isMapLoaded]);
 
   // Update journey lines on map
   useEffect(() => {
