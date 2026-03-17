@@ -56,16 +56,21 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
           <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
             {t('info.learn')}
           </h3>
-          <div className="space-y-1">
-            <InfoLink
+          <p className="text-sm text-[var(--evergreen-60)]">
+            {t('info.learnBody')}
+          </p>
+          <div className="space-y-2">
+            <InfoCard
               href="/app/tutorial.html"
               icon={<BookOpen className="w-4 h-4" />}
               label={t('info.tutorial')}
+              description={t('info.tutorialDesc')}
             />
-            <InfoLink
+            <InfoCard
               href="/app/gpx-download-guide.html"
               icon={<Download className="w-4 h-4" />}
               label={t('info.gpxGuide')}
+              description={t('info.gpxGuideDesc')}
             />
           </div>
         </div>
@@ -199,6 +204,32 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
         </p>
       </div>
     </div>
+  );
+}
+
+interface InfoCardProps extends InfoLinkProps {
+  description: string;
+}
+
+function InfoCard({ href, icon, label, description, external }: InfoCardProps) {
+  return (
+    <a
+      href={href}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+      className="flex items-start gap-3 rounded-xl border border-[var(--evergreen)]/10 bg-[var(--trail-orange)]/6 p-3 transition-colors hover:border-[var(--trail-orange)]/30 hover:bg-[var(--trail-orange)]/10"
+    >
+      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[var(--trail-orange)] shadow-sm">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 text-sm font-medium text-[var(--evergreen)]">
+          {label}
+          {external && <ExternalLink className="h-3 w-3 text-[var(--evergreen-60)]" />}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-[var(--evergreen-60)]">{description}</span>
+      </span>
+    </a>
   );
 }
 

@@ -10,7 +10,7 @@ export function GpxDownloadGuidePage() {
       description="Use this page when your route still lives inside Strava, Wikiloc, Garmin Connect, or another platform. The goal is simple: export a clean GPX file and bring it straight into TrailReplay."
     >
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[var(--evergreen)] p-6 text-[var(--canvas)] shadow-sm">
+        <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#24372a)] p-6 text-[var(--canvas)] shadow-sm">
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-[var(--trail-orange)]">
             <FileCode2 className="h-5 w-5" />
           </div>
@@ -24,7 +24,7 @@ export function GpxDownloadGuidePage() {
           </ul>
         </article>
 
-        <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/70 p-6 shadow-sm">
+        <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/80 p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--trail-orange-15)] text-[var(--trail-orange)]">
               <MapPinned className="h-5 w-5" />
@@ -55,9 +55,28 @@ export function GpxDownloadGuidePage() {
         </article>
       </section>
 
+      <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[var(--trail-orange-15)] p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--trail-orange)]">Fast path</p>
+            <h2 className="mt-2 text-xl font-bold">If you already have a file, skip the providers</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--evergreen-80)]">
+              TrailReplay works best when the GPX already contains timestamps and elevation. If your export has those two, you can import it immediately and use the tutorial only for polish and export framing.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <a href="/app" className="tr-btn tr-btn-primary">Open TrailReplay</a>
+            <a href="/app/tutorial.html" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Open tutorial
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-6">
         {providerGuides.map((provider) => (
-          <article key={provider.name} className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/70 p-6 shadow-sm">
+          <article key={provider.name} className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/80 p-6 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--trail-orange-15)] text-2xl">
@@ -105,7 +124,7 @@ export function GpxDownloadGuidePage() {
         ))}
       </section>
 
-      <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/70 p-6 shadow-sm">
+      <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/80 p-6 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--trail-orange-15)] text-[var(--trail-orange)]">
             <Globe2 className="h-5 w-5" />
@@ -125,7 +144,7 @@ export function GpxDownloadGuidePage() {
         </div>
       </section>
 
-      <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[var(--evergreen)] p-6 text-[var(--canvas)] shadow-sm">
+      <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#233427)] p-6 text-[var(--canvas)] shadow-sm">
         <h2 className="text-xl font-bold">Next step</h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/85">
           Once the GPX file is on your machine, open TrailReplay v2, import it, review the journey, and use the tutorial if you want a faster first export.

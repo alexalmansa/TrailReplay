@@ -1,3 +1,11 @@
+export interface SampleTrack {
+  title: string;
+  subtitle: string;
+  badge: string;
+  href: string;
+  highlight: string;
+}
+
 export const tutorialVideos = [
   {
     title: 'Path export with stats',
@@ -14,11 +22,21 @@ export const tutorialVideos = [
 ];
 
 export const sampleTracks = [
-  { label: 'Running trail (5 km)', href: '/app/media/samples/sample-running-5km.gpx' },
-  { label: 'Cycling route (25 km)', href: '/app/media/samples/sample-cycling-25km.gpx' },
-  { label: 'Mountain hike (8 km)', href: '/app/media/samples/sample-hiking-8km.gpx' },
-  { label: 'Multi-sport journey', href: '/app/media/samples/sample-multisport.gpx' },
-];
+  {
+    title: "Camins d'Her CDH by UTMB Val d'Aran 2025",
+    subtitle: 'Technical mountain ultra from one of the most iconic Catalan trail events.',
+    badge: 'Trail ultra',
+    href: '/app/media/samples/ultratrail-camins-dher-cdh-by-utmb-val-daran-2025.gpx',
+    highlight: 'Great for testing elevation, cinematic camera, and stats framing on a demanding mountain course.',
+  },
+  {
+    title: 'Pedals de Foc Non Stop 2023',
+    subtitle: 'Legendary Pyrenean MTB loop and one of the reference endurance routes in Catalonia.',
+    badge: 'Bikepacking / MTB',
+    href: '/app/media/samples/pedals-de-foc-non-stop-2023.gpx',
+    highlight: 'Perfect for long-distance pacing, map styling, and export previews with dense route storytelling.',
+  },
+] satisfies SampleTrack[];
 
 export const tutorialFeatures = [
   {
@@ -48,7 +66,7 @@ export const tutorialFeatures = [
 ];
 
 export const quickStartSteps = [
-  'Open TrailReplay v2 and upload one or more GPX or KML files.',
+  "Open TrailReplay v2 and upload one of the sample races or your own GPX/KML file.",
   'Review the journey order in the sidebar and add transport segments if needed.',
   'Customize map style, camera, stats, icons, and media timing.',
   'Play through the route to validate pacing and picture timing.',
