@@ -70,6 +70,12 @@ export function TrailMap(_props: TrailMapProps) {
     : activeTrack?.name;
   const cameraMode = cameraSettings.mode;
   const followBehindPreset = cameraSettings.followBehindPreset;
+  const handleMapLoadedChange = useCallback((isLoaded: boolean) => {
+    setIsMapLoaded(isLoaded);
+    if (!isLoaded) {
+      loadZoomDoneRef.current = false;
+    }
+  }, []);
 
   const findNearestRoutePoint = useCallback((lat: number, lon: number) => {
     if (computedJourney && computedJourney.coordinates.length > 0) {
@@ -156,11 +162,7 @@ export function TrailMap(_props: TrailMapProps) {
     mapContainer,
     mapRef: map,
     onReadyChange,
-    onSetMapLoaded: (isLoaded) => {
-      setIsMapLoaded(isLoaded);
-      if (!isLoaded) loadZoomDoneRef.current = false;
-    },
-    trailColor: trailStyle.trailColor,
+    onSetMapLoaded: handleMapLoadedChange,
   });
 
   useTrailLayerData({

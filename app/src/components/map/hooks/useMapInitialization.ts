@@ -10,7 +10,6 @@ interface UseMapInitializationParams {
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
   onReadyChange?: (isReady: boolean) => void;
   onSetMapLoaded: (isLoaded: boolean) => void;
-  trailColor: string;
 }
 
 export function useMapInitialization({
@@ -18,7 +17,6 @@ export function useMapInitialization({
   mapRef,
   onReadyChange,
   onSetMapLoaded,
-  trailColor,
 }: UseMapInitializationParams) {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
@@ -48,7 +46,7 @@ export function useMapInitialization({
       mapRef.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
       mapRef.current?.addControl(new maplibregl.FullscreenControl(), 'top-right');
       if (mapRef.current) {
-        setupTrackSources(mapRef.current, trailColor);
+        setupTrackSources(mapRef.current, '#C1652F');
       }
     });
 
@@ -58,5 +56,5 @@ export function useMapInitialization({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [mapContainer, mapRef, onReadyChange, onSetMapLoaded, trailColor]);
+  }, [mapContainer, mapRef, onReadyChange, onSetMapLoaded]);
 }
