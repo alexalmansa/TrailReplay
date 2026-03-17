@@ -95,7 +95,7 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
 
 function HeaderAction({ href, icon, label, tone = 'ghost' }: HelpHeaderAction) {
   const className = tone === 'solid'
-    ? 'border-white/16 bg-white text-[var(--evergreen)] hover:bg-[var(--canvas)]'
+    ? 'border-white/18 bg-[var(--trail-orange)] text-[var(--canvas)] hover:border-white/28 hover:bg-[var(--trail-orange)]/90'
     : 'border-white/14 bg-white/8 text-[var(--canvas)] hover:border-white/24 hover:bg-white/14 hover:text-white';
 
   return (
