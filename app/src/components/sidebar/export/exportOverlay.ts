@@ -15,7 +15,7 @@ type Rect = {
 export type ExportOverlayMetrics = ReturnType<typeof getExportOverlayMetrics>;
 
 export function getOverlayRefreshIntervalMs(fps: number) {
-  return Math.max(75, Math.round(1000 / Math.min(fps, 12)));
+  return Math.max(42, Math.round(1000 / Math.min(fps, 24)));
 }
 
 export function getExportOverlayMetrics(

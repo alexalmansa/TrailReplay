@@ -263,9 +263,9 @@ interface StatItemProps {
 function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
     <div className="min-w-0 text-center">
-      <div className={`flex min-h-[1.5rem] items-center justify-center text-[var(--evergreen-80)] min-w-0 ${compact ? 'gap-1 mb-0.5 py-[2px]' : 'gap-1 mb-0.5 py-[2px]'}`}>
+      <div className={`flex min-h-[1.7rem] items-center justify-center text-[var(--evergreen)] min-w-0 ${compact ? 'gap-1 mb-0.5 py-[3px]' : 'gap-1 mb-0.5 py-[3px]'}`}>
         {icon}
-        <span className={`block ${compact ? 'text-[9px]' : 'text-[10px]'} font-semibold uppercase tracking-[0.02em] leading-[1.2] truncate`}>
+        <span className={`block ${compact ? 'text-[9px]' : 'text-[10px]'} font-semibold tracking-normal leading-[1.25] whitespace-nowrap`}>
           {label}
         </span>
       </div>

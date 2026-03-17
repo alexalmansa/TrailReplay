@@ -10,7 +10,8 @@ import {
 
 describe('exportOverlay', () => {
   it('caps overlay refresh cadence to a smoother but safe interval', () => {
-    expect(getOverlayRefreshIntervalMs(30)).toBe(83);
+    expect(getOverlayRefreshIntervalMs(30)).toBe(42);
+    expect(getOverlayRefreshIntervalMs(24)).toBe(42);
     expect(getOverlayRefreshIntervalMs(12)).toBe(83);
     expect(getOverlayRefreshIntervalMs(6)).toBe(167);
   });

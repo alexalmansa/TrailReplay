@@ -126,14 +126,15 @@ export function useVideoExportRecorder() {
         const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
         if (statsElement) {
           try {
+            const statsCaptureScale = 4;
             const captureCanvas = await capture(statsElement, {
               backgroundColor: null,
-              scale: 2,
+              scale: statsCaptureScale,
               logging: false,
               useCORS: true,
               allowTaint: true,
             });
-            const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, 2);
+            const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, margin, margin, drawWidth, drawHeight);
           } catch {
             // Skip overlay when capture fails.
