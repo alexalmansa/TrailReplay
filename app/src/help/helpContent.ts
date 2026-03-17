@@ -1,3 +1,5 @@
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
 export interface SampleTrack {
   title: string;
   subtitle: string;
@@ -6,118 +8,134 @@ export interface SampleTrack {
   highlight: string;
 }
 
-export const tutorialVideos = [
-  {
-    title: 'Path export with stats',
-    description: 'A full route replay with live stats, elevation, and export-ready framing.',
-    src: '/media/video/path-export-with-stats.mp4',
-    downloadLabel: 'Download path export demo',
-  },
-  {
-    title: 'Comparison mode demo',
-    description: 'Two GPX files replayed together to compare pace, route choices, and timing.',
-    src: '/media/video/comparison-mode-demo.mp4',
-    downloadLabel: 'Download comparison mode demo',
-  },
-];
+export function getTutorialVideos(t: Translate) {
+  return [
+    {
+      title: t('help.tutorial.videos.pathExport.title'),
+      description: t('help.tutorial.videos.pathExport.description'),
+      src: '/media/video/path-export-with-stats.mp4',
+      downloadLabel: t('help.tutorial.videos.pathExport.downloadLabel'),
+    },
+    {
+      title: t('help.tutorial.videos.comparison.title'),
+      description: t('help.tutorial.videos.comparison.description'),
+      src: '/media/video/comparison-mode-demo.mp4',
+      downloadLabel: t('help.tutorial.videos.comparison.downloadLabel'),
+    },
+  ];
+}
 
-export const sampleTracks = [
-  {
-    title: "Camins d'Her CDH by UTMB Val d'Aran 2025",
-    subtitle: 'Technical mountain ultra from one of the most iconic Catalan trail events.',
-    badge: 'Trail ultra',
-    href: '/media/samples/ultratrail-camins-dher-cdh-by-utmb-val-daran-2025.gpx',
-    highlight: 'Great for testing elevation, cinematic camera, and stats framing on a demanding mountain course.',
-  },
-  {
-    title: 'Pedals de Foc Non Stop 2023',
-    subtitle: 'Legendary Pyrenean MTB loop and one of the reference endurance routes in Catalonia.',
-    badge: 'Bikepacking / MTB',
-    href: '/media/samples/pedals-de-foc-non-stop-2023.gpx',
-    highlight: 'Perfect for long-distance pacing, map styling, and export previews with dense route storytelling.',
-  },
-] satisfies SampleTrack[];
+export function getSampleTracks(t: Translate): SampleTrack[] {
+  return [
+    {
+      title: "Camins d'Her CDH by UTMB Val d'Aran 2025",
+      subtitle: t('help.tutorial.sampleTracks.camins.subtitle'),
+      badge: t('help.tutorial.sampleTracks.camins.badge'),
+      href: '/media/samples/ultratrail-camins-dher-cdh-by-utmb-val-daran-2025.gpx',
+      highlight: t('help.tutorial.sampleTracks.camins.highlight'),
+    },
+    {
+      title: 'Pedals de Foc Non Stop 2023',
+      subtitle: t('help.tutorial.sampleTracks.pedals.subtitle'),
+      badge: t('help.tutorial.sampleTracks.pedals.badge'),
+      href: '/media/samples/pedals-de-foc-non-stop-2023.gpx',
+      highlight: t('help.tutorial.sampleTracks.pedals.highlight'),
+    },
+  ];
+}
 
-export const tutorialFeatures = [
-  {
-    title: 'Multi-track journeys',
-    body: 'Load one or many GPX/KML files, reorder them, and build a single narrative from separate activities.',
-  },
-  {
-    title: 'Comparison mode',
-    body: 'Overlay a second GPX track to compare two efforts from the same route or timeframe.',
-  },
-  {
-    title: 'Media storytelling',
-    body: 'Attach images to moments in the track, review their timing, and keep them visible in video exports.',
-  },
-  {
-    title: 'Map styling',
-    body: 'Switch between map styles, terrain overlays, labels, and cinematic follow camera presets.',
-  },
-  {
-    title: 'Video export',
-    body: 'Export 16:9, 1:1, or 9:16 videos with stats, elevation profile, and branded overlays.',
-  },
-  {
-    title: 'Journey editing',
-    body: 'Add transport segments, control durations, and shape the replay so the story matches the real trip.',
-  },
-];
+export function getTutorialFeatures(t: Translate) {
+  return [
+    {
+      title: t('help.tutorial.features.multiTrack.title'),
+      body: t('help.tutorial.features.multiTrack.body'),
+    },
+    {
+      title: t('help.tutorial.features.comparison.title'),
+      body: t('help.tutorial.features.comparison.body'),
+    },
+    {
+      title: t('help.tutorial.features.media.title'),
+      body: t('help.tutorial.features.media.body'),
+    },
+    {
+      title: t('help.tutorial.features.mapStyle.title'),
+      body: t('help.tutorial.features.mapStyle.body'),
+    },
+    {
+      title: t('help.tutorial.features.export.title'),
+      body: t('help.tutorial.features.export.body'),
+    },
+    {
+      title: t('help.tutorial.features.journey.title'),
+      body: t('help.tutorial.features.journey.body'),
+    },
+  ];
+}
 
-export const quickStartSteps = [
-  "Open TrailReplay and upload one of the sample races or your own GPX/KML file.",
-  'Review the journey order in the sidebar and add transport segments if needed.',
-  'Customize map style, camera, stats, icons, and media timing.',
-  'Play through the route to validate pacing and picture timing.',
-  'Open Export, preview the crop, and record the final video.',
-];
+export function getQuickStartSteps(t: Translate) {
+  return [
+    t('help.tutorial.quickStart.step1'),
+    t('help.tutorial.quickStart.step2'),
+    t('help.tutorial.quickStart.step3'),
+    t('help.tutorial.quickStart.step4'),
+    t('help.tutorial.quickStart.step5'),
+  ];
+}
 
-export const providerGuides = [
-  {
-    name: 'Wikiloc',
-    icon: '🗺️',
-    subtitle: 'Outdoor routes shared by the community',
-    steps: [
-      'Sign in at wikiloc.com and open your profile.',
-      'Go to “My tracks” and choose the activity or public route you want.',
-      'Open the route detail view and locate the download button.',
-      'Select GPX format and save the file locally.',
-    ],
-    notes: [
-      'Public trails can usually be downloaded too.',
-      'Elevation data in the GPX improves the 3D replay.',
-    ],
-  },
-  {
-    name: 'Strava',
-    icon: '🏃',
-    subtitle: 'Activities from runs, rides, hikes, and more',
-    steps: [
-      'Sign in at strava.com and open the activity you want to export.',
-      'Open the three-dot activity menu in the top-right area.',
-      'Choose “Export GPX” or, if needed, “Export Original”.',
-      'Save the file and upload it directly into TrailReplay.',
-    ],
-    notes: [
-      'Prefer “Export GPX” when available for the cleanest import.',
-      'Public activities can sometimes be exported depending on privacy settings.',
-    ],
-  },
-];
+export function getProviderGuides(t: Translate) {
+  return [
+    {
+      name: 'Wikiloc',
+      icon: '🗺️',
+      subtitle: t('help.gpxGuide.providers.wikiloc.subtitle'),
+      siteHref: 'https://www.wikiloc.com',
+      steps: [
+        t('help.gpxGuide.providers.wikiloc.step1'),
+        t('help.gpxGuide.providers.wikiloc.step2'),
+        t('help.gpxGuide.providers.wikiloc.step3'),
+        t('help.gpxGuide.providers.wikiloc.step4'),
+      ],
+      notes: [
+        t('help.gpxGuide.providers.wikiloc.note1'),
+        t('help.gpxGuide.providers.wikiloc.note2'),
+      ],
+    },
+    {
+      name: 'Strava',
+      icon: '🏃',
+      subtitle: t('help.gpxGuide.providers.strava.subtitle'),
+      siteHref: 'https://www.strava.com',
+      steps: [
+        t('help.gpxGuide.providers.strava.step1'),
+        t('help.gpxGuide.providers.strava.step2'),
+        t('help.gpxGuide.providers.strava.step3'),
+        t('help.gpxGuide.providers.strava.step4'),
+      ],
+      notes: [
+        t('help.gpxGuide.providers.strava.note1'),
+        t('help.gpxGuide.providers.strava.note2'),
+      ],
+    },
+  ];
+}
 
-export const otherProviders = [
-  { title: 'Garmin Connect', body: 'Export completed activities from the web dashboard after opening the workout detail page.' },
-  { title: 'Polar Flow', body: 'Look for export/download actions from the training session detail view.' },
-  { title: 'Runkeeper', body: 'Use the web interface or account tools to export workout tracks as GPX.' },
-  { title: 'AllTrails', body: 'Trail maps and recorded activities usually provide GPX downloads from the route page.' },
-  { title: 'Apple Health', body: 'Use a third-party exporter when the original source app does not expose GPX directly.' },
-  { title: 'Google Fit', body: 'Use Google Takeout or a connected source app when direct GPX export is unavailable.' },
-];
+export function getOtherProviders(t: Translate) {
+  return [
+    { title: 'Garmin Connect', body: t('help.gpxGuide.otherProviders.garmin') },
+    { title: 'Polar Flow', body: t('help.gpxGuide.otherProviders.polar') },
+    { title: 'Runkeeper', body: t('help.gpxGuide.otherProviders.runkeeper') },
+    { title: 'AllTrails', body: t('help.gpxGuide.otherProviders.alltrails') },
+    { title: 'Apple Health', body: t('help.gpxGuide.otherProviders.appleHealth') },
+    { title: 'Google Fit', body: t('help.gpxGuide.otherProviders.googleFit') },
+  ];
+}
 
-export const gpxTips = [
-  'More track points produce smoother animations.',
-  'Timestamps help TrailReplay build realistic timing and pace.',
-  'Elevation data improves terrain-aware camera and profile visuals.',
-  'If a platform only exports FIT or TCX, convert it to GPX before importing.',
-];
+export function getGpxTips(t: Translate) {
+  return [
+    t('help.gpxGuide.tips.tip1'),
+    t('help.gpxGuide.tips.tip2'),
+    t('help.gpxGuide.tips.tip3'),
+    t('help.gpxGuide.tips.tip4'),
+  ];
+}

@@ -1,20 +1,27 @@
 import { BookOpen, Download, Film, ImageIcon, Layers3, Mountain, Route, TimerReset } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 import { HelpLayout } from './HelpLayout';
-import { quickStartSteps, sampleTracks, tutorialFeatures, tutorialVideos } from './helpContent';
+import { getQuickStartSteps, getSampleTracks, getTutorialFeatures, getTutorialVideos } from './helpContent';
 
 const featureIcons = [Route, Layers3, ImageIcon, Mountain, Film, TimerReset];
 
 export function TutorialPage() {
+  const { t } = useI18n();
+  const quickStartSteps = getQuickStartSteps(t);
+  const sampleTracks = getSampleTracks(t);
+  const tutorialFeatures = getTutorialFeatures(t);
+  const tutorialVideos = getTutorialVideos(t);
+
   return (
     <HelpLayout
-      eyebrow="Tutorial"
-      title="Learn TrailReplay from the real workflow"
-      description="This guide focuses on the current TrailReplay experience: importing tracks, shaping a journey, adding media, previewing the export crop, and recording a polished replay."
+      eyebrow={t('help.tutorial.eyebrow')}
+      title={t('help.tutorial.title')}
+      description={t('help.tutorial.description')}
       headerActions={[
         {
           href: '/gpx-download-guide.html',
           icon: <Download className="h-3.5 w-3.5" />,
-          label: 'GPX guide',
+          label: t('help.tutorial.headerAction'),
           tone: 'solid',
         },
       ]}
@@ -23,7 +30,7 @@ export function TutorialPage() {
         <article className="rounded-[1.5rem] border border-[var(--evergreen)]/12 bg-white/80 p-6 shadow-sm">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--trail-orange-15)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--trail-orange)]">
             <BookOpen className="h-4 w-4" />
-            Quick start
+            {t('help.tutorial.quickStart.badge')}
           </div>
           <ol className="space-y-3">
             {quickStartSteps.map((step, index) => (
@@ -40,7 +47,7 @@ export function TutorialPage() {
         <aside className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#223428)] p-6 text-[var(--canvas)] shadow-sm">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-white/80">
             <Download className="h-4 w-4" />
-            Catalonia sample routes
+            {t('help.tutorial.sampleRoutesBadge')}
           </div>
           <div className="space-y-3">
             {sampleTracks.map((track) => (
@@ -65,7 +72,7 @@ export function TutorialPage() {
             ))}
           </div>
           <a href="/gpx-download-guide.html" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--trail-orange)] hover:underline">
-            Need to export your own GPX first?
+            {t('help.tutorial.needGpxGuide')}
           </a>
         </aside>
       </section>
@@ -77,8 +84,8 @@ export function TutorialPage() {
               <Route className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Why these two files?</h2>
-              <p className="text-sm text-[var(--evergreen-60)]">They stress the exact parts of TrailReplay that matter most in a first serious preview.</p>
+              <h2 className="text-xl font-bold">{t('help.tutorial.whyFilesTitle')}</h2>
+              <p className="text-sm text-[var(--evergreen-60)]">{t('help.tutorial.whyFilesBody')}</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -93,15 +100,15 @@ export function TutorialPage() {
         </article>
 
         <article className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[var(--trail-orange-15)] p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Best first pass</h2>
+          <h2 className="text-xl font-bold">{t('help.tutorial.bestFirstPassTitle')}</h2>
           <div className="mt-4 space-y-3">
             <div className="rounded-[1.15rem] border border-[var(--evergreen)]/10 bg-white/80 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--trail-orange)]">Use Camins d'Her for</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">terrain contrast, steeper camera moves, and checking whether the stats/export crop feel balanced on a mountain course.</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.tutorial.caminsUseLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.tutorial.caminsUseBody')}</p>
             </div>
             <div className="rounded-[1.15rem] border border-[var(--evergreen)]/10 bg-white/80 p-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--trail-orange)]">Use Pedals de Foc for</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">long pacing, route overview, and validating how a denser endurance GPX reads in replay and export mode.</p>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.tutorial.pedalsUseLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.tutorial.pedalsUseBody')}</p>
             </div>
           </div>
         </article>
@@ -113,8 +120,8 @@ export function TutorialPage() {
             <Film className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold">Watch actual exports</h2>
-            <p className="text-sm text-[var(--evergreen-60)]">These examples were recorded with the TrailReplay export flow.</p>
+            <h2 className="text-xl font-bold">{t('help.tutorial.watchExportsTitle')}</h2>
+            <p className="text-sm text-[var(--evergreen-60)]">{t('help.tutorial.watchExportsBody')}</p>
           </div>
         </div>
         <div className="grid gap-6 xl:grid-cols-2">
@@ -137,7 +144,7 @@ export function TutorialPage() {
       </section>
 
       <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-white/75 p-6 shadow-sm">
-        <h2 className="text-xl font-bold">What TrailReplay covers today</h2>
+        <h2 className="text-xl font-bold">{t('help.tutorial.coversTitle')}</h2>
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {tutorialFeatures.map((feature, index) => {
             const Icon = featureIcons[index];
@@ -155,19 +162,19 @@ export function TutorialPage() {
       </section>
 
       <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#233427)] p-6 text-[var(--canvas)] shadow-sm">
-        <h2 className="text-xl font-bold">Recommended first run</h2>
+        <h2 className="text-xl font-bold">{t('help.tutorial.recommendedFirstRunTitle')}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-[0.12em] text-white/60">1. Import</p>
-            <p className="mt-2 text-sm leading-6 text-white/85">Use one of the sample GPX files if you only want to learn the interface first.</p>
+            <p className="text-xs uppercase tracking-[0.12em] text-white/60">{t('help.tutorial.firstRun.importLabel')}</p>
+            <p className="mt-2 text-sm leading-6 text-white/85">{t('help.tutorial.firstRun.importBody')}</p>
           </div>
           <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-[0.12em] text-white/60">2. Style</p>
-            <p className="mt-2 text-sm leading-6 text-white/85">Open Style, Media, and Settings to shape the replay before you record anything.</p>
+            <p className="text-xs uppercase tracking-[0.12em] text-white/60">{t('help.tutorial.firstRun.styleLabel')}</p>
+            <p className="mt-2 text-sm leading-6 text-white/85">{t('help.tutorial.firstRun.styleBody')}</p>
           </div>
           <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-[0.12em] text-white/60">3. Export</p>
-            <p className="mt-2 text-sm leading-6 text-white/85">Preview the crop frame in Export so the stats and media stay inside the recorded area.</p>
+            <p className="text-xs uppercase tracking-[0.12em] text-white/60">{t('help.tutorial.firstRun.exportLabel')}</p>
+            <p className="mt-2 text-sm leading-6 text-white/85">{t('help.tutorial.firstRun.exportBody')}</p>
           </div>
         </div>
       </section>

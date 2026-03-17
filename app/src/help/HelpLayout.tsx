@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft, ExternalLink, Sparkles } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 
 interface HelpHeaderAction {
   href: string;
@@ -17,6 +18,8 @@ interface HelpLayoutProps {
 }
 
 export function HelpLayout({ eyebrow, title, description, headerActions = [], children }: HelpLayoutProps) {
+  const { t } = useI18n();
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(193,101,47,0.16),transparent_32%),linear-gradient(180deg,#f8f4ee_0%,#fcfaf6_42%,#f3ede2_100%)] text-[var(--evergreen)]">
       <header className="sticky top-0 z-20 border-b border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]">
@@ -26,7 +29,7 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] shadow-sm transition-colors hover:border-white/18 hover:bg-black/20"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to app
+            {t('help.common.backToApp')}
           </a>
           {headerActions.length > 0 && (
             <div className="hidden items-center gap-2 md:flex">
@@ -60,28 +63,28 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
                 {description}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a href="/" className="tr-btn tr-btn-primary">Open TrailReplay</a>
+                <a href="/" className="tr-btn tr-btn-primary">{t('help.common.openApp')}</a>
                 <a
                   href="https://github.com/alexalmansa/TrailReplay"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="tr-btn tr-btn-secondary inline-flex items-center gap-2"
                 >
-                  GitHub
+                  {t('help.common.github')}
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <HeroStat
-                label="Built for"
-                value="Routes with story"
-                body="Import, style, narrate, and export without leaving the browser."
+                label={t('help.common.builtForLabel')}
+                value={t('help.common.builtForValue')}
+                body={t('help.common.builtForBody')}
               />
               <HeroStat
-                label="Best with"
-                value="Rich GPX files"
-                body="Tracks with timestamps and elevation make the replay immediately stronger."
+                label={t('help.common.bestWithLabel')}
+                value={t('help.common.bestWithValue')}
+                body={t('help.common.bestWithBody')}
               />
             </div>
           </div>

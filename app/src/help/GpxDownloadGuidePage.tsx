@@ -1,18 +1,24 @@
 import { BookOpen, Download, FileCode2, Globe2, MapPinned } from 'lucide-react';
+import { useI18n } from '@/i18n/useI18n';
 import { HelpLayout } from './HelpLayout';
-import { gpxTips, otherProviders, providerGuides } from './helpContent';
+import { getGpxTips, getOtherProviders, getProviderGuides } from './helpContent';
 
 export function GpxDownloadGuidePage() {
+  const { t } = useI18n();
+  const gpxTips = getGpxTips(t);
+  const otherProviders = getOtherProviders(t);
+  const providerGuides = getProviderGuides(t);
+
   return (
     <HelpLayout
-      eyebrow="GPX guide"
-      title="How to get GPX files into TrailReplay"
-      description="Use this page when your route still lives inside Strava, Wikiloc, Garmin Connect, or another platform. The goal is simple: export a clean GPX file and bring it straight into TrailReplay."
+      eyebrow={t('help.gpxGuide.eyebrow')}
+      title={t('help.gpxGuide.title')}
+      description={t('help.gpxGuide.description')}
       headerActions={[
         {
           href: '/tutorial.html',
           icon: <BookOpen className="h-3.5 w-3.5" />,
-          label: 'Tutorial',
+          label: t('help.gpxGuide.headerAction'),
           tone: 'solid',
         },
       ]}
@@ -22,7 +28,7 @@ export function GpxDownloadGuidePage() {
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-[var(--trail-orange)]">
             <FileCode2 className="h-5 w-5" />
           </div>
-          <h2 className="text-xl font-bold">What makes a good GPX file?</h2>
+          <h2 className="text-xl font-bold">{t('help.gpxGuide.goodGpxTitle')}</h2>
           <ul className="mt-4 space-y-3">
             {gpxTips.map((tip) => (
               <li key={tip} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white/85">
@@ -38,26 +44,26 @@ export function GpxDownloadGuidePage() {
               <MapPinned className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Before you export</h2>
-              <p className="text-sm text-[var(--evergreen-60)]">A quick checklist that avoids the most common import issues.</p>
+              <h2 className="text-xl font-bold">{t('help.gpxGuide.beforeExportTitle')}</h2>
+              <p className="text-sm text-[var(--evergreen-60)]">{t('help.gpxGuide.beforeExportBody')}</p>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)] p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">Choose GPX when possible</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">If a platform offers GPX, use it. FIT and TCX sometimes need conversion before import.</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.gpxGuide.beforeCards.chooseGpxLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.gpxGuide.beforeCards.chooseGpxBody')}</p>
             </div>
             <div className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)] p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">Keep timestamps</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">Timestamp-rich GPX files help pace, duration, and journey timing look much better.</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.gpxGuide.beforeCards.keepTimestampsLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.gpxGuide.beforeCards.keepTimestampsBody')}</p>
             </div>
             <div className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)] p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">Prefer full-activity exports</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">A route-only GPX is usable, but a recorded activity usually contains richer timing and elevation.</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.gpxGuide.beforeCards.fullActivityLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.gpxGuide.beforeCards.fullActivityBody')}</p>
             </div>
             <div className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)] p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">Check privacy first</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">If you are exporting public activities, confirm the share settings before downloading or publishing the replay.</p>
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.gpxGuide.beforeCards.checkPrivacyLabel')}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">{t('help.gpxGuide.beforeCards.checkPrivacyBody')}</p>
             </div>
           </div>
         </article>
@@ -66,17 +72,17 @@ export function GpxDownloadGuidePage() {
       <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[var(--trail-orange-15)] p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--trail-orange)]">Fast path</p>
-            <h2 className="mt-2 text-xl font-bold">If you already have a file, skip the providers</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--trail-orange)]">{t('help.gpxGuide.fastPathBadge')}</p>
+            <h2 className="mt-2 text-xl font-bold">{t('help.gpxGuide.fastPathTitle')}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--evergreen-80)]">
-              TrailReplay works best when the GPX already contains timestamps and elevation. If your export has those two, you can import it immediately and use the tutorial only for polish and export framing.
+              {t('help.gpxGuide.fastPathBody')}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a href="/" className="tr-btn tr-btn-primary">Open TrailReplay</a>
+            <a href="/" className="tr-btn tr-btn-primary">{t('help.common.openApp')}</a>
             <a href="/tutorial.html" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
-              Open tutorial
+              {t('help.gpxGuide.openTutorial')}
             </a>
           </div>
         </div>
@@ -96,12 +102,12 @@ export function GpxDownloadGuidePage() {
                 </div>
               </div>
               <a
-                href={provider.name === 'Strava' ? 'https://www.strava.com' : 'https://www.wikiloc.com'}
+                href={provider.siteHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--trail-orange)] hover:underline"
               >
-                Open {provider.name}
+                {t('help.gpxGuide.openProvider', { provider: provider.name })}
               </a>
             </div>
 
@@ -118,7 +124,7 @@ export function GpxDownloadGuidePage() {
               </ol>
 
               <div className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--trail-orange-15)] p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--trail-orange)]">Notes</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--trail-orange)]">{t('help.gpxGuide.notesLabel')}</p>
                 <ul className="mt-3 space-y-3">
                   {provider.notes.map((note) => (
                     <li key={note} className="text-sm leading-6 text-[var(--evergreen-80)]">
@@ -138,8 +144,8 @@ export function GpxDownloadGuidePage() {
             <Globe2 className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold">Other platforms</h2>
-            <p className="text-sm text-[var(--evergreen-60)]">The wording changes, but the logic is usually the same: open activity, export, choose GPX.</p>
+            <h2 className="text-xl font-bold">{t('help.gpxGuide.otherPlatformsTitle')}</h2>
+            <p className="text-sm text-[var(--evergreen-60)]">{t('help.gpxGuide.otherPlatformsBody')}</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -153,15 +159,15 @@ export function GpxDownloadGuidePage() {
       </section>
 
       <section className="rounded-[1.5rem] border border-[var(--evergreen)]/15 bg-[linear-gradient(160deg,var(--evergreen),#233427)] p-6 text-[var(--canvas)] shadow-sm">
-        <h2 className="text-xl font-bold">Next step</h2>
+        <h2 className="text-xl font-bold">{t('help.gpxGuide.nextStepTitle')}</h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/85">
-          Once the GPX file is on your machine, open TrailReplay, import it, review the journey, and use the tutorial if you want a faster first export.
+          {t('help.gpxGuide.nextStepBody')}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <a href="/" className="tr-btn tr-btn-primary">Open TrailReplay</a>
+          <a href="/" className="tr-btn tr-btn-primary">{t('help.common.openApp')}</a>
           <a href="/tutorial.html" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
             <Download className="h-4 w-4" />
-            Open tutorial
+            {t('help.gpxGuide.openTutorial')}
           </a>
         </div>
       </section>

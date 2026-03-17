@@ -1,24 +1,30 @@
 import { languageLabels } from '@/i18n/translations';
 import { useI18n } from '@/i18n/useI18n';
 
+export function MapControlsNote() {
+  const { t } = useI18n();
+
+  return (
+    <div className="rounded-[1.2rem] border border-[var(--evergreen)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(243,237,226,0.82))] p-4 shadow-sm">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
+        {t('tracks.mapControlsTitle')}
+      </h3>
+      <p className="mt-1 text-xs leading-5 text-[var(--evergreen-60)]">
+        {t('tracks.mapControlsPan')}
+      </p>
+      <p className="text-xs leading-5 text-[var(--evergreen-60)]">
+        {t('tracks.mapControlsCamera')}
+      </p>
+    </div>
+  );
+}
+
 export function LanguageSelectorCard() {
   const { t, language, setLanguage } = useI18n();
 
   return (
     <div className="rounded-[1.2rem] border border-[var(--evergreen)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(243,237,226,0.82))] p-4 shadow-sm">
-      <div className="rounded-xl border border-[var(--evergreen)]/10 bg-white/70 px-3 py-2.5">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
-          {t('tracks.mapControlsTitle')}
-        </h3>
-        <p className="mt-1 text-xs leading-5 text-[var(--evergreen-60)]">
-          {t('tracks.mapControlsPan')}
-        </p>
-        <p className="text-xs leading-5 text-[var(--evergreen-60)]">
-          {t('tracks.mapControlsCamera')}
-        </p>
-      </div>
-
-      <h3 className="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
         {t('settings.language')}
       </h3>
       <p className="mt-1 text-xs leading-5 text-[var(--evergreen-60)]">

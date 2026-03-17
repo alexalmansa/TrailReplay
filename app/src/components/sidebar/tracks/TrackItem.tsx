@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { AppSettings, GPXTrack } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
-import { formatDistance, formatDuration, formatSpeed } from '@/utils/units';
+import { formatDistance, formatDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { TRACK_COLORS } from './constants';
 
 interface TrackItemProps {
@@ -159,47 +159,55 @@ export function TrackItem({
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded bg-[var(--evergreen)]/5 p-2">
+            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
               <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
                 <Navigation className="h-3 w-3" />
-                <span>{t('tracks.distance')}</span>
+                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.distance')}</span>
               </div>
-              <span className="font-semibold text-[var(--evergreen)]">
+              <span className="text-sm font-semibold text-[var(--evergreen)]">
                 {formatDistance(track.totalDistance, settings.unitSystem)}
               </span>
             </div>
 
-            <div className="rounded bg-[var(--evergreen)]/5 p-2">
+            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
               <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
                 <Clock className="h-3 w-3" />
-                <span>{t('tracks.time')}</span>
+                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.time')}</span>
               </div>
-              <span className="font-semibold text-[var(--evergreen)]">
+              <span className="text-sm font-semibold text-[var(--evergreen)]">
                 {formatDuration(track.movingTime || track.totalTime)}
               </span>
             </div>
 
-            <div className="rounded bg-[var(--evergreen)]/5 p-2">
+            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
               <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
                 <TrendingUp className="h-3 w-3" />
-                <span>{t('tracks.speed')}</span>
+                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.speed')}</span>
               </div>
-              <span className="font-semibold text-[var(--evergreen)]">
-                {formatSpeed(track.avgMovingSpeed || track.avgSpeed, settings.unitSystem)}
+              <span className="text-sm font-semibold text-[var(--evergreen)]">
+                {formatSpeedFromKmh(track.avgMovingSpeed || track.avgSpeed, settings.unitSystem)}
               </span>
               {pace > 0 && (
-                <span className="ml-1 text-[10px] text-[var(--evergreen-60)]">
+                <span className="mt-0.5 block text-[10px] text-[var(--evergreen-60)]">
                   ({Math.floor(pace)}:{String(Math.round((pace % 1) * 60)).padStart(2, '0')}/km)
                 </span>
               )}
             </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--evergreen-60)]">
-            <span>↑ {formatDistance(track.elevationGain, settings.unitSystem)} {t('tracks.gain')}</span>
-            <span>↓ {formatDistance(track.elevationLoss, settings.unitSystem)} {t('tracks.loss')}</span>
-            <span>⚡ {formatSpeed(track.maxSpeed, settings.unitSystem)} {t('tracks.max')}</span>
-            <span>{track.points.length.toLocaleString()} {t('tracks.points')}</span>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-[var(--evergreen-60)]">
+            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
+              ↑ {formatElevation(track.elevationGain, settings.unitSystem)} {t('tracks.gain')}
+            </span>
+            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
+              ↓ {formatElevation(track.elevationLoss, settings.unitSystem)} {t('tracks.loss')}
+            </span>
+            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
+              ⚡ {formatSpeedFromKmh(track.maxSpeed, settings.unitSystem)} {t('tracks.max')}
+            </span>
+            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
+              {track.points.length.toLocaleString()} {t('tracks.points')}
+            </span>
           </div>
         </div>
       </div>
