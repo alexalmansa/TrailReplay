@@ -191,7 +191,7 @@ export function StatsOverlay({ compact = false }: StatsOverlayProps) {
   }>;
 
   return (
-    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[18rem]' : 'max-w-[22rem]'}`}>
+    <div className={`tr-stats-overlay ${compact ? 'tr-stats-overlay--compact max-w-[18.75rem]' : 'max-w-[24rem]'}`}>
       {/* Main Stats Grid */}
       <div className={`grid grid-cols-4 ${compact ? 'gap-1 mb-2' : 'gap-1.5 mb-3'}`}>
         <StatItem
@@ -262,13 +262,13 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value, compact = false }: StatItemProps) {
   return (
-    <div className="text-center min-w-0">
-      <div className={`flex items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5' : 'gap-0.5 mb-0.5'}`}>
+    <div className="min-w-0 text-center">
+      <div className={`flex min-h-[0.95rem] items-center justify-center text-[var(--evergreen-60)] min-w-0 ${compact ? 'gap-0.5 mb-0.5' : 'gap-0.5 mb-0.5'}`}>
         {icon}
-        <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} uppercase tracking-[0.08em] leading-none truncate`}>{label}</span>
+        <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} uppercase tracking-[0.08em] leading-[1.05] truncate`}>{label}</span>
       </div>
       <div
-        className={`tr-stat-value block leading-none font-semibold tabular-nums tracking-[-0.03em] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${compact ? 'text-[8px]' : 'text-[9px]'}`}
+        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.02em] whitespace-nowrap ${compact ? 'text-[9px] leading-[1.15]' : 'text-[10px] leading-[1.15]'}`}
         title={value}
       >
         {value}
@@ -288,18 +288,18 @@ interface SmallStatItemProps {
 
 function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
   return (
-    <div className="text-center min-w-0">
-      <div className={`flex items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0' : 'mb-0.5'} ${color || ''}`}>
+    <div className="min-w-0 text-center">
+      <div className={`flex min-h-[0.95rem] items-center justify-center gap-0.5 text-[var(--evergreen-60)] ${compact ? 'mb-0' : 'mb-0.5'} ${color || ''}`}>
         {icon}
       </div>
       <div
-        className={`${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-none min-w-0 overflow-hidden text-ellipsis ${color || 'text-[var(--evergreen)]'}`}
+        className={`flex min-h-[1rem] items-center justify-center px-0.5 ${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-[1.15] min-w-0 ${color || 'text-[var(--evergreen)]'}`}
         title={unit ? `${value} ${unit}` : value}
       >
         {value}
         {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[6px]' : 'text-[7px]'} text-[var(--evergreen-60)] uppercase truncate`}>{label}</div>
+      <div className={`${compact ? 'text-[6px]' : 'text-[7px]'} text-[var(--evergreen-60)] uppercase leading-[1.05] truncate`}>{label}</div>
     </div>
   );
 }

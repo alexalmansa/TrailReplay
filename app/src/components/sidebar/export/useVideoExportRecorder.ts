@@ -50,6 +50,10 @@ export function useVideoExportRecorder() {
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
+  const overlayRefreshIntervalMs = useMemo(
+    () => Math.max(75, Math.round(1000 / Math.min(videoExportSettings.fps, 12))),
+    [videoExportSettings.fps]
+  );
 
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recordingContextRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -262,10 +266,10 @@ export function useVideoExportRecorder() {
       context.restore();
     }
 
-    if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
+    if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [updateOverlayAsync, videoExportSettings.resolution]);
+  }, [overlayRefreshIntervalMs, updateOverlayAsync, videoExportSettings.resolution]);
 
   const startFrameCapture = useCallback(() => {
     const map = mapGlobalRef.current;
