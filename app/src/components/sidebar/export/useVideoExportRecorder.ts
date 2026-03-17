@@ -9,6 +9,14 @@ import {
   getVideoBitrate,
   MP4_MIME_TYPES,
 } from './exportConfig';
+import {
+  getCapturedCanvasDrawSize,
+  getElevationOverlayDrawRect,
+  getExportOverlayMetrics,
+  getOverlayRefreshIntervalMs,
+  getPopupOverlayDrawRect,
+  isDrawableRect,
+} from './exportOverlay';
 
 type Html2Canvas = (
   element: HTMLElement,
@@ -50,10 +58,7 @@ export function useVideoExportRecorder() {
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
-  const overlayRefreshIntervalMs = useMemo(
-    () => Math.max(75, Math.round(1000 / Math.min(videoExportSettings.fps, 12))),
-    [videoExportSettings.fps]
-  );
+  const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
 
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recordingContextRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -66,24 +71,41 @@ export function useVideoExportRecorder() {
   const overlayBusyRef = useRef(false);
   const overlayLastUpdateRef = useRef(0);
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
+  const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
+  const overlayRunIdRef = useRef(0);
 
   const html2canvas = useCallback(() => window.html2canvas ?? null, []);
 
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (html2canvas()) return true;
-    return new Promise((resolve) => {
+    if (html2CanvasLoaderRef.current) {
+      return html2CanvasLoaderRef.current;
+    }
+
+    html2CanvasLoaderRef.current = new Promise((resolve) => {
+      const existingScript = document.querySelector('script[data-trailreplay-html2canvas="true"]') as HTMLScriptElement | null;
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve(true), { once: true });
+        existingScript.addEventListener('error', () => resolve(false), { once: true });
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
       script.crossOrigin = 'anonymous';
+      script.dataset.trailreplayHtml2canvas = 'true';
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.head.appendChild(script);
     });
+
+    return html2CanvasLoaderRef.current;
   }, [html2canvas]);
 
   const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
     const capture = html2canvas();
     if (overlayBusyRef.current || !capture) return;
+    const runId = overlayRunIdRef.current;
     overlayBusyRef.current = true;
     overlayLastUpdateRef.current = Date.now();
 
@@ -92,9 +114,7 @@ export function useVideoExportRecorder() {
       if (!container) return;
 
       const containerRect = container.getBoundingClientRect();
-      const { cropX, cropY, cropW } = getCropRegion(containerRect, recordW, recordH);
-      const scaleToRecording = recordW / cropW;
-      const margin = Math.round(recordW * 0.025);
+      const { cropX, cropY, scaleToRecording, margin } = getExportOverlayMetrics(containerRect, recordW, recordH);
 
       const overlay = document.createElement('canvas');
       overlay.width = recordW;
@@ -113,8 +133,7 @@ export function useVideoExportRecorder() {
               useCORS: true,
               allowTaint: true,
             });
-            const drawWidth = captureCanvas.width * scaleToRecording / 2;
-            const drawHeight = captureCanvas.height * scaleToRecording / 2;
+            const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, 2);
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, margin, margin, drawWidth, drawHeight);
           } catch {
             // Skip overlay when capture fails.
@@ -132,11 +151,13 @@ export function useVideoExportRecorder() {
               logging: false,
               useCORS: true,
             });
-            const rawWidth = captureCanvas.width * scaleToRecording;
-            const drawWidth = Math.min(rawWidth, recordW * 0.85);
-            const drawHeight = captureCanvas.height * (drawWidth / captureCanvas.width);
-            const drawX = (recordW - drawWidth) / 2;
-            const drawY = recordH - drawHeight - margin;
+            const { drawX, drawY, drawWidth, drawHeight } = getElevationOverlayDrawRect({
+              captureCanvas,
+              scaleToRecording,
+              recordW,
+              recordH,
+              margin,
+            });
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, drawX, drawY, drawWidth, drawHeight);
           } catch {
             // Skip overlay when capture fails.
@@ -148,12 +169,15 @@ export function useVideoExportRecorder() {
       if (picturePopupElement) {
         try {
           const popupRect = picturePopupElement.getBoundingClientRect();
-          const popupX = (popupRect.left - containerRect.left - cropX) * scaleToRecording;
-          const popupY = (popupRect.top - containerRect.top - cropY) * scaleToRecording;
-          const popupWidth = popupRect.width * scaleToRecording;
-          const popupHeight = popupRect.height * scaleToRecording;
+          const popupDrawRect = getPopupOverlayDrawRect({
+            popupRect,
+            containerRect,
+            cropX,
+            cropY,
+            scaleToRecording,
+          });
 
-          if (popupWidth > 0 && popupHeight > 0) {
+          if (isDrawableRect(popupDrawRect)) {
             const captureCanvas = await capture(picturePopupElement, {
               backgroundColor: null,
               scale: 1,
@@ -161,16 +185,37 @@ export function useVideoExportRecorder() {
               useCORS: true,
               allowTaint: true,
             });
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, popupX, popupY, popupWidth, popupHeight);
+            overlayContext.drawImage(
+              captureCanvas,
+              0,
+              0,
+              captureCanvas.width,
+              captureCanvas.height,
+              popupDrawRect.drawX,
+              popupDrawRect.drawY,
+              popupDrawRect.drawWidth,
+              popupDrawRect.drawHeight
+            );
 
             const popupImageElement = picturePopupElement.querySelector('img') as HTMLImageElement | null;
             if (popupImageElement && popupImageElement.complete && popupImageElement.naturalWidth > 0) {
               const imageRect = popupImageElement.getBoundingClientRect();
-              const imageX = (imageRect.left - containerRect.left - cropX) * scaleToRecording;
-              const imageY = (imageRect.top - containerRect.top - cropY) * scaleToRecording;
-              const imageWidth = imageRect.width * scaleToRecording;
-              const imageHeight = imageRect.height * scaleToRecording;
-              overlayContext.drawImage(popupImageElement, imageX, imageY, imageWidth, imageHeight);
+              const imageDrawRect = getPopupOverlayDrawRect({
+                popupRect: imageRect,
+                containerRect,
+                cropX,
+                cropY,
+                scaleToRecording,
+              });
+              if (isDrawableRect(imageDrawRect)) {
+                overlayContext.drawImage(
+                  popupImageElement,
+                  imageDrawRect.drawX,
+                  imageDrawRect.drawY,
+                  imageDrawRect.drawWidth,
+                  imageDrawRect.drawHeight
+                );
+              }
             }
           }
         } catch {
@@ -178,7 +223,9 @@ export function useVideoExportRecorder() {
         }
       }
 
-      cachedOverlayRef.current = overlay;
+      if (runId === overlayRunIdRef.current) {
+        cachedOverlayRef.current = overlay;
+      }
     } finally {
       overlayBusyRef.current = false;
     }
@@ -361,6 +408,7 @@ export function useVideoExportRecorder() {
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
     overlayLastUpdateRef.current = 0;
+    overlayRunIdRef.current += 1;
 
     try {
       const { width, height } = videoExportSettings.resolution;
@@ -452,6 +500,7 @@ export function useVideoExportRecorder() {
     isRecordingRef.current = false;
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
+    overlayRunIdRef.current += 1;
 
     if (frameCleanupRef.current) {
       frameCleanupRef.current();

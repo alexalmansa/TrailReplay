@@ -3,6 +3,53 @@ import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { getHeartRateColor } from '@/utils/gpxParser';
 
+const INITIAL_FIT_BOUNDS_DELAY_MS = 100;
+const INITIAL_ZOOM_OUT_DELAY_MS = 1400;
+const INITIAL_ZOOM_OUT_STEPS = 4;
+const INITIAL_ZOOM_OUT_STEP_DELAY_MS = 50;
+
+function simulateInitialZoomOut(map: maplibregl.Map) {
+  const container = map.getContainer();
+  const canvas = container.querySelector('canvas');
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+
+  canvas.dispatchEvent(new MouseEvent('mouseenter', {
+    bubbles: true,
+    cancelable: true,
+    clientX,
+    clientY,
+    view: window,
+  }));
+
+  canvas.dispatchEvent(new MouseEvent('mousemove', {
+    bubbles: true,
+    cancelable: true,
+    clientX,
+    clientY,
+    view: window,
+  }));
+
+  for (let index = 0; index < INITIAL_ZOOM_OUT_STEPS; index++) {
+    window.setTimeout(() => {
+      canvas.dispatchEvent(new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+        screenX: clientX,
+        screenY: clientY,
+        deltaY: 100,
+        deltaMode: 0,
+        view: window,
+      }));
+    }, index * INITIAL_ZOOM_OUT_STEP_DELAY_MS);
+  }
+}
+
 interface UseTrailLayerDataParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
@@ -36,6 +83,8 @@ export function useTrailLayerData({
 }: UseTrailLayerDataParams) {
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
+
+    const timeoutIds: number[] = [];
 
     if (colorMode === 'heartRate' && allCoordinates.length > 0 && mapRef.current.getSource('trail-line')) {
       const features: Array<Feature<LineString, { color: string }>> = [];
@@ -110,11 +159,19 @@ export function useTrailLayerData({
 
       if (!loadZoomDoneRef.current) {
         loadZoomDoneRef.current = true;
-        setTimeout(fitBounds, 100);
+        timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
+        timeoutIds.push(window.setTimeout(() => {
+          if (!mapRef.current) return;
+          simulateInitialZoomOut(mapRef.current);
+        }, INITIAL_ZOOM_OUT_DELAY_MS));
       } else {
-        setTimeout(fitBounds, 100);
+        timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
       }
     }
+
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, [
     activeTrack,
     allCoordinates,

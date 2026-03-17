@@ -6,13 +6,14 @@ The active product lives in [`app/`](./app), built with React and TypeScript, an
 
 ## Demo Videos
 
-Watch the demos in the live tutorial:
-- [Path export with stats](https://trailreplay.com/tutorial.html#demo-videos)
-- [Comparison mode](https://trailreplay.com/tutorial.html#demo-videos)
+<video controls src="app/public/media/video/path-export-with-stats.mp4" title="TrailReplay Path Export With Stats" style="max-width: 100%;"></video>
 
-Or open the source video files from this repo:
+<video controls src="app/public/media/video/comparison-mode-demo.mp4" title="TrailReplay Comparison Mode Demo" style="max-width: 100%;"></video>
+
+If inline playback does not appear in your viewer, use the direct files instead:
 - [Path export with stats video](./app/public/media/video/path-export-with-stats.mp4)
 - [Comparison mode video](./app/public/media/video/comparison-mode-demo.mp4)
+- [Live tutorial demos](https://trailreplay.com/tutorial.html#demo-videos)
 
 ## What TrailReplay Does
 
