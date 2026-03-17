@@ -3,29 +3,13 @@ import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
-import { getCropRegion } from '@/utils/crop';
 import {
   getSupportedMimeType,
   getVideoBitrate,
   MP4_MIME_TYPES,
 } from './exportConfig';
-
-type Html2Canvas = (
-  element: HTMLElement,
-  options: {
-    backgroundColor: string | null;
-    scale: number;
-    logging: boolean;
-    useCORS: boolean;
-    allowTaint?: boolean;
-  }
-) => Promise<HTMLCanvasElement>;
-
-declare global {
-  interface Window {
-    html2canvas?: Html2Canvas;
-  }
-}
+import { drawExportFrame, updateExportOverlayAsync } from './exportCanvasComposer';
+import { loadHtml2Canvas, resolveHtml2Canvas } from './html2canvasLoader';
 
 export function useVideoExportRecorder() {
   const { t } = useI18n();
@@ -63,209 +47,41 @@ export function useVideoExportRecorder() {
   const overlayLastUpdateRef = useRef(0);
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
 
-  const html2canvas = useCallback(() => window.html2canvas ?? null, []);
-
-  const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
-    if (html2canvas()) return true;
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      script.crossOrigin = 'anonymous';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.head.appendChild(script);
-    });
-  }, [html2canvas]);
-
   const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
-    const capture = html2canvas();
-    if (overlayBusyRef.current || !capture) return;
-    overlayBusyRef.current = true;
-    overlayLastUpdateRef.current = Date.now();
-
-    try {
-      const container = document.getElementById('map-capture-container');
-      if (!container) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const { cropX, cropY, cropW } = getCropRegion(containerRect, recordW, recordH);
-      const scaleToRecording = recordW / cropW;
-      const margin = Math.round(recordW * 0.025);
-
-      const overlay = document.createElement('canvas');
-      overlay.width = recordW;
-      overlay.height = recordH;
-      const overlayContext = overlay.getContext('2d');
-      if (!overlayContext) return;
-
-      if (videoExportSettings.includeStats) {
-        const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
-        if (statsElement) {
-          try {
-            const captureCanvas = await capture(statsElement, {
-              backgroundColor: null,
-              scale: 2,
-              logging: false,
-              useCORS: true,
-              allowTaint: true,
-            });
-            const drawWidth = captureCanvas.width * scaleToRecording / 2;
-            const drawHeight = captureCanvas.height * scaleToRecording / 2;
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, margin, margin, drawWidth, drawHeight);
-          } catch {
-            // Skip overlay when capture fails.
-          }
-        }
-      }
-
-      if (videoExportSettings.includeElevation) {
-        const elevationElement = document.getElementById('mapElevationProfile') as HTMLElement | null;
-        if (elevationElement) {
-          try {
-            const captureCanvas = await capture(elevationElement, {
-              backgroundColor: null,
-              scale: 1,
-              logging: false,
-              useCORS: true,
-            });
-            const rawWidth = captureCanvas.width * scaleToRecording;
-            const drawWidth = Math.min(rawWidth, recordW * 0.85);
-            const drawHeight = captureCanvas.height * (drawWidth / captureCanvas.width);
-            const drawX = (recordW - drawWidth) / 2;
-            const drawY = recordH - drawHeight - margin;
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, drawX, drawY, drawWidth, drawHeight);
-          } catch {
-            // Skip overlay when capture fails.
-          }
-        }
-      }
-
-      const picturePopupElement = document.querySelector('.tr-picture-popup') as HTMLElement | null;
-      if (picturePopupElement) {
-        try {
-          const popupRect = picturePopupElement.getBoundingClientRect();
-          const popupX = (popupRect.left - containerRect.left - cropX) * scaleToRecording;
-          const popupY = (popupRect.top - containerRect.top - cropY) * scaleToRecording;
-          const popupWidth = popupRect.width * scaleToRecording;
-          const popupHeight = popupRect.height * scaleToRecording;
-
-          if (popupWidth > 0 && popupHeight > 0) {
-            const captureCanvas = await capture(picturePopupElement, {
-              backgroundColor: null,
-              scale: 1,
-              logging: false,
-              useCORS: true,
-              allowTaint: true,
-            });
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, popupX, popupY, popupWidth, popupHeight);
-
-            const popupImageElement = picturePopupElement.querySelector('img') as HTMLImageElement | null;
-            if (popupImageElement && popupImageElement.complete && popupImageElement.naturalWidth > 0) {
-              const imageRect = popupImageElement.getBoundingClientRect();
-              const imageX = (imageRect.left - containerRect.left - cropX) * scaleToRecording;
-              const imageY = (imageRect.top - containerRect.top - cropY) * scaleToRecording;
-              const imageWidth = imageRect.width * scaleToRecording;
-              const imageHeight = imageRect.height * scaleToRecording;
-              overlayContext.drawImage(popupImageElement, imageX, imageY, imageWidth, imageHeight);
-            }
-          }
-        } catch {
-          // Skip popup capture when unavailable.
-        }
-      }
-
-      cachedOverlayRef.current = overlay;
-    } finally {
-      overlayBusyRef.current = false;
-    }
-  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats]);
+    await updateExportOverlayAsync({
+      capture: resolveHtml2Canvas(),
+      includeElevation: videoExportSettings.includeElevation,
+      includeStats: videoExportSettings.includeStats,
+      isOverlayBusy: overlayBusyRef.current,
+      onOverlayBusyChange: (isBusy) => {
+        overlayBusyRef.current = isBusy;
+      },
+      onOverlayReady: (overlay) => {
+        cachedOverlayRef.current = overlay;
+      },
+      onOverlayTimestamp: (timestamp) => {
+        overlayLastUpdateRef.current = timestamp;
+      },
+      recordHeight: recordH,
+      recordWidth: recordW,
+    });
+  }, [videoExportSettings.includeElevation, videoExportSettings.includeStats]);
 
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;
-
-    const context = recordingContextRef.current;
     const { width: recordW, height: recordH } = videoExportSettings.resolution;
-    const mapCanvas = (mapGlobalRef.current?.getCanvas()
-      ?? document.querySelector('.maplibregl-canvas')) as HTMLCanvasElement | null;
-    const container = document.getElementById('map-capture-container');
-
-    if (!mapCanvas || !container) {
-      context.fillStyle = '#000';
-      context.fillRect(0, 0, recordW, recordH);
-      return;
-    }
-
-    const containerRect = container.getBoundingClientRect();
-    const { cropX, cropY, cropW, cropH } = getCropRegion(containerRect, recordW, recordH);
-    const pixelScaleX = mapCanvas.width / containerRect.width;
-    const pixelScaleY = mapCanvas.height / containerRect.height;
-
-    context.drawImage(
-      mapCanvas,
-      cropX * pixelScaleX,
-      cropY * pixelScaleY,
-      cropW * pixelScaleX,
-      cropH * pixelScaleY,
-      0,
-      0,
-      recordW,
-      recordH,
-    );
-
-    if (cachedOverlayRef.current) {
-      context.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
-    }
-
-    const markerContainer = document.querySelector('.tr-marker') as HTMLElement | null;
-    if (markerContainer) {
-      const markerRect = markerContainer.getBoundingClientRect();
-      const scaleX = recordW / cropW;
-      const scaleY = recordH / cropH;
-      const markerX = (markerRect.left + markerRect.width / 2 - containerRect.left - cropX) * scaleX;
-      const markerY = (markerRect.top + markerRect.height / 2 - containerRect.top - cropY) * scaleY;
-
-      const circleElement = markerContainer.querySelector('div') as HTMLElement | null;
-      if (circleElement) {
-        const circleSize = parseFloat(circleElement.style.width || '0');
-        const scaledRadius = (circleSize / 2) * scaleX;
-        const borderColor = circleElement.style.borderColor || '#FF9800';
-
-        context.fillStyle = circleElement.style.background || 'rgba(255, 152, 0, 0.25)';
-        context.beginPath();
-        context.arc(markerX, markerY, scaledRadius, 0, Math.PI * 2);
-        context.fill();
-
-        context.strokeStyle = borderColor;
-        context.lineWidth = 2 * scaleX;
-        context.stroke();
-      }
-
-      const markerEmoji = markerContainer.querySelector('span') as HTMLElement | null;
-      if (markerEmoji?.textContent) {
-        const fontSize = Math.round(parseFloat(markerEmoji.style.fontSize || '24') * scaleX);
-        context.font = `${fontSize}px serif`;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillStyle = '#000000';
-        context.fillText(markerEmoji.textContent, markerX, markerY);
-      }
-    }
-
-    if (cachedLogoRef.current) {
-      const logoWidth = Math.round(recordW * 0.14);
-      const logoHeight = Math.round(logoWidth / 2.5);
-      const margin = Math.round(recordW * 0.025);
-      const logoX = recordW - logoWidth - margin;
-      const logoY = margin;
-      context.save();
-      context.globalAlpha = 0.85;
-      context.drawImage(cachedLogoRef.current, logoX, logoY, logoWidth, logoHeight);
-      context.restore();
-    }
-
-    if (Date.now() - overlayLastUpdateRef.current > 150 && !overlayBusyRef.current) {
-      updateOverlayAsync(recordW, recordH);
-    }
+    drawExportFrame({
+      cachedLogo: cachedLogoRef.current,
+      cachedOverlay: cachedOverlayRef.current,
+      onOverlayRefreshNeeded: (width, height) => {
+        void updateOverlayAsync(width, height);
+      },
+      overlayBusy: overlayBusyRef.current,
+      overlayLastUpdate: overlayLastUpdateRef.current,
+      recordHeight: recordH,
+      recordWidth: recordW,
+      recordingContext: recordingContextRef.current,
+    });
   }, [updateOverlayAsync, videoExportSettings.resolution]);
 
   const startFrameCapture = useCallback(() => {
@@ -443,7 +259,7 @@ export function useVideoExportRecorder() {
       setIsExporting(false);
       isRecordingRef.current = false;
     }
-  }, [loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
+  }, [play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;

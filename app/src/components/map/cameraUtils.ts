@@ -27,7 +27,7 @@ export const TERRAIN_CAMERA_SETTINGS = {
 
 export function calculateTerrainAwareAdjustments(
   elevation: number,
-  elevationData: Array<{ elevation: number; progress: number }>,
+  elevationData: Array<{ elevation: number; progress?: number }>,
   currentProgress: number
 ): { zoomAdjust: number; pitchAdjust: number } {
   const elevationRisk = Math.min(Math.max(0, elevation) / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS, 1);

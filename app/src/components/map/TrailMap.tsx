@@ -1,28 +1,19 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import type { Feature, LineString } from 'geojson';
+import { useRef, useCallback, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import { MapElevationProfile } from './MapElevationProfile';
-import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
-import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
-import { getHeartRateColor } from '@/utils/gpxParser';
 import { calculateDistance } from '@/utils/journeyUtils';
-import { registerAspectProtocol, registerSlopeProtocol } from './terrainProtocols';
-import { MAP_LAYERS, MAP_STYLE } from './mapStyle';
-import {
-  calculateTerrainAwareAdjustments,
-  smoothBearing,
-  TERRAIN_CAMERA_SETTINGS,
-} from './cameraUtils';
-import { setupTrackSources } from './mapSetup';
+import { MAP_LAYERS } from './mapStyle';
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
+import { useMapInitialization } from './hooks/useMapInitialization';
+import { useTrailLayerData } from './hooks/useTrailLayerData';
+import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -161,532 +152,65 @@ export function TrailMap(_props: TrailMapProps) {
     trailStyle,
   });
 
-  // Initialize map
-  useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-
-    onReadyChange?.(false);
-
-    registerSlopeProtocol();
-    registerAspectProtocol();
-
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: MAP_STYLE as unknown as maplibregl.StyleSpecification,
-      center: [0, 0],
-      zoom: 2,
-      pitch: 0,
-      bearing: 0,
-      maxPitch: 85,
-      preserveDrawingBuffer: true,
-      attributionControl: false,
-    } as ConstructorParameters<typeof maplibregl.Map>[0]);
-
-    // Expose map instance globally so ExportPanel can call getCanvas() / triggerRepaint()
-    mapGlobalRef.current = map.current;
-
-    map.current.on('load', () => {
-      setIsMapLoaded(true);
-      onReadyChange?.(true);
-      map.current?.addControl(new maplibregl.NavigationControl(), 'top-right');
-      map.current?.addControl(new maplibregl.FullscreenControl(), 'top-right');
-      if (map.current) {
-        setupTrackSources(map.current, trailStyle.trailColor);
-      }
-    });
-
-    return () => {
-      onReadyChange?.(false);
-      mapGlobalRef.current = null;
-      map.current?.remove();
-      map.current = null;
-      loadZoomDoneRef.current = false;
-    };
-  }, [mapContainer, onReadyChange, trailStyle.trailColor]);
-
-  // Update journey lines on map
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    // Build HR-colored trail when in heart rate mode
-    if (trailStyle.colorMode === 'heartRate' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
-      console.log('🏃 Building heart rate trail - colorMode:', trailStyle.colorMode, 'coords:', allCoordinates.length);
-
-      // Build features with color properties based on heart rate
-      const features: Array<Feature<LineString, { color: string }>> = [];
-
-      // Get the heart rate points - support both single-track and journey modes
-      let hrPoints: Array<{ heartRate: number | null }> = [];
-
-      if (activeTrack && !computedJourney) {
-        // Single track mode
-        hrPoints = activeTrack.points;
-        console.log('🏃 Using activeTrack points:', hrPoints.length, 'sample:', hrPoints.slice(0, 3));
-      } else if (computedJourney) {
-        // Journey mode - coordinates are JourneyPoint objects with heartRate
-        hrPoints = computedJourney.coordinates;
-        console.log('🏃 Using computedJourney coordinates:', hrPoints.length, 'sample:', hrPoints.slice(0, 3));
-      }
-
-      // Build 2-point line segments with colors
-      let hrCount = 0;
-      for (let i = 0; i < allCoordinates.length - 1; i++) {
-        const startCoord = allCoordinates[i];
-        const endCoord = allCoordinates[i + 1];
-        const hrData = hrPoints[i];
-
-        let color = trailStyle.trailColor; // Default color
-
-        if (hrData?.heartRate) {
-          hrCount++;
-          color = getHeartRateColor(hrData.heartRate, 180);
-        }
-
-        features.push({
-          type: 'Feature',
-          properties: { color },
-          geometry: {
-            type: 'LineString',
-            coordinates: [startCoord, endCoord]
-          }
-        });
-      }
-
-      console.log('🏃 Built', features.length, 'features with', hrCount, 'having HR data');
-      (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
-        type: 'FeatureCollection',
-        features
-      });
-    } else if (trailStyle.colorMode === 'fixed' && allCoordinates.length > 0 && map.current.getSource('trail-line')) {
-      // Fixed color mode - simple LineString
-      (map.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: allCoordinates }
-      });
-    }
-
-    // Extract transport segment coordinates for dashed lines
-    if (segmentTimings.length > 0 && map.current.getSource('transport-line')) {
-      const transportCoords: number[][][] = [];
-
-      segmentTimings.forEach(timing => {
-        if (timing.type === 'transport') {
-          // Get coordinates for this transport segment from allCoordinates
-          const segmentCoords: number[][] = [];
-          // We need to map from journey coordinates - approximate by progress
-          const startIdx = Math.floor(timing.progressStartRatio * allCoordinates.length);
-          const endIdx = Math.ceil(timing.progressEndRatio * allCoordinates.length);
-
-          for (let i = startIdx; i <= endIdx && i < allCoordinates.length; i++) {
-            segmentCoords.push(allCoordinates[i]);
-          }
-
-          if (segmentCoords.length > 1) {
-            transportCoords.push(segmentCoords);
-          }
-        }
-      });
-
-      (map.current.getSource('transport-line') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'MultiLineString', coordinates: transportCoords }
-      });
-    }
-
-    // Fit bounds to all tracks - show overview without aggressive zoom
-    if (allCoordinates.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
-
-      // Only fit bounds on initial load or when tracks change significantly
-      if (animationPhase === 'idle' && playback.progress === 0) {
-        if (!loadZoomDoneRef.current) {
-          // First load: fit bounds immediately, then simulate mouse-wheel scroll-out
-          // at the map center to force MapLibre tile/zoom recalculation.
-          loadZoomDoneRef.current = true;
-          setTimeout(() => {
-            if (!map.current) return;
-            map.current.fitBounds(bounds, {
-              padding: 80,
-              duration: 800,
-              maxZoom: 12,
-              pitch: 0,
-              bearing: 0,
-            });
-          }, 100);
-
-          // After 2 seconds, simulate mouse movement and wheel scroll to force tile reload
-          setTimeout(() => {
-            if (!map.current) return;
-            const container = map.current.getContainer();
-            const canvas = container.querySelector('canvas');
-            if (!canvas) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-
-            // Move mouse to center
-            canvas.dispatchEvent(new MouseEvent('mouseenter', {
-              bubbles: true,
-              cancelable: true,
-              clientX: cx,
-              clientY: cy,
-              view: window,
-            }));
-
-            canvas.dispatchEvent(new MouseEvent('mousemove', {
-              bubbles: true,
-              cancelable: true,
-              clientX: cx,
-              clientY: cy,
-              view: window,
-            }));
-
-            // Dispatch multiple wheel events to zoom out
-            for (let i = 0; i < 4; i++) {
-              setTimeout(() => {
-                canvas.dispatchEvent(new WheelEvent('wheel', {
-                  bubbles: true,
-                  cancelable: true,
-                  clientX: cx,
-                  clientY: cy,
-                  screenX: cx,
-                  screenY: cy,
-                  deltaY: 100,
-                  deltaMode: 0,
-                  view: window,
-                }));
-              }, i * 50);
-            }
-          }, 2000);
-        } else {
-          // Subsequent track changes: just fit bounds directly
-          setTimeout(() => {
-            if (!map.current) return;
-            map.current.fitBounds(bounds, {
-              padding: 80,
-              duration: 800,
-              maxZoom: 12,
-              pitch: 0,
-              bearing: 0,
-            });
-          }, 100);
-        }
-      }
-    }
-  }, [allCoordinates, segmentTimings, isMapLoaded, animationPhase, playback.progress, trailStyle.colorMode, trailStyle.heartRateZones, trailStyle.trailColor, activeTrack, computedJourney]);
-
-  // Update completed trail and marker position
-  useEffect(() => {
-    if (!map.current || !isMapLoaded || !currentPosition) return;
-
-    // Update smooth bearing
-    targetBearingRef.current = currentBearing;
-    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, currentBearing, 0.02);
-
-    const shouldShowMarker = trailStyle.showMarker &&
-      (animationPhase === 'playing' || (animationPhase === 'idle' && playback.progress > 0));
-
-    // Determine icon based on segment type
-    const icon = isInTransport
-      ? TRANSPORT_ICONS[currentSegment?.segment.transportMode || 'car'] || '🚗'
-      : trailStyle.currentIcon;
-
-    // Get the current color (from active track segment or default)
-    const currentColor = currentTrackColor || trailStyle.trailColor;
-
-    // Handle marker
-    if (!shouldShowMarker) {
-      if (markerRef.current) {
-        markerRef.current.remove();
-        markerRef.current = null;
-      }
-    } else {
-      const markerSize = trailStyle.markerSize;
-      const showCircle = trailStyle.showCircle;
-      const fontSize = Math.round(24 * markerSize);
-      const circleSize = Math.round(40 * markerSize);
-
-      if (!markerRef.current) {
-        const el = document.createElement('div');
-        el.className = 'tr-marker';
-        el.style.zIndex = '100';
-        el.innerHTML = `
-          ${showCircle ? `<div style="
-            position: absolute;
-            width: ${circleSize}px;
-            height: ${circleSize}px;
-            background: ${currentColor}40;
-            border: 2px solid ${currentColor};
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-          "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
-        `;
-
-        markerRef.current = new maplibregl.Marker({
-          element: el,
-          anchor: 'center',
-        })
-          .setLngLat([currentPosition.lon, currentPosition.lat])
-          .addTo(map.current);
-      } else {
-        markerRef.current.setLngLat([currentPosition.lon, currentPosition.lat]);
-        const el = markerRef.current.getElement();
-        el.style.zIndex = '100';
-        el.innerHTML = `
-          ${showCircle ? `<div style="
-            position: absolute;
-            width: ${circleSize}px;
-            height: ${circleSize}px;
-            background: ${currentColor}40;
-            border: 2px solid ${currentColor};
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-          "></div>` : ''}
-          <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
-        `;
-      }
-    }
-
-    // Update completed track line with HR coloring if needed
-    if (completedCoordinates.length > 0 && map.current.getSource('trail-completed')) {
-      if (trailStyle.colorMode === 'heartRate') {
-        // Build HR-colored features for completed portion
-        const features: Array<Feature<LineString, { color: string }>> = [];
-
-        let hrPoints: Array<{ heartRate: number | null }> = [];
-        if (activeTrack && !computedJourney) {
-          hrPoints = activeTrack.points;
-        } else if (computedJourney) {
-          hrPoints = computedJourney.coordinates;
-        }
-
-        for (let i = 0; i < completedCoordinates.length - 1; i++) {
-          const startCoord = completedCoordinates[i];
-          const endCoord = completedCoordinates[i + 1];
-          const hrData = hrPoints[i];
-
-          let color = trailStyle.trailColor;
-          if (hrData?.heartRate) {
-            color = getHeartRateColor(hrData.heartRate, 180);
-          }
-
-          features.push({
-            type: 'Feature',
-            properties: { color },
-            geometry: {
-              type: 'LineString',
-              coordinates: [startCoord, endCoord]
-            }
-          });
-        }
-
-        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
-          type: 'FeatureCollection',
-          features
-        });
-      } else {
-        // Fixed color mode
-        (map.current.getSource('trail-completed') as maplibregl.GeoJSONSource)?.setData({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates: completedCoordinates },
-        });
-      }
-    }
-
-    // Update track label position to follow marker
-    if (trailStyle.showTrackLabels && map.current.getSource('main-track-label')) {
-      (map.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: { label: currentTrackName || '' },
-        geometry: { type: 'Point', coordinates: [currentPosition.lon, currentPosition.lat] },
-      });
-    }
-
-    // Camera follow logic - simplified to match v1 approach
-    // Presets matching v1 CameraController (VERY_CLOSE: 16/55, MEDIUM: 14/35, FAR: 11/30)
-    const presets = {
-      'very-close': { zoom: 16, pitch: 55 },
-      'close': { zoom: 15, pitch: 45 },
-      'medium': { zoom: 14, pitch: 35 },
-      'far': { zoom: 11, pitch: 30 },
-    };
-    const preset = presets[followBehindPreset] || presets.medium;
-
-    // Reset intro flag when going back to idle
-    if (animationPhase === 'idle' && lastAnimationPhaseRef.current !== 'idle') {
-      introZoomTriggeredRef.current = false;
-    }
-    lastAnimationPhaseRef.current = animationPhase;
-
-    // Handle intro phase - smooth cinematic zoom from overview to follow position (only once)
-    if (animationPhase === 'intro' && cameraMode !== 'overview' && !introZoomTriggeredRef.current) {
-      introZoomTriggeredRef.current = true;
-      const cameraBearing = currentBearing || 0;
-
-      // Get current zoom to prevent too aggressive zoom change (causes white screen)
-      const currentZoom = map.current.getZoom();
-
-      // Limit zoom change to max 3 levels to allow tiles to load
-      // This prevents white screen when jumping from overview (12) to follow (14-16)
-      const maxZoomChange = 3;
-      const targetZoom = Math.min(preset.zoom, currentZoom + maxZoomChange);
-
-      // Cinematic zoom-in over 2 seconds (like v1's startCinematicSequence)
-      map.current.easeTo({
-        center: [currentPosition.lon, currentPosition.lat],
-        zoom: targetZoom,
-        pitch: cameraMode === 'follow-behind' ? preset.pitch : 0,
-        bearing: cameraMode === 'follow-behind' ? cameraBearing : 0,
-        duration: 2000,
-        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Smooth ease-out cubic like v1
-      });
-    }
-    // Handle playing phase - continuous follow with gradual zoom approach
-    else if (animationPhase === 'playing' && cameraMode !== 'overview') {
-      const cameraBearing = smoothBearingRef.current;
-      const currentZoom = map.current.getZoom();
-
-      // Gradually approach target zoom (0.1 levels per frame) to allow tiles to load
-      const zoomStep = 0.1;
-
-      if (cameraMode === 'follow') {
-        const targetZoom = 14;
-        const newZoom = currentZoom < targetZoom
-          ? Math.min(currentZoom + zoomStep, targetZoom)
-          : Math.max(currentZoom - zoomStep, targetZoom);
-
-        map.current.easeTo({
-          center: [currentPosition.lon, currentPosition.lat],
-          zoom: newZoom,
-          pitch: 0,
-          bearing: 0,
-          duration: 100,
-        });
-      } else if (cameraMode === 'follow-behind') {
-        // Gradually approach preset zoom to allow tiles to load
-        const newZoom = currentZoom < preset.zoom
-          ? Math.min(currentZoom + zoomStep, preset.zoom)
-          : Math.max(currentZoom - zoomStep, preset.zoom);
-
-        map.current.easeTo({
-          center: [currentPosition.lon, currentPosition.lat],
-          zoom: newZoom,
-          pitch: preset.pitch,
-          bearing: cameraBearing,
-          duration: 100,
-          easing: (t: number) => t * (2 - t), // Smooth ease-out like v1
-        });
-      }
-    }
-
-    // Update camera position in store
-    setCameraPosition({
-      lat: currentPosition.lat,
-      lon: currentPosition.lon,
-      zoom: map.current.getZoom(),
-      pitch: map.current.getPitch(),
-      bearing: map.current.getBearing(),
-    });
-  }, [currentPosition, currentBearing, completedCoordinates, playback.progress, animationPhase,
-      cameraMode, followBehindPreset, trailStyle, isMapLoaded, setCameraPosition, isInTransport, currentSegment, currentTrackColor, elevationData, currentTrackName, activeTrack, computedJourney]);
-
-  // Handle camera mode changes
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    if (cameraMode === 'overview') {
-      if (allCoordinates.length > 0) {
-        const bounds = new maplibregl.LngLatBounds();
-        allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
-        map.current.fitBounds(bounds, { padding: 100, duration: 500 });
-      }
-    }
-  }, [cameraMode, allCoordinates, isMapLoaded]);
-
-  // Handle intro and outro animations
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    const presets = {
-      'very-close': { zoom: 17, pitch: 60 },
-      'close': { zoom: 16, pitch: 55 },
-      'medium': { zoom: 15, pitch: 50 },
-      'far': { zoom: 14, pitch: 45 },
-    };
-    const preset = presets[followBehindPreset] || presets.medium;
-
-    if (animationPhase === 'intro' && allCoordinates.length > 0) {
-      // Cinematic zoom-in to starting position
-      const startPoint = allCoordinates[0];
-      const lookAheadIndex = Math.min(10, allCoordinates.length - 1);
-      const lookAheadPoint = allCoordinates[lookAheadIndex];
-
-      if (startPoint && lookAheadPoint) {
-        const lat1 = (startPoint[1] * Math.PI) / 180;
-        const lat2 = (lookAheadPoint[1] * Math.PI) / 180;
-        const lon1 = (startPoint[0] * Math.PI) / 180;
-        const lon2 = (lookAheadPoint[0] * Math.PI) / 180;
-
-        const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-        const x =
-          Math.cos(lat1) * Math.sin(lat2) -
-          Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-
-        let initialBearing = (Math.atan2(y, x) * 180) / Math.PI;
-        initialBearing = (initialBearing + 360) % 360;
-
-        // Calculate terrain-aware adjustments for starting position
-        const startElevation = elevationData.length > 0 ? elevationData[0].elevation : 0;
-        const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
-          startElevation,
-          elevationData,
-          0
-        );
-
-        const adjustedZoom = Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
-        );
-        const adjustedPitch = Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
-        );
-
-        map.current.flyTo({
-          center: startPoint as [number, number],
-          zoom: adjustedZoom,
-          pitch: adjustedPitch,
-          bearing: initialBearing,
-          duration: INTRO_DURATION,
-          easing: (t) => 1 - Math.pow(1 - t, 3),
-        });
-
-        smoothBearingRef.current = initialBearing;
-        targetBearingRef.current = initialBearing;
-      }
-    } else if (animationPhase === 'outro' && allCoordinates.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
-
-      map.current.fitBounds(bounds, {
-        padding: 100,
-        pitch: 45,
-        bearing: 0,
-        duration: OUTRO_DURATION,
-        easing: (t) => 1 - Math.pow(1 - t, 2),
-      } as maplibregl.FitBoundsOptions);
-    } else if (animationPhase === 'idle' && allCoordinates.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      allCoordinates.forEach((coord) => bounds.extend(coord as [number, number]));
-      map.current.fitBounds(bounds, { padding: 100, duration: 1000 });
-    }
-  }, [animationPhase, allCoordinates, followBehindPreset, isMapLoaded, elevationData]);
+  useMapInitialization({
+    mapContainer,
+    mapRef: map,
+    onReadyChange,
+    onSetMapLoaded: (isLoaded) => {
+      setIsMapLoaded(isLoaded);
+      if (!isLoaded) loadZoomDoneRef.current = false;
+    },
+    trailColor: trailStyle.trailColor,
+  });
+
+  useTrailLayerData({
+    activeTrack,
+    allCoordinates,
+    animationPhase,
+    colorMode: trailStyle.colorMode,
+    computedJourney,
+    isMapLoaded,
+    loadZoomDoneRef,
+    mapRef: map,
+    playbackProgress: playback.progress,
+    segmentTimings,
+    trailColor: trailStyle.trailColor,
+  });
+
+  useTrailPlaybackCamera({
+    activeTrack,
+    allCoordinates,
+    animationPhase,
+    cameraMode,
+    completedCoordinates,
+    computedJourney,
+    currentBearing,
+    currentPosition,
+    currentSegment,
+    currentTrackColor: currentTrackColor ?? null,
+    currentTrackName: currentTrackName ?? null,
+    elevationData,
+    followBehindPreset,
+    introZoomTriggeredRef,
+    isInTransport,
+    isMapLoaded,
+    lastAnimationPhaseRef,
+    mapRef: map,
+    markerRef,
+    playbackProgress: playback.progress,
+    setCameraPosition,
+    smoothBearingRef,
+    targetBearingRef,
+    trailStyle: {
+      colorMode: trailStyle.colorMode,
+      currentIcon: trailStyle.currentIcon,
+      markerSize: trailStyle.markerSize,
+      showCircle: trailStyle.showCircle,
+      showMarker: trailStyle.showMarker,
+      showTrackLabels: trailStyle.showTrackLabels,
+      trailColor: trailStyle.trailColor,
+    },
+  });
 
   return (
     <div className="w-full h-full relative">
