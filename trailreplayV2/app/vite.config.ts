@@ -10,6 +10,11 @@ export default defineConfig({
   plugins: [inspectAttr(), react()],
   build: {
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        tutorial: path.resolve(__dirname, 'tutorial.html'),
+        gpxGuide: path.resolve(__dirname, 'gpx-download-guide.html'),
+      },
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return;

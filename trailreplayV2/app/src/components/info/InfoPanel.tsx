@@ -1,4 +1,4 @@
-import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText } from 'lucide-react';
+import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText, BookOpen, Download } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 
 interface InfoPanelProps {
@@ -50,6 +50,24 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
             <span>{t('info.acknowledgments')}</span>
             <ExternalLink className="w-3 h-3" />
           </a>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
+            {t('info.learn')}
+          </h3>
+          <div className="space-y-1">
+            <InfoLink
+              href="/app/tutorial.html"
+              icon={<BookOpen className="w-4 h-4" />}
+              label={t('info.tutorial')}
+            />
+            <InfoLink
+              href="/app/gpx-download-guide.html"
+              icon={<Download className="w-4 h-4" />}
+              label={t('info.gpxGuide')}
+            />
+          </div>
         </div>
 
         {/* Map Data Sources */}

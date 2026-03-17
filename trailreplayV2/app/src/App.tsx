@@ -9,7 +9,7 @@ import { PicturePopup } from '@/components/annotations/PicturePopup';
 import { SupportButton } from '@/components/header/SupportButton';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { Menu, X, Maximize2, Minimize2, Upload, ArrowLeftRight, Info, MapPin } from 'lucide-react';
+import { Menu, X, Maximize2, Minimize2, Upload, Info, MapPin, BookOpen, Download } from 'lucide-react';
 import { gsap } from 'gsap';
 import { useI18n } from '@/i18n/useI18n';
 import { getCropPreviewMetrics, type CropPreviewMetrics } from '@/utils/crop';
@@ -364,19 +364,20 @@ function App() {
           
           <div className="flex items-center gap-1 sm:gap-2 ml-2 shrink-0">
             <SupportButton />
-            <div className="flex items-center rounded-full border border-white/30 bg-white/10 p-0.5">
+            <div className="hidden items-center rounded-full border border-white/20 bg-white/10 p-0.5 lg:flex">
               <a
-                href="/app"
-                className="px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full bg-white/90 text-[var(--evergreen)]"
-                aria-current="page"
+                href="/app/tutorial.html"
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white/90 transition-colors hover:bg-white/10 hover:text-white"
               >
-                v2
+                <BookOpen className="h-3.5 w-3.5" />
+                {t('app.tutorial')}
               </a>
               <a
-                href="/app-v1.html"
-                className="px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full text-white/90 hover:text-white"
+                href="/app/gpx-download-guide.html"
+                className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-[var(--evergreen)] transition-colors hover:bg-white"
               >
-                v1
+                <Download className="h-3.5 w-3.5" />
+                {t('app.gpxGuide')}
               </a>
             </div>
             <button
@@ -521,13 +522,27 @@ function App() {
                       {t('app.welcomeBody')}
                     </p>
 
-                    {/* v1/v2 notice */}
+                    {/* Help links */}
                     <div className="bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg p-3 mb-6">
-                      <div className="flex items-center justify-center gap-2 text-xs text-[var(--evergreen-60)]">
-                        <ArrowLeftRight className="w-4 h-4" />
-                        <span>
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--evergreen-60)]">
+                        <span className="inline-flex items-center gap-2">
+                          <BookOpen className="w-4 h-4" />
                           {t('app.welcomeNotice')}
                         </span>
+                        <a
+                          href="/app/tutorial.html"
+                          className="inline-flex items-center gap-1 rounded-full border border-[var(--evergreen)]/15 bg-white px-3 py-1 font-semibold text-[var(--evergreen)] transition-colors hover:border-[var(--trail-orange)]/40 hover:text-[var(--trail-orange)]"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          {t('app.tutorial')}
+                        </a>
+                        <a
+                          href="/app/gpx-download-guide.html"
+                          className="inline-flex items-center gap-1 rounded-full border border-[var(--evergreen)]/15 bg-white px-3 py-1 font-semibold text-[var(--evergreen)] transition-colors hover:border-[var(--trail-orange)]/40 hover:text-[var(--trail-orange)]"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          {t('app.gpxGuide')}
+                        </a>
                       </div>
                     </div>
 
