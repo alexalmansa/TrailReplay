@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 import { getCropRegion } from '@/utils/crop';
 import {
   getSupportedMimeType,
@@ -490,8 +491,11 @@ export function useVideoExportRecorder() {
       setExportStage(t('export.stageRecordingAnimation'));
       play();
     } catch (error) {
-      console.error('Export failed:', error);
-      setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
+      const message = handleAsyncError(error, {
+        scope: 'video-export',
+        fallbackMessage: 'Unknown error',
+      });
+      setExportStage(t('export.stageFailedWithError', { error: message }));
       setIsExporting(false);
       isRecordingRef.current = false;
     }

@@ -1,10 +1,11 @@
 import type { GPXTrack } from '@/types';
+import { handleAsyncError } from '@/utils/errorHandler';
 import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
 import { parseGpxDocument } from '@/utils/gpx/parseGpxDocument';
 import { parseKmlDocument } from '@/utils/gpx/parseKmlDocument';
 import { buildTrackFromRawPoints } from '@/utils/gpx/trackStats';
 
-// Parse GPX XML content
+/** Parse GPX XML content into a computed TrailReplay track. */
 export function parseGPX(gpxContent: string, fileName: string): GPXTrack {
   const { name, rawPoints } = parseGpxDocument(gpxContent, fileName);
 
@@ -15,7 +16,7 @@ export function parseGPX(gpxContent: string, fileName: string): GPXTrack {
   });
 }
 
-// Parse KML XML content
+/** Parse KML XML content into a computed TrailReplay track. */
 export function parseKML(kmlContent: string, fileName: string): GPXTrack {
   const { name, rawPoints } = parseKmlDocument(kmlContent, fileName);
 
@@ -26,7 +27,7 @@ export function parseKML(kmlContent: string, fileName: string): GPXTrack {
   });
 }
 
-// Parse multiple GPX/KML files
+/** Parse a batch of GPX/KML files, skipping files that fail individually. */
 export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
   const tracks: GPXTrack[] = [];
 
@@ -43,19 +44,23 @@ export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
         : parseKML(content, file.name);
       tracks.push(track);
     } catch (error) {
-      console.error(`Error parsing ${file.name}:`, error);
+      handleAsyncError(error, {
+        scope: 'parse-gpx-files',
+        fallbackMessage: `Error parsing ${file.name}`,
+        metadata: { fileName: file.name },
+      });
     }
   }
 
   return tracks;
 }
 
-// Get point at a specific distance along the track
+/** Return the interpolated point at a specific distance along the track. */
 export function getPointAtDistance(track: GPXTrack, distance: number) {
   return interpolateTrackPoint(track, distance);
 }
 
-// Calculate heart rate zones
+/** Calculate five default heart rate zones using a supplied max heart rate. */
 export function calculateHeartRateZones(maxHeartRate: number = 180): { [key: string]: { min: number; max: number; color: string } } {
   return {
     recovery: { min: 0, max: maxHeartRate * 0.6, color: '#4ade80' },
@@ -66,7 +71,7 @@ export function calculateHeartRateZones(maxHeartRate: number = 180): { [key: str
   };
 }
 
-// Get color for heart rate
+/** Resolve the display color for a heart-rate sample. */
 export function getHeartRateColor(heartRate: number, maxHeartRate: number = 180): string {
   const zones = calculateHeartRateZones(maxHeartRate);
   

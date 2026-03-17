@@ -1,4 +1,7 @@
 import type { VideoExportSettings } from '@/types';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('video-export');
 
 export interface VideoExportProgress {
   frame: number;
@@ -100,7 +103,7 @@ export class VideoExporter {
         // Handle encoded chunks
       },
       error: (error) => {
-        console.error('Video encoding error:', error);
+        logger.error('Video encoding error', { error });
       },
     });
     

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, UnitSystem, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 import { languageLabels } from '@/i18n/translations';
 import {
   Map as MapIcon,
@@ -118,9 +119,14 @@ export function SettingsPanel() {
             waybackItemURL: items[0].itemURL,
           });
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setWaybackError(t('settings.waybackError'));
+          setWaybackError(
+            handleAsyncError(error, {
+              scope: 'wayback-items',
+              fallbackMessage: t('settings.waybackError'),
+            })
+          );
         }
       } finally {
         if (!cancelled) {
@@ -382,10 +388,8 @@ export function SettingsPanel() {
               type="checkbox"
               checked={settings.showHeartRate}
               onChange={(e) => {
-                console.log('🏃 Heart rate toggle:', e.target.checked);
                 setSettings({ showHeartRate: e.target.checked });
                 setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' });
-                console.log('🏃 Set colorMode to:', e.target.checked ? 'heartRate' : 'fixed');
               }}
               className="w-5 h-5 accent-[var(--trail-orange)]"
             />

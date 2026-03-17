@@ -7,6 +7,7 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const TO_EMAIL = 'alexalmansa5@gmail.com';
 // Use Resend's default domain to avoid domain verification issues
 const FROM_EMAIL = 'TrailReplay Feedback <onboarding@resend.dev>';
+const API_VERSION = 'v1';
 
 /** Basic IP rate-limit in-memory (best-effort within a single instance) */
 const rateLimitMap = new Map();
@@ -25,27 +26,35 @@ function isRateLimited(ip) {
     return data.count > MAX_REQ_PER_WINDOW;
 }
 
+function json(res, status, payload) {
+    res.setHeader('X-TrailReplay-API-Version', API_VERSION);
+    return res.status(status).json({
+        version: API_VERSION,
+        ...payload,
+    });
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return json(res, 405, { error: 'Method not allowed' });
     }
 
     const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString();
     if (isRateLimited(ip)) {
-        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        return json(res, 429, { error: 'Too many requests. Please try again later.' });
     }
 
     const { name = '', email = '', message = '', website = '', meta = {} } = req.body || {};
 
     // Honeypot
     if (website) {
-        return res.status(200).json({ ok: true });
+        return json(res, 200, { ok: true });
     }
 
     // Validation
     const trimmedMessage = (message || '').trim();
     if (!trimmedMessage || trimmedMessage.length < 5 || trimmedMessage.length > 5000) {
-        return res.status(400).json({ error: 'Invalid message' });
+        return json(res, 400, { error: 'Invalid message' });
     }
     const safeName = (name || '').toString().slice(0, 200);
     const safeEmail = (email || '').toString().slice(0, 200);
@@ -84,13 +93,12 @@ export default async function handler(req, res) {
                 'Email provider error'
             );
             console.error('Resend send error:', error);
-            return res.status(502).json({ error: errorMessage });
+            return json(res, 502, { error: errorMessage });
         }
-        return res.status(200).json({ ok: true, id: data?.id });
+        return json(res, 200, { ok: true, id: data?.id });
     } catch (err) {
         console.error('Feedback send error:', err);
-        return res.status(500).json({ error: 'Failed to send' });
+        return json(res, 500, { error: 'Failed to send' });
     }
 }
-
 

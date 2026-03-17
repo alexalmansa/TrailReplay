@@ -7,6 +7,8 @@ import { useI18n } from '@/i18n/useI18n';
 import { isImageFile } from '@/utils/files';
 import { buildComputedJourney, calculateDistance } from '@/utils/journeyUtils';
 import { createId } from '@/utils/id';
+import { handleAsyncError } from '@/utils/errorHandler';
+import { optimizeImageFile } from '@/utils/imageOptimization';
 import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
 import { resolvePhotoPlacement } from '@/utils/photoPlacement';
 
@@ -35,7 +37,11 @@ export function usePhotos() {
         GPSTimeStamp: exifData.GPSTimeStamp,
       };
     } catch (error) {
-      console.warn('Failed to extract EXIF data:', error);
+      handleAsyncError(error, {
+        scope: 'photo-exif',
+        fallbackMessage: 'Failed to extract image metadata',
+        metadata: { fileName: file.name },
+      });
       return null;
     }
   }, []);
@@ -92,7 +98,8 @@ export function usePhotos() {
   }, [journeySegments, playback.progress, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
-    const url = URL.createObjectURL(file);
+    const optimizedFile = await optimizeImageFile(file);
+    const url = URL.createObjectURL(optimizedFile);
     const id = createId('photo');
     
     // Extract EXIF data
@@ -116,7 +123,7 @@ export function usePhotos() {
 
     return resolvePhotoPlacement({
       id,
-      file,
+      file: optimizedFile,
       url,
       timestamp,
       exifData,

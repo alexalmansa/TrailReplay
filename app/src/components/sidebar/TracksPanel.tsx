@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { parseGPX } from '@/utils/gpxParser';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 import {
   Upload,
   GitCompareArrows,
@@ -55,7 +56,10 @@ export function TracksPanel() {
         offset: 0,
       });
     } catch (err) {
-      console.error('Failed to parse comparison GPX:', err);
+      handleAsyncError(err, {
+        scope: 'comparison-track-upload',
+        fallbackMessage: 'Failed to parse comparison GPX',
+      });
     } finally {
       setIsParsingComparison(false);
       if (comparisonFileRef.current) comparisonFileRef.current.value = '';

@@ -1,7 +1,6 @@
 import {
   createDefaultCameraSettings,
   createDefaultSettings,
-  createDefaultVideoExportSettings,
 } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
 import type { AppSliceCreator } from './types';
@@ -10,10 +9,6 @@ type SettingsSlice = Pick<
   AppState,
   | 'settings'
   | 'cameraSettings'
-  | 'videoExportSettings'
-  | 'isExporting'
-  | 'exportProgress'
-  | 'exportStage'
   | 'cameraPosition'
   | 'setSettings'
   | 'setCameraSettings'
@@ -21,20 +16,12 @@ type SettingsSlice = Pick<
   | 'setMapStyle'
   | 'setUnitSystem'
   | 'setTrailStyle'
-  | 'setVideoExportSettings'
-  | 'setIsExporting'
-  | 'setExportProgress'
-  | 'setExportStage'
   | 'setCameraPosition'
 >;
 
 export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   settings: createDefaultSettings(),
   cameraSettings: createDefaultCameraSettings(),
-  videoExportSettings: createDefaultVideoExportSettings(),
-  isExporting: false,
-  exportProgress: 0,
-  exportStage: '',
   cameraPosition: null,
 
   setSettings: (settings) =>
@@ -66,33 +53,6 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   setTrailStyle: (settings) =>
     set((state) => {
       Object.assign(state.settings.trailStyle, settings);
-    }),
-
-  setVideoExportSettings: (settings) =>
-    set((state) => {
-      Object.assign(state.videoExportSettings, settings);
-    }),
-
-  setIsExporting: (isExporting) =>
-    set((state) => {
-      state.isExporting = isExporting;
-      if (isExporting) {
-        state.activePanel = 'export';
-      }
-      if (!isExporting) {
-        state.exportProgress = 0;
-        state.exportStage = '';
-      }
-    }),
-
-  setExportProgress: (progress) =>
-    set((state) => {
-      state.exportProgress = progress;
-    }),
-
-  setExportStage: (stage) =>
-    set((state) => {
-      state.exportStage = stage;
     }),
 
   setCameraPosition: (position) =>

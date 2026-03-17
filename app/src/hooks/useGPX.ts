@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { parseGPXFiles } from '@/utils/gpxParser';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 
 export function useGPX() {
   const { t } = useI18n();
@@ -30,9 +31,12 @@ export function useGPX() {
       
       return tracks;
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('errors.parseGpxFailed');
+      const message = handleAsyncError(error, {
+        scope: 'use-gpx',
+        fallbackMessage: t('errors.parseGpxFailed'),
+        onError: setError,
+      });
       setParseError(message);
-      setError(message);
       throw error;
     } finally {
       setIsParsing(false);
