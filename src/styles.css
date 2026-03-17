@@ -176,37 +176,33 @@ body {
     z-index: 100;
 }
 
-/* Version Switcher */
-.version-switcher {
+.header-links {
     position: absolute;
     top: 1rem;
     right: 9.5rem;
     display: inline-flex;
-    background: rgba(255, 255, 255, 0.15);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.18);
     border-radius: 999px;
-    padding: 0.2rem;
-    gap: 0.2rem;
+    padding: 0.25rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     z-index: 100;
 }
 
-.version-switcher-link {
-    padding: 0.35rem 0.75rem;
+.header-link {
+    padding: 0.4rem 0.85rem;
     border-radius: 999px;
     text-decoration: none;
     font-weight: 700;
     font-size: 0.85rem;
     color: var(--evergreen);
     transition: all 200ms ease-out;
+    white-space: nowrap;
 }
 
-.version-switcher-link.active {
-    background: var(--trail-orange);
-    color: var(--canvas);
-}
-
-.version-switcher-link:not(.active):hover {
+.header-link:hover {
     background: rgba(255, 255, 255, 0.4);
 }
 

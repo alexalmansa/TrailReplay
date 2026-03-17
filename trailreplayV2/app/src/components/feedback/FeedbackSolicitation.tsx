@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, X, ThumbsUp, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Loader2 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 
 const STORAGE_KEY = 'trailreplay_v2_feedback_solicited';
@@ -35,7 +35,7 @@ export function FeedbackSolicitation() {
   const { t } = useI18n();
   const [showPopup, setShowPopup] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [preference, setPreference] = useState<'v1' | 'v2' | 'both' | null>(null);
+  const [feedbackCategory, setFeedbackCategory] = useState<'loveIt' | 'needsWork' | 'featureRequest' | null>(null);
   const [feedback, setFeedback] = useState('');
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -152,13 +152,13 @@ export function FeedbackSolicitation() {
     setError(null);
 
     // Build the feedback message
-    const preferenceLabels = {
-      v1: t('feedback.v1'),
-      v2: t('feedback.v2'),
-      both: t('feedback.both'),
+    const categoryLabels = {
+      loveIt: t('feedback.loveIt'),
+      needsWork: t('feedback.needsWork'),
+      featureRequest: t('feedback.featureRequest'),
     };
     const message = [
-      `Version Preference: ${preference ? preferenceLabels[preference] : 'Not specified'}`,
+      `Feedback Category: ${feedbackCategory ? categoryLabels[feedbackCategory] : 'Not specified'}`,
       '',
       'Additional Feedback:',
       feedback || '(No additional feedback provided)',
@@ -177,7 +177,7 @@ export function FeedbackSolicitation() {
             path: location.pathname,
             ua: navigator.userAgent,
             source: 'v2-feedback-solicitation',
-            preference,
+            feedbackCategory,
           },
         }),
       });
@@ -299,37 +299,37 @@ export function FeedbackSolicitation() {
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => setPreference('v1')}
+                      onClick={() => setFeedbackCategory('loveIt')}
                       className={`p-3 rounded-lg border-2 transition-all ${
-                        preference === 'v1'
+                        feedbackCategory === 'loveIt'
                           ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
                           : 'border-[var(--evergreen-40)] hover:border-[var(--evergreen)]'
                       }`}
                     >
-                      <div className="font-bold text-[var(--evergreen)]">v1</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v1Label')}</div>
+                      <ThumbsUp className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.loveIt')}</div>
                     </button>
                     <button
-                      onClick={() => setPreference('v2')}
+                      onClick={() => setFeedbackCategory('needsWork')}
                       className={`p-3 rounded-lg border-2 transition-all ${
-                        preference === 'v2'
+                        feedbackCategory === 'needsWork'
                           ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
                           : 'border-[var(--evergreen-40)] hover:border-[var(--evergreen)]'
                       }`}
                     >
-                      <div className="font-bold text-[var(--evergreen)]">v2</div>
-                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.v2Label')}</div>
+                      <Wrench className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.needsWork')}</div>
                     </button>
                     <button
-                      onClick={() => setPreference('both')}
+                      onClick={() => setFeedbackCategory('featureRequest')}
                       className={`p-3 rounded-lg border-2 transition-all ${
-                        preference === 'both'
+                        feedbackCategory === 'featureRequest'
                           ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
                           : 'border-[var(--evergreen-40)] hover:border-[var(--evergreen)]'
                       }`}
                     >
-                      <ArrowLeftRight className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
-                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.both')}</div>
+                      <Lightbulb className="w-5 h-5 mx-auto text-[var(--evergreen)]" />
+                      <div className="text-xs text-[var(--evergreen-60)]">{t('feedback.featureRequest')}</div>
                     </button>
                   </div>
                 </div>
@@ -375,7 +375,7 @@ export function FeedbackSolicitation() {
                   </button>
                   <button
                     onClick={handleSubmitFeedback}
-                    disabled={!preference || isSubmitting}
+                    disabled={!feedbackCategory || isSubmitting}
                     className="flex-1 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (

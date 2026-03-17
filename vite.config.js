@@ -10,28 +10,15 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(fileURLToPath(new URL('.', import.meta.url)), 'index.html'),
-        app: resolve(fileURLToPath(new URL('.', import.meta.url)), 'app-v1.html'),
-        tutorial: resolve(fileURLToPath(new URL('.', import.meta.url)), 'tutorial.html'),
         acknowledgments: resolve(fileURLToPath(new URL('.', import.meta.url)), 'acknowledgments.html'),
         privacy: resolve(fileURLToPath(new URL('.', import.meta.url)), 'privacy.html'),
-        terms: resolve(fileURLToPath(new URL('.', import.meta.url)), 'terms.html'),
-        gpxDownloadGuide: resolve(fileURLToPath(new URL('.', import.meta.url)), 'gpx-download-guide.html')
-      },
-      output: {
-        manualChunks: {
-          'maplibre': ['maplibre-gl'],
-          'three': ['three'],
-          'turf': ['@turf/turf']
-        }
+        terms: resolve(fileURLToPath(new URL('.', import.meta.url)), 'terms.html')
       }
     }
   },
   server: {
     port: 3000,
     open: true
-  },
-  optimizeDeps: {
-    include: ['maplibre-gl', 'three', '@turf/turf']
   },
   plugins: [
     {

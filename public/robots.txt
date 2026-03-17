@@ -15,7 +15,8 @@ Disallow: /dist/
 
 # Allow important pages
 Allow: /index.html
-Allow: /tutorial.html
+Allow: /app/tutorial.html
+Allow: /app/gpx-download-guide.html
 Allow: /acknowledgments.html
 Allow: /media/
 Allow: /public/

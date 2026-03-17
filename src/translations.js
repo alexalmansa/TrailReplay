@@ -3061,4 +3061,15 @@ export function initializeTranslations() {
     console.log('🌍 Selected language:', selectedLang);
     
     setLanguage(selectedLang);
-} 
+}
+
+export function initializeLanguageSwitcher() {
+    const languageSelect = document.getElementById('languageSelect');
+    if (!languageSelect) return;
+
+    const lang = localStorage.getItem('trailReplayLang') || navigator.language.slice(0, 2) || 'en';
+    languageSelect.value = lang.startsWith('es') ? 'es' : lang.startsWith('ca') ? 'ca' : 'en';
+    languageSelect.addEventListener('change', (event) => {
+        setLanguage(event.target.value);
+    });
+}

@@ -94,24 +94,10 @@
         <div id="footer"></div>
     </div>
     <script type="module">
-        import { initializeTranslations, setLanguage } from './src/translations.js';
-        
-        // Make functions globally available
-        window.initializeTranslations = initializeTranslations;
-        window.setLanguage = setLanguage;
-        // Initialize translations when the page loads
+        import { initStaticPage } from './src/siteShell.js';
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Load header and footer, then initialize translations
-            Promise.all([
-                fetch('header.html').then(r => r.text()).then(html => { document.getElementById('header').innerHTML = html; }),
-                fetch('footer.html').then(r => r.text()).then(html => { document.getElementById('footer').innerHTML = html; })
-            ]).then(() => {
-                initializeTranslations();
-                // Setup language switcher functionality
-                if (window.initializeLanguageSwitcher) {
-                    window.initializeLanguageSwitcher();
-                }
-            });
+            initStaticPage();
         });
     </script>
 </body>

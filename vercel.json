@@ -19,23 +19,47 @@
     },
     {
       "source": "/app-v1",
-      "destination": "/app-v1.html"
+      "destination": "/app/index.html"
     },
     {
       "source": "/app-v1/",
-      "destination": "/app-v1.html"
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/app-v1.html",
+      "destination": "/app/index.html"
     },
     {
       "source": "/tutorial",
-      "destination": "/tutorial.html"
+      "destination": "/app/tutorial.html"
     },
     {
       "source": "/tutorial/",
-      "destination": "/tutorial.html"
+      "destination": "/app/tutorial.html"
+    },
+    {
+      "source": "/tutorial.html",
+      "destination": "/app/tutorial.html"
+    },
+    {
+      "source": "/gpx-download-guide",
+      "destination": "/app/gpx-download-guide.html"
+    },
+    {
+      "source": "/gpx-download-guide/",
+      "destination": "/app/gpx-download-guide.html"
+    },
+    {
+      "source": "/gpx-download-guide.html",
+      "destination": "/app/gpx-download-guide.html"
     },
     {
       "source": "/strava-callback",
-      "destination": "/app-v1.html"
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/strava-callback.html",
+      "destination": "/app/index.html"
     },
     {
       "source": "/privacy",
