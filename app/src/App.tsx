@@ -1,19 +1,17 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
-import { TrailMap } from '@/components/map/TrailMap';
+import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
+import { PendingPicturePlacementBanner } from '@/components/app/PendingPicturePlacementBanner';
+import { WelcomeOverlay } from '@/components/app/WelcomeOverlay';
 import { PlaybackControls } from '@/components/playback/PlaybackControls';
 import { PlaybackProvider } from '@/components/playback/PlaybackProvider';
 import { StatsOverlay } from '@/components/stats/StatsOverlay';
 import { PicturePopup } from '@/components/annotations/PicturePopup';
-import { SupportButton } from '@/components/header/SupportButton';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { Menu, X, Maximize2, Minimize2, Upload, Info, MapPin, BookOpen } from 'lucide-react';
-import { gsap } from 'gsap';
-import { useI18n } from '@/i18n/useI18n';
 import { getCropPreviewMetrics, type CropPreviewMetrics } from '@/utils/crop';
 import {
   getTriggeredPlaybackPictures,
@@ -23,6 +21,7 @@ import {
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
 const FeedbackSolicitation = lazy(() => import('@/components/feedback/FeedbackSolicitation').then((module) => ({ default: module.FeedbackSolicitation })));
+const TrailMap = lazy(() => import('@/components/map/TrailMap').then((module) => ({ default: module.TrailMap })));
 
 function SidebarFallback() {
   return <div className="h-full bg-[var(--canvas)]" />;
@@ -51,7 +50,6 @@ function App() {
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
   const exploreMode = useAppStore((state) => state.exploreMode);
   const setExploreMode = useAppStore((state) => state.setExploreMode);
-  const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const playback = useAppStore((state) => state.playback);
@@ -101,15 +99,6 @@ function App() {
       setError(null);
     }
   }, [error, setError]);
-  
-  // Welcome animation
-  useEffect(() => {
-    gsap.from('.app-container', {
-      opacity: 0,
-      duration: 0.5,
-      ease: 'power2.out',
-    });
-  }, []);
   
   // Toggle fullscreen
   const toggleFullscreen = () => {
@@ -274,59 +263,14 @@ function App() {
   return (
     <PlaybackProvider>
       <div className="app-container h-screen bg-[var(--canvas)] flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-14 bg-[var(--evergreen)] text-[var(--canvas)] flex items-center justify-between px-2 sm:px-4 z-50">
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              {showSidebar ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <div className="bg-white rounded-md p-0.5 sm:p-1">
-                <img
-                  src="/media/images/simplelogo.png"
-                  alt="TrailReplay"
-                  className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
-                />
-              </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-[11px] sm:text-sm tracking-[0.02em] leading-none truncate">
-                  {t('app.title')}
-                </h1>
-                <p className="hidden sm:block text-[10px] opacity-70 leading-tight truncate">
-                  {t('app.subtitle')}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1 sm:gap-2 ml-2 shrink-0">
-            <SupportButton />
-            <a
-              href="/tutorial.html"
-              className="hidden items-center gap-1.5 rounded-lg border border-white/20 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[var(--evergreen)] shadow-sm transition-colors hover:bg-[var(--canvas)] lg:inline-flex"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              {t('app.tutorial')}
-            </a>
-            <button
-              onClick={toggleFullscreen}
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title={t('app.fullscreen')}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-            <button
-              onClick={() => setShowInfoPanel(!showInfoPanel)}
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title={t('app.aboutTitle')}
-            >
-              {showInfoPanel ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Info className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-          </div>
-        </header>
+        <AppHeader
+          isFullscreen={isFullscreen}
+          showInfoPanel={showInfoPanel}
+          showSidebar={showSidebar}
+          onToggleFullscreen={toggleFullscreen}
+          onToggleInfoPanel={() => setShowInfoPanel(!showInfoPanel)}
+          onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        />
         
         {/* Main Content */}
         <main className="flex-1 flex overflow-hidden">
@@ -347,7 +291,9 @@ function App() {
               ref={mapContainerRef}
               className="flex-1 relative"
             >
-              <TrailMap mapContainerRef={mapContainerRef} onReadyChange={setIsMapReady} />
+              <Suspense fallback={<AppLoadingOverlay />}>
+                <TrailMap mapContainerRef={mapContainerRef} onReadyChange={setIsMapReady} />
+              </Suspense>
 
               {!isMapReady && <AppLoadingOverlay />}
 
@@ -364,56 +310,12 @@ function App() {
               )}
 
               {activePendingPicturePlacement && (
-                <div className="absolute top-4 right-4 z-40 w-[min(24rem,calc(100%-2rem))] rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--canvas)]/95 p-3 shadow-xl backdrop-blur">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={activePendingPicturePlacement.url}
-                      alt={activePendingPicturePlacement.file.name}
-                      className="h-16 w-16 rounded-xl object-cover border border-[var(--evergreen)]/10 flex-shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-[var(--trail-orange)] mb-1">
-                        <MapPin className="w-4 h-4" />
-                        <p className="text-sm font-semibold text-[var(--evergreen)]">
-                          {t('media.manualPlacementTitle')}
-                        </p>
-                      </div>
-                      <p className="text-xs text-[var(--evergreen-60)] leading-relaxed">
-                        {t('media.manualPlacementHint')}
-                      </p>
-                      <p className="mt-1 text-[11px] text-[var(--evergreen-60)] truncate">
-                        {activePendingPicturePlacement.file.name}
-                      </p>
-                      {activePendingPicturePlacement.mismatchDistanceMeters !== undefined && (
-                        <p className="mt-1 text-[11px] font-medium text-[var(--trail-orange)]">
-                          {t('media.manualPlacementDistance', {
-                            distance: Math.round(activePendingPicturePlacement.mismatchDistanceMeters),
-                          })}
-                        </p>
-                      )}
-                      <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
-                        {t('media.manualPlacementCount', {
-                          current: 1,
-                          total: pendingPicturePlacements.length,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => removePendingPicturePlacement(activePendingPicturePlacement.id)}
-                      className="rounded-lg border border-[var(--evergreen)]/15 px-3 py-1.5 text-xs font-medium text-[var(--evergreen)] hover:bg-[var(--evergreen)]/5"
-                    >
-                      {t('media.manualPlacementSkip')}
-                    </button>
-                    <button
-                      onClick={clearPendingPicturePlacements}
-                      className="rounded-lg bg-[var(--evergreen)] px-3 py-1.5 text-xs font-medium text-[var(--canvas)] hover:bg-[var(--evergreen)]/90"
-                    >
-                      {t('media.manualPlacementCancelAll')}
-                    </button>
-                  </div>
-                </div>
+                <PendingPicturePlacementBanner
+                  pendingPlacement={activePendingPicturePlacement}
+                  totalPendingPlacements={pendingPicturePlacements.length}
+                  onCancelAll={clearPendingPicturePlacements}
+                  onSkip={() => removePendingPicturePlacement(activePendingPicturePlacement.id)}
+                />
               )}
               
               {/* Picture Popup */}
@@ -438,60 +340,13 @@ function App() {
 
               {/* No tracks message */}
               {isMapReady && !hasTracks && !exploreMode && !isNarrowScreen && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <div className="bg-[var(--canvas)] border-2 border-[var(--evergreen)] rounded-xl p-8 text-center max-w-md">
-                    {/* Logo */}
-                    <div className="flex justify-center mb-4">
-                      <img
-                        src="/media/images/logo.svg"
-                        alt="TrailReplay"
-                        className="h-16 w-16"
-                      />
-                    </div>
-                    <h2 className="text-xl font-bold text-[var(--evergreen)] mb-2">
-                      {t('app.welcomeTitle')}
-                    </h2>
-                    <p className="text-[var(--evergreen-60)] mb-4">
-                      {t('app.welcomeBody')}
-                    </p>
-
-                    {/* Help links */}
-                    <div className="bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg p-3 mb-6">
-                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--evergreen-60)]">
-                        <span className="inline-flex items-center gap-2">
-                          <BookOpen className="w-4 h-4" />
-                          {t('app.welcomeNotice')}
-                        </span>
-                        <a
-                          href="/tutorial.html"
-                          className="inline-flex items-center gap-1 rounded-full border border-[var(--evergreen)]/15 bg-white px-3 py-1 font-semibold text-[var(--evergreen)] transition-colors hover:border-[var(--trail-orange)]/40 hover:text-[var(--trail-orange)]"
-                        >
-                          <BookOpen className="w-3.5 h-3.5" />
-                          {t('app.tutorial')}
-                        </a>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={openFilePicker}
-                        className="tr-btn tr-btn-primary flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" />
-                        {t('app.uploadButton')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setExploreMode(true);
-                          setShowSidebar(false);
-                        }}
-                        className="tr-btn tr-btn-secondary"
-                      >
-                        {t('app.exploreButton')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <WelcomeOverlay
+                  onOpenFilePicker={openFilePicker}
+                  onExplore={() => {
+                    setExploreMode(true);
+                    setShowSidebar(false);
+                  }}
+                />
               )}
 
               {/* Feedback Solicitation */}
