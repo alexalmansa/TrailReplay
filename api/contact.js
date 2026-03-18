@@ -2,11 +2,14 @@
 // Set RESEND_API_KEY in Vercel project settings. Destination email is fixed.
 
 import { Resend } from 'resend';
+import { createServerLogger } from './logger.js';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const TO_EMAIL = 'alexalmansa5@gmail.com';
 // Use Resend's default domain to avoid domain verification issues
 const FROM_EMAIL = 'TrailReplay Feedback <onboarding@resend.dev>';
+const API_VERSION = 'v1';
+const logger = createServerLogger('contact-api');
 
 /** Basic IP rate-limit in-memory (best-effort within a single instance) */
 const rateLimitMap = new Map();
@@ -25,27 +28,42 @@ function isRateLimited(ip) {
     return data.count > MAX_REQ_PER_WINDOW;
 }
 
+function json(res, status, payload) {
+    res.setHeader('X-TrailReplay-API-Version', API_VERSION);
+    return res.status(status).json({
+        version: API_VERSION,
+        ...payload,
+    });
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        logger.warn('Rejected non-POST request', { method: req.method });
+        return json(res, 405, { error: 'Method not allowed' });
     }
 
     const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString();
     if (isRateLimited(ip)) {
-        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        logger.warn('Rate limit triggered', { ip });
+        return json(res, 429, { error: 'Too many requests. Please try again later.' });
     }
 
     const { name = '', email = '', message = '', website = '', meta = {} } = req.body || {};
 
     // Honeypot
     if (website) {
-        return res.status(200).json({ ok: true });
+        logger.warn('Honeypot field populated, ignoring submission', { ip });
+        return json(res, 200, { ok: true });
     }
 
     // Validation
     const trimmedMessage = (message || '').trim();
     if (!trimmedMessage || trimmedMessage.length < 5 || trimmedMessage.length > 5000) {
-        return res.status(400).json({ error: 'Invalid message' });
+        logger.warn('Rejected invalid feedback payload', {
+            ip,
+            messageLength: trimmedMessage.length,
+        });
+        return json(res, 400, { error: 'Invalid message' });
     }
     const safeName = (name || '').toString().slice(0, 200);
     const safeEmail = (email || '').toString().slice(0, 200);
@@ -54,6 +72,11 @@ export default async function handler(req, res) {
         if (!resendApiKey) {
             throw new Error('Missing RESEND_API_KEY');
         }
+        logger.info('Sending feedback email', {
+            ip,
+            hasReplyTo: Boolean(safeEmail),
+            path: meta?.path || '/',
+        });
         const resend = new Resend(resendApiKey);
         const subject = `New TrailReplay feedback from ${safeName || 'Anonymous'}`;
         const text = [
@@ -83,14 +106,13 @@ export default async function handler(req, res) {
                 (typeof error === 'string' ? error : null) ||
                 'Email provider error'
             );
-            console.error('Resend send error:', error);
-            return res.status(502).json({ error: errorMessage });
+            logger.error('Resend send error', { error });
+            return json(res, 502, { error: errorMessage });
         }
-        return res.status(200).json({ ok: true, id: data?.id });
+        logger.info('Feedback email sent', { id: data?.id, ip });
+        return json(res, 200, { ok: true, id: data?.id });
     } catch (err) {
-        console.error('Feedback send error:', err);
-        return res.status(500).json({ error: 'Failed to send' });
+        logger.error('Feedback send error', { error: err, ip });
+        return json(res, 500, { error: 'Failed to send' });
     }
 }
-
-

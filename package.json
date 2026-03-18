@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "npm --prefix app run dev",
     "build": "npm --prefix app ci && npm --prefix app run build",
+    "bundle:report": "node scripts/report-bundle-size.mjs",
     "lint": "npm --prefix app run lint",
     "test": "npm --prefix app run test:run",
+    "test:coverage": "npm --prefix app run test:coverage",
     "preview": "npm --prefix app run preview"
   },
   "dependencies": {

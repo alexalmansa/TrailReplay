@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Loader2 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 
 const STORAGE_KEY = 'trailreplay_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_activity';
@@ -41,7 +42,11 @@ const safeStorageSet = (key: string, value: string): void => {
   try {
     localStorage.setItem(key, value);
   } catch (e) {
-    console.warn(`Could not persist "${key}" in localStorage:`, e);
+    handleAsyncError(e, {
+      scope: 'feedback-storage',
+      fallbackMessage: `Could not persist "${key}" in localStorage`,
+      metadata: { key },
+    });
   }
 };
 
@@ -130,7 +135,10 @@ export function FeedbackSolicitation() {
         // Check if we should show solicitation
         checkAndShowSolicitation(activity);
       } catch (e) {
-        console.warn('Could not track activity:', e);
+        handleAsyncError(e, {
+          scope: 'feedback-activity',
+          fallbackMessage: 'Could not track activity',
+        });
       }
     };
 

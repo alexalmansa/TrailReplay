@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { getPointAtDistance, parseGPX, parseKML } from './gpxParser';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  calculateHeartRateZones,
+  getHeartRateColor,
+  getPointAtDistance,
+  parseGPX,
+  parseGPXFiles,
+  parseKML,
+} from './gpxParser';
 
 const sampleGpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="TrailReplay">
@@ -58,5 +65,33 @@ describe('gpxParser', () => {
     expect(midpoint!.lat).toBeGreaterThan(track.points[0].lat);
     expect(midpoint!.lat).toBeLessThan(track.points[1].lat);
     expect(midpoint!.distance).toBeCloseTo(track.totalDistance / 2, 5);
+  });
+
+  it('skips invalid files when parsing batches and keeps valid GPX/KML tracks', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const tracks = await parseGPXFiles([
+      new File([sampleGpx], 'valid.gpx', { type: 'application/gpx+xml' }),
+      new File([sampleKml], 'valid.kml', { type: 'application/vnd.google-earth.kml+xml' }),
+      new File(['<gpx><trk>'], 'broken.gpx', { type: 'application/gpx+xml' }),
+      new File(['notes'], 'notes.txt', { type: 'text/plain' }),
+    ]);
+
+    expect(tracks).toHaveLength(2);
+    expect(tracks.map((track) => track.name)).toEqual(['Sample GPX', 'Sample KML']);
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('derives heart-rate zones and colors deterministically', () => {
+    const zones = calculateHeartRateZones(200);
+
+    expect(zones.tempo).toMatchObject({
+      min: 140,
+      max: 160,
+      color: '#fbbf24',
+    });
+    expect(getHeartRateColor(110, 200)).toBe('#4ade80');
+    expect(getHeartRateColor(150, 200)).toBe('#fbbf24');
+    expect(getHeartRateColor(195, 200)).toBe('#ef4444');
   });
 });

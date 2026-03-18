@@ -10,6 +10,7 @@ import type { AppState } from '@/store/storeTypes';
 import { createJourneySlice } from '@/store/slices/journeySlice';
 import { createMediaSlice } from '@/store/slices/mediaSlice';
 import { createPlaybackSlice } from '@/store/slices/playbackSlice';
+import { createExportSlice } from '@/store/slices/exportSlice';
 import { createSettingsSlice } from '@/store/slices/settingsSlice';
 import { createTracksSlice } from '@/store/slices/tracksSlice';
 import { createUiSlice } from '@/store/slices/uiSlice';
@@ -21,6 +22,7 @@ export function createAppStore() {
       ...createJourneySlice(set, get, store),
       ...createMediaSlice(set, get, store),
       ...createPlaybackSlice(set, get, store),
+      ...createExportSlice(set, get, store),
       ...createSettingsSlice(set, get, store),
       ...createUiSlice(set, get, store),
 

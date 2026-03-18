@@ -7,8 +7,13 @@ import { useI18n } from '@/i18n/useI18n';
 import { isImageFile } from '@/utils/files';
 import { buildComputedJourney, calculateDistance } from '@/utils/journeyUtils';
 import { createId } from '@/utils/id';
+import { handleAsyncError } from '@/utils/errorHandler';
+import { optimizeImageFile } from '@/utils/imageOptimization';
 import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
 import { resolvePhotoPlacement } from '@/utils/photoPlacement';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('use-photos');
 
 export function usePhotos() {
   const { t } = useI18n();
@@ -35,7 +40,11 @@ export function usePhotos() {
         GPSTimeStamp: exifData.GPSTimeStamp,
       };
     } catch (error) {
-      console.warn('Failed to extract EXIF data:', error);
+      handleAsyncError(error, {
+        scope: 'photo-exif',
+        fallbackMessage: 'Failed to extract image metadata',
+        metadata: { fileName: file.name },
+      });
       return null;
     }
   }, []);
@@ -92,7 +101,8 @@ export function usePhotos() {
   }, [journeySegments, playback.progress, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
-    const url = URL.createObjectURL(file);
+    const optimizedFile = await optimizeImageFile(file);
+    const url = URL.createObjectURL(optimizedFile);
     const id = createId('photo');
     
     // Extract EXIF data
@@ -114,15 +124,25 @@ export function usePhotos() {
         ? findPositionOnTrack(exifData.latitude, exifData.longitude)
         : null;
 
-    return resolvePhotoPlacement({
+    const result = resolvePhotoPlacement({
       id,
-      file,
+      file: optimizedFile,
       url,
       timestamp,
       exifData,
       routeMatch,
       fallbackProgress: playback.progress,
     });
+
+    logger.info('Photo processed', {
+      fileName: file.name,
+      optimized: optimizedFile.name !== file.name || optimizedFile.size !== file.size,
+      hadGps: Boolean(exifData?.latitude !== undefined && exifData.longitude !== undefined),
+      placementKind: result.kind,
+      routeMatchDistanceMeters: routeMatch?.distanceMeters,
+    });
+
+    return result;
   }, [extractGPSData, findPositionOnTrack, playback.progress]);
 
   const addPhotos = useCallback(async (files: FileList | File[] | null) => {
@@ -132,6 +152,10 @@ export function usePhotos() {
     
     try {
       const imageFiles = Array.from(files).filter((file) => isImageFile(file));
+      logger.info('Starting photo import', {
+        receivedFileCount: Array.from(files).length,
+        imageFileCount: imageFiles.length,
+      });
       const queuedPlacements: PendingPicturePlacement[] = [];
 
       for (const file of imageFiles) {
@@ -154,6 +178,20 @@ export function usePhotos() {
       } else if (queuedPlacements.length > 1) {
         toast.warning(t('media.manualPlacementQueuedMultiple', { count: queuedPlacements.length }));
       }
+
+      logger.info('Photo import completed', {
+        pictureCountAdded: imageFiles.length - queuedPlacements.length,
+        queuedForManualPlacement: queuedPlacements.length,
+      });
+    } catch (error) {
+      const message = handleAsyncError(error, {
+        scope: 'use-photos',
+        fallbackMessage: 'Failed to process images',
+      });
+      logger.warn('Photo import failed', {
+        errorMessage: message,
+      });
+      throw error;
     } finally {
       setIsProcessing(false);
     }

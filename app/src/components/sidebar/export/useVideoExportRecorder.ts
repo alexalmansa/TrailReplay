@@ -3,7 +3,9 @@ import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { handleAsyncError } from '@/utils/errorHandler';
 import { getCropRegion } from '@/utils/crop';
+import { createLogger } from '@/utils/logger';
 import {
   getSupportedMimeType,
   getVideoBitrate,
@@ -17,6 +19,8 @@ import {
   getPopupOverlayDrawRect,
   isDrawableRect,
 } from './exportOverlay';
+
+const logger = createLogger('video-export-recorder');
 
 type Html2Canvas = (
   element: HTMLElement,
@@ -356,6 +360,9 @@ export function useVideoExportRecorder() {
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
+    logger.info('Finishing export recording', {
+      recordedChunkCount: recordedChunksRef.current.length,
+    });
 
     isRecordingRef.current = false;
 
@@ -397,6 +404,7 @@ export function useVideoExportRecorder() {
   const handleStartExport = useCallback(async () => {
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
     if (!mapCanvas) {
+      logger.warn('Export start requested without map canvas');
       alert(t('export.noCanvas'));
       return;
     }
@@ -413,6 +421,15 @@ export function useVideoExportRecorder() {
 
     try {
       const { width, height } = videoExportSettings.resolution;
+      logger.info('Starting video export', {
+        format: videoExportSettings.format,
+        quality: videoExportSettings.quality,
+        fps: videoExportSettings.fps,
+        width,
+        height,
+        includeStats: videoExportSettings.includeStats,
+        includeElevation: videoExportSettings.includeElevation,
+      });
 
       setExportStage(t('export.stageCreateCanvas'));
       if (!recordingCanvasRef.current) {
@@ -458,6 +475,10 @@ export function useVideoExportRecorder() {
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
+          logger.debug('Recorded export chunk', {
+            chunkSize: event.data.size,
+            chunkCount: recordedChunksRef.current.length,
+          });
         }
       };
 
@@ -474,8 +495,16 @@ export function useVideoExportRecorder() {
           anchor.download = `trail-replay-${Date.now()}.${extension}`;
           anchor.click();
           URL.revokeObjectURL(url);
+
+          logger.info('Video export completed', {
+            mimeType,
+            extension,
+            blobSize: blob.size,
+            chunkCount: recordedChunksRef.current.length,
+          });
         } else {
           setExportStage(t('export.stageFailedNoData'));
+          logger.warn('Video export stopped without data');
         }
         setIsExporting(false);
       };
@@ -490,14 +519,24 @@ export function useVideoExportRecorder() {
       setExportStage(t('export.stageRecordingAnimation'));
       play();
     } catch (error) {
-      console.error('Export failed:', error);
-      setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
+      const message = handleAsyncError(error, {
+        scope: 'video-export',
+        fallbackMessage: 'Unknown error',
+      });
+      logger.error('Video export failed', {
+        errorMessage: message,
+      });
+      setExportStage(t('export.stageFailedWithError', { error: message }));
       setIsExporting(false);
       isRecordingRef.current = false;
     }
   }, [loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
+    logger.info('Cancelling video export', {
+      currentProgress: exportProgress,
+      currentStage: exportStage,
+    });
     isRecordingRef.current = false;
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
@@ -518,7 +557,7 @@ export function useVideoExportRecorder() {
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [resetPlayback, setExportProgress, setExportStage, setIsExporting]);
+  }, [exportProgress, exportStage, resetPlayback, setExportProgress, setExportStage, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
@@ -533,6 +572,7 @@ export function useVideoExportRecorder() {
   }, [exportedBlob]);
 
   const resetExportResult = useCallback(() => {
+    logger.debug('Resetting export result state');
     setExportedBlob(null);
     setExportProgress(0);
     setExportStage('');

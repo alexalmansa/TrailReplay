@@ -1,4 +1,7 @@
 import type { VideoExportSettings } from '@/types';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('video-export');
 
 export interface VideoExportProgress {
   frame: number;
@@ -46,6 +49,12 @@ export class VideoExporter {
   // Start recording using MediaRecorder
   async startRecording(): Promise<void> {
     if (this.isRecording) return;
+    logger.info('Starting MediaRecorder export', {
+      fps: this.settings.fps,
+      format: this.settings.format,
+      quality: this.settings.quality,
+      resolution: this.settings.resolution,
+    });
     
     const stream = this.canvas.captureStream(this.settings.fps);
     const mimeType = this.getBestMimeType();
@@ -60,6 +69,10 @@ export class VideoExporter {
     this.mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         this.recordedChunks.push(event.data);
+        logger.debug('Collected MediaRecorder chunk', {
+          chunkSize: event.data.size,
+          chunkCount: this.recordedChunks.length,
+        });
       }
     };
     
@@ -77,6 +90,11 @@ export class VideoExporter {
     
     const mimeType = this.mediaRecorder.mimeType;
     const blob = new Blob(this.recordedChunks, { type: mimeType });
+    logger.info('Stopped MediaRecorder export', {
+      mimeType,
+      chunkCount: this.recordedChunks.length,
+      blobSize: blob.size,
+    });
     
     return blob;
   }
@@ -100,7 +118,7 @@ export class VideoExporter {
         // Handle encoded chunks
       },
       error: (error) => {
-        console.error('Video encoding error:', error);
+        logger.error('Video encoding error', { error });
       },
     });
     
@@ -182,6 +200,9 @@ export class VideoExporter {
       this.mediaRecorder.stop();
     }
     
+    logger.warn('Cancelled video export', {
+      chunkCount: this.recordedChunks.length,
+    });
     this.isRecording = false;
     this.recordedChunks = [];
   }
@@ -197,6 +218,11 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  logger.info('Downloaded export blob', {
+    filename,
+    size: blob.size,
+    type: blob.type,
+  });
 }
 
 // Get recommended resolution based on quality
