@@ -3,6 +3,9 @@ import { parseGPXFiles } from '@/utils/gpxParser';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { handleAsyncError } from '@/utils/errorHandler';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('use-gpx');
 
 export function useGPX() {
   const { t } = useI18n();
@@ -19,6 +22,10 @@ export function useGPX() {
     
     try {
       const fileArray = Array.from(files);
+      logger.info('Starting route import', {
+        fileCount: fileArray.length,
+        fileNames: fileArray.map((file) => file.name),
+      });
       const tracks = await parseGPXFiles(fileArray);
       
       if (tracks.length === 0) {
@@ -27,6 +34,11 @@ export function useGPX() {
       
       tracks.forEach((track) => {
         addTrack(track);
+      });
+
+      logger.info('Route import completed', {
+        importedTrackCount: tracks.length,
+        trackNames: tracks.map((track) => track.name),
       });
       
       return tracks;
@@ -37,6 +49,10 @@ export function useGPX() {
         onError: setError,
       });
       setParseError(message);
+      logger.warn('Route import failed', {
+        fileCount: files.length,
+        errorMessage: message,
+      });
       throw error;
     } finally {
       setIsParsing(false);

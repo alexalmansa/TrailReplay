@@ -11,6 +11,9 @@ import { handleAsyncError } from '@/utils/errorHandler';
 import { optimizeImageFile } from '@/utils/imageOptimization';
 import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
 import { resolvePhotoPlacement } from '@/utils/photoPlacement';
+import { createLogger } from '@/utils/logger';
+
+const logger = createLogger('use-photos');
 
 export function usePhotos() {
   const { t } = useI18n();
@@ -121,7 +124,7 @@ export function usePhotos() {
         ? findPositionOnTrack(exifData.latitude, exifData.longitude)
         : null;
 
-    return resolvePhotoPlacement({
+    const result = resolvePhotoPlacement({
       id,
       file: optimizedFile,
       url,
@@ -130,6 +133,16 @@ export function usePhotos() {
       routeMatch,
       fallbackProgress: playback.progress,
     });
+
+    logger.info('Photo processed', {
+      fileName: file.name,
+      optimized: optimizedFile.name !== file.name || optimizedFile.size !== file.size,
+      hadGps: Boolean(exifData?.latitude !== undefined && exifData.longitude !== undefined),
+      placementKind: result.kind,
+      routeMatchDistanceMeters: routeMatch?.distanceMeters,
+    });
+
+    return result;
   }, [extractGPSData, findPositionOnTrack, playback.progress]);
 
   const addPhotos = useCallback(async (files: FileList | File[] | null) => {
@@ -139,6 +152,10 @@ export function usePhotos() {
     
     try {
       const imageFiles = Array.from(files).filter((file) => isImageFile(file));
+      logger.info('Starting photo import', {
+        receivedFileCount: Array.from(files).length,
+        imageFileCount: imageFiles.length,
+      });
       const queuedPlacements: PendingPicturePlacement[] = [];
 
       for (const file of imageFiles) {
@@ -161,6 +178,20 @@ export function usePhotos() {
       } else if (queuedPlacements.length > 1) {
         toast.warning(t('media.manualPlacementQueuedMultiple', { count: queuedPlacements.length }));
       }
+
+      logger.info('Photo import completed', {
+        pictureCountAdded: imageFiles.length - queuedPlacements.length,
+        queuedForManualPlacement: queuedPlacements.length,
+      });
+    } catch (error) {
+      const message = handleAsyncError(error, {
+        scope: 'use-photos',
+        fallbackMessage: 'Failed to process images',
+      });
+      logger.warn('Photo import failed', {
+        errorMessage: message,
+      });
+      throw error;
     } finally {
       setIsProcessing(false);
     }
