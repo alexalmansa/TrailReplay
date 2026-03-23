@@ -1,4 +1,5 @@
 import type { LogEntry } from '@/utils/logger';
+import { GA4_MEASUREMENT_ID, shouldEnableAnalytics } from '@/config/analytics';
 
 type AnalyticsPrimitive = string | number | boolean;
 type AnalyticsParams = Record<string, AnalyticsPrimitive>;
@@ -6,7 +7,6 @@ type AnalyticsParams = Record<string, AnalyticsPrimitive>;
 type GtagCommand = 'js' | 'config' | 'event';
 type Gtag = (command: GtagCommand, target: string | Date, params?: Record<string, unknown>) => void;
 
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID;
 let analyticsStarted = false;
 let analyticsLoader: Promise<boolean> | null = null;
 
@@ -20,7 +20,7 @@ declare global {
 
 function isAnalyticsEnabled() {
   if (typeof window === 'undefined') return false;
-  return Boolean(GA_MEASUREMENT_ID) || Boolean(window.gtag) || Boolean(window.__TRAILREPLAY_ANALYTICS_ENABLED__);
+  return shouldEnableAnalytics() || Boolean(window.gtag) || Boolean(window.__TRAILREPLAY_ANALYTICS_ENABLED__);
 }
 
 function sanitizeParamValue(value: unknown): AnalyticsPrimitive | null {
@@ -67,7 +67,7 @@ async function loadAnalyticsScript() {
 
     const script = document.createElement('script');
     script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`;
     script.dataset.trailreplayGa = 'true';
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
@@ -201,7 +201,7 @@ export async function startAnalytics() {
 
   installGtagStub();
   window.gtag?.('js', new Date());
-  window.gtag?.('config', GA_MEASUREMENT_ID, {
+  window.gtag?.('config', GA4_MEASUREMENT_ID, {
     anonymize_ip: true,
     send_page_view: true,
   });
