@@ -56,12 +56,16 @@ function sanitizeParams(params: Record<string, unknown>): AnalyticsParams {
 
 async function loadAnalyticsScript() {
   if (!isAnalyticsEnabled()) return false;
-  if (window.gtag) return true;
+  installGtagStub();
   if (analyticsLoader) return analyticsLoader;
 
   analyticsLoader = new Promise<boolean>((resolve) => {
     const existing = document.querySelector('script[data-trailreplay-ga="true"]') as HTMLScriptElement | null;
     if (existing) {
+      if ((existing as HTMLScriptElement).dataset.loaded === 'true') {
+        resolve(true);
+        return;
+      }
       existing.addEventListener('load', () => resolve(true), { once: true });
       existing.addEventListener('error', () => resolve(false), { once: true });
       return;
@@ -72,6 +76,7 @@ async function loadAnalyticsScript() {
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`;
     script.dataset.trailreplayGa = 'true';
     script.onload = () => {
+      script.dataset.loaded = 'true';
       logger.info('GA script loaded', {
         measurementId: GA4_MEASUREMENT_ID,
       });
@@ -92,9 +97,11 @@ async function loadAnalyticsScript() {
 function installGtagStub() {
   if (typeof window === 'undefined') return;
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag(...args) {
-    window.dataLayer?.push(args);
-  };
+  if (!window.gtag) {
+    window.gtag = function gtag(...args) {
+      window.dataLayer?.push(args);
+    };
+  }
 }
 
 export function trackAnalyticsEvent(name: string, params: Record<string, unknown> = {}) {
@@ -236,7 +243,6 @@ export async function startAnalytics() {
     return false;
   }
 
-  installGtagStub();
   logger.info('Initializing GA configuration', {
     measurementId: GA4_MEASUREMENT_ID,
     sendPageView: false,
