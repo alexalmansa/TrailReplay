@@ -1,5 +1,6 @@
 import type { LogEntry } from '@/utils/logger';
 import { GA4_MEASUREMENT_ID, shouldEnableAnalytics } from '@/config/analytics';
+import { createLogger } from '@/utils/logger';
 
 type AnalyticsPrimitive = string | number | boolean;
 type AnalyticsParams = Record<string, AnalyticsPrimitive>;
@@ -9,6 +10,7 @@ type Gtag = (command: GtagCommand, target: string | Date, params?: Record<string
 
 let analyticsStarted = false;
 let analyticsLoader: Promise<boolean> | null = null;
+const logger = createLogger('analytics');
 
 declare global {
   interface Window {
@@ -69,8 +71,18 @@ async function loadAnalyticsScript() {
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`;
     script.dataset.trailreplayGa = 'true';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onload = () => {
+      logger.info('GA script loaded', {
+        measurementId: GA4_MEASUREMENT_ID,
+      });
+      resolve(true);
+    };
+    script.onerror = () => {
+      logger.error('GA script failed to load', {
+        measurementId: GA4_MEASUREMENT_ID,
+      });
+      resolve(false);
+    };
     document.head.appendChild(script);
   });
 
@@ -86,9 +98,21 @@ function installGtagStub() {
 }
 
 export function trackAnalyticsEvent(name: string, params: Record<string, unknown> = {}) {
-  if (!isAnalyticsEnabled() || !window.gtag) return;
+  if (!isAnalyticsEnabled()) {
+    logger.debug('Skipped analytics event because analytics is disabled', { eventName: name });
+    return;
+  }
+  if (!window.gtag) {
+    logger.warn('Skipped analytics event because gtag is unavailable', { eventName: name });
+    return;
+  }
 
-  window.gtag('event', name, sanitizeParams(params));
+  const sanitizedParams = sanitizeParams(params);
+  logger.info('Sending GA event', {
+    eventName: name,
+    ...sanitizedParams,
+  });
+  window.gtag('event', name, sanitizedParams);
 }
 
 export function mapLogEntryToAnalyticsEvent(entry: LogEntry): { name: string; params: AnalyticsParams } | null {
@@ -194,20 +218,45 @@ function attachAnalyticsBridges() {
 }
 
 export async function startAnalytics() {
-  if (!isAnalyticsEnabled() || analyticsStarted) return false;
+  if (!isAnalyticsEnabled()) {
+    logger.warn('Analytics start skipped because analytics is disabled', {
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+      measurementId: GA4_MEASUREMENT_ID,
+    });
+    return false;
+  }
+  if (analyticsStarted) {
+    logger.debug('Analytics already started');
+    return false;
+  }
 
   const loaded = await loadAnalyticsScript();
-  if (!loaded) return false;
+  if (!loaded) {
+    logger.error('Analytics start aborted because GA script did not load');
+    return false;
+  }
 
   installGtagStub();
+  logger.info('Initializing GA configuration', {
+    measurementId: GA4_MEASUREMENT_ID,
+    sendPageView: false,
+  });
   window.gtag?.('js', new Date());
   window.gtag?.('config', GA4_MEASUREMENT_ID, {
     anonymize_ip: true,
-    send_page_view: true,
+    send_page_view: false,
   });
 
   attachAnalyticsBridges();
   window.__TRAILREPLAY_ANALYTICS_ENABLED__ = true;
   analyticsStarted = true;
+  trackAnalyticsEvent('page_view', {
+    page_title: document.title,
+    page_location: window.location.href,
+    page_path: window.location.pathname,
+  });
+  logger.info('Analytics started successfully', {
+    measurementId: GA4_MEASUREMENT_ID,
+  });
   return true;
 }
