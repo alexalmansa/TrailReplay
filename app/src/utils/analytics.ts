@@ -1,8 +1,9 @@
 const GA4_MEASUREMENT_ID = 'G-0JN6P31VV9';
+let isInitialized = false;
 
 declare global {
   interface Window {
-    dataLayer?: unknown[];
+    dataLayer?: Array<IArguments | unknown[]>;
     gtag?: (...args: unknown[]) => void;
   }
 }
@@ -26,7 +27,10 @@ function installAnalyticsQueue() {
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
     window.gtag = function gtag(...args: unknown[]) {
-      window.dataLayer?.push(args);
+      void args;
+      // GA's recommended bootstrap queue pushes the raw arguments object.
+      // eslint-disable-next-line prefer-rest-params
+      window.dataLayer?.push(arguments);
     };
   }
 }
@@ -41,9 +45,8 @@ function loadAnalyticsScript(measurementId: string) {
   document.head.appendChild(script);
 }
 
-export function initAnalytics() {
-  if (typeof window === 'undefined') return false;
-  if (!shouldEnableAnalytics()) return false;
+function bootAnalytics() {
+  if (isInitialized) return true;
 
   installAnalyticsQueue();
   loadAnalyticsScript(GA4_MEASUREMENT_ID);
@@ -57,11 +60,27 @@ export function initAnalytics() {
   window.gtag?.('event', 'page_view', {
     page_title: document.title,
     page_location: window.location.href,
+    page_path: `${window.location.pathname}${window.location.search}`,
     app_name: 'TrailReplay',
     timestamp: new Date().toISOString(),
   });
 
+  isInitialized = true;
   return true;
+}
+
+export function initAnalytics() {
+  if (typeof window === 'undefined') return false;
+  if (!shouldEnableAnalytics()) return false;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      bootAnalytics();
+    }, { once: true });
+    return true;
+  }
+
+  return bootAnalytics();
 }
 
 export function trackEvent(eventName: string, parameters: Record<string, unknown> = {}) {
