@@ -9,6 +9,7 @@ import { buildComputedJourney, calculateDistance } from '@/utils/journeyUtils';
 import { createId } from '@/utils/id';
 import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
 import { resolvePhotoPlacement } from '@/utils/photoPlacement';
+import { trackEvent } from '@/utils/analytics';
 
 export function usePhotos() {
   const { t } = useI18n();
@@ -131,7 +132,12 @@ export function usePhotos() {
     setIsProcessing(true);
     
     try {
-      const imageFiles = Array.from(files).filter((file) => isImageFile(file));
+      const allFiles = Array.from(files);
+      const imageFiles = allFiles.filter((file) => isImageFile(file));
+      trackEvent('photo_import_started', {
+        photo_received_file_count: allFiles.length,
+        photo_image_file_count: imageFiles.length,
+      });
       const queuedPlacements: PendingPicturePlacement[] = [];
 
       for (const file of imageFiles) {
@@ -147,6 +153,11 @@ export function usePhotos() {
 
       queuedPlacements.forEach((pendingPlacement) => {
         queuePendingPicturePlacement(pendingPlacement);
+      });
+
+      trackEvent('photo_import_completed', {
+        photo_picture_count_added: imageFiles.length - queuedPlacements.length,
+        photo_queued_for_manual_placement: queuedPlacements.length,
       });
 
       if (queuedPlacements.length === 1) {

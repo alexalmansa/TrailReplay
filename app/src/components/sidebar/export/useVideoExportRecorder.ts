@@ -4,6 +4,7 @@ import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
 import { getCropRegion } from '@/utils/crop';
+import { trackEvent } from '@/utils/analytics';
 import {
   getSupportedMimeType,
   getVideoBitrate,
@@ -410,6 +411,13 @@ export function useVideoExportRecorder() {
     overlayBusyRef.current = false;
     overlayLastUpdateRef.current = 0;
     overlayRunIdRef.current += 1;
+    trackEvent('export_started', {
+      export_format: actualFormat,
+      export_quality: videoExportSettings.quality,
+      export_fps: videoExportSettings.fps,
+      export_include_stats: videoExportSettings.includeStats,
+      export_include_elevation: videoExportSettings.includeElevation,
+    });
 
     try {
       const { width, height } = videoExportSettings.resolution;
@@ -467,6 +475,10 @@ export function useVideoExportRecorder() {
           setExportedBlob(blob);
           setExportStage(t('export.stageComplete'));
           setExportProgress(100);
+          trackEvent('export_completed', {
+            export_blob_size: blob.size,
+            export_format: extension,
+          });
 
           const url = URL.createObjectURL(blob);
           const anchor = document.createElement('a');
@@ -476,6 +488,9 @@ export function useVideoExportRecorder() {
           URL.revokeObjectURL(url);
         } else {
           setExportStage(t('export.stageFailedNoData'));
+          trackEvent('export_failed', {
+            export_failure_scope: 'no_data',
+          });
         }
         setIsExporting(false);
       };
@@ -491,11 +506,14 @@ export function useVideoExportRecorder() {
       play();
     } catch (error) {
       console.error('Export failed:', error);
+      trackEvent('export_failed', {
+        export_failure_scope: 'setup',
+      });
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
       setIsExporting(false);
       isRecordingRef.current = false;
     }
-  }, [loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
@@ -514,11 +532,15 @@ export function useVideoExportRecorder() {
       mediaRecorderRef.current.stop();
     }
 
+    trackEvent('export_cancelled', {
+      export_progress_percent: exportProgress,
+      export_stage: exportStage,
+    });
     setIsExporting(false);
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [resetPlayback, setExportProgress, setExportStage, setIsExporting]);
+  }, [exportProgress, exportStage, resetPlayback, setExportProgress, setExportStage, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
