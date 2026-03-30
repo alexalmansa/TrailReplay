@@ -11,6 +11,7 @@ const LEGACY_MAYBE_LATER_KEY = 'trailreplay_v2_maybe_later';
 const MIN_ACTIVITY = 3;
 const MAYBE_LATER_COOLDOWN = 86400000; // 24 hours
 const MIN_WIDTH_FOR_POPUP = 900;
+const MIN_FEEDBACK_LENGTH = 15;
 
 interface ActivityData {
   count: number;
@@ -162,6 +163,12 @@ export function FeedbackSolicitation() {
   };
 
   const handleSubmitFeedback = async () => {
+    const trimmedFeedback = feedback.trim();
+    if (!feedbackCategory || trimmedFeedback.length < MIN_FEEDBACK_LENGTH) {
+      setError(t('feedback.minimumLengthError', { count: MIN_FEEDBACK_LENGTH }));
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -171,11 +178,18 @@ export function FeedbackSolicitation() {
       needsWork: t('feedback.needsWork'),
       featureRequest: t('feedback.featureRequest'),
     };
+    const questionLabels = {
+      loveIt: t('feedback.loveItQuestion'),
+      needsWork: t('feedback.needsWorkQuestion'),
+      featureRequest: t('feedback.featureRequestQuestion'),
+    };
     const message = [
       `Feedback Category: ${feedbackCategory ? categoryLabels[feedbackCategory] : 'Not specified'}`,
       '',
-      'Additional Feedback:',
-      feedback || '(No additional feedback provided)',
+      `Question Shown: ${feedbackCategory ? questionLabels[feedbackCategory] : 'Not specified'}`,
+      '',
+      'Answer:',
+      trimmedFeedback,
     ].join('\n');
 
     try {
@@ -218,6 +232,17 @@ export function FeedbackSolicitation() {
     setShowForm(false);
     safeStorageSet(STORAGE_KEY, 'true');
   };
+
+  const trimmedFeedbackLength = feedback.trim().length;
+  const canSubmit = Boolean(feedbackCategory) && trimmedFeedbackLength >= MIN_FEEDBACK_LENGTH && !isSubmitting;
+
+  const questionLabel = feedbackCategory
+    ? t(`feedback.${feedbackCategory}Question`)
+    : t('feedback.answerPromptDefault');
+
+  const questionPlaceholder = feedbackCategory
+    ? t(`feedback.${feedbackCategory}Placeholder`)
+    : t('feedback.answerPlaceholderDefault');
 
   if (isNarrowScreen || (!showPopup && !showForm)) {
     return null;
@@ -363,14 +388,25 @@ export function FeedbackSolicitation() {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    {t('feedback.additional')}
+                    {questionLabel}
                   </label>
+                  <p className="mb-2 text-xs text-[var(--evergreen-60)]">
+                    {t('feedback.answerHelper')}
+                  </p>
                   <textarea
                     value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                    placeholder={t('feedback.additionalPlaceholder')}
+                    onChange={(e) => {
+                      setFeedback(e.target.value);
+                      if (error) {
+                        setError(null);
+                      }
+                    }}
+                    placeholder={questionPlaceholder}
                     className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg resize-none h-24 text-sm focus:border-[var(--trail-orange)] focus:outline-none"
                   />
+                  <div className="mt-2 text-xs text-[var(--evergreen-60)]">
+                    {t('feedback.minimumLengthHint', { count: MIN_FEEDBACK_LENGTH })} {trimmedFeedbackLength}/{MIN_FEEDBACK_LENGTH}
+                  </div>
                 </div>
 
                 {error && (
@@ -389,7 +425,7 @@ export function FeedbackSolicitation() {
                   </button>
                   <button
                     onClick={handleSubmitFeedback}
-                    disabled={!feedbackCategory || isSubmitting}
+                    disabled={!canSubmit}
                     className="flex-1 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
