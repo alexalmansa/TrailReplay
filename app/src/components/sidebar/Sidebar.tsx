@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { SidebarPanelContent } from './SidebarPanelContent';
 import { useI18n } from '@/i18n/useI18n';
@@ -15,6 +16,7 @@ export function Sidebar() {
   const setActiveTab = useAppStore((state) => state.setActivePanel);
   const isExporting = useAppStore((state) => state.isExporting);
   const { t } = useI18n();
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
@@ -29,16 +31,32 @@ export function Sidebar() {
     { id: 'settings' as const, label: t('sidebar.tabs.settings'), icon: Settings, count: 0 },
   ];
 
+  useEffect(() => {
+    const activeButton = tabRefs.current[activeTab];
+    if (!activeButton) return;
+
+    requestAnimationFrame(() => {
+      activeButton.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    });
+  }, [activeTab]);
+
   return (
     <div className="h-full flex flex-col bg-[var(--canvas)]">
       {/* Tabs */}
-      <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto flex-shrink-0">
+      <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto flex-shrink-0 scroll-smooth">
         {tabs.map((tab) => {
           const isLockedByExport = isExporting && tab.id !== 'export';
 
           return (
           <button
             key={tab.id}
+            ref={(element) => {
+              tabRefs.current[tab.id] = element;
+            }}
             onClick={() => {
               if (isLockedByExport) return;
               setActiveTab(tab.id);
