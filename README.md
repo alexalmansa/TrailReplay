@@ -6,11 +6,25 @@ The active product lives in [`app/`](./app), built with React and TypeScript, an
 
 ## Demo Videos
 
-<video controls src="media/video/trailreplay-segment-builder.mp4" title="TrailReplay Capture - Segment Builder" style="max-width: 100%;"></video>
+**Path Export with Stats**  
+Export a route story with animated map playback, live stats, elevation profile, and branded video output.
 
-<video controls src="media/video/trailreplay-export-flow.mp4" title="TrailReplay Capture - Export Flow" style="max-width: 100%;"></video>
+https://github.com/user-attachments/assets/73c65611-8348-4b4d-b7c2-af661ab5e75f
 
-If inline playback does not appear on GitHub, use the download links instead: [segment builder](media/video/trailreplay-segment-builder.mp4), [export flow](media/video/trailreplay-export-flow.mp4).
+[▶ Watch in tutorial](https://trailreplay.com/tutorial.html#demo-videos)
+
+**Comparison Mode**  
+Compare two GPX tracks from the same time window and see where each person was at every moment.
+
+https://github.com/user-attachments/assets/c42e5efd-6c08-4591-ab66-92cc16484f24
+
+[▶ Watch in tutorial](https://trailreplay.com/tutorial.html#demo-videos)
+
+> If GitHub does not render the inline previews for your session, you can still watch them in the tutorial or open the original MP4 files in [`media/video/`](./media/video).
+
+## What It Is
+
+TrailReplay is a browser-based GPX storytelling studio for runners, cyclists, hikers, and outdoor creators. Instead of just viewing a route on a static map, it lets you turn that route into an animated replay with timing, stats, elevation, images, and exportable video.
 
 ## What TrailReplay Does
 
@@ -21,6 +35,14 @@ If inline playback does not appear on GitHub, use the download links instead: [s
 - Compare activities side by side with different colors and timing offsets.
 - Export polished videos with map motion, stats overlays, elevation profile, and media popups.
 - Keep the core workflow local in the browser so GPX files and exported media are not uploaded by default.
+
+## Main Product Areas
+
+- GPX replay: animate a single activity or several combined tracks on an interactive 3D map.
+- Journey builder: stitch routes together, reorder them, and add transport segments between activities.
+- Storytelling layer: place photos along the route and use annotations to highlight moments.
+- Comparison mode: replay different tracks together to compare timing and movement.
+- Video export: generate ready-to-share route videos with overlays, branding, and elevation data.
 
 ## Live Links
 
