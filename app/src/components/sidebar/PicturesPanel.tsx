@@ -150,10 +150,16 @@ export function PicturesPanel() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {picture.placementSource !== 'manual' && picture.lat && picture.lon && (
+                        {picture.placementSource === 'gps' && picture.lat !== undefined && picture.lon !== undefined && (
                           <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
                             <MapPin className="w-3 h-3" />
                             {t('media.gps')}
+                          </span>
+                        )}
+                        {picture.placementSource === 'timestamp' && (
+                          <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {t('media.timestamp')}
                           </span>
                         )}
                         {picture.placementSource === 'manual' && (

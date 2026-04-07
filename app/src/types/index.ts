@@ -73,7 +73,7 @@ export interface PictureAnnotation {
   timestamp?: Date;
   progress: number;
   position: number;
-  placementSource?: 'gps' | 'manual';
+  placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;
   displayDuration: number;
@@ -87,7 +87,7 @@ export interface PendingPicturePlacement {
   title?: string;
   description?: string;
   displayDuration: number;
-  placementReason: 'missing-gps' | 'route-mismatch';
+  placementReason: 'missing-gps' | 'route-mismatch' | 'no-timed-route' | 'timestamp-out-of-range';
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;

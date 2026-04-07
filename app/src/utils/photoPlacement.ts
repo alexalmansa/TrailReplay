@@ -1,19 +1,7 @@
 import type { PendingPicturePlacement, PictureAnnotation } from '@/types';
-
-export interface EXIFData {
-  latitude?: number;
-  longitude?: number;
-  DateTimeOriginal?: string;
-  GPSDateStamp?: string;
-  GPSTimeStamp?: string;
-}
-
-export interface RouteMatch {
-  progress: number;
-  lat: number;
-  lon: number;
-  distanceMeters: number;
-}
+import type { NormalizedPhotoMetadata } from '@/utils/photoMetadata';
+import type { TimestampPlacementFailureReason, TimestampPlacementMatch } from '@/utils/photoTimelinePlacement';
+import type { RouteMatch } from '@/utils/routeProjection';
 
 export type ProcessPhotoResult =
   | { kind: 'picture'; picture: PictureAnnotation }
@@ -47,51 +35,16 @@ export function createPendingPlacement(params: {
   };
 }
 
-export function resolvePhotoPlacement(params: {
+function createPicture(params: {
   id: string;
   file: File;
   url: string;
   timestamp?: Date;
-  exifData: EXIFData | null;
-  routeMatch: RouteMatch | null;
+  match: RouteMatch | TimestampPlacementMatch;
+  placementSource: PictureAnnotation['placementSource'];
   fallbackProgress: number;
 }): ProcessPhotoResult {
-  const { exifData, fallbackProgress, file, id, routeMatch, timestamp, url } = params;
-
-  if (!exifData || exifData.latitude === undefined || exifData.longitude === undefined) {
-    return createPendingPlacement({
-      id,
-      file,
-      url,
-      timestamp,
-      reason: 'missing-gps',
-    });
-  }
-
-  if (!routeMatch) {
-    return createPendingPlacement({
-      id,
-      file,
-      url,
-      timestamp,
-      reason: 'route-mismatch',
-      originalLat: exifData.latitude,
-      originalLon: exifData.longitude,
-    });
-  }
-
-  if (routeMatch.distanceMeters > GPS_ROUTE_MATCH_THRESHOLD_METERS) {
-    return createPendingPlacement({
-      id,
-      file,
-      url,
-      timestamp,
-      reason: 'route-mismatch',
-      originalLat: exifData.latitude,
-      originalLon: exifData.longitude,
-      mismatchDistanceMeters: routeMatch.distanceMeters,
-    });
-  }
+  const { fallbackProgress, file, id, match, placementSource, timestamp, url } = params;
 
   return {
     kind: 'picture',
@@ -99,13 +52,95 @@ export function resolvePhotoPlacement(params: {
       id,
       file,
       url,
-      lat: routeMatch.lat,
-      lon: routeMatch.lon,
+      lat: match.lat,
+      lon: match.lon,
       timestamp,
-      progress: routeMatch.progress ?? fallbackProgress,
-      position: routeMatch.progress ?? fallbackProgress,
-      placementSource: 'gps',
+      progress: match.progress ?? fallbackProgress,
+      position: match.progress ?? fallbackProgress,
+      placementSource,
       displayDuration: 5000,
     },
   };
+}
+
+function normalizePendingReason(reason: TimestampPlacementFailureReason | null, hasGpsCoordinates: boolean) {
+  if (hasGpsCoordinates) {
+    return 'route-mismatch';
+  }
+
+  if (!reason) {
+    return 'missing-gps';
+  }
+
+  switch (reason) {
+    case 'missing-timestamp':
+      return 'missing-gps';
+    case 'no-timed-route':
+      return 'no-timed-route';
+    case 'timestamp-out-of-range':
+      return 'timestamp-out-of-range';
+    default:
+      return 'missing-gps';
+  }
+}
+
+export function resolvePhotoPlacement(params: {
+  id: string;
+  file: File;
+  url: string;
+  timestamp?: Date;
+  metadata: NormalizedPhotoMetadata;
+  gpsRouteMatch: RouteMatch | null;
+  timestampPlacement: TimestampPlacementMatch | null;
+  timestampFailureReason: TimestampPlacementFailureReason | null;
+  fallbackProgress: number;
+}): ProcessPhotoResult {
+  const {
+    fallbackProgress,
+    file,
+    gpsRouteMatch,
+    id,
+    metadata,
+    timestamp,
+    timestampFailureReason,
+    timestampPlacement,
+    url,
+  } = params;
+
+  const hasGpsCoordinates = metadata.latitude !== undefined && metadata.longitude !== undefined;
+
+  if (hasGpsCoordinates && gpsRouteMatch && gpsRouteMatch.distanceMeters <= GPS_ROUTE_MATCH_THRESHOLD_METERS) {
+    return createPicture({
+      id,
+      file,
+      url,
+      timestamp,
+      match: gpsRouteMatch,
+      placementSource: 'gps',
+      fallbackProgress,
+    });
+  }
+
+  if (timestampPlacement) {
+    return createPicture({
+      id,
+      file,
+      url,
+      timestamp,
+      match: timestampPlacement,
+      placementSource: 'timestamp',
+      fallbackProgress,
+    });
+  }
+
+  return createPendingPlacement({
+    id,
+    file,
+    url,
+    timestamp,
+    reason: normalizePendingReason(timestampFailureReason, hasGpsCoordinates),
+    originalLat: metadata.latitude,
+    originalLon: metadata.longitude,
+    mismatchDistanceMeters: gpsRouteMatch?.distanceMeters,
+  });
 }

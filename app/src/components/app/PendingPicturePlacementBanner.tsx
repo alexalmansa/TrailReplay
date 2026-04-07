@@ -16,6 +16,12 @@ export function PendingPicturePlacementBanner({
   onSkip,
 }: PendingPicturePlacementBannerProps) {
   const { t } = useI18n();
+  const hintKey = {
+    'missing-gps': 'media.manualPlacementHintMissingGps',
+    'route-mismatch': 'media.manualPlacementHintRouteMismatch',
+    'no-timed-route': 'media.manualPlacementHintNoTimedRoute',
+    'timestamp-out-of-range': 'media.manualPlacementHintTimestampOutOfRange',
+  }[pendingPlacement.placementReason];
 
   return (
     <div className="absolute right-4 top-4 z-40 w-[min(24rem,calc(100%-2rem))] rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--canvas)]/95 p-3 shadow-xl backdrop-blur">
@@ -33,7 +39,7 @@ export function PendingPicturePlacementBanner({
             </p>
           </div>
           <p className="text-xs leading-relaxed text-[var(--evergreen-60)]">
-            {t('media.manualPlacementHint')}
+            {t(hintKey)}
           </p>
           <p className="mt-1 truncate text-[11px] text-[var(--evergreen-60)]">
             {pendingPlacement.file.name}
