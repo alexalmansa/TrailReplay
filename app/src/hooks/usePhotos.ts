@@ -12,7 +12,7 @@ import { resolvePhotoPlacement } from '@/utils/photoPlacement';
 import { readPhotoMetadata } from '@/utils/photoMetadata';
 import { findTimestampPlacement } from '@/utils/photoTimelinePlacement';
 import type { RouteMatch } from '@/utils/routeProjection';
-import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
+import { projectCoordinateToJourney, projectCoordinateToTracks } from '@/utils/routeProjection';
 import { trackEvent } from '@/utils/analytics';
 
 export function usePhotos() {
@@ -34,12 +34,18 @@ export function usePhotos() {
       return projectCoordinateToJourney(computedJourney, lat, lon, playback.progress);
     }
 
-    const activeTrack = tracks.find((track) => track.id === activeTrackId) ?? tracks[0];
-    if (!activeTrack) {
+    const candidateTracks = activeTrackId
+      ? [
+          ...tracks.filter((track) => track.id === activeTrackId),
+          ...tracks.filter((track) => track.id !== activeTrackId),
+        ]
+      : tracks;
+
+    if (candidateTracks.length === 0) {
       return null;
     }
 
-    return projectCoordinateToTrack(activeTrack, lat, lon, playback.progress);
+    return projectCoordinateToTracks(candidateTracks, lat, lon, playback.progress);
   }, [activeTrackId, journeySegments, playback.progress, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {

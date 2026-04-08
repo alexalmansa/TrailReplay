@@ -382,6 +382,16 @@ function extractCoordinatesFromText(text: string): { latitude: number; longitude
     return { latitude, longitude };
   }
 
+  const gpsLatitudeMatch = sanitized.match(/(?:GPSLatitude|Latitude)[^+\dNSWE-]{0,40}([NS]?\s*[+-]?\d+(?:\.\d+)?(?:[^\d]{1,6}\d+(?:\.\d+)?(?:[^\d]{1,6}\d+(?:\.\d+)?)?)?)/i);
+  const gpsLongitudeMatch = sanitized.match(/(?:GPSLongitude|Longitude)[^+\dNSWE-]{0,40}([EW]?\s*[+-]?\d+(?:\.\d+)?(?:[^\d]{1,6}\d+(?:\.\d+)?(?:[^\d]{1,6}\d+(?:\.\d+)?)?)?)/i);
+  const gpsLatitudeRefMatch = sanitized.match(/GPSLatitudeRef[^A-Z]{0,20}([NS])/i);
+  const gpsLongitudeRefMatch = sanitized.match(/GPSLongitudeRef[^A-Z]{0,20}([EW])/i);
+  const textLatitude = toDegrees(gpsLatitudeMatch?.[1], gpsLatitudeRefMatch?.[1] ?? gpsLatitudeMatch?.[1]);
+  const textLongitude = toDegrees(gpsLongitudeMatch?.[1], gpsLongitudeRefMatch?.[1] ?? gpsLongitudeMatch?.[1]);
+  if (isLatitude(textLatitude) && isLongitude(textLongitude)) {
+    return { latitude: textLatitude, longitude: textLongitude };
+  }
+
   return undefined;
 }
 

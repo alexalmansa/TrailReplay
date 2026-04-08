@@ -332,7 +332,7 @@ export const es = {
     imageUnavailable: 'Imagen no disponible',
     manualPlacementTitle: 'Esta imagen no se ha podido posicionar automáticamente',
     manualPlacementHintMissingGps: 'Esta imagen no tiene metadatos GPS utilizables y tampoco había una colocación por timestamp disponible. Haz zoom, aléjate o mueve el mapa para encontrar el punto correcto. Cuando lo encuentres, haz clic en el mapa y la imagen se colocará allí.',
-    manualPlacementHintRouteMismatch: 'La imagen tiene metadatos GPS, pero no coincide lo suficiente con la ruta cargada. Haz zoom, aléjate o mueve el mapa para encontrar el punto correcto. Cuando lo encuentres, haz clic en el mapa y la imagen se colocará allí.',
+    manualPlacementHintRouteMismatch: 'Esta imagen tiene coordenadas GPS, pero no se han podido relacionar lo suficiente con ningún punto de la ruta cargada. Haz zoom, aléjate o mueve el mapa para encontrar el punto correcto. Cuando lo encuentres, haz clic en el mapa y la imagen se colocará allí.',
     manualPlacementHintNoTimedRoute: 'La imagen tiene timestamp, pero el GPX cargado no incluye suficientes datos de tiempo para colocarla automáticamente. Haz zoom, aléjate o mueve el mapa para encontrar el punto correcto. Cuando lo encuentres, haz clic en el mapa y la imagen se colocará allí.',
     manualPlacementHintTimestampOutOfRange: 'La imagen tiene timestamp, pero cae fuera del rango temporal de la ruta cargada. Haz zoom, aléjate o mueve el mapa para encontrar el punto correcto. Cuando lo encuentres, haz clic en el mapa y la imagen se colocará allí.',
     manualPlacementQueuedSingle: '1 imagen no se ha podido posicionar automáticamente. Haz clic en el mapa para ubicarla.',

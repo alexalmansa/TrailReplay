@@ -332,7 +332,7 @@ export const ca = {
     imageUnavailable: 'Imatge no disponible',
     manualPlacementTitle: 'Aquesta imatge no s\'ha pogut posicionar automàticament',
     manualPlacementHintMissingGps: 'Aquesta imatge no té metadades GPS utilitzables i tampoc hi havia una col·locació per timestamp disponible. Fes zoom, allunya o mou el mapa per trobar el punt correcte. Quan el trobis, fes clic al mapa i la imatge es col·locarà allà.',
-    manualPlacementHintRouteMismatch: 'La imatge té metadades GPS, però no coincideix prou amb la ruta carregada. Fes zoom, allunya o mou el mapa per trobar el punt correcte. Quan el trobis, fes clic al mapa i la imatge es col·locarà allà.',
+    manualPlacementHintRouteMismatch: 'Aquesta imatge té coordenades GPS, però no s\'han pogut relacionar prou amb cap punt de la ruta carregada. Fes zoom, allunya o mou el mapa per trobar el punt correcte. Quan el trobis, fes clic al mapa i la imatge es col·locarà allà.',
     manualPlacementHintNoTimedRoute: 'La imatge té timestamp, però el GPX carregat no inclou prou dades de temps per col·locar-la automàticament. Fes zoom, allunya o mou el mapa per trobar el punt correcte. Quan el trobis, fes clic al mapa i la imatge es col·locarà allà.',
     manualPlacementHintTimestampOutOfRange: 'La imatge té timestamp, però cau fora del rang temporal de la ruta carregada. Fes zoom, allunya o mou el mapa per trobar el punt correcte. Quan el trobis, fes clic al mapa i la imatge es col·locarà allà.',
     manualPlacementQueuedSingle: '1 imatge no s\'ha pogut posicionar automàticament. Fes clic al mapa per ubicar-la.',

@@ -332,7 +332,7 @@ export const en = {
     imageUnavailable: 'Image unavailable',
     manualPlacementTitle: 'This image could not be positioned automatically',
     manualPlacementHintMissingGps: 'This image has no usable GPS metadata and no timestamp-based placement was available. Zoom in or out and move the map to find the correct spot. Once you find it, click the map and the image will be placed there.',
-    manualPlacementHintRouteMismatch: 'The image has GPS metadata, but it does not match the loaded route closely enough. Zoom in or out and move the map to find the correct spot. Once you find it, click the map and the image will be placed there.',
+    manualPlacementHintRouteMismatch: 'This image has GPS coordinates, but they could not be matched closely enough to any point on the loaded trail. Zoom in or out and move the map to find the correct spot. Once you find it, click the map and the image will be placed there.',
     manualPlacementHintNoTimedRoute: 'The image has a timestamp, but the loaded GPX does not include enough time data to place it automatically. Zoom in or out and move the map to find the correct spot. Once you find it, click the map and the image will be placed there.',
     manualPlacementHintTimestampOutOfRange: 'The image has a timestamp, but it falls outside the loaded route time range. Zoom in or out and move the map to find the correct spot. Once you find it, click the map and the image will be placed there.',
     manualPlacementQueuedSingle: '1 image could not be positioned automatically. Click the map to place it.',

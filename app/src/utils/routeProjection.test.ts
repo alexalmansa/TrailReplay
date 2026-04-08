@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GPXTrack, JourneySegment } from '@/types';
 import { buildComputedJourney } from '@/utils/journeyUtils';
-import { projectCoordinateToJourney, projectCoordinateToTrack } from './routeProjection';
+import { projectCoordinateToJourney, projectCoordinateToTrack, projectCoordinateToTracks } from './routeProjection';
 
 function createTrack(points: GPXTrack['points'], totalDistance: number): GPXTrack {
   return {
@@ -104,5 +104,67 @@ describe('route projection', () => {
 
     expect(result).not.toBeNull();
     expect(result?.progress).toBeCloseTo(0.25, 2);
+  });
+
+  it('chooses the nearest match across multiple loaded tracks', () => {
+    const farTrack = createTrack([
+      {
+        lat: 40,
+        lon: 1,
+        elevation: 0,
+        time: null,
+        heartRate: null,
+        cadence: null,
+        power: null,
+        temperature: null,
+        distance: 0,
+        speed: 0,
+      },
+      {
+        lat: 40,
+        lon: 1.01,
+        elevation: 0,
+        time: null,
+        heartRate: null,
+        cadence: null,
+        power: null,
+        temperature: null,
+        distance: 1000,
+        speed: 0,
+      },
+    ], 1000);
+    const nearTrack = createTrack([
+      {
+        lat: 41,
+        lon: 2,
+        elevation: 0,
+        time: null,
+        heartRate: null,
+        cadence: null,
+        power: null,
+        temperature: null,
+        distance: 0,
+        speed: 0,
+      },
+      {
+        lat: 41,
+        lon: 2.01,
+        elevation: 0,
+        time: null,
+        heartRate: null,
+        cadence: null,
+        power: null,
+        temperature: null,
+        distance: 1000,
+        speed: 0,
+      },
+    ], 1000);
+    nearTrack.id = 'track-2';
+
+    const result = projectCoordinateToTracks([farTrack, nearTrack], 41, 2.005, 0);
+
+    expect(result).not.toBeNull();
+    expect(result?.lon).toBeCloseTo(2.005, 4);
+    expect(result?.distanceMeters).toBeLessThan(5);
   });
 });

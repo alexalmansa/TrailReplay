@@ -133,6 +133,28 @@ export function projectCoordinateToTrack(
   return bestMatch;
 }
 
+export function projectCoordinateToTracks(
+  tracks: GPXTrack[],
+  targetLat: number,
+  targetLon: number,
+  fallbackProgress: number,
+): RouteMatch | null {
+  let bestMatch: RouteMatch | null = null;
+
+  for (const track of tracks) {
+    const candidate = projectCoordinateToTrack(track, targetLat, targetLon, fallbackProgress);
+    if (!candidate) {
+      continue;
+    }
+
+    if (!bestMatch || candidate.distanceMeters < bestMatch.distanceMeters) {
+      bestMatch = candidate;
+    }
+  }
+
+  return bestMatch;
+}
+
 function progressForJourneySegment(segmentTiming: SegmentTiming, startCoordIndex: number, exactIndex: number) {
   const segmentCoordCount = Math.max(segmentTiming.endCoordIndex - segmentTiming.startCoordIndex, 1);
   const localProgress = (exactIndex - startCoordIndex) / segmentCoordCount;

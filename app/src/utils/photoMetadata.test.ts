@@ -117,4 +117,18 @@ describe('normalizePhotoMetadata', () => {
     expect(metadata.latitude).toBeCloseTo(41.3901, 4);
     expect(metadata.longitude).toBeCloseTo(2.1702, 4);
   });
+
+  it('falls back to scanning raw GPSLatitude and GPSLongitude text tags', async () => {
+    const file = new File(
+      ['....GPSLatitudeRef N....GPSLatitude 41 23 24....GPSLongitudeRef E....GPSLongitude 2 10 12....'],
+      'fallback.jpg',
+      { type: 'image/jpeg', lastModified: Date.parse('2026-04-07T08:45:00Z') },
+    );
+
+    const metadata = await readPhotoMetadata(file);
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.39, 3);
+    expect(metadata.longitude).toBeCloseTo(2.17, 3);
+  });
 });
