@@ -65,6 +65,16 @@ describe('normalizePhotoMetadata', () => {
     expect(metadata.longitude).toBeCloseTo(2.1702, 4);
   });
 
+  it('extracts coordinates from Apple ISO6709 quicktime metadata', () => {
+    const metadata = normalizePhotoMetadata(createImageFile('photo.heic'), {
+      'com.apple.quicktime.location.ISO6709': '+41.3901+002.1702+015.000/',
+    });
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.3901, 4);
+    expect(metadata.longitude).toBeCloseTo(2.1702, 4);
+  });
+
   it('builds a timestamp from GPS date and time fields', () => {
     const metadata = normalizePhotoMetadata(createImageFile(), {
       GPSDateStamp: '2026:04:07',

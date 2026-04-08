@@ -33,6 +33,12 @@ const GPS_LONGITUDE_REF_KEYS = ['GPSLongitudeRef', 'LongitudeRef'] as const;
 const GPS_DEST_LATITUDE_KEYS = ['GPSDestLatitude'] as const;
 const GPS_DEST_LONGITUDE_KEYS = ['GPSDestLongitude'] as const;
 const GPS_PAIR_KEYS = ['GPSPosition', 'GPSCoordinates', 'Coordinates', 'coordinate', 'coordinates'] as const;
+const QUICKTIME_LOCATION_KEYS = [
+  'location',
+  'location.ISO6709',
+  'com.apple.quicktime.location.ISO6709',
+  'com.apple.quicktime.location',
+] as const;
 
 function isMetadataRecord(value: unknown): value is MetadataRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
@@ -313,6 +319,31 @@ function parseCoordinatePair(value: unknown): { latitude: number; longitude: num
   return undefined;
 }
 
+function parseIso6709CoordinatePair(value: unknown): { latitude: number; longitude: number } | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const match = trimmed.match(/^([+-]\d{2}(?:\.\d+)?)([+-]\d{3}(?:\.\d+)?)(?:[+-]\d+(?:\.\d+)?)?\/?$/);
+  if (!match) {
+    return undefined;
+  }
+
+  const latitude = toFiniteNumber(match[1]);
+  const longitude = toFiniteNumber(match[2]);
+
+  if (isLatitude(latitude) && isLongitude(longitude)) {
+    return { latitude, longitude };
+  }
+
+  return undefined;
+}
+
 function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetadata, 'latitude' | 'longitude' | 'coordinateSource'> {
   const directLatitude =
     toDegrees(getValueAtPath(metadata, ['gps', 'latitude'])) ??
@@ -359,6 +390,21 @@ function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetad
     return {
       latitude: pair.latitude,
       longitude: pair.longitude,
+      coordinateSource: 'gpsLatitudeLongitude',
+    };
+  }
+
+  const quickTimeLocation =
+    findFirstDeepValue(metadata, QUICKTIME_LOCATION_KEYS) ??
+    getValueAtPath(metadata, ['QuickTime', 'location.ISO6709']) ??
+    getValueAtPath(metadata, ['QuickTime', 'location']) ??
+    getValueAtPath(metadata, ['quicktime', 'location.ISO6709']) ??
+    getValueAtPath(metadata, ['quicktime', 'location']);
+  const iso6709Pair = parseIso6709CoordinatePair(quickTimeLocation);
+  if (iso6709Pair) {
+    return {
+      latitude: iso6709Pair.latitude,
+      longitude: iso6709Pair.longitude,
       coordinateSource: 'gpsLatitudeLongitude',
     };
   }
