@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePhotoMetadata } from './photoMetadata';
+import { normalizePhotoMetadata, readPhotoMetadata } from './photoMetadata';
 
 function createImageFile(name = 'photo.jpg', lastModified = Date.parse('2026-04-07T09:00:00Z')) {
   return new File(['image'], name, { type: 'image/jpeg', lastModified });
@@ -75,6 +75,17 @@ describe('normalizePhotoMetadata', () => {
     expect(metadata.longitude).toBeCloseTo(2.1702, 4);
   });
 
+  it('extracts coordinates from XMP location shown fields', () => {
+    const metadata = normalizePhotoMetadata(createImageFile(), {
+      LocationShownGPSLatitude: '41.3901',
+      LocationShownGPSLongitude: '2.1702',
+    });
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.3901, 4);
+    expect(metadata.longitude).toBeCloseTo(2.1702, 4);
+  });
+
   it('builds a timestamp from GPS date and time fields', () => {
     const metadata = normalizePhotoMetadata(createImageFile(), {
       GPSDateStamp: '2026:04:07',
@@ -91,5 +102,19 @@ describe('normalizePhotoMetadata', () => {
 
     expect(metadata.timestampSource).toBe('fileLastModified');
     expect(metadata.timestamp?.toISOString()).toBe('2026-04-07T08:45:00.000Z');
+  });
+
+  it('falls back to scanning HEIC text for ISO6709 quicktime coordinates', async () => {
+    const file = new File(
+      ['....location.ISO6709....+41.3901+002.1702+015.000/...'],
+      'fallback.heic',
+      { type: 'image/heic', lastModified: Date.parse('2026-04-07T08:45:00Z') },
+    );
+
+    const metadata = await readPhotoMetadata(file);
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.3901, 4);
+    expect(metadata.longitude).toBeCloseTo(2.1702, 4);
   });
 });

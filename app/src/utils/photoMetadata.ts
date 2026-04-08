@@ -33,11 +33,25 @@ const GPS_LONGITUDE_REF_KEYS = ['GPSLongitudeRef', 'LongitudeRef'] as const;
 const GPS_DEST_LATITUDE_KEYS = ['GPSDestLatitude'] as const;
 const GPS_DEST_LONGITUDE_KEYS = ['GPSDestLongitude'] as const;
 const GPS_PAIR_KEYS = ['GPSPosition', 'GPSCoordinates', 'Coordinates', 'coordinate', 'coordinates'] as const;
+const LOCATION_SHOWN_LATITUDE_KEYS = ['LocationShownGPSLatitude', 'LocationCreatedGPSLatitude'] as const;
+const LOCATION_SHOWN_LONGITUDE_KEYS = ['LocationShownGPSLongitude', 'LocationCreatedGPSLongitude'] as const;
 const QUICKTIME_LOCATION_KEYS = [
+  '@xyz',
   'location',
+  'location-eng',
   'location.ISO6709',
   'com.apple.quicktime.location.ISO6709',
   'com.apple.quicktime.location',
+] as const;
+const QUICKTIME_LOCATION_PATHS = [
+  ['QuickTime', '@xyz'],
+  ['QuickTime', 'location'],
+  ['QuickTime', 'location-eng'],
+  ['QuickTime', 'location.ISO6709'],
+  ['quicktime', '@xyz'],
+  ['quicktime', 'location'],
+  ['quicktime', 'location-eng'],
+  ['quicktime', 'location.ISO6709'],
 ] as const;
 
 function isMetadataRecord(value: unknown): value is MetadataRecord {
@@ -344,6 +358,43 @@ function parseIso6709CoordinatePair(value: unknown): { latitude: number; longitu
   return undefined;
 }
 
+function extractCoordinatesFromText(text: string): { latitude: number; longitude: number } | undefined {
+  const sanitized = text.replace(/\0+/g, ' ');
+  const taggedIso6709Match = sanitized.match(
+    /(?:location\.ISO6709|com\.apple\.quicktime\.location(?:\.ISO6709)?|location-eng|location|GPSCoordinates|@xyz)[^+-]{0,80}([+-]\d{2}(?:\.\d+)?[+-]\d{3}(?:\.\d+)?(?:[+-]\d+(?:\.\d+)?)?\/?)/i,
+  );
+  const taggedIso6709 = parseIso6709CoordinatePair(taggedIso6709Match?.[1]);
+  if (taggedIso6709) {
+    return taggedIso6709;
+  }
+
+  const iso6709Match = sanitized.match(/[+-]\d{2}(?:\.\d+)?[+-]\d{3}(?:\.\d+)?(?:[+-]\d+(?:\.\d+)?)?\/?/);
+  const iso6709 = parseIso6709CoordinatePair(iso6709Match?.[0]);
+  if (iso6709) {
+    return iso6709;
+  }
+
+  const latitudeMatch = sanitized.match(/(?:LocationShownGPSLatitude|LocationCreatedGPSLatitude)[^+-\d]{0,40}([+-]?\d+(?:\.\d+)?)/i);
+  const longitudeMatch = sanitized.match(/(?:LocationShownGPSLongitude|LocationCreatedGPSLongitude)[^+-\d]{0,40}([+-]?\d+(?:\.\d+)?)/i);
+  const latitude = toDegrees(latitudeMatch?.[1]);
+  const longitude = toDegrees(longitudeMatch?.[1]);
+  if (isLatitude(latitude) && isLongitude(longitude)) {
+    return { latitude, longitude };
+  }
+
+  return undefined;
+}
+
+async function readMetadataText(file: File): Promise<string | null> {
+  try {
+    const buffer = await file.arrayBuffer();
+    return new TextDecoder('latin1').decode(buffer);
+  } catch (error) {
+    console.warn('Failed to read binary metadata text:', error);
+    return null;
+  }
+}
+
 function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetadata, 'latitude' | 'longitude' | 'coordinateSource'> {
   const directLatitude =
     toDegrees(getValueAtPath(metadata, ['gps', 'latitude'])) ??
@@ -385,6 +436,16 @@ function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetad
     };
   }
 
+  const shownLatitude = toDegrees(findFirstDeepValue(metadata, LOCATION_SHOWN_LATITUDE_KEYS));
+  const shownLongitude = toDegrees(findFirstDeepValue(metadata, LOCATION_SHOWN_LONGITUDE_KEYS));
+  if (isLatitude(shownLatitude) && isLongitude(shownLongitude)) {
+    return {
+      latitude: shownLatitude,
+      longitude: shownLongitude,
+      coordinateSource: 'gpsLatitudeLongitude',
+    };
+  }
+
   const pair = parseCoordinatePair(findFirstDeepValue(metadata, GPS_PAIR_KEYS));
   if (pair) {
     return {
@@ -396,10 +457,9 @@ function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetad
 
   const quickTimeLocation =
     findFirstDeepValue(metadata, QUICKTIME_LOCATION_KEYS) ??
-    getValueAtPath(metadata, ['QuickTime', 'location.ISO6709']) ??
-    getValueAtPath(metadata, ['QuickTime', 'location']) ??
-    getValueAtPath(metadata, ['quicktime', 'location.ISO6709']) ??
-    getValueAtPath(metadata, ['quicktime', 'location']);
+    QUICKTIME_LOCATION_PATHS
+      .map((path) => getValueAtPath(metadata, path))
+      .find((value) => value !== undefined);
   const iso6709Pair = parseIso6709CoordinatePair(quickTimeLocation);
   if (iso6709Pair) {
     return {
@@ -492,8 +552,29 @@ export async function readPhotoMetadata(file: File): Promise<NormalizedPhotoMeta
     console.warn('Failed to extract photo GPS metadata:', error);
   }
 
-  return normalizePhotoMetadata(file, {
+  const normalized = normalizePhotoMetadata(file, {
     ...metadata,
     ...gpsMetadata,
   });
+
+  if (normalized.latitude !== undefined && normalized.longitude !== undefined) {
+    return normalized;
+  }
+
+  const metadataText = await readMetadataText(file);
+  if (!metadataText) {
+    return normalized;
+  }
+
+  const textCoordinates = extractCoordinatesFromText(metadataText);
+  if (!textCoordinates) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    latitude: textCoordinates.latitude,
+    longitude: textCoordinates.longitude,
+    coordinateSource: normalized.coordinateSource ?? 'gpsLatitudeLongitude',
+  };
 }
