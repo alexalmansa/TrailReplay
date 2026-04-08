@@ -67,6 +67,7 @@ export interface Journey {
 export interface PictureAnnotation {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   lat?: number;
   lon?: number;
@@ -82,6 +83,7 @@ export interface PictureAnnotation {
 export interface PendingPicturePlacement {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   title?: string;

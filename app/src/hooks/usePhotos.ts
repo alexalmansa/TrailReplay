@@ -4,6 +4,7 @@ import type { PendingPicturePlacement } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { isImageFile } from '@/utils/files';
+import { createRenderableImageAsset } from '@/utils/imagePreview';
 import { buildComputedJourney } from '@/utils/journeyUtils';
 import { createId } from '@/utils/id';
 import type { ProcessPhotoResult } from '@/utils/photoPlacement';
@@ -42,7 +43,7 @@ export function usePhotos() {
   }, [activeTrackId, journeySegments, playback.progress, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
-    const url = URL.createObjectURL(file);
+    const renderableAsset = await createRenderableImageAsset(file);
     const id = createId('photo');
 
     const metadata = await readPhotoMetadata(file);
@@ -62,7 +63,8 @@ export function usePhotos() {
     return resolvePhotoPlacement({
       id,
       file,
-      url,
+      displayFile: renderableAsset.displayFile,
+      url: renderableAsset.url,
       timestamp: metadata.timestamp,
       metadata,
       gpsRouteMatch: routeMatch,

@@ -12,6 +12,7 @@ export const GPS_ROUTE_MATCH_THRESHOLD_METERS = 250;
 export function createPendingPlacement(params: {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   reason: PendingPicturePlacement['placementReason'];
@@ -24,6 +25,7 @@ export function createPendingPlacement(params: {
     pendingPlacement: {
       id: params.id,
       file: params.file,
+      displayFile: params.displayFile,
       url: params.url,
       timestamp: params.timestamp,
       displayDuration: 5000,
@@ -38,6 +40,7 @@ export function createPendingPlacement(params: {
 function createPicture(params: {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   match: RouteMatch | TimestampPlacementMatch;
@@ -51,6 +54,7 @@ function createPicture(params: {
     picture: {
       id,
       file,
+      displayFile: params.displayFile,
       url,
       lat: match.lat,
       lon: match.lon,
@@ -87,6 +91,7 @@ function normalizePendingReason(reason: TimestampPlacementFailureReason | null, 
 export function resolvePhotoPlacement(params: {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   metadata: NormalizedPhotoMetadata;
@@ -98,6 +103,7 @@ export function resolvePhotoPlacement(params: {
   const {
     fallbackProgress,
     file,
+    displayFile,
     gpsRouteMatch,
     id,
     metadata,
@@ -113,6 +119,7 @@ export function resolvePhotoPlacement(params: {
     return createPicture({
       id,
       file,
+      displayFile,
       url,
       timestamp,
       match: gpsRouteMatch,
@@ -125,6 +132,7 @@ export function resolvePhotoPlacement(params: {
     return createPicture({
       id,
       file,
+      displayFile,
       url,
       timestamp,
       match: timestampPlacement,
@@ -136,6 +144,7 @@ export function resolvePhotoPlacement(params: {
   return createPendingPlacement({
     id,
     file,
+    displayFile,
     url,
     timestamp,
     reason: normalizePendingReason(timestampFailureReason, hasGpsCoordinates),
