@@ -1,14 +1,18 @@
 import { useCallback, useState } from 'react';
-import exifr from 'exifr';
 import { toast } from 'sonner';
 import type { PendingPicturePlacement } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { isImageFile } from '@/utils/files';
-import { buildComputedJourney, calculateDistance } from '@/utils/journeyUtils';
+import { createRenderableImageAsset } from '@/utils/imagePreview';
+import { buildComputedJourney } from '@/utils/journeyUtils';
 import { createId } from '@/utils/id';
-import type { EXIFData, ProcessPhotoResult, RouteMatch } from '@/utils/photoPlacement';
+import type { ProcessPhotoResult } from '@/utils/photoPlacement';
 import { resolvePhotoPlacement } from '@/utils/photoPlacement';
+import { readPhotoMetadata } from '@/utils/photoMetadata';
+import { findTimestampPlacement } from '@/utils/photoTimelinePlacement';
+import type { RouteMatch } from '@/utils/routeProjection';
+import { projectCoordinateToJourney, projectCoordinateToTracks } from '@/utils/routeProjection';
 import { trackEvent } from '@/utils/analytics';
 
 export function usePhotos() {
@@ -19,112 +23,62 @@ export function usePhotos() {
   const queuePendingPicturePlacement = useAppStore((state) => state.queuePendingPicturePlacement);
   const removePicture = useAppStore((state) => state.removePicture);
   const tracks = useAppStore((state) => state.tracks);
+  const activeTrackId = useAppStore((state) => state.activeTrackId);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
 
-  const extractGPSData = useCallback(async (file: File): Promise<EXIFData | null> => {
-    try {
-      const exifData = await exifr.parse(file, ['gps', 'exif', 'ifd0']);
-      
-      if (!exifData) return null;
-      
-      return {
-        latitude: exifData.latitude,
-        longitude: exifData.longitude,
-        DateTimeOriginal: exifData.DateTimeOriginal,
-        GPSDateStamp: exifData.GPSDateStamp,
-        GPSTimeStamp: exifData.GPSTimeStamp,
-      };
-    } catch (error) {
-      console.warn('Failed to extract EXIF data:', error);
-      return null;
-    }
-  }, []);
-
-  const findPositionOnTrack = useCallback((lat: number, lon: number): RouteMatch | null => {
+  const findPositionOnRoute = useCallback((lat: number, lon: number): RouteMatch | null => {
     const computedJourney = buildComputedJourney(journeySegments, tracks);
 
     if (computedJourney && computedJourney.coordinates.length > 0) {
-      let closestIndex = 0;
-      let minDistanceKm = Infinity;
-
-      computedJourney.coordinates.forEach((point, index) => {
-        const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
-        if (distanceKm < minDistanceKm) {
-          minDistanceKm = distanceKm;
-          closestIndex = index;
-        }
-      });
-
-      const closestPoint = computedJourney.coordinates[closestIndex];
-      if (!closestPoint) return null;
-
-      return {
-        progress:
-          computedJourney.coordinates.length > 1
-            ? closestIndex / (computedJourney.coordinates.length - 1)
-            : playback.progress,
-        lat: closestPoint.lat,
-        lon: closestPoint.lon,
-        distanceMeters: minDistanceKm * 1000,
-      };
+      return projectCoordinateToJourney(computedJourney, lat, lon, playback.progress);
     }
 
-    const track = tracks[0];
-    if (!track || track.points.length === 0) return null;
+    const candidateTracks = activeTrackId
+      ? [
+          ...tracks.filter((track) => track.id === activeTrackId),
+          ...tracks.filter((track) => track.id !== activeTrackId),
+        ]
+      : tracks;
 
-    let closestPoint = track.points[0];
-    let minDistanceKm = Infinity;
+    if (candidateTracks.length === 0) {
+      return null;
+    }
 
-    track.points.forEach((point) => {
-      const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
-      if (distanceKm < minDistanceKm) {
-        minDistanceKm = distanceKm;
-        closestPoint = point;
-      }
-    });
-
-    return {
-      progress: track.totalDistance > 0 ? closestPoint.distance / track.totalDistance : playback.progress,
-      lat: closestPoint.lat,
-      lon: closestPoint.lon,
-      distanceMeters: minDistanceKm * 1000,
-    };
-  }, [journeySegments, playback.progress, tracks]);
+    return projectCoordinateToTracks(candidateTracks, lat, lon, playback.progress);
+  }, [activeTrackId, journeySegments, playback.progress, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
-    const url = URL.createObjectURL(file);
+    const renderableAsset = await createRenderableImageAsset(file);
     const id = createId('photo');
-    
-    // Extract EXIF data
-    const exifData = await extractGPSData(file);
-    
-    let timestamp: Date | undefined;
-    
-    if (exifData) {
-      // Use timestamp from EXIF
-      if (exifData.DateTimeOriginal) {
-        timestamp = new Date(exifData.DateTimeOriginal);
-      } else if (exifData.GPSDateStamp && exifData.GPSTimeStamp) {
-        timestamp = new Date(`${exifData.GPSDateStamp} ${exifData.GPSTimeStamp}`);
-      }
-    }
 
+    const metadata = await readPhotoMetadata(file);
     const routeMatch =
-      exifData?.latitude !== undefined && exifData.longitude !== undefined
-        ? findPositionOnTrack(exifData.latitude, exifData.longitude)
+      metadata.latitude !== undefined && metadata.longitude !== undefined
+        ? findPositionOnRoute(metadata.latitude, metadata.longitude)
         : null;
+    const computedJourney = buildComputedJourney(journeySegments, tracks);
+    const timestampPlacement = findTimestampPlacement({
+      timestamp: metadata.timestamp,
+      tracks,
+      journeySegments,
+      computedJourney,
+      activeTrackId,
+    });
 
     return resolvePhotoPlacement({
       id,
       file,
-      url,
-      timestamp,
-      exifData,
-      routeMatch,
+      displayFile: renderableAsset.displayFile,
+      url: renderableAsset.url,
+      timestamp: metadata.timestamp,
+      metadata,
+      gpsRouteMatch: routeMatch,
+      timestampPlacement: timestampPlacement.match,
+      timestampFailureReason: timestampPlacement.reason,
       fallbackProgress: playback.progress,
     });
-  }, [extractGPSData, findPositionOnTrack, playback.progress]);
+  }, [activeTrackId, findPositionOnRoute, journeySegments, playback.progress, tracks]);
 
   const addPhotos = useCallback(async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
@@ -142,6 +96,15 @@ export function usePhotos() {
 
       for (const file of imageFiles) {
         const result = await processPhoto(file);
+        trackEvent('photo_import_file_processed', {
+          photo_file_name: file.name,
+          photo_placement_result: result.kind === 'picture'
+            ? (result.picture.placementSource ?? 'unknown')
+            : 'pending',
+          photo_manual_reason: result.kind === 'pending'
+            ? result.pendingPlacement.placementReason
+            : null,
+        });
 
         if (result.kind === 'picture') {
           addPicture(result.picture);

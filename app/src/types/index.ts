@@ -67,13 +67,14 @@ export interface Journey {
 export interface PictureAnnotation {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;
   progress: number;
   position: number;
-  placementSource?: 'gps' | 'manual';
+  placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;
   displayDuration: number;
@@ -82,15 +83,23 @@ export interface PictureAnnotation {
 export interface PendingPicturePlacement {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   title?: string;
   description?: string;
   displayDuration: number;
-  placementReason: 'missing-gps' | 'route-mismatch';
+  placementReason: 'missing-gps' | 'route-mismatch' | 'no-timed-route' | 'timestamp-out-of-range';
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;
+  hasGpsMetadata?: boolean;
+  hasTimestampMetadata?: boolean;
+  timestampAlternative?: {
+    lat: number;
+    lon: number;
+    progress: number;
+  };
 }
 
 export interface VideoAnnotation {

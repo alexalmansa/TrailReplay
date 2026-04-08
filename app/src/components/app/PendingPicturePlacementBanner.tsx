@@ -7,6 +7,7 @@ interface PendingPicturePlacementBannerProps {
   totalPendingPlacements: number;
   onCancelAll: () => void;
   onSkip: () => void;
+  onUseTimestamp?: () => void;
 }
 
 export function PendingPicturePlacementBanner({
@@ -14,8 +15,15 @@ export function PendingPicturePlacementBanner({
   totalPendingPlacements,
   onCancelAll,
   onSkip,
+  onUseTimestamp,
 }: PendingPicturePlacementBannerProps) {
   const { t } = useI18n();
+  const hintKey = {
+    'missing-gps': 'media.manualPlacementHintMissingGps',
+    'route-mismatch': 'media.manualPlacementHintRouteMismatch',
+    'no-timed-route': 'media.manualPlacementHintNoTimedRoute',
+    'timestamp-out-of-range': 'media.manualPlacementHintTimestampOutOfRange',
+  }[pendingPlacement.placementReason];
 
   return (
     <div className="absolute right-4 top-4 z-40 w-[min(24rem,calc(100%-2rem))] rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--canvas)]/95 p-3 shadow-xl backdrop-blur">
@@ -33,11 +41,27 @@ export function PendingPicturePlacementBanner({
             </p>
           </div>
           <p className="text-xs leading-relaxed text-[var(--evergreen-60)]">
-            {t('media.manualPlacementHint')}
+            {t(hintKey)}
           </p>
           <p className="mt-1 truncate text-[11px] text-[var(--evergreen-60)]">
             {pendingPlacement.file.name}
           </p>
+          <div className="mt-2 grid gap-1 text-[11px] text-[var(--evergreen-60)]">
+            <p>
+              {t('media.manualPlacementMetadataGps', {
+                status: pendingPlacement.hasGpsMetadata
+                  ? t('media.manualPlacementMetadataFound')
+                  : t('media.manualPlacementMetadataMissing'),
+              })}
+            </p>
+            <p>
+              {t('media.manualPlacementMetadataTimestamp', {
+                status: pendingPlacement.hasTimestampMetadata
+                  ? t('media.manualPlacementMetadataFound')
+                  : t('media.manualPlacementMetadataMissing'),
+              })}
+            </p>
+          </div>
           {pendingPlacement.mismatchDistanceMeters !== undefined && (
             <p className="mt-1 text-[11px] font-medium text-[var(--trail-orange)]">
               {t('media.manualPlacementDistance', {
@@ -54,6 +78,14 @@ export function PendingPicturePlacementBanner({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-end gap-2">
+        {pendingPlacement.timestampAlternative && onUseTimestamp && (
+          <button
+            onClick={onUseTimestamp}
+            className="rounded-lg border border-[var(--trail-orange)]/20 px-3 py-1.5 text-xs font-medium text-[var(--trail-orange)] hover:bg-[var(--trail-orange)]/5"
+          >
+            {t('media.manualPlacementUseTimestamp')}
+          </button>
+        )}
         <button
           onClick={onSkip}
           className="rounded-lg border border-[var(--evergreen)]/15 px-3 py-1.5 text-xs font-medium text-[var(--evergreen)] hover:bg-[var(--evergreen)]/5"

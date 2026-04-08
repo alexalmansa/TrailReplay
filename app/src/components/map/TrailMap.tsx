@@ -5,7 +5,6 @@ import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { MapElevationProfile } from './MapElevationProfile';
 import { useI18n } from '@/i18n/useI18n';
-import { calculateDistance } from '@/utils/journeyUtils';
 import { MAP_LAYERS } from './mapStyle';
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
@@ -14,6 +13,7 @@ import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
+import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
 
 interface TrailMapProps {
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
@@ -79,49 +79,13 @@ export function TrailMap(_props: TrailMapProps) {
 
   const findNearestRoutePoint = useCallback((lat: number, lon: number) => {
     if (computedJourney && computedJourney.coordinates.length > 0) {
-      let closestIndex = 0;
-      let minDistanceKm = Infinity;
-
-      computedJourney.coordinates.forEach((point, index) => {
-        const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
-        if (distanceKm < minDistanceKm) {
-          minDistanceKm = distanceKm;
-          closestIndex = index;
-        }
-      });
-
-      const closestPoint = computedJourney.coordinates[closestIndex];
-      if (!closestPoint) return null;
-
-      return {
-        lat: closestPoint.lat,
-        lon: closestPoint.lon,
-        progress:
-          computedJourney.coordinates.length > 1
-            ? closestIndex / (computedJourney.coordinates.length - 1)
-            : playback.progress,
-      };
+      return projectCoordinateToJourney(computedJourney, lat, lon, playback.progress);
     }
 
     const track = activeTrack || tracks[0];
     if (!track || track.points.length === 0) return null;
 
-    let closestPoint = track.points[0];
-    let minDistanceKm = Infinity;
-
-    track.points.forEach((point) => {
-      const distanceKm = calculateDistance(lat, lon, point.lat, point.lon);
-      if (distanceKm < minDistanceKm) {
-        minDistanceKm = distanceKm;
-        closestPoint = point;
-      }
-    });
-
-    return {
-      lat: closestPoint.lat,
-      lon: closestPoint.lon,
-      progress: track.totalDistance > 0 ? closestPoint.distance / track.totalDistance : playback.progress,
-    };
+    return projectCoordinateToTrack(track, lat, lon, playback.progress);
   }, [activeTrack, computedJourney, playback.progress, tracks]);
 
   useManualPicturePlacement({

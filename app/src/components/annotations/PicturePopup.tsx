@@ -105,9 +105,11 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
               className="object-cover"
               style={{ width: imageWidth, height: imageHeight }}
               onError={() => {
-                if (picture.file && imageSrc === picture.url) {
-                  setImageSrc(URL.createObjectURL(picture.file));
+                if (picture.displayFile && imageSrc === picture.url) {
+                  setImageSrc(URL.createObjectURL(picture.displayFile));
+                  return;
                 }
+                setImageSrc('');
               }}
             />
           ) : (
