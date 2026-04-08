@@ -22,7 +22,70 @@ export interface NormalizedPhotoMetadata {
   timestampSource?: PhotoTimestampSource;
 }
 
-type MetadataRecord = Record<string, unknown>;
+type MetadataValue = string | number | Date | MetadataRecord | MetadataValue[] | null | undefined;
+type MetadataRecord = Record<string, MetadataValue>;
+
+const DIRECT_LATITUDE_KEYS = ['latitude', 'Latitude'] as const;
+const DIRECT_LONGITUDE_KEYS = ['longitude', 'Longitude'] as const;
+const GPS_LATITUDE_KEYS = ['GPSLatitude'] as const;
+const GPS_LONGITUDE_KEYS = ['GPSLongitude'] as const;
+const GPS_LATITUDE_REF_KEYS = ['GPSLatitudeRef', 'LatitudeRef'] as const;
+const GPS_LONGITUDE_REF_KEYS = ['GPSLongitudeRef', 'LongitudeRef'] as const;
+const GPS_DEST_LATITUDE_KEYS = ['GPSDestLatitude'] as const;
+const GPS_DEST_LONGITUDE_KEYS = ['GPSDestLongitude'] as const;
+const GPS_PAIR_KEYS = ['GPSPosition', 'GPSCoordinates', 'Coordinates', 'coordinate', 'coordinates'] as const;
+
+function isMetadataRecord(value: unknown): value is MetadataRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
+}
+
+function getValueAtPath(source: unknown, path: readonly string[]): MetadataValue | undefined {
+  let current: unknown = source;
+
+  for (const segment of path) {
+    if (!isMetadataRecord(current) || !(segment in current)) {
+      return undefined;
+    }
+
+    current = current[segment];
+  }
+
+  return current as MetadataValue | undefined;
+}
+
+function findFirstDeepValue(source: unknown, keys: readonly string[]): MetadataValue | undefined {
+  const queue: unknown[] = [source];
+  const seen = new Set<object>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!isMetadataRecord(current)) {
+      continue;
+    }
+
+    if (seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+
+    for (const key of keys) {
+      if (key in current) {
+        return current[key];
+      }
+    }
+
+    for (const value of Object.values(current)) {
+      if (isMetadataRecord(value)) {
+        queue.push(value);
+      } else if (Array.isArray(value)) {
+        queue.push(...value);
+      }
+    }
+  }
+
+  return undefined;
+}
 
 function toFiniteNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -45,14 +108,51 @@ function toFiniteNumber(value: unknown): number | undefined {
     if (parsedNumerator !== undefined && parsedDenominator !== undefined && parsedDenominator !== 0) {
       return parsedNumerator / parsedDenominator;
     }
+
+    if ('value' in value) {
+      return toFiniteNumber((value as { value?: unknown }).value);
+    }
   }
 
   return undefined;
 }
 
+function parseCoordinateString(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (/^[-+]?\d+(?:[.,]\d+)?$/.test(trimmed)) {
+    return toFiniteNumber(trimmed);
+  }
+
+  const parts = Array.from(trimmed.matchAll(/-?\d+(?:[.,]\d+)?/g), (match) =>
+    toFiniteNumber(match[0].replace(',', '.')),
+  ).filter((entry): entry is number => entry !== undefined);
+
+  if (parts.length === 0) {
+    return undefined;
+  }
+
+  if (parts.length === 1) {
+    return applyCoordinateRef(parts[0], trimmed);
+  }
+
+  const degrees = Math.abs(parts[0]) + (parts[1] ?? 0) / 60 + (parts[2] ?? 0) / 3600;
+  return applyCoordinateRef(degrees, trimmed);
+}
+
 function toDegrees(value: unknown, ref: unknown): number | undefined {
+  if (typeof value === 'string') {
+    const parsed = parseCoordinateString(value);
+    if (parsed !== undefined) {
+      return applyCoordinateRef(parsed, ref ?? value);
+    }
+  }
+
   const direct = toFiniteNumber(value);
-  if (direct !== undefined) {
+  if (direct !== undefined && !Array.isArray(value)) {
     return applyCoordinateRef(direct, ref);
   }
 
@@ -65,6 +165,10 @@ function toDegrees(value: unknown, ref: unknown): number | undefined {
       const degrees = parts[0] + (parts[1] ?? 0) / 60 + (parts[2] ?? 0) / 3600;
       return applyCoordinateRef(degrees, ref);
     }
+  }
+
+  if (isMetadataRecord(value) && 'value' in value) {
+    return toDegrees(value.value, ref ?? value.ref ?? value.direction ?? value.hemisphere);
   }
 
   return undefined;
@@ -89,6 +193,15 @@ function applyCoordinateRef(value: number, ref: unknown): number {
 function parseDateCandidate(value: unknown): Date | undefined {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? undefined : value;
+  }
+
+  if (typeof value === 'number') {
+    const parsed = new Date(value > 1e12 ? value : value * 1000);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+
+  if (isMetadataRecord(value) && 'value' in value) {
+    return parseDateCandidate(value.value);
   }
 
   if (typeof value !== 'string') {
@@ -130,17 +243,21 @@ function parseGpsTimestamp(dateStamp: unknown, timeStamp: unknown): Date | undef
 
   let normalizedTime: string | undefined;
   if (typeof timeStamp === 'string' && timeStamp.trim()) {
-    normalizedTime = timeStamp.trim();
+    normalizedTime = timeStamp.trim().replace(',', '.');
   } else if (Array.isArray(timeStamp)) {
     const parts = timeStamp
       .map((entry) => toFiniteNumber(entry))
-      .filter((entry): entry is number => entry !== undefined)
-      .map((entry, index) => {
-        const value = index === 2 ? Math.floor(entry) : entry;
-        return String(Math.max(0, Math.floor(value))).padStart(2, '0');
-      });
+      .filter((entry): entry is number => entry !== undefined);
     if (parts.length >= 2) {
-      normalizedTime = [parts[0], parts[1], parts[2] ?? '00'].join(':');
+      const [hours, minutes, seconds = 0] = parts;
+      const wholeSeconds = Math.floor(seconds);
+      const milliseconds = Math.round((seconds - wholeSeconds) * 1000);
+      const fractionalSuffix = milliseconds > 0 ? `.${String(milliseconds).padStart(3, '0')}` : '';
+      normalizedTime = [
+        String(Math.max(0, Math.floor(hours))).padStart(2, '0'),
+        String(Math.max(0, Math.floor(minutes))).padStart(2, '0'),
+        `${String(Math.max(0, wholeSeconds)).padStart(2, '0')}${fractionalSuffix}`,
+      ].join(':');
     }
   }
 
@@ -148,14 +265,63 @@ function parseGpsTimestamp(dateStamp: unknown, timeStamp: unknown): Date | undef
     return undefined;
   }
 
-  const parsed = new Date(`${normalizedDate}T${normalizedTime}`);
+  const parsed = new Date(`${normalizedDate}T${normalizedTime}Z`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
+function isLatitude(value: number | undefined): value is number {
+  return value !== undefined && Math.abs(value) <= 90;
+}
+
+function isLongitude(value: number | undefined): value is number {
+  return value !== undefined && Math.abs(value) <= 180;
+}
+
+function parseCoordinatePair(value: unknown): { latitude: number; longitude: number } | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parts = trimmed
+    .split(/[;,]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (parts.length === 2) {
+    const latitude = toDegrees(parts[0], parts[0]);
+    const longitude = toDegrees(parts[1], parts[1]);
+    if (isLatitude(latitude) && isLongitude(longitude)) {
+      return { latitude, longitude };
+    }
+  }
+
+  const matches = Array.from(trimmed.matchAll(/[-+]?\d+(?:[.,]\d+)?/g), (match) =>
+    toFiniteNumber(match[0].replace(',', '.')),
+  ).filter((entry): entry is number => entry !== undefined);
+
+  if (matches.length === 2) {
+    const [latitude, longitude] = matches;
+    if (isLatitude(latitude) && isLongitude(longitude)) {
+      return { latitude, longitude };
+    }
+  }
+
+  return undefined;
+}
+
 function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetadata, 'latitude' | 'longitude' | 'coordinateSource'> {
-  const directLatitude = toFiniteNumber(metadata.latitude);
-  const directLongitude = toFiniteNumber(metadata.longitude);
-  if (directLatitude !== undefined && directLongitude !== undefined) {
+  const directLatitude =
+    toDegrees(getValueAtPath(metadata, ['gps', 'latitude'])) ??
+    toDegrees(findFirstDeepValue(metadata, DIRECT_LATITUDE_KEYS), findFirstDeepValue(metadata, GPS_LATITUDE_REF_KEYS));
+  const directLongitude =
+    toDegrees(getValueAtPath(metadata, ['gps', 'longitude'])) ??
+    toDegrees(findFirstDeepValue(metadata, DIRECT_LONGITUDE_KEYS), findFirstDeepValue(metadata, GPS_LONGITUDE_REF_KEYS));
+  if (isLatitude(directLatitude) && isLongitude(directLongitude)) {
     return {
       latitude: directLatitude,
       longitude: directLongitude,
@@ -163,9 +329,15 @@ function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetad
     };
   }
 
-  const gpsLatitude = toDegrees(metadata.GPSLatitude, metadata.GPSLatitudeRef);
-  const gpsLongitude = toDegrees(metadata.GPSLongitude, metadata.GPSLongitudeRef);
-  if (gpsLatitude !== undefined && gpsLongitude !== undefined) {
+  const gpsLatitude = toDegrees(
+    getValueAtPath(metadata, ['gps', 'GPSLatitude']) ?? findFirstDeepValue(metadata, GPS_LATITUDE_KEYS),
+    getValueAtPath(metadata, ['gps', 'GPSLatitudeRef']) ?? findFirstDeepValue(metadata, GPS_LATITUDE_REF_KEYS),
+  );
+  const gpsLongitude = toDegrees(
+    getValueAtPath(metadata, ['gps', 'GPSLongitude']) ?? findFirstDeepValue(metadata, GPS_LONGITUDE_KEYS),
+    getValueAtPath(metadata, ['gps', 'GPSLongitudeRef']) ?? findFirstDeepValue(metadata, GPS_LONGITUDE_REF_KEYS),
+  );
+  if (isLatitude(gpsLatitude) && isLongitude(gpsLongitude)) {
     return {
       latitude: gpsLatitude,
       longitude: gpsLongitude,
@@ -173,13 +345,22 @@ function extractCoordinates(metadata: MetadataRecord): Pick<NormalizedPhotoMetad
     };
   }
 
-  const yandexLatitude = toFiniteNumber(metadata.GPSDestLatitude);
-  const yandexLongitude = toFiniteNumber(metadata.GPSDestLongitude);
-  if (yandexLatitude !== undefined && yandexLongitude !== undefined) {
+  const yandexLatitude = toDegrees(findFirstDeepValue(metadata, GPS_DEST_LATITUDE_KEYS));
+  const yandexLongitude = toDegrees(findFirstDeepValue(metadata, GPS_DEST_LONGITUDE_KEYS));
+  if (isLatitude(yandexLatitude) && isLongitude(yandexLongitude)) {
     return {
       latitude: yandexLatitude,
       longitude: yandexLongitude,
       coordinateSource: 'yandexGps',
+    };
+  }
+
+  const pair = parseCoordinatePair(findFirstDeepValue(metadata, GPS_PAIR_KEYS));
+  if (pair) {
+    return {
+      latitude: pair.latitude,
+      longitude: pair.longitude,
+      coordinateSource: 'gpsLatitudeLongitude',
     };
   }
 
@@ -230,7 +411,7 @@ function extractTimestamp(
 }
 
 export function normalizePhotoMetadata(file: File, rawMetadata: unknown): NormalizedPhotoMetadata {
-  const metadata = (rawMetadata && typeof rawMetadata === 'object' ? rawMetadata : {}) as MetadataRecord;
+  const metadata = isMetadataRecord(rawMetadata) ? rawMetadata : {};
 
   return {
     ...extractCoordinates(metadata),
@@ -240,8 +421,28 @@ export function normalizePhotoMetadata(file: File, rawMetadata: unknown): Normal
 
 export async function readPhotoMetadata(file: File): Promise<NormalizedPhotoMetadata> {
   try {
-    const metadata = await exifr.parse(file, ['gps', 'exif', 'ifd0', 'xmp', 'quicktime']);
-    return normalizePhotoMetadata(file, metadata);
+    const [metadataResult, gpsResult] = await Promise.allSettled([
+      exifr.parse(file, {
+        gps: true,
+        exif: true,
+        ifd0: true,
+        xmp: true,
+        multiSegment: true,
+      }),
+      exifr.gps(file),
+    ]);
+
+    const metadata = isMetadataRecord(metadataResult.status === 'fulfilled' ? metadataResult.value : null)
+      ? metadataResult.value
+      : {};
+    const gpsMetadata = isMetadataRecord(gpsResult.status === 'fulfilled' ? gpsResult.value : null)
+      ? gpsResult.value
+      : {};
+
+    return normalizePhotoMetadata(file, {
+      ...metadata,
+      ...gpsMetadata,
+    });
   } catch (error) {
     console.warn('Failed to extract photo metadata:', error);
     return normalizePhotoMetadata(file, null);

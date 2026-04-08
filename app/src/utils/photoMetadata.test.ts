@@ -38,6 +38,33 @@ describe('normalizePhotoMetadata', () => {
     expect(metadata.longitude).toBeCloseTo(2.17, 3);
   });
 
+  it('extracts nested GPS coordinates from metadata containers', () => {
+    const metadata = normalizePhotoMetadata(createImageFile(), {
+      exif: {
+        GPSLatitude: [41, 23, 24],
+        GPSLatitudeRef: 'N',
+        GPSLongitude: [2, 10, 12],
+        GPSLongitudeRef: 'E',
+      },
+    });
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.39, 3);
+    expect(metadata.longitude).toBeCloseTo(2.17, 3);
+  });
+
+  it('extracts coordinates from GPS position strings', () => {
+    const metadata = normalizePhotoMetadata(createImageFile(), {
+      xmp: {
+        GPSPosition: '41.3901, 2.1702',
+      },
+    });
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.3901, 4);
+    expect(metadata.longitude).toBeCloseTo(2.1702, 4);
+  });
+
   it('builds a timestamp from GPS date and time fields', () => {
     const metadata = normalizePhotoMetadata(createImageFile(), {
       GPSDateStamp: '2026:04:07',
@@ -45,12 +72,7 @@ describe('normalizePhotoMetadata', () => {
     });
 
     expect(metadata.timestampSource).toBe('GPSDateTime');
-    expect(metadata.timestamp?.getFullYear()).toBe(2026);
-    expect(metadata.timestamp?.getMonth()).toBe(3);
-    expect(metadata.timestamp?.getDate()).toBe(7);
-    expect(metadata.timestamp?.getHours()).toBe(10);
-    expect(metadata.timestamp?.getMinutes()).toBe(20);
-    expect(metadata.timestamp?.getSeconds()).toBe(30);
+    expect(metadata.timestamp?.toISOString()).toBe('2026-04-07T10:20:30.000Z');
   });
 
   it('falls back to file last modified when no stronger timestamp exists', () => {
