@@ -22,8 +22,7 @@ export interface NormalizedPhotoMetadata {
   timestampSource?: PhotoTimestampSource;
 }
 
-type MetadataValue = string | number | Date | MetadataRecord | MetadataValue[] | null | undefined;
-type MetadataRecord = Record<string, MetadataValue>;
+type MetadataRecord = Record<string, unknown>;
 
 const DIRECT_LATITUDE_KEYS = ['latitude', 'Latitude'] as const;
 const DIRECT_LONGITUDE_KEYS = ['longitude', 'Longitude'] as const;
@@ -39,7 +38,7 @@ function isMetadataRecord(value: unknown): value is MetadataRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
 }
 
-function getValueAtPath(source: unknown, path: readonly string[]): MetadataValue | undefined {
+function getValueAtPath(source: unknown, path: readonly string[]): unknown {
   let current: unknown = source;
 
   for (const segment of path) {
@@ -50,10 +49,10 @@ function getValueAtPath(source: unknown, path: readonly string[]): MetadataValue
     current = current[segment];
   }
 
-  return current as MetadataValue | undefined;
+  return current;
 }
 
-function findFirstDeepValue(source: unknown, keys: readonly string[]): MetadataValue | undefined {
+function findFirstDeepValue(source: unknown, keys: readonly string[]): unknown {
   const queue: unknown[] = [source];
   const seen = new Set<object>();
 
@@ -143,7 +142,7 @@ function parseCoordinateString(value: string): number | undefined {
   return applyCoordinateRef(degrees, trimmed);
 }
 
-function toDegrees(value: unknown, ref: unknown): number | undefined {
+function toDegrees(value: unknown, ref?: unknown): number | undefined {
   if (typeof value === 'string') {
     const parsed = parseCoordinateString(value);
     if (parsed !== undefined) {
@@ -420,31 +419,35 @@ export function normalizePhotoMetadata(file: File, rawMetadata: unknown): Normal
 }
 
 export async function readPhotoMetadata(file: File): Promise<NormalizedPhotoMetadata> {
+  let metadata: MetadataRecord = {};
+  let gpsMetadata: MetadataRecord = {};
+
   try {
-    const [metadataResult, gpsResult] = await Promise.allSettled([
-      exifr.parse(file, {
-        gps: true,
-        exif: true,
-        ifd0: true,
-        xmp: true,
-        multiSegment: true,
-      }),
-      exifr.gps(file),
-    ]);
-
-    const metadata = isMetadataRecord(metadataResult.status === 'fulfilled' ? metadataResult.value : null)
-      ? metadataResult.value
-      : {};
-    const gpsMetadata = isMetadataRecord(gpsResult.status === 'fulfilled' ? gpsResult.value : null)
-      ? gpsResult.value
-      : {};
-
-    return normalizePhotoMetadata(file, {
-      ...metadata,
-      ...gpsMetadata,
+    const parsedMetadata = await exifr.parse(file, {
+      gps: true,
+      exif: true,
+      ifd0: {},
+      xmp: { multiSegment: true },
     });
+
+    if (isMetadataRecord(parsedMetadata)) {
+      metadata = parsedMetadata;
+    }
   } catch (error) {
     console.warn('Failed to extract photo metadata:', error);
-    return normalizePhotoMetadata(file, null);
   }
+
+  try {
+    const parsedGps = await exifr.gps(file);
+    if (isMetadataRecord(parsedGps)) {
+      gpsMetadata = parsedGps;
+    }
+  } catch (error) {
+    console.warn('Failed to extract photo GPS metadata:', error);
+  }
+
+  return normalizePhotoMetadata(file, {
+    ...metadata,
+    ...gpsMetadata,
+  });
 }
