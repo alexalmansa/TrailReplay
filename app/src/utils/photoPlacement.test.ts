@@ -94,7 +94,7 @@ describe('resolvePhotoPlacement', () => {
     }
   });
 
-  it('lets timestamp placement rescue a GPS route mismatch', () => {
+  it('keeps GPS mismatches pending even when timestamp placement exists', () => {
     const result = resolvePhotoPlacement({
       id: 'photo-5',
       file: createImageFile(),
@@ -110,10 +110,16 @@ describe('resolvePhotoPlacement', () => {
       fallbackProgress: 0.1,
     });
 
-    expect(result.kind).toBe('picture');
-    if (result.kind === 'picture') {
-      expect(result.picture.placementSource).toBe('timestamp');
-      expect(result.picture.progress).toBe(0.48);
+    expect(result.kind).toBe('pending');
+    if (result.kind === 'pending') {
+      expect(result.pendingPlacement.placementReason).toBe('route-mismatch');
+      expect(result.pendingPlacement.hasGpsMetadata).toBe(true);
+      expect(result.pendingPlacement.hasTimestampMetadata).toBe(true);
+      expect(result.pendingPlacement.timestampAlternative).toEqual({
+        lat: 41.395,
+        lon: 2.175,
+        progress: 0.48,
+      });
     }
   });
 

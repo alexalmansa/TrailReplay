@@ -58,6 +58,7 @@ function App() {
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const clearPendingPicturePlacements = useAppStore((state) => state.clearPendingPicturePlacements);
   const play = useAppStore((state) => state.play);
@@ -315,6 +316,31 @@ function App() {
                   totalPendingPlacements={pendingPicturePlacements.length}
                   onCancelAll={clearPendingPicturePlacements}
                   onSkip={() => removePendingPicturePlacement(activePendingPicturePlacement.id)}
+                  onUseTimestamp={activePendingPicturePlacement.timestampAlternative
+                    ? () => {
+                        const timestampPlacement = activePendingPicturePlacement.timestampAlternative;
+                        if (!timestampPlacement) {
+                          return;
+                        }
+
+                        addPicture({
+                          id: activePendingPicturePlacement.id,
+                          file: activePendingPicturePlacement.file,
+                          displayFile: activePendingPicturePlacement.displayFile,
+                          url: activePendingPicturePlacement.url,
+                          lat: timestampPlacement.lat,
+                          lon: timestampPlacement.lon,
+                          timestamp: activePendingPicturePlacement.timestamp,
+                          progress: timestampPlacement.progress,
+                          position: timestampPlacement.progress,
+                          placementSource: 'timestamp',
+                          title: activePendingPicturePlacement.title,
+                          description: activePendingPicturePlacement.description,
+                          displayDuration: activePendingPicturePlacement.displayDuration,
+                        });
+                        removePendingPicturePlacement(activePendingPicturePlacement.id);
+                      }
+                    : undefined}
                 />
               )}
               

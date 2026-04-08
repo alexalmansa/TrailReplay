@@ -96,6 +96,41 @@ describe('normalizePhotoMetadata', () => {
     expect(metadata.timestamp?.toISOString()).toBe('2026-04-07T10:20:30.000Z');
   });
 
+  it('extracts GPS and timestamp from ExifReader-style tag objects', () => {
+    const metadata = normalizePhotoMetadata(createImageFile('photo.heic'), {
+      GPSLatitude: {
+        value: [[41, 1], [41, 1], [3299, 100]],
+        description: 41.69249722222222,
+      },
+      GPSLatitudeRef: {
+        value: ['N'],
+        description: 'North latitude',
+      },
+      GPSLongitude: {
+        value: [[2, 1], [8, 1], [4706, 100]],
+        description: 2.1464055555555555,
+      },
+      GPSLongitudeRef: {
+        value: ['E'],
+        description: 'East longitude',
+      },
+      DateTimeOriginal: {
+        value: ['2026:02:24 18:46:14'],
+        description: '2026:02:24 18:46:14',
+      },
+      OffsetTimeOriginal: {
+        value: ['+01:00'],
+        description: '+01:00',
+      },
+    });
+
+    expect(metadata.coordinateSource).toBe('gpsLatitudeLongitude');
+    expect(metadata.latitude).toBeCloseTo(41.6924972, 6);
+    expect(metadata.longitude).toBeCloseTo(2.1464055, 6);
+    expect(metadata.timestampSource).toBe('DateTimeOriginal');
+    expect(metadata.timestamp?.toISOString()).toBe('2026-02-24T17:46:14.000Z');
+  });
+
   it('falls back to file last modified when no stronger timestamp exists', () => {
     const file = createImageFile('fallback.jpg', Date.parse('2026-04-07T08:45:00Z'));
     const metadata = normalizePhotoMetadata(file, {});

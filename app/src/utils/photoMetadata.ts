@@ -24,6 +24,11 @@ export interface NormalizedPhotoMetadata {
 
 type MetadataRecord = Record<string, unknown>;
 
+interface ExifReaderTagLike {
+  value?: unknown;
+  description?: unknown;
+}
+
 const DIRECT_LATITUDE_KEYS = ['latitude', 'Latitude'] as const;
 const DIRECT_LONGITUDE_KEYS = ['longitude', 'Longitude'] as const;
 const GPS_LATITUDE_KEYS = ['GPSLatitude'] as const;
@@ -111,6 +116,14 @@ function toFiniteNumber(value: unknown): number | undefined {
     return value;
   }
 
+  if (Array.isArray(value) && value.length === 2) {
+    const numerator = toFiniteNumber(value[0]);
+    const denominator = toFiniteNumber(value[1]);
+    if (numerator !== undefined && denominator !== undefined && denominator !== 0) {
+      return numerator / denominator;
+    }
+  }
+
   if (typeof value === 'string') {
     const normalized = value.trim().replace(',', '.');
     const parsed = Number.parseFloat(normalized);
@@ -131,6 +144,40 @@ function toFiniteNumber(value: unknown): number | undefined {
     if ('value' in value) {
       return toFiniteNumber((value as { value?: unknown }).value);
     }
+  }
+
+  return undefined;
+}
+
+function toStringValue(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 1) {
+      return toStringValue(value[0]);
+    }
+
+    const stringParts = value
+      .map((entry) => toStringValue(entry))
+      .filter((entry): entry is string => entry !== undefined);
+
+    if (stringParts.length > 0) {
+      return stringParts.join(' ');
+    }
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (isMetadataRecord(value)) {
+    return (
+      toStringValue((value as ExifReaderTagLike).value) ??
+      toStringValue((value as ExifReaderTagLike).description)
+    );
   }
 
   return undefined;
@@ -193,12 +240,35 @@ function toDegrees(value: unknown, ref?: unknown): number | undefined {
   return undefined;
 }
 
+function normalizeCoordinateRef(ref: unknown): string | undefined {
+  const direct = toStringValue(ref);
+  if (!direct) {
+    return undefined;
+  }
+
+  const normalized = direct.trim().toUpperCase();
+  if (normalized === 'N' || normalized.startsWith('NORTH')) {
+    return 'N';
+  }
+  if (normalized === 'S' || normalized.startsWith('SOUTH')) {
+    return 'S';
+  }
+  if (normalized === 'E' || normalized.startsWith('EAST')) {
+    return 'E';
+  }
+  if (normalized === 'W' || normalized.startsWith('WEST')) {
+    return 'W';
+  }
+
+  return normalized;
+}
+
 function applyCoordinateRef(value: number, ref: unknown): number {
-  if (typeof ref !== 'string') {
+  const normalized = normalizeCoordinateRef(ref);
+  if (!normalized) {
     return value;
   }
 
-  const normalized = ref.trim().toUpperCase();
   if (normalized === 'S' || normalized === 'W') {
     return -Math.abs(value);
   }
@@ -209,7 +279,7 @@ function applyCoordinateRef(value: number, ref: unknown): number {
   return value;
 }
 
-function parseDateCandidate(value: unknown): Date | undefined {
+function parseDateCandidate(value: unknown, offset?: unknown): Date | undefined {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? undefined : value;
   }
@@ -219,8 +289,18 @@ function parseDateCandidate(value: unknown): Date | undefined {
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   }
 
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return undefined;
+    }
+    return parseDateCandidate(value[0], offset);
+  }
+
   if (isMetadataRecord(value) && 'value' in value) {
-    return parseDateCandidate(value.value);
+    return parseDateCandidate(
+      value.value,
+      offset ?? (value as MetadataRecord).offsetTime ?? (value as MetadataRecord).timezone,
+    );
   }
 
   if (typeof value !== 'string') {
@@ -241,6 +321,11 @@ function parseDateCandidate(value: unknown): Date | undefined {
     /^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}:\d{2}:\d{2})(?:\.\d+)?$/,
     '$1-$2-$3T$4',
   );
+  const offsetSuffix = toStringValue(offset);
+  const exifWithOffset = offsetSuffix ? new Date(`${exifNormalized}${offsetSuffix}`) : null;
+  if (exifWithOffset && !Number.isNaN(exifWithOffset.getTime())) {
+    return exifWithOffset;
+  }
   const exifParsed = new Date(exifNormalized);
   if (!Number.isNaN(exifParsed.getTime())) {
     return exifParsed;
@@ -486,16 +571,16 @@ function extractTimestamp(
   file: File,
   metadata: MetadataRecord,
 ): Pick<NormalizedPhotoMetadata, 'timestamp' | 'timestampSource'> {
-  const candidates: Array<{ source: PhotoTimestampSource; value: unknown }> = [
-    { source: 'DateTimeOriginal', value: metadata.DateTimeOriginal },
-    { source: 'CreateDate', value: metadata.CreateDate },
-    { source: 'MediaCreateDate', value: metadata.MediaCreateDate },
-    { source: 'DateTimeDigitized', value: metadata.DateTimeDigitized },
-    { source: 'ModifyDate', value: metadata.ModifyDate },
+  const candidates: Array<{ source: PhotoTimestampSource; value: unknown; offset?: unknown }> = [
+    { source: 'DateTimeOriginal', value: metadata.DateTimeOriginal, offset: metadata.OffsetTimeOriginal ?? metadata.OffsetTime },
+    { source: 'CreateDate', value: metadata.CreateDate, offset: metadata.OffsetTime },
+    { source: 'MediaCreateDate', value: metadata.MediaCreateDate, offset: metadata.OffsetTime },
+    { source: 'DateTimeDigitized', value: metadata.DateTimeDigitized, offset: metadata.OffsetTimeDigitized ?? metadata.OffsetTime },
+    { source: 'ModifyDate', value: metadata.ModifyDate, offset: metadata.OffsetTime },
   ];
 
   for (const candidate of candidates) {
-    const parsed = parseDateCandidate(candidate.value);
+    const parsed = parseDateCandidate(candidate.value, candidate.offset);
     if (parsed) {
       return {
         timestamp: parsed,
@@ -534,6 +619,18 @@ export function normalizePhotoMetadata(file: File, rawMetadata: unknown): Normal
   };
 }
 
+async function readExifReaderMetadata(file: File): Promise<MetadataRecord> {
+  try {
+    const exifReaderModule = await import('exifreader');
+    const exifReader = exifReaderModule.default ?? exifReaderModule;
+    const parsedMetadata = await exifReader.load(file);
+    return isMetadataRecord(parsedMetadata) ? parsedMetadata : {};
+  } catch (error) {
+    console.warn('Failed to extract photo metadata with ExifReader:', error);
+    return {};
+  }
+}
+
 export async function readPhotoMetadata(file: File): Promise<NormalizedPhotoMetadata> {
   let metadata: MetadataRecord = {};
   let gpsMetadata: MetadataRecord = {};
@@ -567,24 +664,37 @@ export async function readPhotoMetadata(file: File): Promise<NormalizedPhotoMeta
     ...gpsMetadata,
   });
 
-  if (normalized.latitude !== undefined && normalized.longitude !== undefined) {
+  if (normalized.latitude !== undefined && normalized.longitude !== undefined && normalized.timestamp !== undefined) {
     return normalized;
+  }
+
+  const exifReaderMetadata = await readExifReaderMetadata(file);
+  const normalizedWithExifReader = Object.keys(exifReaderMetadata).length > 0
+    ? normalizePhotoMetadata(file, {
+        ...metadata,
+        ...gpsMetadata,
+        ...exifReaderMetadata,
+      })
+    : normalized;
+
+  if (normalizedWithExifReader.latitude !== undefined && normalizedWithExifReader.longitude !== undefined) {
+    return normalizedWithExifReader;
   }
 
   const metadataText = await readMetadataText(file);
   if (!metadataText) {
-    return normalized;
+    return normalizedWithExifReader;
   }
 
   const textCoordinates = extractCoordinatesFromText(metadataText);
   if (!textCoordinates) {
-    return normalized;
+    return normalizedWithExifReader;
   }
 
   return {
-    ...normalized,
+    ...normalizedWithExifReader,
     latitude: textCoordinates.latitude,
     longitude: textCoordinates.longitude,
-    coordinateSource: normalized.coordinateSource ?? 'gpsLatitudeLongitude',
+    coordinateSource: normalizedWithExifReader.coordinateSource ?? 'gpsLatitudeLongitude',
   };
 }

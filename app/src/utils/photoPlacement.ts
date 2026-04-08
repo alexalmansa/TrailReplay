@@ -19,6 +19,9 @@ export function createPendingPlacement(params: {
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;
+  hasGpsMetadata?: boolean;
+  hasTimestampMetadata?: boolean;
+  timestampAlternative?: PendingPicturePlacement['timestampAlternative'];
 }): ProcessPhotoResult {
   return {
     kind: 'pending',
@@ -33,6 +36,9 @@ export function createPendingPlacement(params: {
       originalLat: params.originalLat,
       originalLon: params.originalLon,
       mismatchDistanceMeters: params.mismatchDistanceMeters,
+      hasGpsMetadata: params.hasGpsMetadata,
+      hasTimestampMetadata: params.hasTimestampMetadata,
+      timestampAlternative: params.timestampAlternative,
     },
   };
 }
@@ -128,7 +134,7 @@ export function resolvePhotoPlacement(params: {
     });
   }
 
-  if (timestampPlacement) {
+  if (!hasGpsCoordinates && timestampPlacement) {
     return createPicture({
       id,
       file,
@@ -151,5 +157,14 @@ export function resolvePhotoPlacement(params: {
     originalLat: metadata.latitude,
     originalLon: metadata.longitude,
     mismatchDistanceMeters: gpsRouteMatch?.distanceMeters,
+    hasGpsMetadata: hasGpsCoordinates,
+    hasTimestampMetadata: metadata.timestamp !== undefined,
+    timestampAlternative: hasGpsCoordinates && timestampPlacement
+      ? {
+          lat: timestampPlacement.lat,
+          lon: timestampPlacement.lon,
+          progress: timestampPlacement.progress,
+        }
+      : undefined,
   });
 }

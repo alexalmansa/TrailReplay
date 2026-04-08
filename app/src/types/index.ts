@@ -93,6 +93,13 @@ export interface PendingPicturePlacement {
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;
+  hasGpsMetadata?: boolean;
+  hasTimestampMetadata?: boolean;
+  timestampAlternative?: {
+    lat: number;
+    lon: number;
+    progress: number;
+  };
 }
 
 export interface VideoAnnotation {
