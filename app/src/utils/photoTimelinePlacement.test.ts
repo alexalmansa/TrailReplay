@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { GPXTrack, JourneySegment } from '@/types';
 import { buildComputedJourney } from '@/utils/journeyUtils';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 import { findTimestampPlacement } from './photoTimelinePlacement';
 
 function createTrack(points: GPXTrack['points']): GPXTrack {
   return {
     id: 'track-1',
     name: 'Timed Track',
+    activityIcon: DEFAULT_ACTIVITY_ICON,
     points,
     totalDistance: points[points.length - 1]?.distance ?? 0,
     totalTime: 0,
