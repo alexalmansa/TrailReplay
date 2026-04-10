@@ -76,7 +76,7 @@ export function createDefaultCameraSettings(): CameraSettings {
 
 export function createDefaultVideoExportSettings(): VideoExportSettings {
   return {
-    format: 'webm',
+    format: 'mp4',
     quality: 'high',
     fps: 30,
     resolution: { width: 1920, height: 1080 },
