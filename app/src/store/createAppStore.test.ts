@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAppStore } from './createAppStore';
 import type { GPXTrack, PendingPicturePlacement } from '@/types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 function createTrack(overrides: Partial<GPXTrack> = {}): GPXTrack {
   return {
@@ -110,7 +111,7 @@ describe('createAppStore', () => {
 
     const state = useStore.getState();
     expect(state.settings.mapStyle).toBe('esri-clarity');
-    expect(state.settings.trailStyle.currentIcon).toBe('🏃');
+    expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
     expect(state.settings.trailStyle.trackLabel).toBe('Track 1');
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });

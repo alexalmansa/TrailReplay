@@ -1,5 +1,6 @@
 import { getInitialLanguage } from '@/i18n/translations';
 import type { AppSettings, CameraSettings, PlaybackState, VideoExportSettings } from '@/types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 export function createDefaultPlayback(): PlaybackState {
   return {
@@ -36,7 +37,7 @@ export function createDefaultSettings(): AppSettings {
       ],
       showMarker: true,
       markerSize: 1.0,
-      currentIcon: '🏃',
+      currentIcon: DEFAULT_ACTIVITY_ICON,
       showCircle: true,
       showTrackLabels: false,
       trackLabel: 'Track 1',

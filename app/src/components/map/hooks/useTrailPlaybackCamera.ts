@@ -3,6 +3,7 @@ import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import { getActivityIconMarkerHtml } from '@/utils/activityIcons';
 import { getHeartRateColor } from '@/utils/gpxParser';
 import {
   calculateTerrainAwareAdjustments,
@@ -96,6 +97,7 @@ export function useTrailPlaybackCamera({
     } else {
       const fontSize = Math.round(24 * trailStyle.markerSize);
       const circleSize = Math.round(40 * trailStyle.markerSize);
+      const iconHtml = getActivityIconMarkerHtml(icon, fontSize);
       const markerHtml = `
         ${trailStyle.showCircle ? `<div style="
           position: absolute;
@@ -106,7 +108,7 @@ export function useTrailPlaybackCamera({
           border-radius: 50%;
           animation: pulse 1.5s ease-in-out infinite;
         "></div>` : ''}
-        <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
+        ${iconHtml}
       `;
 
       if (!markerRef.current) {
