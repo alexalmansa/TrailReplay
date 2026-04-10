@@ -263,7 +263,7 @@ export function AnnotationsPanel() {
                 <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center">
-                    {renderActivityIcon(trailStyle.currentIcon, { size: 28 })}
+                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: trailStyle.trailColor })}
                   </div>
                   <button
                     onClick={() => setShowIconPicker(true)}
@@ -307,7 +307,7 @@ export function AnnotationsPanel() {
                     }
                   `}
                 >
-                  {renderActivityIcon(value, { size: 28 })}
+                  {renderActivityIcon(value, { size: 32, color: trailStyle.trailColor })}
                 </button>
               ))}
             </div>

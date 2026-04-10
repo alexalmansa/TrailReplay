@@ -62,24 +62,41 @@ function iconFrameStyle(size: number): CSSProperties {
   };
 }
 
+function svgMaskStyle(size: number, color: string, url: string): CSSProperties {
+  return {
+    width: size,
+    height: size,
+    display: 'block',
+    backgroundColor: color,
+    maskImage: `url(${url})`,
+    maskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    maskSize: 'contain',
+    WebkitMaskImage: `url(${url})`,
+    WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskPosition: 'center',
+    WebkitMaskSize: 'contain',
+  };
+}
+
 export function getActivityIconOption(value: string): ActivityIconOption | undefined {
   return activityIconMap.get(value);
 }
 
 export function renderActivityIcon(
   value: string,
-  options: { size?: number; className?: string } = {},
+  options: { size?: number; className?: string; color?: string } = {},
 ): ReactElement {
-  const { size = 24, className } = options;
+  const { size = 24, className, color = 'currentColor' } = options;
   const icon = getActivityIconOption(value);
 
   if (icon?.kind === 'svg') {
-    return createElement('img', {
-      src: icon.content,
-      alt: '',
+    return createElement('span', {
+      role: 'img',
+      'aria-label': '',
       'aria-hidden': true,
       className,
-      style: iconFrameStyle(size),
+      style: svgMaskStyle(size, color, icon.content),
     });
   }
 
@@ -92,6 +109,7 @@ export function renderActivityIcon(
         ...iconFrameStyle(size),
         alignItems: 'center',
         display: 'inline-flex',
+        color,
         fontSize: size,
         justifyContent: 'center',
         lineHeight: 1,
@@ -101,12 +119,12 @@ export function renderActivityIcon(
   );
 }
 
-export function getActivityIconMarkerHtml(value: string, size: number): string {
+export function getActivityIconMarkerHtml(value: string, size: number, color: string): string {
   const icon = getActivityIconOption(value);
 
   if (icon?.kind === 'svg') {
-    return `<img src="${escapeHtml(icon.content)}" alt="" aria-hidden="true" style="width:${size}px;height:${size}px;display:block;object-fit:contain;position:relative;z-index:10;" />`;
+    return `<span aria-hidden="true" style="width:${size}px;height:${size}px;display:block;background-color:${escapeHtml(color)};mask-image:url('${escapeHtml(icon.content)}');mask-repeat:no-repeat;mask-position:center;mask-size:contain;-webkit-mask-image:url('${escapeHtml(icon.content)}');-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;position:relative;z-index:10;"></span>`;
   }
 
-  return `<span style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;font-size:${size}px;line-height:1;position:relative;z-index:10;">${escapeHtml(icon?.content ?? value)}</span>`;
+  return `<span style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;color:${escapeHtml(color)};font-size:${size}px;line-height:1;position:relative;z-index:10;">${escapeHtml(icon?.content ?? value)}</span>`;
 }

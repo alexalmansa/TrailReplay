@@ -95,9 +95,9 @@ export function useTrailPlaybackCamera({
       markerRef.current?.remove();
       markerRef.current = null;
     } else {
-      const fontSize = Math.round(24 * trailStyle.markerSize);
+      const fontSize = Math.round(28 * trailStyle.markerSize);
       const circleSize = Math.round(40 * trailStyle.markerSize);
-      const iconHtml = getActivityIconMarkerHtml(icon, fontSize);
+      const iconHtml = getActivityIconMarkerHtml(icon, fontSize, currentColor);
       const markerHtml = `
         ${trailStyle.showCircle ? `<div style="
           position: absolute;
