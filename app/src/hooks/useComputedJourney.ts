@@ -13,6 +13,7 @@ import {
   type JourneyPoint,
   type SegmentTiming,
 } from '@/utils/journeyUtils';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 /**
  * Hook that provides computed journey data for multi-track animations
@@ -176,8 +177,11 @@ export function useComputedJourney() {
     if (currentSegment?.segment.type === 'transport') {
       return TRANSPORT_ICONS[currentSegment.segment.transportMode || 'car'] || '🚗';
     }
-    return ''; // Will use trailStyle.currentIcon in component
-  }, [currentSegment]);
+    if (currentSegment?.segment.type === 'track' && currentSegment.segment.trackId) {
+      return tracks.find((track) => track.id === currentSegment.segment.trackId)?.activityIcon || DEFAULT_ACTIVITY_ICON;
+    }
+    return activeTrack?.activityIcon || DEFAULT_ACTIVITY_ICON;
+  }, [activeTrack, currentSegment, tracks]);
 
   // Is currently in a transport segment?
   const isInTransport = currentSegment?.segment.type === 'transport';

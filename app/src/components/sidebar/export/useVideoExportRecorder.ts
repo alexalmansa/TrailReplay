@@ -77,6 +77,7 @@ function drawTintedSvgIcon(
 export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const tracks = useAppStore((state) => state.tracks);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
@@ -138,12 +139,17 @@ export function useVideoExportRecorder() {
   }, []);
 
   useEffect(() => {
-    if (!isSvgActivityIcon(trailStyle.currentIcon)) return;
-    const svgIconUrl = getActivityIconOption(trailStyle.currentIcon)?.content;
-    if (svgIconUrl) {
-      preloadSvgMarkerIcon(svgIconUrl);
-    }
-  }, [preloadSvgMarkerIcon, trailStyle.currentIcon]);
+    const iconValues = new Set<string>([trailStyle.currentIcon]);
+    tracks.forEach((track) => iconValues.add(track.activityIcon));
+
+    iconValues.forEach((iconValue) => {
+      if (!isSvgActivityIcon(iconValue)) return;
+      const svgIconUrl = getActivityIconOption(iconValue)?.content;
+      if (svgIconUrl) {
+        preloadSvgMarkerIcon(svgIconUrl);
+      }
+    });
+  }, [preloadSvgMarkerIcon, tracks, trailStyle.currentIcon]);
 
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (html2canvas()) return true;

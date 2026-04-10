@@ -53,6 +53,7 @@ export function TrailMap(_props: TrailMapProps) {
   const {
     currentPosition,
     currentBearing,
+    currentIcon,
     currentSegment,
     completedCoordinates,
     allCoordinates,
@@ -151,6 +152,7 @@ export function TrailMap(_props: TrailMapProps) {
     completedCoordinates,
     computedJourney,
     currentBearing,
+    currentIcon,
     currentPosition,
     currentSegment,
     currentTrackColor: currentTrackColor ?? null,
@@ -164,6 +166,7 @@ export function TrailMap(_props: TrailMapProps) {
     mapRef: map,
     markerRef,
     playbackProgress: playback.progress,
+    segmentTimings,
     setCameraPosition,
     smoothBearingRef,
     targetBearingRef,

@@ -50,6 +50,7 @@ export interface AppState {
   removeTrack: (trackId: string) => void;
   setActiveTrack: (trackId: string | null) => void;
   updateTrackColor: (trackId: string, color: string) => void;
+  updateTrackIcon: (trackId: string, icon: string) => void;
   updateTrackName: (trackId: string, name: string) => void;
   toggleTrackVisibility: (trackId: string) => void;
   reorderTracks: (fromIndex: number, toIndex: number) => void;

@@ -7,6 +7,7 @@ function createTrack(overrides: Partial<GPXTrack> = {}): GPXTrack {
   return {
     id: overrides.id ?? 'track-1',
     name: overrides.name ?? 'Sample Track',
+    activityIcon: overrides.activityIcon ?? DEFAULT_ACTIVITY_ICON,
     points: overrides.points ?? [
       {
         lat: 42,
@@ -71,6 +72,7 @@ describe('createAppStore', () => {
     });
     expect(state.activePanel).toBe('journey');
     expect(state.settings.trailStyle.trailColor).toBe(track.color);
+    expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
     expect(state.settings.trailStyle.markerColor).toBe(track.color);
     expect(state.cameraSettings.followBehindPreset).toBe('close');
   });
@@ -117,6 +119,17 @@ describe('createAppStore', () => {
     const state = useStore.getState();
     expect(state.settings.trailStyle.trailColor).toBe('#3B82F6');
     expect(state.settings.trailStyle.markerColor).toBe('#111111');
+  });
+
+  it('updates the active icon when the active track icon changes', () => {
+    const useStore = createAppStore();
+    const track = createTrack();
+
+    useStore.getState().addTrack(track);
+    useStore.getState().updateTrackIcon(track.id, 'svg-running');
+
+    expect(useStore.getState().tracks[0]?.activityIcon).toBe('svg-running');
+    expect(useStore.getState().settings.trailStyle.currentIcon).toBe('svg-running');
   });
 
   it('keeps manual picture placements queued in upload order until the queue is cleared', () => {

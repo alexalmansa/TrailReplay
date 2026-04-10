@@ -1,4 +1,5 @@
 import type { GPXPoint, GPXTrack } from '@/types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 export interface RawTrackPoint {
   lat: number;
@@ -125,6 +126,7 @@ export function buildTrackFromRawPoints(params: {
   return {
     id: createTrackId(idPrefix),
     name,
+    activityIcon: DEFAULT_ACTIVITY_ICON,
     points: trackPoints,
     totalDistance,
     totalTime,
