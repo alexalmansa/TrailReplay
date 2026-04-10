@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { SidebarPanelContent } from './SidebarPanelContent';
 import { useI18n } from '@/i18n/useI18n';
@@ -93,23 +93,10 @@ export function Sidebar() {
     { id: 'export' as const, label: t('sidebar.tabs.export'), icon: Video, count: 0 },
   ];
 
-  useEffect(() => {
-    const activeButton = tabRefs.current[activeTab];
-    if (!activeButton) return;
-
-    requestAnimationFrame(() => {
-      activeButton.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
-    });
-  }, [activeTab]);
-
   return (
     <div className="h-full flex flex-col bg-[var(--canvas)]">
       {/* Tabs */}
-      <div className="flex border-b-2 border-[var(--evergreen)] overflow-x-auto flex-shrink-0 scroll-smooth">
+      <div className="grid grid-cols-3 border-b-2 border-[var(--evergreen)] flex-shrink-0">
         {tabs.map((tab) => {
           const isLockedByExport = isExporting && tab.id !== 'export';
 
@@ -125,7 +112,8 @@ export function Sidebar() {
             }}
             disabled={isLockedByExport}
             className={`
-              flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap transition-colors
+              flex min-h-[56px] items-center justify-center gap-1.5 px-2 py-3 text-xs font-medium text-center transition-colors
+              border-r border-b border-[var(--evergreen)]/15 last:border-r-0
               ${activeTab === tab.id
                 ? 'bg-[var(--evergreen)] text-[var(--canvas)]'
                 : 'text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10'

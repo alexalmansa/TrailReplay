@@ -190,7 +190,7 @@ export function AnnotationsPanel() {
             onColorChange={(c) => handleMainColorChange(track.id, c)}
             onNameChange={(n) => updateTrackName(track.id, n)}
             nameLabel={t('common.name')}
-            colorLabel={t('common.color')}
+            colorLabel={t('annotations.trackColor')}
             renameTitle={t('common.clickRename')}
             resolveColorLabel={(key) => t(key)}
           />
@@ -210,7 +210,7 @@ export function AnnotationsPanel() {
             onColorChange={(c) => updateComparisonColor(ct.id, c)}
             onNameChange={(n) => updateComparisonTrackName(ct.id, n)}
             nameLabel={t('common.name')}
-            colorLabel={t('common.color')}
+            colorLabel={t('annotations.trackColor')}
             renameTitle={t('common.clickRename')}
             resolveColorLabel={(key) => t(key)}
           />
@@ -371,6 +371,11 @@ export function AnnotationsPanel() {
                     ))}
                   </div>
                 </div>
+                <p className="text-xs text-[var(--evergreen-60)]">
+                  {isSvgActivityIcon(trailStyle.currentIcon)
+                    ? t('annotations.markerColorSvgHint')
+                    : t('annotations.markerColorEmojiHint')}
+                </p>
 
                 <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
