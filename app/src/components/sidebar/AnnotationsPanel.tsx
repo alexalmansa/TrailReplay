@@ -4,7 +4,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { ACTIVITY_ICONS, renderActivityIcon } from '@/utils/activityIcons';
+import { ACTIVITY_ICONS, isSvgActivityIcon, renderActivityIcon } from '@/utils/activityIcons';
 
 const COLOR_PRESETS = [
   { color: '#C1652F', labelKey: 'colors.trailOrange' },
@@ -162,6 +162,10 @@ export function AnnotationsPanel() {
     setSettings({ showHeartRate: checked });
     setTrailStyle({ colorMode: checked ? 'heartRate' : 'fixed' });
   };
+
+  const currentIconColor = isSvgActivityIcon(trailStyle.currentIcon)
+    ? trailStyle.markerColor
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -340,10 +344,44 @@ export function AnnotationsPanel() {
               </div>
 
               <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm text-[var(--evergreen)] w-16 flex-shrink-0">
+                    {t('annotations.markerColor')}
+                  </Label>
+                  <input
+                    type="color"
+                    value={trailStyle.markerColor}
+                    onChange={(e) => setTrailStyle({ markerColor: e.target.value })}
+                    className="w-8 h-8 rounded cursor-pointer border-2 border-[var(--evergreen)]/20 flex-shrink-0"
+                  />
+                  <div className="flex gap-1.5 flex-wrap">
+                    {COLOR_PRESETS.map(({ color: preset, labelKey }) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setTrailStyle({ markerColor: preset })}
+                        title={t(labelKey)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          trailStyle.markerColor === preset
+                            ? 'border-[var(--evergreen)] scale-110'
+                            : 'border-transparent hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: preset }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center">
-                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: trailStyle.trailColor })}
+                  <div
+                    className="w-12 h-12 rounded-full border-2 border-[var(--evergreen)]/20 flex items-center justify-center"
+                    style={{
+                      backgroundColor: trailStyle.showCircle ? `${trailStyle.markerColor}40` : 'transparent',
+                      borderColor: trailStyle.markerColor,
+                    }}
+                  >
+                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: currentIconColor })}
                   </div>
                   <button
                     onClick={() => setShowIconPicker(true)}
@@ -387,7 +425,10 @@ export function AnnotationsPanel() {
                     }
                   `}
                 >
-                  {renderActivityIcon(value, { size: 32, color: trailStyle.trailColor })}
+                  {renderActivityIcon(value, {
+                    size: 32,
+                    color: isSvgActivityIcon(value) ? trailStyle.markerColor : undefined,
+                  })}
                 </button>
               ))}
             </div>

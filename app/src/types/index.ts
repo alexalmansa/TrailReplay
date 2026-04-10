@@ -197,6 +197,7 @@ export interface TrailStyleSettings {
   colorMode: ColorMode;
   heartRateZones: HeartRateZone[];
   // Marker Settings
+  markerColor: string;
   showMarker: boolean;
   markerSize: number;
   currentIcon: string;

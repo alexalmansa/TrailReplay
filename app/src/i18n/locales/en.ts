@@ -273,6 +273,7 @@ export const en = {
     labelsHint: "Each track's name floats next to its marker on the map.",
     heartRateTitle: 'Heart Rate',
     markerTitle: 'Marker',
+    markerColor: 'Color',
     showMarker: 'Show Marker',
     size: 'Size',
     activityIcon: 'Activity Icon',

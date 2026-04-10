@@ -273,6 +273,7 @@ export const es = {
     labelsHint: 'El nombre de cada ruta aparece junto a su marcador en el mapa.',
     heartRateTitle: 'Frecuencia cardiaca',
     markerTitle: 'Marcador',
+    markerColor: 'Color',
     showMarker: 'Mostrar marcador',
     size: 'Tamaño',
     activityIcon: 'Icono de actividad',

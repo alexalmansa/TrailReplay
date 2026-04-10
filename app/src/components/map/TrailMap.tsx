@@ -206,6 +206,7 @@ export function TrailMap(_props: TrailMapProps) {
     trailStyle: {
       colorMode: trailStyle.colorMode,
       currentIcon: trailStyle.currentIcon,
+      markerColor: trailStyle.markerColor,
       markerSize: trailStyle.markerSize,
       showCircle: trailStyle.showCircle,
       showMarker: trailStyle.showMarker,

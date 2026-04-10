@@ -71,6 +71,7 @@ describe('createAppStore', () => {
     });
     expect(state.activePanel).toBe('journey');
     expect(state.settings.trailStyle.trailColor).toBe(track.color);
+    expect(state.settings.trailStyle.markerColor).toBe(track.color);
     expect(state.cameraSettings.followBehindPreset).toBe('close');
   });
 
@@ -103,6 +104,21 @@ describe('createAppStore', () => {
     expect(useStore.getState().cameraSettings.followBehindPreset).toBe('medium');
   });
 
+  it('preserves a custom marker color when the active track color changes', () => {
+    const useStore = createAppStore();
+    const track = createTrack({
+      color: '#10B981',
+    });
+
+    useStore.getState().addTrack(track);
+    useStore.getState().setTrailStyle({ markerColor: '#111111' });
+    useStore.getState().updateTrackColor(track.id, '#3B82F6');
+
+    const state = useStore.getState();
+    expect(state.settings.trailStyle.trailColor).toBe('#3B82F6');
+    expect(state.settings.trailStyle.markerColor).toBe('#111111');
+  });
+
   it('keeps manual picture placements queued in upload order until the queue is cleared', () => {
     const useStore = createAppStore();
     const firstPlacement = createPendingPlacement('photo-1');
@@ -131,6 +147,7 @@ describe('createAppStore', () => {
 
     useStore.getState().setTrailStyle({
       currentIcon: '🚵',
+      markerColor: '#123456',
       trackLabel: 'Changed',
     });
     useStore.getState().setSettings({
@@ -142,6 +159,7 @@ describe('createAppStore', () => {
     const state = useStore.getState();
     expect(state.settings.mapStyle).toBe('esri-clarity');
     expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
+    expect(state.settings.trailStyle.markerColor).toBe('#C1652F');
     expect(state.settings.trailStyle.trackLabel).toBe('Track 1');
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });
