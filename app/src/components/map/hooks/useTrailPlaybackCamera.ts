@@ -98,7 +98,7 @@ export function useTrailPlaybackCamera({
       const fontSize = Math.round(28 * trailStyle.markerSize);
       const circleSize = Math.round(40 * trailStyle.markerSize);
       const iconHtml = getActivityIconMarkerHtml(icon, fontSize, currentColor);
-      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(8, 14, 18, 0.88)' : `${currentColor}40`;
+      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${currentColor}40`;
       const markerHtml = `
         ${trailStyle.showCircle ? `<div style="
           position: absolute;
