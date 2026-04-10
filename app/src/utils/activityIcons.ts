@@ -83,6 +83,10 @@ export function getActivityIconOption(value: string): ActivityIconOption | undef
   return activityIconMap.get(value);
 }
 
+export function isSvgActivityIcon(value: string): boolean {
+  return getActivityIconOption(value)?.kind === 'svg';
+}
+
 export function renderActivityIcon(
   value: string,
   options: { size?: number; className?: string; color?: string } = {},
