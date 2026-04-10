@@ -312,6 +312,7 @@ export const en = {
     durationSeconds: 'Duration (seconds)',
     durationHint: 'This is how long this segment will take in the animation',
     goToSegment: 'Go to this segment',
+    changeTrackIcon: 'Change track icon',
     transportSegment: '{mode} Transport',
   },
   media: {

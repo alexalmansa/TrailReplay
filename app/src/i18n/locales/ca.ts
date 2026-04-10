@@ -312,6 +312,7 @@ export const ca = {
     durationSeconds: 'Durada (segons)',
     durationHint: 'Aquest és el temps que durarà aquest segment a l\'animació',
     goToSegment: 'Vés a aquest segment',
+    changeTrackIcon: 'Canviar icona de la ruta',
     transportSegment: 'Transport {mode}',
   },
   media: {

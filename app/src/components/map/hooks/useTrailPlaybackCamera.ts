@@ -20,6 +20,7 @@ interface UseTrailPlaybackCameraParams {
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
   currentBearing: number;
+  currentIcon: string;
   currentPosition: { lat: number; lon: number } | null;
   currentSegment?: { segment: { segmentIndex?: number; transportMode?: string } } | null;
   currentTrackColor: string | null;
@@ -69,6 +70,7 @@ export function useTrailPlaybackCamera({
   completedCoordinates,
   computedJourney,
   currentBearing,
+  currentIcon,
   currentPosition,
   currentSegment,
   currentTrackColor,
@@ -99,7 +101,7 @@ export function useTrailPlaybackCamera({
     const currentColor = currentTrackColor || trailStyle.trailColor;
     const icon = isInTransport
       ? TRANSPORT_ICONS[currentSegment?.segment.transportMode || 'car'] || '🚗'
-      : trailStyle.currentIcon;
+      : currentIcon || trailStyle.currentIcon;
 
     if (!shouldShowMarker) {
       markerRef.current?.remove();
@@ -262,6 +264,7 @@ export function useTrailPlaybackCamera({
     completedCoordinates,
     computedJourney,
     currentBearing,
+    currentIcon,
     currentPosition,
     currentSegment,
     currentTrackColor,

@@ -53,6 +53,7 @@ export function TrailMap(_props: TrailMapProps) {
   const {
     currentPosition,
     currentBearing,
+    currentIcon,
     currentSegment,
     completedCoordinates,
     allCoordinates,
@@ -187,6 +188,7 @@ export function TrailMap(_props: TrailMapProps) {
     completedCoordinates,
     computedJourney,
     currentBearing,
+    currentIcon,
     currentPosition,
     currentSegment,
     currentTrackColor: currentTrackColor ?? null,

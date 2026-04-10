@@ -14,6 +14,7 @@ export interface GPXPoint {
 export interface GPXTrack {
   id: string;
   name: string;
+  activityIcon: string;
   points: GPXPoint[];
   totalDistance: number;
   totalTime: number;

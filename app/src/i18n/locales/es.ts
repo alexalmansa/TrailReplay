@@ -312,6 +312,7 @@ export const es = {
     durationSeconds: 'Duración (segundos)',
     durationHint: 'Este es el tiempo que durará este segmento en la animación',
     goToSegment: 'Ir a este segmento',
+    changeTrackIcon: 'Cambiar icono de la ruta',
     transportSegment: 'Transporte {mode}',
   },
   media: {

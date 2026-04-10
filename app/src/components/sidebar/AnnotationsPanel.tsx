@@ -140,6 +140,7 @@ export function AnnotationsPanel() {
   const tracks = useAppStore((state) => state.tracks);
   const activeTrackId = useAppStore((state) => state.activeTrackId);
   const updateTrackColor = useAppStore((state) => state.updateTrackColor);
+  const updateTrackIcon = useAppStore((state) => state.updateTrackIcon);
   const updateTrackName = useAppStore((state) => state.updateTrackName);
 
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -149,6 +150,8 @@ export function AnnotationsPanel() {
   const [showIconPicker, setShowIconPicker] = useState(false);
 
   const hasMultiple = tracks.length > 1 || comparisonTracks.length > 0;
+  const activeTrack = tracks.find((track) => track.id === activeTrackId) ?? tracks[0] ?? null;
+  const displayedIcon = activeTrack?.activityIcon ?? trailStyle.currentIcon;
 
   // When the active track color changes, also sync trailStyle
   const handleMainColorChange = (trackId: string, color: string) => {
@@ -163,7 +166,7 @@ export function AnnotationsPanel() {
     setTrailStyle({ colorMode: checked ? 'heartRate' : 'fixed' });
   };
 
-  const currentIconColor = isSvgActivityIcon(trailStyle.currentIcon)
+  const currentIconColor = isSvgActivityIcon(displayedIcon)
     ? trailStyle.markerColor
     : undefined;
 
@@ -372,7 +375,7 @@ export function AnnotationsPanel() {
                   </div>
                 </div>
                 <p className="text-xs text-[var(--evergreen-60)]">
-                  {isSvgActivityIcon(trailStyle.currentIcon)
+                  {isSvgActivityIcon(displayedIcon)
                     ? t('annotations.markerColorSvgHint')
                     : t('annotations.markerColorEmojiHint')}
                 </p>
@@ -386,7 +389,7 @@ export function AnnotationsPanel() {
                       borderColor: trailStyle.markerColor,
                     }}
                   >
-                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: currentIconColor })}
+                    {renderActivityIcon(displayedIcon, { size: 32, color: currentIconColor })}
                   </div>
                   <button
                     onClick={() => setShowIconPicker(true)}
@@ -420,11 +423,18 @@ export function AnnotationsPanel() {
               {ACTIVITY_ICONS.map(({ value, labelKey }) => (
                 <button
                   key={value}
-                  onClick={() => { setTrailStyle({ currentIcon: value }); setShowIconPicker(false); }}
+                  onClick={() => {
+                    if (activeTrack) {
+                      updateTrackIcon(activeTrack.id, value);
+                    } else {
+                      setTrailStyle({ currentIcon: value });
+                    }
+                    setShowIconPicker(false);
+                  }}
                   title={t(labelKey)}
                   className={`
                     flex items-center justify-center p-2 rounded-lg border-2 transition-colors
-                    ${trailStyle.currentIcon === value
+                    ${displayedIcon === value
                       ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
                       : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
                     }
