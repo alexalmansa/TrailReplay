@@ -39,6 +39,7 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
       if (!state.activeTrackId) {
         state.activeTrackId = track.id;
         state.settings.trailStyle.trailColor = trackColor;
+        state.settings.trailStyle.markerColor = trackColor;
         state.cameraSettings.followBehindPreset = getDefaultFollowBehindPreset(track.totalDistance);
       }
 
@@ -78,7 +79,11 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
       state.activeTrackId = trackId;
       const activeTrack = state.tracks.find((track) => track.id === trackId);
       if (activeTrack?.color) {
+        const previousTrailColor = state.settings.trailStyle.trailColor;
         state.settings.trailStyle.trailColor = activeTrack.color;
+        if (state.settings.trailStyle.markerColor === previousTrailColor) {
+          state.settings.trailStyle.markerColor = activeTrack.color;
+        }
       }
     }),
 
@@ -89,7 +94,11 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
 
       track.color = color;
       if (state.activeTrackId === trackId) {
+        const previousTrailColor = state.settings.trailStyle.trailColor;
         state.settings.trailStyle.trailColor = color;
+        if (state.settings.trailStyle.markerColor === previousTrailColor) {
+          state.settings.trailStyle.markerColor = color;
+        }
       }
     }),
 

@@ -130,5 +130,5 @@ export function getActivityIconMarkerHtml(value: string, size: number, color: st
     return `<span aria-hidden="true" style="width:${size}px;height:${size}px;display:block;background-color:${escapeHtml(color)};mask-image:url('${escapeHtml(icon.content)}');mask-repeat:no-repeat;mask-position:center;mask-size:contain;-webkit-mask-image:url('${escapeHtml(icon.content)}');-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;position:relative;z-index:10;"></span>`;
   }
 
-  return `<span style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;color:${escapeHtml(color)};font-size:${size}px;line-height:1;position:relative;z-index:10;">${escapeHtml(icon?.content ?? value)}</span>`;
+  return `<span style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;font-size:${size}px;line-height:1;position:relative;z-index:10;">${escapeHtml(icon?.content ?? value)}</span>`;
 }

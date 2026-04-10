@@ -44,6 +44,7 @@ interface UseTrailPlaybackCameraParams {
   trailStyle: {
     colorMode: 'fixed' | 'heartRate';
     currentIcon: string;
+    markerColor: string;
     markerSize: number;
     showCircle: boolean;
     showMarker: boolean;
@@ -97,15 +98,17 @@ export function useTrailPlaybackCamera({
     } else {
       const fontSize = Math.round(28 * trailStyle.markerSize);
       const circleSize = Math.round(40 * trailStyle.markerSize);
-      const iconHtml = getActivityIconMarkerHtml(icon, fontSize, currentColor);
-      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${currentColor}40`;
+      const markerColor = trailStyle.markerColor;
+      const iconColor = isSvgActivityIcon(icon) ? markerColor : currentColor;
+      const iconHtml = getActivityIconMarkerHtml(icon, fontSize, iconColor);
+      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${markerColor}40`;
       const markerHtml = `
         ${trailStyle.showCircle ? `<div style="
           position: absolute;
           width: ${circleSize}px;
           height: ${circleSize}px;
           background: ${glowBackground};
-          border: 2px solid ${currentColor};
+          border: 2px solid ${markerColor};
           border-radius: 50%;
           animation: pulse 1.5s ease-in-out infinite;
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);

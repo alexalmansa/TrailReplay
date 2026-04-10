@@ -50,6 +50,7 @@ export function createDefaultSettings(): AppSettings {
         { min: 161, max: 180, color: '#FF9800', label: 'Zone 4' },
         { min: 181, max: 220, color: '#F44336', label: 'Zone 5' },
       ],
+      markerColor: '#C1652F',
       showMarker: true,
       markerSize: 1.0,
       currentIcon: DEFAULT_ACTIVITY_ICON,
@@ -75,7 +76,7 @@ export function createDefaultCameraSettings(): CameraSettings {
 
 export function createDefaultVideoExportSettings(): VideoExportSettings {
   return {
-    format: 'webm',
+    format: 'mp4',
     quality: 'high',
     fps: 30,
     resolution: { width: 1920, height: 1080 },

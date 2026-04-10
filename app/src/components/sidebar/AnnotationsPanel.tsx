@@ -4,7 +4,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { ACTIVITY_ICONS, renderActivityIcon } from '@/utils/activityIcons';
+import { ACTIVITY_ICONS, isSvgActivityIcon, renderActivityIcon } from '@/utils/activityIcons';
 
 const COLOR_PRESETS = [
   { color: '#C1652F', labelKey: 'colors.trailOrange' },
@@ -132,7 +132,9 @@ function TrackStyleSection({
 // ─── Main panel ────────────────────────────────────────────────────────────
 export function AnnotationsPanel() {
   const { t } = useI18n();
+  const settings = useAppStore((state) => state.settings);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
+  const setSettings = useAppStore((state) => state.setSettings);
   const setTrailStyle = useAppStore((state) => state.setTrailStyle);
 
   const tracks = useAppStore((state) => state.tracks);
@@ -155,6 +157,15 @@ export function AnnotationsPanel() {
       setTrailStyle({ trailColor: color });
     }
   };
+
+  const handleHeartRateToggle = (checked: boolean) => {
+    setSettings({ showHeartRate: checked });
+    setTrailStyle({ colorMode: checked ? 'heartRate' : 'fixed' });
+  };
+
+  const currentIconColor = isSvgActivityIcon(trailStyle.currentIcon)
+    ? trailStyle.markerColor
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -179,7 +190,7 @@ export function AnnotationsPanel() {
             onColorChange={(c) => handleMainColorChange(track.id, c)}
             onNameChange={(n) => updateTrackName(track.id, n)}
             nameLabel={t('common.name')}
-            colorLabel={t('common.color')}
+            colorLabel={t('annotations.trackColor')}
             renameTitle={t('common.clickRename')}
             resolveColorLabel={(key) => t(key)}
           />
@@ -199,7 +210,7 @@ export function AnnotationsPanel() {
             onColorChange={(c) => updateComparisonColor(ct.id, c)}
             onNameChange={(n) => updateComparisonTrackName(ct.id, n)}
             nameLabel={t('common.name')}
-            colorLabel={t('common.color')}
+            colorLabel={t('annotations.trackColor')}
             renameTitle={t('common.clickRename')}
             resolveColorLabel={(key) => t(key)}
           />
@@ -222,6 +233,79 @@ export function AnnotationsPanel() {
           <p className="text-xs text-[var(--evergreen-60)]">
             {t('annotations.labelsHint')}
           </p>
+        )}
+      </div>
+
+      {/* ── Heart rate styling ─────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+          {t('annotations.heartRateTitle')}
+        </h3>
+
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-[var(--evergreen)]">{t('settings.showHeartRate')}</Label>
+          <Switch
+            checked={settings.showHeartRate}
+            onCheckedChange={handleHeartRateToggle}
+          />
+        </div>
+
+        {settings.showHeartRate && (
+          <div className="space-y-3 rounded-lg border border-[var(--evergreen)]/15 p-3 bg-[var(--evergreen)]/3">
+            <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
+              {t('settings.heartRateZones')}
+            </h4>
+            <div className="space-y-3">
+              {trailStyle.heartRateZones.map((zone, idx) => (
+                <div key={idx} className="bg-[var(--canvas)] p-2 rounded border border-[var(--evergreen)]/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="color"
+                      value={zone.color}
+                      onChange={(e) => {
+                        const newZones = [...trailStyle.heartRateZones];
+                        newZones[idx].color = e.target.value;
+                        setTrailStyle({ heartRateZones: newZones });
+                      }}
+                      className="w-6 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
+                    />
+                    <span className="text-xs font-semibold text-[var(--evergreen)]">
+                      {t('settings.heartRateZone', { index: idx + 1 })}
+                    </span>
+                    <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="300"
+                      value={zone.min}
+                      onChange={(e) => {
+                        const newZones = [...trailStyle.heartRateZones];
+                        newZones[idx].min = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setTrailStyle({ heartRateZones: newZones });
+                      }}
+                      className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
+                    />
+                    <span className="text-xs text-[var(--evergreen-60)] font-semibold">-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="300"
+                      value={zone.max}
+                      onChange={(e) => {
+                        const newZones = [...trailStyle.heartRateZones];
+                        newZones[idx].max = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setTrailStyle({ heartRateZones: newZones });
+                      }}
+                      className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
+                    />
+                    <span className="text-xs text-[var(--evergreen-60)]">{t('stats.bpm')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -260,10 +344,49 @@ export function AnnotationsPanel() {
               </div>
 
               <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <Label className="text-sm text-[var(--evergreen)] w-16 flex-shrink-0">
+                    {t('annotations.markerColor')}
+                  </Label>
+                  <input
+                    type="color"
+                    value={trailStyle.markerColor}
+                    onChange={(e) => setTrailStyle({ markerColor: e.target.value })}
+                    className="w-8 h-8 rounded cursor-pointer border-2 border-[var(--evergreen)]/20 flex-shrink-0"
+                  />
+                  <div className="flex gap-1.5 flex-wrap">
+                    {COLOR_PRESETS.map(({ color: preset, labelKey }) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setTrailStyle({ markerColor: preset })}
+                        title={t(labelKey)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          trailStyle.markerColor === preset
+                            ? 'border-[var(--evergreen)] scale-110'
+                            : 'border-transparent hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: preset }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--evergreen-60)]">
+                  {isSvgActivityIcon(trailStyle.currentIcon)
+                    ? t('annotations.markerColorSvgHint')
+                    : t('annotations.markerColorEmojiHint')}
+                </p>
+
                 <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center">
-                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: trailStyle.trailColor })}
+                  <div
+                    className="w-12 h-12 rounded-full border-2 border-[var(--evergreen)]/20 flex items-center justify-center"
+                    style={{
+                      backgroundColor: trailStyle.showCircle ? `${trailStyle.markerColor}40` : 'transparent',
+                      borderColor: trailStyle.markerColor,
+                    }}
+                  >
+                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: currentIconColor })}
                   </div>
                   <button
                     onClick={() => setShowIconPicker(true)}
@@ -307,7 +430,10 @@ export function AnnotationsPanel() {
                     }
                   `}
                 >
-                  {renderActivityIcon(value, { size: 32, color: trailStyle.trailColor })}
+                  {renderActivityIcon(value, {
+                    size: 32,
+                    color: isSvgActivityIcon(value) ? trailStyle.markerColor : undefined,
+                  })}
                 </button>
               ))}
             </div>

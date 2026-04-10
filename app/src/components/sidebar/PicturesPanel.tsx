@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { usePhotos } from '@/hooks/usePhotos';
 import { isImageFile } from '@/utils/files';
 import { useI18n } from '@/i18n/useI18n';
+import { Switch } from '@/components/ui/switch';
 import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2 } from 'lucide-react';
 
 const DEFAULT_DISPLAY_DURATION = 5000; // 5 seconds
@@ -12,6 +13,8 @@ export function PicturesPanel() {
   const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
   const videos = useAppStore((state) => state.videos);
+  const showPictures = useAppStore((state) => state.settings.showPictures);
+  const setSettings = useAppStore((state) => state.setSettings);
   const removePicture = useAppStore((state) => state.removePicture);
   const removeVideo = useAppStore((state) => state.removeVideo);
   const updatePictureDuration = useAppStore((state) => state.updatePictureDuration);
@@ -47,6 +50,19 @@ export function PicturesPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-[var(--evergreen)]">{t('settings.showPictures')}</p>
+            <p className="text-xs text-[var(--evergreen-60)] mt-1">{t('media.showPicturesHint')}</p>
+          </div>
+          <Switch
+            checked={showPictures}
+            onCheckedChange={(checked) => setSettings({ showPictures: checked })}
+          />
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-2">
         <button

@@ -5,6 +5,7 @@ import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
 import { getCropRegion } from '@/utils/crop';
 import { trackEvent } from '@/utils/analytics';
+import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
 import {
   getSupportedMimeType,
   getVideoBitrate,
@@ -36,9 +37,47 @@ declare global {
   }
 }
 
+function extractCssUrl(value: string): string | null {
+  const match = value.match(/url\((['"]?)(.*?)\1\)/);
+  return match?.[2] ?? null;
+}
+
+function drawTintedSvgIcon(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  options: {
+    centerX: number;
+    centerY: number;
+    color: string;
+    height: number;
+    width: number;
+  },
+) {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = Math.max(1, Math.round(options.width));
+  offscreen.height = Math.max(1, Math.round(options.height));
+  const offscreenContext = offscreen.getContext('2d');
+  if (!offscreenContext) return;
+
+  offscreenContext.clearRect(0, 0, offscreen.width, offscreen.height);
+  offscreenContext.drawImage(image, 0, 0, offscreen.width, offscreen.height);
+  offscreenContext.globalCompositeOperation = 'source-in';
+  offscreenContext.fillStyle = options.color;
+  offscreenContext.fillRect(0, 0, offscreen.width, offscreen.height);
+
+  context.drawImage(
+    offscreen,
+    options.centerX - options.width / 2,
+    options.centerY - options.height / 2,
+    options.width,
+    options.height,
+  );
+}
+
 export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const isExporting = useAppStore((state) => state.isExporting);
@@ -74,8 +113,37 @@ export function useVideoExportRecorder() {
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
   const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
   const overlayRunIdRef = useRef(0);
+  const svgMarkerImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const pendingSvgMarkerLoadsRef = useRef<Set<string>>(new Set());
 
   const html2canvas = useCallback(() => window.html2canvas ?? null, []);
+
+  const preloadSvgMarkerIcon = useCallback((url: string) => {
+    if (!url || svgMarkerImageCacheRef.current.has(url) || pendingSvgMarkerLoadsRef.current.has(url)) {
+      return;
+    }
+
+    pendingSvgMarkerLoadsRef.current.add(url);
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.decoding = 'async';
+    image.onload = () => {
+      svgMarkerImageCacheRef.current.set(url, image);
+      pendingSvgMarkerLoadsRef.current.delete(url);
+    };
+    image.onerror = () => {
+      pendingSvgMarkerLoadsRef.current.delete(url);
+    };
+    image.src = url;
+  }, []);
+
+  useEffect(() => {
+    if (!isSvgActivityIcon(trailStyle.currentIcon)) return;
+    const svgIconUrl = getActivityIconOption(trailStyle.currentIcon)?.content;
+    if (svgIconUrl) {
+      preloadSvgMarkerIcon(svgIconUrl);
+    }
+  }, [preloadSvgMarkerIcon, trailStyle.currentIcon]);
 
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (html2canvas()) return true;
@@ -292,14 +360,34 @@ export function useVideoExportRecorder() {
         context.stroke();
       }
 
-      const markerEmoji = markerContainer.querySelector('span') as HTMLElement | null;
-      if (markerEmoji?.textContent) {
-        const fontSize = Math.round(parseFloat(markerEmoji.style.fontSize || '24') * scaleX);
-        context.font = `${fontSize}px serif`;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillStyle = '#000000';
-        context.fillText(markerEmoji.textContent, markerX, markerY);
+      const markerIcon = markerContainer.querySelector('span') as HTMLElement | null;
+      if (markerIcon) {
+        const markerIconWidth = parseFloat(markerIcon.style.width || '24') * scaleX;
+        const markerIconHeight = parseFloat(markerIcon.style.height || '24') * scaleY;
+        const maskImage = markerIcon.style.maskImage || markerIcon.style.webkitMaskImage || '';
+        const maskUrl = extractCssUrl(maskImage);
+
+        if (maskUrl) {
+          const markerSvg = svgMarkerImageCacheRef.current.get(maskUrl);
+          if (markerSvg) {
+            drawTintedSvgIcon(context, markerSvg, {
+              centerX: markerX,
+              centerY: markerY,
+              color: markerIcon.style.backgroundColor || '#000000',
+              width: markerIconWidth,
+              height: markerIconHeight,
+            });
+          } else {
+            preloadSvgMarkerIcon(maskUrl);
+          }
+        } else if (markerIcon.textContent) {
+          const fontSize = Math.round(parseFloat(markerIcon.style.fontSize || '24') * scaleX);
+          context.font = `${fontSize}px serif`;
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillStyle = '#000000';
+          context.fillText(markerIcon.textContent, markerX, markerY);
+        }
       }
     }
 
@@ -318,7 +406,7 @@ export function useVideoExportRecorder() {
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [overlayRefreshIntervalMs, updateOverlayAsync, videoExportSettings.resolution]);
+  }, [overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
   const startFrameCapture = useCallback(() => {
     const map = mapGlobalRef.current;
