@@ -2,14 +2,76 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { SidebarPanelContent } from './SidebarPanelContent';
 import { useI18n } from '@/i18n/useI18n';
+import { languageLabels } from '@/i18n/translations';
+import type { UnitSystem } from '@/types';
 import {
   MapPin,
   Route,
   Image,
   Palette,
   Video,
-  Settings
+  Eye
 } from 'lucide-react';
+
+function SidebarPreferences() {
+  const { t, language, setLanguage } = useI18n();
+  const unitSystem = useAppStore((state) => state.settings.unitSystem);
+  const setUnitSystem = useAppStore((state) => state.setUnitSystem);
+
+  return (
+    <div className="mb-4 rounded-[1.2rem] border border-[var(--evergreen)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(243,237,226,0.82))] p-4 shadow-sm">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
+        {t('sidebar.preferencesTitle')}
+      </h3>
+
+      <div className="mt-3 space-y-3">
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+            {t('settings.language')}
+          </label>
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value as keyof typeof languageLabels)}
+            className="w-full rounded-lg border border-[var(--evergreen)]/20 bg-white/90 px-3 py-2 text-sm text-[var(--evergreen)] focus:outline-none focus:border-[var(--trail-orange)]"
+          >
+            {Object.entries(languageLabels).map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+            {t('settings.units')}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['metric', 'imperial'] as UnitSystem[]).map((unit) => {
+              const isActive = unitSystem === unit;
+
+              return (
+                <button
+                  key={unit}
+                  type="button"
+                  onClick={() => setUnitSystem(unit)}
+                  className={`
+                    rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                    ${isActive
+                      ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
+                      : 'bg-white/90 text-[var(--evergreen)] border border-[var(--evergreen)]/12 hover:border-[var(--trail-orange)]/35'}
+                  `}
+                >
+                  {unit === 'metric' ? t('settings.unitMetric') : t('settings.unitImperial')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const activeTab = useAppStore((state) => state.activePanel);
@@ -26,9 +88,9 @@ export function Sidebar() {
     { id: 'tracks' as const, label: t('sidebar.tabs.tracks'), icon: MapPin, count: tracks.length },
     { id: 'journey' as const, label: t('sidebar.tabs.journey'), icon: Route, count: journeySegments.length },
     { id: 'annotations' as const, label: t('sidebar.tabs.annotations'), icon: Palette, count: 0 },
+    { id: 'settings' as const, label: t('sidebar.tabs.settings'), icon: Eye, count: 0 },
     { id: 'pictures' as const, label: t('sidebar.tabs.pictures'), icon: Image, count: pictures.length },
     { id: 'export' as const, label: t('sidebar.tabs.export'), icon: Video, count: 0 },
-    { id: 'settings' as const, label: t('sidebar.tabs.settings'), icon: Settings, count: 0 },
   ];
 
   useEffect(() => {
@@ -95,6 +157,7 @@ export function Sidebar() {
           <SidebarPanelContent />
         </div>
         <div className="pt-6 pb-2 border-t-2 border-[var(--evergreen)]/20">
+          <SidebarPreferences />
           <div className="text-center">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
               <img src="/media/images/simplelogo.png" alt="TrailReplay" className="w-10 h-10 object-contain" />
