@@ -145,7 +145,7 @@ export function Sidebar() {
           <SidebarPanelContent />
         </div>
         <div className="pt-6 pb-2 border-t-2 border-[var(--evergreen)]/20">
-          <SidebarPreferences />
+          {activeTab === 'tracks' && <SidebarPreferences />}
           <div className="text-center">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">
               <img src="/media/images/simplelogo.png" alt="TrailReplay" className="w-10 h-10 object-contain" />
