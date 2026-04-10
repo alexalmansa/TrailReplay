@@ -1,5 +1,5 @@
 import { createId } from '@/utils/id';
-import { trackColors } from '@/store/defaults';
+import { getDefaultFollowBehindPreset, trackColors } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
 import type { AppSliceCreator } from './types';
 
@@ -39,6 +39,7 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
       if (!state.activeTrackId) {
         state.activeTrackId = track.id;
         state.settings.trailStyle.trailColor = trackColor;
+        state.cameraSettings.followBehindPreset = getDefaultFollowBehindPreset(track.totalDistance);
       }
 
       if (!state.journey) {

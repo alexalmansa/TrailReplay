@@ -3,6 +3,7 @@ import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import { getActivityIconMarkerHtml, isSvgActivityIcon } from '@/utils/activityIcons';
 import { getHeartRateColor } from '@/utils/gpxParser';
 import {
   calculateTerrainAwareAdjustments,
@@ -94,19 +95,22 @@ export function useTrailPlaybackCamera({
       markerRef.current?.remove();
       markerRef.current = null;
     } else {
-      const fontSize = Math.round(24 * trailStyle.markerSize);
+      const fontSize = Math.round(28 * trailStyle.markerSize);
       const circleSize = Math.round(40 * trailStyle.markerSize);
+      const iconHtml = getActivityIconMarkerHtml(icon, fontSize, currentColor);
+      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${currentColor}40`;
       const markerHtml = `
         ${trailStyle.showCircle ? `<div style="
           position: absolute;
           width: ${circleSize}px;
           height: ${circleSize}px;
-          background: ${currentColor}40;
+          background: ${glowBackground};
           border: 2px solid ${currentColor};
           border-radius: 50%;
           animation: pulse 1.5s ease-in-out infinite;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
         "></div>` : ''}
-        <span style="font-size: ${fontSize}px; position: relative; z-index: 10;">${icon}</span>
+        ${iconHtml}
       `;
 
       if (!markerRef.current) {

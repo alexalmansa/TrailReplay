@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { ACTIVITY_ICONS, renderActivityIcon } from '@/utils/activityIcons';
 
 const COLOR_PRESETS = [
   { color: '#C1652F', labelKey: 'colors.trailOrange' },
@@ -12,27 +13,6 @@ const COLOR_PRESETS = [
   { color: '#3B82F6', labelKey: 'colors.blue' },
   { color: '#dc3545', labelKey: 'colors.red' },
   { color: '#8B5CF6', labelKey: 'colors.purple' },
-];
-
-const ACTIVITY_ICONS = [
-  { icon: '🏃', labelKey: 'activities.running' },
-  { icon: '🏃‍♂️', labelKey: 'activities.runner' },
-  { icon: '🚴', labelKey: 'activities.cycling' },
-  { icon: '🚴‍♂️', labelKey: 'activities.cyclist' },
-  { icon: '🥾', labelKey: 'activities.hiking' },
-  { icon: '🚶', labelKey: 'activities.walking' },
-  { icon: '🚶‍♂️', labelKey: 'activities.walker' },
-  { icon: '⛷️', labelKey: 'activities.skiing' },
-  { icon: '🏊', labelKey: 'activities.swimming' },
-  { icon: '🧗', labelKey: 'activities.climbing' },
-  { icon: '🏇', labelKey: 'activities.horse' },
-  { icon: '🛶', labelKey: 'activities.kayak' },
-  { icon: '🛹', labelKey: 'activities.skate' },
-  { icon: '🎿', labelKey: 'activities.ski' },
-  { icon: '🏂', labelKey: 'activities.snowboard' },
-  { icon: '🚗', labelKey: 'activities.car' },
-  { icon: '✈️', labelKey: 'activities.plane' },
-  { icon: '🚂', labelKey: 'activities.train' },
 ];
 
 // ─── Inline name editor ────────────────────────────────────────────────────
@@ -282,8 +262,8 @@ export function AnnotationsPanel() {
               <div className="space-y-2">
                 <Label className="text-sm text-[var(--evergreen)]">{t('annotations.activityIcon')}</Label>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center text-2xl">
-                    {trailStyle.currentIcon}
+                  <div className="w-12 h-12 rounded-lg bg-[var(--trail-orange-15)] border-2 border-[var(--evergreen)]/20 flex items-center justify-center">
+                    {renderActivityIcon(trailStyle.currentIcon, { size: 32, color: trailStyle.trailColor })}
                   </div>
                   <button
                     onClick={() => setShowIconPicker(true)}
@@ -314,20 +294,20 @@ export function AnnotationsPanel() {
               {t('annotations.selectIcon')}
             </h3>
             <div className="grid grid-cols-6 gap-2 mb-6">
-              {ACTIVITY_ICONS.map(({ icon, labelKey }) => (
+              {ACTIVITY_ICONS.map(({ value, labelKey }) => (
                 <button
-                  key={icon}
-                  onClick={() => { setTrailStyle({ currentIcon: icon }); setShowIconPicker(false); }}
+                  key={value}
+                  onClick={() => { setTrailStyle({ currentIcon: value }); setShowIconPicker(false); }}
                   title={t(labelKey)}
                   className={`
                     flex items-center justify-center p-2 rounded-lg border-2 transition-colors
-                    ${trailStyle.currentIcon === icon
+                    ${trailStyle.currentIcon === value
                       ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
                       : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
                     }
                   `}
                 >
-                  <span className="text-2xl">{icon}</span>
+                  {renderActivityIcon(value, { size: 32, color: trailStyle.trailColor })}
                 </button>
               ))}
             </div>

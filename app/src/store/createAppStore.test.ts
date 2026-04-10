@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAppStore } from './createAppStore';
 import type { GPXTrack, PendingPicturePlacement } from '@/types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 function createTrack(overrides: Partial<GPXTrack> = {}): GPXTrack {
   return {
@@ -70,6 +71,36 @@ describe('createAppStore', () => {
     });
     expect(state.activePanel).toBe('journey');
     expect(state.settings.trailStyle.trailColor).toBe(track.color);
+    expect(state.cameraSettings.followBehindPreset).toBe('close');
+  });
+
+  it('chooses a farther default follow-behind preset for long tracks', () => {
+    const useStore = createAppStore();
+    const longTrack = createTrack({
+      totalDistance: 120000,
+    });
+
+    useStore.getState().addTrack(longTrack);
+
+    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('far');
+  });
+
+  it('does not override the follow-behind preset after the first track import', () => {
+    const useStore = createAppStore();
+    const shortTrack = createTrack({
+      id: 'track-short',
+      totalDistance: 2000,
+    });
+    const secondTrack = createTrack({
+      id: 'track-long',
+      totalDistance: 120000,
+    });
+
+    useStore.getState().addTrack(shortTrack);
+    useStore.getState().setCameraSettings({ followBehindPreset: 'medium' });
+    useStore.getState().addTrack(secondTrack);
+
+    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('medium');
   });
 
   it('keeps manual picture placements queued in upload order until the queue is cleared', () => {
@@ -110,7 +141,7 @@ describe('createAppStore', () => {
 
     const state = useStore.getState();
     expect(state.settings.mapStyle).toBe('esri-clarity');
-    expect(state.settings.trailStyle.currentIcon).toBe('🏃');
+    expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
     expect(state.settings.trailStyle.trackLabel).toBe('Track 1');
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });
