@@ -5,6 +5,7 @@ export const SVG_ACTIVITY_ICON_VALUES = {
   walking: 'svg-walking',
   running: 'svg-running',
   biking: 'svg-biking',
+  swimming: 'svg-swimming',
 } as const;
 
 export const DEFAULT_ACTIVITY_ICON = SVG_ACTIVITY_ICON_VALUES.walking;
@@ -22,6 +23,7 @@ export const ACTIVITY_ICONS: ActivityIconOption[] = [
   { value: SVG_ACTIVITY_ICON_VALUES.walking, labelKey: 'activities.walking', kind: 'svg', content: `${svgIconBasePath}/walking.svg` },
   { value: SVG_ACTIVITY_ICON_VALUES.running, labelKey: 'activities.running', kind: 'svg', content: `${svgIconBasePath}/running.svg` },
   { value: SVG_ACTIVITY_ICON_VALUES.biking, labelKey: 'activities.cycling', kind: 'svg', content: `${svgIconBasePath}/biking.svg` },
+  { value: SVG_ACTIVITY_ICON_VALUES.swimming, labelKey: 'activities.swimming', kind: 'svg', content: `${svgIconBasePath}/swimming.svg` },
   { value: '🏃', labelKey: 'activities.running', kind: 'emoji', content: '🏃' },
   { value: '🏃‍♂️', labelKey: 'activities.runner', kind: 'emoji', content: '🏃‍♂️' },
   { value: '🚴', labelKey: 'activities.cycling', kind: 'emoji', content: '🚴' },
