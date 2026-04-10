@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { GPXTrack, JourneySegment } from '@/types';
 import { buildComputedJourney } from '@/utils/journeyUtils';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 import { projectCoordinateToJourney, projectCoordinateToTrack, projectCoordinateToTracks } from './routeProjection';
 
 function createTrack(points: GPXTrack['points'], totalDistance: number): GPXTrack {
   return {
     id: 'track-1',
     name: 'Sample',
+    activityIcon: DEFAULT_ACTIVITY_ICON,
     points,
     totalDistance,
     totalTime: 0,
