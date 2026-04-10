@@ -200,6 +200,7 @@ export function TrailMap(_props: TrailMapProps) {
     mapRef: map,
     markerRef,
     playbackProgress: playback.progress,
+    segmentTimings,
     setCameraPosition,
     smoothBearingRef,
     targetBearingRef,

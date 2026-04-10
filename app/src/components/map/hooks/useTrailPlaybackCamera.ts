@@ -5,6 +5,7 @@ import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackPr
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { getActivityIconMarkerHtml, isSvgActivityIcon } from '@/utils/activityIcons';
 import { getHeartRateColor } from '@/utils/gpxParser';
+import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import {
   calculateTerrainAwareAdjustments,
   smoothBearing,
@@ -20,7 +21,7 @@ interface UseTrailPlaybackCameraParams {
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
   currentBearing: number;
   currentPosition: { lat: number; lon: number } | null;
-  currentSegment?: { segment: { transportMode?: string } } | null;
+  currentSegment?: { segment: { segmentIndex?: number; transportMode?: string } } | null;
   currentTrackColor: string | null;
   currentTrackName: string | null;
   elevationData: Array<{ elevation: number; progress?: number }>;
@@ -30,6 +31,13 @@ interface UseTrailPlaybackCameraParams {
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
   markerRef: React.MutableRefObject<maplibregl.Marker | null>;
   playbackProgress: number;
+  segmentTimings: Array<{
+    segmentIndex: number;
+    type: 'track' | 'transport';
+    startCoordIndex: number;
+    endCoordIndex: number;
+    color?: string;
+  }>;
   setCameraPosition: (position: {
     lat: number;
     lon: number;
@@ -74,6 +82,7 @@ export function useTrailPlaybackCamera({
   mapRef,
   markerRef,
   playbackProgress,
+  segmentTimings,
   setCameraPosition,
   smoothBearingRef,
   targetBearingRef,
@@ -154,11 +163,28 @@ export function useTrailPlaybackCamera({
           features,
         });
       } else {
-        (mapRef.current.getSource('trail-completed') as maplibregl.GeoJSONSource).setData({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates: completedCoordinates },
+        const completedBaseIndex = Math.max(0, Math.min(allCoordinates.length - 1, completedCoordinates.length - 2));
+        const coloredFeatures = buildSegmentLineFeatures({
+          coordinates: allCoordinates,
+          segmentTimings,
+          fallbackColor: trailStyle.trailColor,
+          maxCoordIndex: completedBaseIndex,
+          partialEndpoint: currentPosition ? [currentPosition.lon, currentPosition.lat] : null,
+          partialSegmentIndex: currentSegment?.segment.segmentIndex ?? null,
         });
+
+        (mapRef.current.getSource('trail-completed') as maplibregl.GeoJSONSource).setData(
+          coloredFeatures.length > 0
+            ? {
+                type: 'FeatureCollection',
+                features: coloredFeatures,
+              }
+            : {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: completedCoordinates },
+              }
+        );
       }
     }
 
@@ -248,6 +274,7 @@ export function useTrailPlaybackCamera({
     mapRef,
     markerRef,
     playbackProgress,
+    segmentTimings,
     setCameraPosition,
     smoothBearingRef,
     targetBearingRef,
