@@ -17,6 +17,7 @@ import {
   getExportOverlayMetrics,
   getOverlayRefreshIntervalMs,
   getPopupOverlayDrawRect,
+  getStatsOverlayDrawRect,
   isDrawableRect,
 } from './exportOverlay';
 
@@ -210,7 +211,27 @@ export function useVideoExportRecorder() {
               allowTaint: true,
             });
             const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, margin, margin, drawWidth, drawHeight);
+            const statsDrawRect = getStatsOverlayDrawRect({
+              captureCanvas: {
+                width: drawWidth,
+                height: drawHeight,
+              },
+              scaleToRecording: 1,
+              recordW,
+              recordH,
+              margin,
+            });
+            overlayContext.drawImage(
+              captureCanvas,
+              0,
+              0,
+              captureCanvas.width,
+              captureCanvas.height,
+              statsDrawRect.drawX,
+              statsDrawRect.drawY,
+              statsDrawRect.drawWidth,
+              statsDrawRect.drawHeight,
+            );
           } catch {
             // Skip overlay when capture fails.
           }

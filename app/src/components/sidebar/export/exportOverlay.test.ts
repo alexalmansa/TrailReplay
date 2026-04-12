@@ -5,6 +5,7 @@ import {
   getExportOverlayMetrics,
   getOverlayRefreshIntervalMs,
   getPopupOverlayDrawRect,
+  getStatsOverlayDrawRect,
   isDrawableRect,
 } from './exportOverlay';
 
@@ -37,6 +38,34 @@ describe('exportOverlay', () => {
     expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.85);
     expect(rect.drawX).toBeGreaterThanOrEqual(0);
     expect(rect.drawY + rect.drawHeight).toBe(1920 - 27);
+  });
+
+  it('centers and constrains the stats overlay for portrait exports', () => {
+    const rect = getStatsOverlayDrawRect({
+      captureCanvas: { width: 920, height: 220 },
+      scaleToRecording: 1,
+      recordW: 1080,
+      recordH: 1920,
+      margin: 27,
+    });
+
+    expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.72);
+    expect(rect.drawX).toBeCloseTo((1080 - rect.drawWidth) / 2);
+    expect(rect.drawY).toBe(27);
+  });
+
+  it('keeps the stats overlay pinned to the top-left for landscape exports', () => {
+    const rect = getStatsOverlayDrawRect({
+      captureCanvas: { width: 520, height: 120 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+    });
+
+    expect(rect.drawX).toBe(48);
+    expect(rect.drawY).toBe(48);
+    expect(rect.drawWidth).toBe(520);
   });
 
   it('maps popup coordinates into the cropped export frame', () => {

@@ -174,17 +174,27 @@ html, body {
 
 /* Stats Overlay */
 .tr-stats-overlay {
-  background: rgba(248, 246, 240, 0.95);
-  border: 2px solid var(--evergreen);
-  border-radius: 8px;
-  padding: 0.85rem 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 246, 240, 0.94));
+  border: 1px solid rgba(27, 42, 32, 0.18);
+  border-radius: 16px;
+  padding: 0.8rem 0.85rem;
   font-family: var(--font-family-primary);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 14px 30px rgba(27, 42, 32, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.55rem 0.7rem;
+  padding: 0.6rem 0.65rem;
   border-width: 1px;
-  border-radius: 10px;
+  border-radius: 18px;
+}
+
+.tr-stats-overlay--narrow {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(248, 246, 240, 0.96));
 }
 
 .tr-stat-item {
@@ -485,11 +495,11 @@ html, body {
   }
   
   .tr-stats-overlay {
-    padding: 0.6rem 0.7rem;
+    padding: 0.65rem 0.7rem;
     font-size: 0.875rem;
   }
 
   .tr-stats-overlay--compact {
-    padding: 0.5rem 0.6rem;
+    padding: 0.55rem 0.6rem;
   }
 }
