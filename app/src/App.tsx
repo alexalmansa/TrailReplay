@@ -32,6 +32,11 @@ function isNarrowFrame(width: number, height: number) {
   return width <= height || width < 560;
 }
 
+function getAutoPlaybackAnnotationDuration(displayDuration: number | undefined) {
+  const resolvedDuration = displayDuration ?? 3500;
+  return Math.max(1000, Math.min(resolvedDuration, 1800));
+}
+
 function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -238,7 +243,7 @@ function App() {
     }
 
     const activeAnnotation = textAnnotations.find((annotation) => annotation.id === autoPlaybackTextAnnotationId);
-    const displayDuration = Math.max(1500, activeAnnotation?.displayDuration ?? 3500);
+    const displayDuration = getAutoPlaybackAnnotationDuration(activeAnnotation?.displayDuration);
 
     clearPendingAutoTextAnnotationClose();
     pendingAutoTextAnnotationCloseRef.current = window.setTimeout(() => {
