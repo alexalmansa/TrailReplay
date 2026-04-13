@@ -194,6 +194,8 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   const isExportPreview = isExporting || activePanel === 'export';
   const isNonWideExportPreview = isExportPreview && exportAspectRatio !== '16:9';
   const labelOverflowPadding = isNonWideExportPreview ? 24 : 18;
+  const markerPercent = (markerX / svgWidth) * 100;
+  const labelLeftOffset = labelOverflowPadding - ((2 * labelOverflowPadding * markerPercent) / 100);
   const exportProfileStyle = exportFrame
     ? {
         left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
@@ -209,16 +211,14 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   return (
     <div
       className={`absolute z-20 ${className}`}
-      style={exportProfileStyle}
+      style={{
+        ...exportProfileStyle,
+        paddingLeft: labelOverflowPadding,
+        paddingRight: labelOverflowPadding,
+      }}
       id="mapElevationProfile"
     >
-      <div
-        className="relative"
-        style={{
-          marginLeft: labelOverflowPadding,
-          marginRight: labelOverflowPadding,
-        }}
-      >
+      <div className="relative">
         {/* SVG Profile */}
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -296,7 +296,7 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
                 : 'bottom-1 text-[10px] px-1.5 py-0.5'
             }`}
             style={{
-              left: `${(markerX / svgWidth) * 100}%`,
+              left: `calc(${markerPercent}% + ${labelLeftOffset}px)`,
               backgroundColor: currentColor,
             }}
           >
