@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { convertElevation } from '@/utils/units';
-import { Eye, EyeOff, MapPinned, Play, Plus, Trash2 } from 'lucide-react';
+import { MapPinned, Play, Plus, Trash2 } from 'lucide-react';
 
 const DEFAULT_ANNOTATION_DURATION = 4000;
 const DEFAULT_ANNOTATION_COLOR = '#f3b133';
@@ -14,12 +14,10 @@ export function RouteAnnotationsEditor() {
   const playback = useAppStore((state) => state.playback);
   const unitSystem = useAppStore((state) => state.settings.unitSystem);
   const textAnnotations = useAppStore((state) => state.textAnnotations);
-  const selectedTextAnnotationId = useAppStore((state) => state.selectedTextAnnotationId);
   const addTextAnnotation = useAppStore((state) => state.addTextAnnotation);
   const updateTextAnnotation = useAppStore((state) => state.updateTextAnnotation);
   const removeTextAnnotation = useAppStore((state) => state.removeTextAnnotation);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
-  const setSelectedTextAnnotationId = useAppStore((state) => state.setSelectedTextAnnotationId);
 
   const [draftAnnotationTitle, setDraftAnnotationTitle] = useState('');
   const [draftAnnotationSubtitle, setDraftAnnotationSubtitle] = useState('');
@@ -43,7 +41,6 @@ export function RouteAnnotationsEditor() {
       elevation: currentPosition.elevation > 0 ? currentPosition.elevation : undefined,
       displayDuration: DEFAULT_ANNOTATION_DURATION,
     });
-    setSelectedTextAnnotationId(annotationId);
     setDraftAnnotationTitle('');
     setDraftAnnotationSubtitle('');
   };
@@ -142,7 +139,6 @@ export function RouteAnnotationsEditor() {
             .slice()
             .sort((a, b) => a.progress - b.progress)
             .map((annotation) => {
-              const isSelected = selectedTextAnnotationId === annotation.id;
               const annotationElevation = annotation.elevation !== undefined
                 ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
                 : null;
@@ -150,11 +146,7 @@ export function RouteAnnotationsEditor() {
               return (
                 <div
                   key={annotation.id}
-                  className={`space-y-3 rounded-lg border p-3 ${
-                    isSelected
-                      ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
-                      : 'border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3'
-                  }`}
+                  className="space-y-3 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3"
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -213,15 +205,6 @@ export function RouteAnnotationsEditor() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedTextAnnotationId(isSelected ? null : annotation.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/70 px-3 py-2 text-sm text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10"
-                    >
-                      {isSelected ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      {isSelected ? t('annotations.hideRouteAnnotation') : t('annotations.previewRouteAnnotation')}
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => seekToProgress(annotation.progress)}
                       className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/70 px-3 py-2 text-sm text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10"
                     >
@@ -230,7 +213,7 @@ export function RouteAnnotationsEditor() {
                     </button>
 
                     <label className="flex items-center gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/70 px-3 py-2 text-xs font-medium text-[var(--evergreen-60)]">
-                      <span className="whitespace-nowrap">{t('annotations.annotationDurationShort')}</span>
+                      <span className="whitespace-nowrap">{t('annotations.annotationLeadTimeShort')}</span>
                       <input
                         type="number"
                         min="1"
@@ -241,7 +224,7 @@ export function RouteAnnotationsEditor() {
                           updateTextAnnotation(annotation.id, { displayDuration: value * 1000 });
                         }}
                         className="min-w-0 flex-1 rounded-md border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-2 py-1.5 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
-                        title={t('annotations.annotationDuration')}
+                        title={t('annotations.annotationLeadTime')}
                       />
                     </label>
 

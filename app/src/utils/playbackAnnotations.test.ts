@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TextAnnotation } from '@/types';
-import { getTriggeredPlaybackAnnotations } from './playbackAnnotations';
+import { getActivePlaybackAnnotationId } from './playbackAnnotations';
 
 function createAnnotation(id: string, progress: number): TextAnnotation {
   return {
@@ -14,58 +14,63 @@ function createAnnotation(id: string, progress: number): TextAnnotation {
   };
 }
 
-describe('getTriggeredPlaybackAnnotations', () => {
-  it('returns annotations crossed between previous and current progress', () => {
+describe('getActivePlaybackAnnotationId', () => {
+  it('shows an annotation for the configured lead time before arrival', () => {
     const annotations = [
-      createAnnotation('a', 0.2),
-      createAnnotation('b', 0.45),
-      createAnnotation('c', 0.7),
+      { ...createAnnotation('a', 0.2), displayDuration: 800 },
+      { ...createAnnotation('b', 0.45), displayDuration: 900 },
+      { ...createAnnotation('c', 0.7), displayDuration: 1_000 },
     ];
 
-    const result = getTriggeredPlaybackAnnotations({
+    const result = getActivePlaybackAnnotationId({
       annotations,
-      previousProgress: 0.3,
-      currentProgress: 0.5,
-      shownAnnotationIds: new Set(),
-      queuedAnnotationIds: [],
+      currentTime: 4_200,
+      totalDuration: 10_000,
     });
 
-    expect(result.map((annotation) => annotation.id)).toEqual(['b']);
+    expect(result).toBe('b');
   });
 
-  it('skips shown and queued annotations', () => {
+  it('hides the annotation immediately after the marker passes it', () => {
     const annotations = [
-      createAnnotation('a', 0.2),
-      createAnnotation('b', 0.21),
-      createAnnotation('c', 0.22),
+      createAnnotation('a', 0.45),
     ];
 
-    const result = getTriggeredPlaybackAnnotations({
+    const result = getActivePlaybackAnnotationId({
       annotations,
-      previousProgress: 0.19,
-      currentProgress: 0.23,
-      shownAnnotationIds: new Set(['a']),
-      queuedAnnotationIds: ['b'],
+      currentTime: 4_501,
+      totalDuration: 10_000,
     });
 
-    expect(result.map((annotation) => annotation.id)).toEqual(['c']);
+    expect(result).toBeNull();
   });
 
-  it('returns annotations in progress order', () => {
+  it('clamps the visible window to the start of playback', () => {
     const annotations = [
-      createAnnotation('c', 0.32),
-      createAnnotation('a', 0.3),
-      createAnnotation('b', 0.31),
+      createAnnotation('a', 0.1),
     ];
 
-    const result = getTriggeredPlaybackAnnotations({
+    const result = getActivePlaybackAnnotationId({
       annotations,
-      previousProgress: 0.29,
-      currentProgress: 0.33,
-      shownAnnotationIds: new Set(),
-      queuedAnnotationIds: [],
+      currentTime: 300,
+      totalDuration: 10_000,
     });
 
-    expect(result.map((annotation) => annotation.id)).toEqual(['a', 'b', 'c']);
+    expect(result).toBe('a');
+  });
+
+  it('keeps the earliest active annotation when windows overlap', () => {
+    const annotations = [
+      { ...createAnnotation('a', 0.4), displayDuration: 2_000 },
+      { ...createAnnotation('b', 0.45), displayDuration: 2_000 },
+    ];
+
+    const result = getActivePlaybackAnnotationId({
+      annotations,
+      currentTime: 3_900,
+      totalDuration: 10_000,
+    });
+
+    expect(result).toBe('a');
   });
 });

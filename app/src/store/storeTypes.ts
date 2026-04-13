@@ -45,7 +45,6 @@ export interface AppState {
   isLoading: boolean;
   error: string | null;
   selectedPictureId: string | null;
-  selectedTextAnnotationId: string | null;
   cameraPosition: { lat: number; lon: number; zoom: number; pitch: number; bearing: number } | null;
   addTrack: (track: GPXTrack) => void;
   removeTrack: (trackId: string) => void;
@@ -111,6 +110,5 @@ export interface AppState {
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setSelectedPictureId: (pictureId: string | null) => void;
-  setSelectedTextAnnotationId: (annotationId: string | null) => void;
   reset: () => void;
 }

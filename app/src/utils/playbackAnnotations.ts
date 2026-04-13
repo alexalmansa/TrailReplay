@@ -1,34 +1,27 @@
 import type { TextAnnotation } from '@/types';
 
-export const PLAYBACK_ANNOTATION_PROGRESS_EPSILON = 0.005;
-
-export function getTriggeredPlaybackAnnotations(params: {
+export function getActivePlaybackAnnotationId(params: {
   annotations: TextAnnotation[];
-  previousProgress: number;
-  currentProgress: number;
-  shownAnnotationIds: ReadonlySet<string>;
-  queuedAnnotationIds: readonly string[];
-  progressEpsilon?: number;
+  currentTime: number;
+  totalDuration: number;
 }) {
-  const {
-    annotations,
-    previousProgress,
-    currentProgress,
-    shownAnnotationIds,
-    queuedAnnotationIds,
-    progressEpsilon = PLAYBACK_ANNOTATION_PROGRESS_EPSILON,
-  } = params;
+  const { annotations, currentTime, totalDuration } = params;
 
-  const lowerBound = Math.max(0, previousProgress - progressEpsilon);
-  const upperBound = Math.min(1, currentProgress + progressEpsilon);
-  const queuedIds = new Set(queuedAnnotationIds);
+  if (totalDuration <= 0 || annotations.length === 0) {
+    return null;
+  }
 
-  return annotations
-    .filter((annotation) => (
-      !shownAnnotationIds.has(annotation.id)
-      && !queuedIds.has(annotation.id)
-      && annotation.progress >= lowerBound
-      && annotation.progress <= upperBound
-    ))
-    .sort((a, b) => a.progress - b.progress);
+  const sortedAnnotations = [...annotations].sort((a, b) => a.progress - b.progress);
+
+  for (const annotation of sortedAnnotations) {
+    const arrivalTime = annotation.progress * totalDuration;
+    const leadTime = Math.max(0, annotation.displayDuration);
+    const windowStart = Math.max(0, arrivalTime - leadTime);
+
+    if (currentTime >= windowStart && currentTime <= arrivalTime) {
+      return annotation.id;
+    }
+  }
+
+  return null;
 }

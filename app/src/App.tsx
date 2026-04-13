@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { AppHeader } from '@/components/app/AppHeader';
@@ -17,7 +17,7 @@ import {
   getTriggeredPlaybackPictures,
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
-import { getTriggeredPlaybackAnnotations } from '@/utils/playbackAnnotations';
+import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -32,11 +32,6 @@ function isNarrowFrame(width: number, height: number) {
   return width <= height || width < 560;
 }
 
-function getAutoPlaybackAnnotationDuration(displayDuration: number | undefined) {
-  const resolvedDuration = displayDuration ?? 3500;
-  return Math.max(1000, Math.min(resolvedDuration, 1800));
-}
-
 function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,15 +43,11 @@ function App() {
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
   );
   const [exportCropMetrics, setExportCropMetrics] = useState<CropPreviewMetrics | null>(null);
-  const [autoPlaybackTextAnnotationId, setAutoPlaybackTextAnnotationId] = useState<string | null>(null);
   const shownPlaybackPictureIdsRef = useRef<Set<string>>(new Set());
   const queuedPlaybackPictureIdsRef = useRef<string[]>([]);
-  const shownPlaybackTextAnnotationIdsRef = useRef<Set<string>>(new Set());
-  const queuedPlaybackTextAnnotationIdsRef = useRef<string[]>([]);
   const lastPlaybackProgressRef = useRef(0);
   const resumePlaybackAfterPictureQueueRef = useRef(false);
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
-  const pendingAutoTextAnnotationCloseRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -72,7 +63,6 @@ function App() {
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
-  const selectedTextAnnotationId = useAppStore((state) => state.selectedTextAnnotationId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
   const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
@@ -109,13 +99,6 @@ function App() {
     }, 0);
   }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
 
-  const clearPendingAutoTextAnnotationClose = useCallback(() => {
-    if (pendingAutoTextAnnotationCloseRef.current !== null) {
-      window.clearTimeout(pendingAutoTextAnnotationCloseRef.current);
-      pendingAutoTextAnnotationCloseRef.current = null;
-    }
-  }, []);
-  
   // Show error toast
   useEffect(() => {
     if (error) {
@@ -220,40 +203,16 @@ function App() {
   useEffect(() => {
     shownPlaybackPictureIdsRef.current.clear();
     queuedPlaybackPictureIdsRef.current = [];
-    shownPlaybackTextAnnotationIdsRef.current.clear();
-    queuedPlaybackTextAnnotationIdsRef.current = [];
     resumePlaybackAfterPictureQueueRef.current = false;
     clearPendingQueuedPictureOpen();
-    clearPendingAutoTextAnnotationClose();
-    setAutoPlaybackTextAnnotationId(null);
     lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
-  }, [clearPendingAutoTextAnnotationClose, clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
+  }, [clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
 
   useEffect(() => {
     return () => {
       clearPendingQueuedPictureOpen();
-      clearPendingAutoTextAnnotationClose();
     };
-  }, [clearPendingAutoTextAnnotationClose, clearPendingQueuedPictureOpen]);
-
-  useEffect(() => {
-    if (!autoPlaybackTextAnnotationId) {
-      clearPendingAutoTextAnnotationClose();
-      return;
-    }
-
-    const activeAnnotation = textAnnotations.find((annotation) => annotation.id === autoPlaybackTextAnnotationId);
-    const displayDuration = getAutoPlaybackAnnotationDuration(activeAnnotation?.displayDuration);
-
-    clearPendingAutoTextAnnotationClose();
-    pendingAutoTextAnnotationCloseRef.current = window.setTimeout(() => {
-      pendingAutoTextAnnotationCloseRef.current = null;
-      const nextAnnotationId = queuedPlaybackTextAnnotationIdsRef.current.shift() ?? null;
-      setAutoPlaybackTextAnnotationId(nextAnnotationId);
-    }, displayDuration);
-
-    return clearPendingAutoTextAnnotationClose;
-  }, [autoPlaybackTextAnnotationId, clearPendingAutoTextAnnotationClose, textAnnotations]);
+  }, [clearPendingQueuedPictureOpen]);
 
   useEffect(() => {
     const currentProgress = playback.progress;
@@ -262,12 +221,8 @@ function App() {
     if (hasPlaybackProgressRewound(previousProgress, currentProgress)) {
       shownPlaybackPictureIdsRef.current.clear();
       queuedPlaybackPictureIdsRef.current = [];
-      shownPlaybackTextAnnotationIdsRef.current.clear();
-      queuedPlaybackTextAnnotationIdsRef.current = [];
       resumePlaybackAfterPictureQueueRef.current = false;
       clearPendingQueuedPictureOpen();
-      clearPendingAutoTextAnnotationClose();
-      setAutoPlaybackTextAnnotationId(null);
     }
 
     if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
@@ -292,34 +247,9 @@ function App() {
       }
     }
 
-    if (playback.isPlaying && textAnnotations.length > 0) {
-      const triggeredAnnotations = getTriggeredPlaybackAnnotations({
-        annotations: textAnnotations,
-        previousProgress,
-        currentProgress,
-        shownAnnotationIds: shownPlaybackTextAnnotationIdsRef.current,
-        queuedAnnotationIds: queuedPlaybackTextAnnotationIdsRef.current,
-      });
-
-      if (triggeredAnnotations.length > 0) {
-        triggeredAnnotations.forEach((annotation) => {
-          shownPlaybackTextAnnotationIdsRef.current.add(annotation.id);
-        });
-
-        queuedPlaybackTextAnnotationIdsRef.current.push(...triggeredAnnotations.map((annotation) => annotation.id));
-
-        if (!selectedTextAnnotationId && !autoPlaybackTextAnnotationId) {
-          const nextAnnotationId = queuedPlaybackTextAnnotationIdsRef.current.shift() ?? null;
-          setAutoPlaybackTextAnnotationId(nextAnnotationId);
-        }
-      }
-    }
-
     lastPlaybackProgressRef.current = currentProgress;
   }, [
     autoPlaybackPictureId,
-    autoPlaybackTextAnnotationId,
-    clearPendingAutoTextAnnotationClose,
     clearPendingQueuedPictureOpen,
     pause,
     pictures,
@@ -327,8 +257,6 @@ function App() {
     playback.progress,
     scheduleNextQueuedPlaybackPicture,
     selectedPictureId,
-    selectedTextAnnotationId,
-    textAnnotations,
   ]);
 
   const closeActivePicture = useCallback(() => {
@@ -362,7 +290,11 @@ function App() {
     ? pictures.find((p) => p.id === autoPlaybackPictureId)
     : undefined;
   const activePicture = selectedPicture || autoPlaybackPicture;
-  const activeTextAnnotationId = selectedTextAnnotationId || autoPlaybackTextAnnotationId;
+  const activeTextAnnotationId = useMemo(() => getActivePlaybackAnnotationId({
+    annotations: textAnnotations,
+    currentTime: playback.currentTime,
+    totalDuration: playback.totalDuration,
+  }), [playback.currentTime, playback.totalDuration, textAnnotations]);
   const activePendingPicturePlacement = pendingPicturePlacements[0];
   
   const hasTracks = tracks.length > 0;

@@ -48,7 +48,6 @@ export function TrailMap(_props: TrailMapProps) {
   const animationPhase = useAppStore((state) => state.animationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
-  const setSelectedTextAnnotationId = useAppStore((state) => state.setSelectedTextAnnotationId);
   const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -118,7 +117,6 @@ export function TrailMap(_props: TrailMapProps) {
     annotations: textAnnotations,
     isMapLoaded,
     mapRef: map,
-    setSelectedTextAnnotationId,
     unitSystem: settings.unitSystem,
   });
 

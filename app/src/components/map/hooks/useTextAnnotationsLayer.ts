@@ -179,7 +179,6 @@ interface UseTextAnnotationsLayerParams {
   annotations: TextAnnotation[];
   isMapLoaded: boolean;
   mapRef: MutableRefObject<maplibregl.Map | null>;
-  setSelectedTextAnnotationId: (annotationId: string | null) => void;
   unitSystem: UnitSystem;
 }
 
@@ -188,7 +187,6 @@ export function useTextAnnotationsLayer({
   annotations,
   isMapLoaded,
   mapRef,
-  setSelectedTextAnnotationId,
   unitSystem,
 }: UseTextAnnotationsLayerParams) {
   useEffect(() => {
@@ -290,42 +288,13 @@ export function useTextAnnotationsLayer({
       }
     }
 
-    const handleMarkerClick = (event: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-      const annotationId = event.features?.[0]?.properties?.id;
-      if (typeof annotationId === 'string') {
-        setSelectedTextAnnotationId(annotationId);
-      }
-    };
-
-    const setPointerCursor = () => {
-      map.getCanvas().style.cursor = 'pointer';
-    };
-
-    const resetCursor = () => {
-      map.getCanvas().style.cursor = '';
-    };
-
-    map.on('click', MARKER_LAYER_ID, handleMarkerClick);
-    map.on('click', CARD_LAYER_ID, handleMarkerClick);
-    map.on('mouseenter', MARKER_LAYER_ID, setPointerCursor);
-    map.on('mouseenter', CARD_LAYER_ID, setPointerCursor);
-    map.on('mouseleave', MARKER_LAYER_ID, resetCursor);
-    map.on('mouseleave', CARD_LAYER_ID, resetCursor);
-
     return () => {
-      map.off('click', MARKER_LAYER_ID, handleMarkerClick);
-      map.off('click', CARD_LAYER_ID, handleMarkerClick);
-      map.off('mouseenter', MARKER_LAYER_ID, setPointerCursor);
-      map.off('mouseenter', CARD_LAYER_ID, setPointerCursor);
-      map.off('mouseleave', MARKER_LAYER_ID, resetCursor);
-      map.off('mouseleave', CARD_LAYER_ID, resetCursor);
     };
   }, [
     activeAnnotationId,
     annotations,
     isMapLoaded,
     mapRef,
-    setSelectedTextAnnotationId,
     unitSystem,
   ]);
 }
