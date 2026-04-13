@@ -46,6 +46,31 @@ export function getCapturedCanvasDrawSize(
   };
 }
 
+export function getStatsOverlayDrawRect(params: {
+  captureCanvas: Size;
+  scaleToRecording: number;
+  recordW: number;
+  recordH: number;
+  margin: number;
+}) {
+  const rawWidth = params.captureCanvas.width * params.scaleToRecording;
+  const isNarrowFrame = params.recordW <= params.recordH;
+  const maxWidth = Math.min(
+    rawWidth,
+    params.recordW - (params.margin * 2),
+    params.recordW * (isNarrowFrame ? 0.56 : 0.28),
+  );
+  const drawWidth = Math.max(0, maxWidth);
+  const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);
+
+  return {
+    drawX: isNarrowFrame ? (params.recordW - drawWidth) / 2 : params.margin,
+    drawY: params.margin,
+    drawWidth,
+    drawHeight,
+  };
+}
+
 export function getElevationOverlayDrawRect(params: {
   captureCanvas: Size;
   scaleToRecording: number;

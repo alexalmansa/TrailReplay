@@ -174,17 +174,30 @@ html, body {
 
 /* Stats Overlay */
 .tr-stats-overlay {
-  background: rgba(248, 246, 240, 0.95);
-  border: 2px solid var(--evergreen);
-  border-radius: 8px;
-  padding: 0.85rem 0.95rem;
+  background: rgba(9, 14, 19, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 0.8rem 0.9rem;
   font-family: var(--font-family-primary);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.55rem 0.7rem;
+  padding: 0.6rem 0.65rem;
   border-width: 1px;
-  border-radius: 10px;
+  border-radius: 18px;
+}
+
+.tr-stats-overlay--narrow {
+  background: rgba(9, 14, 19, 0.88);
+}
+
+.tr-stats-overlay--export {
+  background: rgba(9, 14, 19, 0.88);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22);
+  padding: 0.45rem 0.55rem;
 }
 
 .tr-stat-item {
@@ -195,7 +208,7 @@ html, body {
 
 .tr-stat-value {
   font-weight: 700;
-  color: var(--trail-orange);
+  color: white;
   font-size: inherit;
 }
 
@@ -485,11 +498,11 @@ html, body {
   }
   
   .tr-stats-overlay {
-    padding: 0.6rem 0.7rem;
+    padding: 0.65rem 0.7rem;
     font-size: 0.875rem;
   }
 
   .tr-stats-overlay--compact {
-    padding: 0.5rem 0.6rem;
+    padding: 0.55rem 0.6rem;
   }
 }

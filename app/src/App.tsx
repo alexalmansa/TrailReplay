@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { AppHeader } from '@/components/app/AppHeader';
@@ -25,6 +25,10 @@ const TrailMap = lazy(() => import('@/components/map/TrailMap').then((module) =>
 
 function SidebarFallback() {
   return <div className="h-full bg-[var(--canvas)]" />;
+}
+
+function isNarrowFrame(width: number, height: number) {
+  return width <= height || width < 560;
 }
 
 function App() {
@@ -151,6 +155,48 @@ function App() {
   const activeExportCropMetrics = activePanel === 'export' || isExporting
     ? exportCropMetrics
     : null;
+  const statsShouldUseNarrowLayout = activeExportCropMetrics
+    ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
+    : isNarrowScreen;
+
+  const statsOverlayStyle = (() => {
+    if (activeExportCropMetrics) {
+      const { frameLeft, frameTop, frameWidth, frameHeight } = activeExportCropMetrics;
+      const narrowFrame = isNarrowFrame(frameWidth, frameHeight);
+
+      if (narrowFrame) {
+        return {
+          top: frameTop + 14,
+          left: frameLeft + (frameWidth / 2),
+          width: Math.max(frameWidth - 24, 0),
+          maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
+          transform: 'translateX(-50%)',
+        } satisfies CSSProperties;
+      }
+
+      return {
+        top: frameTop + 16,
+        left: frameLeft + 16,
+        width: Math.max(frameWidth - 32, 0),
+        maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
+      } satisfies CSSProperties;
+    }
+
+    if (isNarrowScreen) {
+      return {
+        top: 12,
+        left: '50%',
+        width: 'min(calc(100% - 24px), 312px)',
+        transform: 'translateX(-50%)',
+      } satisfies CSSProperties;
+    }
+
+    return {
+      top: 16,
+      left: 16,
+      width: 'min(calc(100% - 32px), 408px)',
+    } satisfies CSSProperties;
+  })();
 
   useEffect(() => {
     shownPlaybackPictureIdsRef.current.clear();
@@ -293,7 +339,11 @@ function App() {
               className="flex-1 relative"
             >
               <Suspense fallback={<AppLoadingOverlay />}>
-                <TrailMap mapContainerRef={mapContainerRef} onReadyChange={setIsMapReady} />
+                <TrailMap
+                  mapContainerRef={mapContainerRef}
+                  onReadyChange={setIsMapReady}
+                  exportFrame={activeExportCropMetrics}
+                />
               </Suspense>
 
               {!isMapReady && <AppLoadingOverlay />}
@@ -305,8 +355,14 @@ function App() {
 
               {/* Stats Overlay */}
               {hasTracks && (
-                <div className="absolute top-4 left-4 z-10">
-                  <StatsOverlay />
+                <div
+                  className="absolute z-10 pointer-events-none"
+                  style={statsOverlayStyle}
+                >
+                  <StatsOverlay
+                    layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
+                    variant={activeExportCropMetrics ? 'export' : 'default'}
+                  />
                 </div>
               )}
 
