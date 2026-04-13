@@ -194,8 +194,6 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   const isExportPreview = isExporting || activePanel === 'export';
   const isNonWideExportPreview = isExportPreview && exportAspectRatio !== '16:9';
   const labelOverflowPadding = isNonWideExportPreview ? 24 : 18;
-  const markerPercent = (markerX / svgWidth) * 100;
-  const labelLeftOffset = labelOverflowPadding - ((2 * labelOverflowPadding * markerPercent) / 100);
   const exportProfileStyle = exportFrame
     ? {
         left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
@@ -211,14 +209,16 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   return (
     <div
       className={`absolute z-20 ${className}`}
-      style={{
-        ...exportProfileStyle,
-        paddingLeft: labelOverflowPadding,
-        paddingRight: labelOverflowPadding,
-      }}
+      style={exportProfileStyle}
       id="mapElevationProfile"
     >
-      <div className="relative">
+      <div
+        className="relative"
+        style={{
+          marginLeft: labelOverflowPadding,
+          marginRight: labelOverflowPadding,
+        }}
+      >
         {/* SVG Profile */}
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
@@ -290,13 +290,13 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
         {/* Current elevation label - follows the progress, aligned to bottom */}
         {playback.progress > 0 && (
           <div
-            className={`absolute transform -translate-x-1/2 text-[var(--canvas)] font-bold rounded whitespace-nowrap ${
+            className={`absolute flex items-center justify-center transform -translate-x-1/2 text-[var(--canvas)] font-bold rounded whitespace-nowrap ${
               isNonWideExportPreview
                 ? 'bottom-1.5 text-[15px] leading-none px-2.5 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.26)]'
-                : 'bottom-1 text-[10px] px-1.5 py-0.5'
+                : 'bottom-1 text-[10px] leading-none px-1.5 py-0.5'
             }`}
             style={{
-              left: `calc(${markerPercent}% + ${labelLeftOffset}px)`,
+              left: `${(markerX / svgWidth) * 100}%`,
               backgroundColor: currentColor,
             }}
           >
