@@ -125,8 +125,13 @@ export interface IconChange {
 export interface TextAnnotation {
   id: string;
   progress: number;
-  text: string;
-  icon?: string;
+  lat: number;
+  lon: number;
+  label: string;
+  title: string;
+  subtitle?: string;
+  elevation?: number;
+  displayDuration: number;
 }
 
 export interface PlaybackState {

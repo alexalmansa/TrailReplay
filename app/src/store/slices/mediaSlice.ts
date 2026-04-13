@@ -9,6 +9,7 @@ type MediaSlice = Pick<
   | 'iconChanges'
   | 'textAnnotations'
   | 'selectedPictureId'
+  | 'selectedTextAnnotationId'
   | 'addPicture'
   | 'queuePendingPicturePlacement'
   | 'removePendingPicturePlacement'
@@ -23,8 +24,10 @@ type MediaSlice = Pick<
   | 'removeIconChange'
   | 'updateIconChangePosition'
   | 'addTextAnnotation'
+  | 'updateTextAnnotation'
   | 'removeTextAnnotation'
   | 'setSelectedPictureId'
+  | 'setSelectedTextAnnotationId'
 >;
 
 export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
@@ -34,6 +37,7 @@ export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
   iconChanges: [],
   textAnnotations: [],
   selectedPictureId: null,
+  selectedTextAnnotationId: null,
 
   addPicture: (picture) =>
     set((state) => {
@@ -118,13 +122,29 @@ export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
       state.textAnnotations.push(annotation);
     }),
 
+  updateTextAnnotation: (annotationId, updates) =>
+    set((state) => {
+      const annotation = state.textAnnotations.find((entry) => entry.id === annotationId);
+      if (!annotation) return;
+
+      Object.assign(annotation, updates);
+    }),
+
   removeTextAnnotation: (annotationId) =>
     set((state) => {
       state.textAnnotations = state.textAnnotations.filter((annotation) => annotation.id !== annotationId);
+      if (state.selectedTextAnnotationId === annotationId) {
+        state.selectedTextAnnotationId = null;
+      }
     }),
 
   setSelectedPictureId: (pictureId) =>
     set((state) => {
       state.selectedPictureId = pictureId;
+    }),
+
+  setSelectedTextAnnotationId: (annotationId) =>
+    set((state) => {
+      state.selectedTextAnnotationId = annotationId;
     }),
 });

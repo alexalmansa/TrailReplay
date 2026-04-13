@@ -17,6 +17,7 @@ import {
   getTriggeredPlaybackPictures,
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
+import { getTriggeredPlaybackAnnotations } from '@/utils/playbackAnnotations';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -42,11 +43,15 @@ function App() {
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
   );
   const [exportCropMetrics, setExportCropMetrics] = useState<CropPreviewMetrics | null>(null);
+  const [autoPlaybackTextAnnotationId, setAutoPlaybackTextAnnotationId] = useState<string | null>(null);
   const shownPlaybackPictureIdsRef = useRef<Set<string>>(new Set());
   const queuedPlaybackPictureIdsRef = useRef<string[]>([]);
+  const shownPlaybackTextAnnotationIdsRef = useRef<Set<string>>(new Set());
+  const queuedPlaybackTextAnnotationIdsRef = useRef<string[]>([]);
   const lastPlaybackProgressRef = useRef(0);
   const resumePlaybackAfterPictureQueueRef = useRef(false);
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
+  const pendingAutoTextAnnotationCloseRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
   const tracks = useAppStore((state) => state.tracks);
@@ -56,11 +61,13 @@ function App() {
   const setExploreMode = useAppStore((state) => state.setExploreMode);
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
+  const selectedTextAnnotationId = useAppStore((state) => state.selectedTextAnnotationId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
   const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
@@ -96,6 +103,13 @@ function App() {
       openNextQueuedPlaybackPicture();
     }, 0);
   }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
+
+  const clearPendingAutoTextAnnotationClose = useCallback(() => {
+    if (pendingAutoTextAnnotationCloseRef.current !== null) {
+      window.clearTimeout(pendingAutoTextAnnotationCloseRef.current);
+      pendingAutoTextAnnotationCloseRef.current = null;
+    }
+  }, []);
   
   // Show error toast
   useEffect(() => {
@@ -201,16 +215,40 @@ function App() {
   useEffect(() => {
     shownPlaybackPictureIdsRef.current.clear();
     queuedPlaybackPictureIdsRef.current = [];
+    shownPlaybackTextAnnotationIdsRef.current.clear();
+    queuedPlaybackTextAnnotationIdsRef.current = [];
     resumePlaybackAfterPictureQueueRef.current = false;
     clearPendingQueuedPictureOpen();
+    clearPendingAutoTextAnnotationClose();
+    setAutoPlaybackTextAnnotationId(null);
     lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
-  }, [clearPendingQueuedPictureOpen, pictures, tracks]);
+  }, [clearPendingAutoTextAnnotationClose, clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
 
   useEffect(() => {
     return () => {
       clearPendingQueuedPictureOpen();
+      clearPendingAutoTextAnnotationClose();
     };
-  }, [clearPendingQueuedPictureOpen]);
+  }, [clearPendingAutoTextAnnotationClose, clearPendingQueuedPictureOpen]);
+
+  useEffect(() => {
+    if (!autoPlaybackTextAnnotationId) {
+      clearPendingAutoTextAnnotationClose();
+      return;
+    }
+
+    const activeAnnotation = textAnnotations.find((annotation) => annotation.id === autoPlaybackTextAnnotationId);
+    const displayDuration = Math.max(1500, activeAnnotation?.displayDuration ?? 3500);
+
+    clearPendingAutoTextAnnotationClose();
+    pendingAutoTextAnnotationCloseRef.current = window.setTimeout(() => {
+      pendingAutoTextAnnotationCloseRef.current = null;
+      const nextAnnotationId = queuedPlaybackTextAnnotationIdsRef.current.shift() ?? null;
+      setAutoPlaybackTextAnnotationId(nextAnnotationId);
+    }, displayDuration);
+
+    return clearPendingAutoTextAnnotationClose;
+  }, [autoPlaybackTextAnnotationId, clearPendingAutoTextAnnotationClose, textAnnotations]);
 
   useEffect(() => {
     const currentProgress = playback.progress;
@@ -219,36 +257,64 @@ function App() {
     if (hasPlaybackProgressRewound(previousProgress, currentProgress)) {
       shownPlaybackPictureIdsRef.current.clear();
       queuedPlaybackPictureIdsRef.current = [];
+      shownPlaybackTextAnnotationIdsRef.current.clear();
+      queuedPlaybackTextAnnotationIdsRef.current = [];
       resumePlaybackAfterPictureQueueRef.current = false;
       clearPendingQueuedPictureOpen();
+      clearPendingAutoTextAnnotationClose();
+      setAutoPlaybackTextAnnotationId(null);
     }
 
     if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
       lastPlaybackProgressRef.current = currentProgress;
-      return;
+    } else {
+      const triggeredPictures = getTriggeredPlaybackPictures({
+        pictures,
+        previousProgress,
+        currentProgress,
+        shownPictureIds: shownPlaybackPictureIdsRef.current,
+        queuedPictureIds: queuedPlaybackPictureIdsRef.current,
+      });
+
+      if (triggeredPictures.length > 0) {
+        triggeredPictures.forEach((picture) => {
+          shownPlaybackPictureIdsRef.current.add(picture.id);
+        });
+        queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
+        resumePlaybackAfterPictureQueueRef.current = true;
+        pause();
+        scheduleNextQueuedPlaybackPicture();
+      }
     }
 
-    const triggeredPictures = getTriggeredPlaybackPictures({
-      pictures,
-      previousProgress,
-      currentProgress,
-      shownPictureIds: shownPlaybackPictureIdsRef.current,
-      queuedPictureIds: queuedPlaybackPictureIdsRef.current,
-    });
-
-    if (triggeredPictures.length > 0) {
-      triggeredPictures.forEach((picture) => {
-        shownPlaybackPictureIdsRef.current.add(picture.id);
+    if (playback.isPlaying && textAnnotations.length > 0) {
+      const triggeredAnnotations = getTriggeredPlaybackAnnotations({
+        annotations: textAnnotations,
+        previousProgress,
+        currentProgress,
+        shownAnnotationIds: shownPlaybackTextAnnotationIdsRef.current,
+        queuedAnnotationIds: queuedPlaybackTextAnnotationIdsRef.current,
       });
-      queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
-      resumePlaybackAfterPictureQueueRef.current = true;
-      pause();
-      scheduleNextQueuedPlaybackPicture();
+
+      if (triggeredAnnotations.length > 0) {
+        triggeredAnnotations.forEach((annotation) => {
+          shownPlaybackTextAnnotationIdsRef.current.add(annotation.id);
+        });
+
+        queuedPlaybackTextAnnotationIdsRef.current.push(...triggeredAnnotations.map((annotation) => annotation.id));
+
+        if (!selectedTextAnnotationId && !autoPlaybackTextAnnotationId) {
+          const nextAnnotationId = queuedPlaybackTextAnnotationIdsRef.current.shift() ?? null;
+          setAutoPlaybackTextAnnotationId(nextAnnotationId);
+        }
+      }
     }
 
     lastPlaybackProgressRef.current = currentProgress;
   }, [
     autoPlaybackPictureId,
+    autoPlaybackTextAnnotationId,
+    clearPendingAutoTextAnnotationClose,
     clearPendingQueuedPictureOpen,
     pause,
     pictures,
@@ -256,6 +322,8 @@ function App() {
     playback.progress,
     scheduleNextQueuedPlaybackPicture,
     selectedPictureId,
+    selectedTextAnnotationId,
+    textAnnotations,
   ]);
 
   const closeActivePicture = useCallback(() => {
@@ -289,6 +357,7 @@ function App() {
     ? pictures.find((p) => p.id === autoPlaybackPictureId)
     : undefined;
   const activePicture = selectedPicture || autoPlaybackPicture;
+  const activeTextAnnotationId = selectedTextAnnotationId || autoPlaybackTextAnnotationId;
   const activePendingPicturePlacement = pendingPicturePlacements[0];
   
   const hasTracks = tracks.length > 0;
@@ -340,6 +409,7 @@ function App() {
             >
               <Suspense fallback={<AppLoadingOverlay />}>
                 <TrailMap
+                  activeTextAnnotationId={activeTextAnnotationId}
                   mapContainerRef={mapContainerRef}
                   onReadyChange={setIsMapReady}
                   exportFrame={activeExportCropMetrics}
