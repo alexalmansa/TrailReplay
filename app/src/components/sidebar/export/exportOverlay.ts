@@ -58,7 +58,7 @@ export function getStatsOverlayDrawRect(params: {
   const maxWidth = Math.min(
     rawWidth,
     params.recordW - (params.margin * 2),
-    params.recordW * (isNarrowFrame ? 0.72 : 0.4),
+    params.recordW * (isNarrowFrame ? 0.56 : 0.28),
   );
   const drawWidth = Math.max(0, maxWidth);
   const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);

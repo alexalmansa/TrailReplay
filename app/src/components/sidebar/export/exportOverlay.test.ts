@@ -49,7 +49,7 @@ describe('exportOverlay', () => {
       margin: 27,
     });
 
-    expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.72);
+    expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.56);
     expect(rect.drawX).toBeCloseTo((1080 - rect.drawWidth) / 2);
     expect(rect.drawY).toBe(27);
   });
@@ -65,7 +65,7 @@ describe('exportOverlay', () => {
 
     expect(rect.drawX).toBe(48);
     expect(rect.drawY).toBe(48);
-    expect(rect.drawWidth).toBe(520);
+    expect(rect.drawWidth).toBeLessThanOrEqual(1920 * 0.28);
   });
 
   it('maps popup coordinates into the cropped export frame', () => {

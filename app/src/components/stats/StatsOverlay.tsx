@@ -16,15 +16,17 @@ import {
 interface StatsOverlayProps {
   compact?: boolean;
   layout?: 'default' | 'narrow';
+  variant?: 'default' | 'export';
 }
 
-export function StatsOverlay({ compact = false, layout = 'default' }: StatsOverlayProps) {
+export function StatsOverlay({ compact = false, layout = 'default', variant = 'default' }: StatsOverlayProps) {
   const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const isNarrowLayout = compact || layout === 'narrow';
+  const isExportVariant = variant === 'export';
 
   // Use computed journey for multi-track support
   const {
@@ -194,38 +196,52 @@ export function StatsOverlay({ compact = false, layout = 'default' }: StatsOverl
 
   return (
     <div
-      className={`tr-stats-overlay ${isNarrowLayout ? 'tr-stats-overlay--compact tr-stats-overlay--narrow max-w-[19.5rem]' : 'max-w-[25.5rem]'}`}
+      className={`tr-stats-overlay ${
+        isExportVariant
+          ? 'tr-stats-overlay--compact tr-stats-overlay--export max-w-[15.5rem]'
+          : isNarrowLayout
+            ? 'tr-stats-overlay--compact tr-stats-overlay--narrow max-w-[19.5rem]'
+            : 'max-w-[25.5rem]'
+      }`}
     >
       {/* Main Stats Grid */}
-      <div className={`grid ${isNarrowLayout ? 'grid-cols-2 gap-x-2.5 gap-y-2.5 mb-2.5' : 'grid-cols-4 gap-1.5 mb-3'}`}>
+      <div className={`grid ${
+        isExportVariant || isNarrowLayout
+          ? 'grid-cols-2 gap-x-1.5 gap-y-1.5 mb-0'
+          : 'grid-cols-4 gap-1.5 mb-3'
+      }`}>
         <StatItem
-          icon={<Route className={isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Route className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.distance')}
           value={formatDistance(currentStats.distance, settings.unitSystem)}
           compact={isNarrowLayout}
+          exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Timer className={isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Timer className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.duration')}
           value={formatStatsDuration(currentStats.duration)}
           compact={isNarrowLayout}
+          exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Clock className={isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Clock className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.avgPace')}
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
           compact={isNarrowLayout}
+          exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Mountain className={isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Mountain className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
           label={t('stats.elev')}
           value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
           compact={isNarrowLayout}
+          exportCompact={isExportVariant}
         />
       </div>
 
       {/* Secondary Stats */}
-      {secondaryStats.length > 0 && (
+      {!isExportVariant && secondaryStats.length > 0 && (
         <div
           className={`grid gap-1.5 border-t border-[var(--evergreen)]/14 ${isNarrowLayout ? 'pt-2' : 'pt-3'}`}
           style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
@@ -245,7 +261,7 @@ export function StatsOverlay({ compact = false, layout = 'default' }: StatsOverl
       )}
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
-      {segmentTimings.length > 1 && (
+      {!isExportVariant && segmentTimings.length > 1 && (
         <div className={`border-t border-[var(--evergreen)]/14 flex items-center justify-center ${isNarrowLayout ? 'mt-2 pt-2' : 'mt-3 pt-3'}`}>
           <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/8 px-2.5 py-1 rounded-full ${isNarrowLayout ? 'text-[9px]' : 'text-xs'}`}>
             {trackCount} {trackCount === 1 ? t('stats.trackSingle') : t('stats.trackPlural')}
@@ -262,21 +278,32 @@ interface StatItemProps {
   label: string;
   value: string;
   compact?: boolean;
+  exportCompact?: boolean;
 }
 
-function StatItem({ icon, label, value, compact = false }: StatItemProps) {
+function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
   return (
-    <div className={`min-w-0 rounded-[0.9rem] border border-[var(--evergreen)]/12 bg-white/55 text-center shadow-[0_1px_0_rgba(27,42,32,0.06)] ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
-      <div className={`flex items-center justify-center min-w-0 ${compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'}`}>
-        <span className={`flex items-center justify-center rounded-full bg-[var(--trail-orange-15)] text-[var(--trail-orange)] ${compact ? 'w-6 h-6' : 'w-7 h-7'}`}>
+    <div className={`min-w-0 rounded-[0.85rem] border border-[var(--evergreen)]/12 bg-white/55 text-center shadow-[0_1px_0_rgba(27,42,32,0.06)] ${
+      exportCompact ? 'px-1.5 py-1.5' : compact ? 'px-2 py-1.5' : 'px-2.5 py-2'
+    }`}>
+      <div className={`flex items-center justify-center min-w-0 ${
+        exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
+      }`}>
+        <span className={`flex items-center justify-center rounded-full bg-[var(--trail-orange-15)] text-[var(--trail-orange)] ${
+          exportCompact ? 'w-4.5 h-4.5' : compact ? 'w-6 h-6' : 'w-7 h-7'
+        }`}>
           {icon}
         </span>
-        <span className={`block min-w-0 truncate text-[var(--evergreen-80)] ${compact ? 'text-[9px]' : 'text-[10px]'} font-semibold uppercase tracking-[0.08em] leading-[1.15]`}>
+        <span className={`block min-w-0 text-[var(--evergreen-80)] ${
+          exportCompact ? 'text-[7px]' : compact ? 'text-[9px]' : 'text-[10px]'
+        } font-semibold uppercase tracking-[0.08em] leading-[1.1]`}>
           {label}
         </span>
       </div>
       <div
-        className={`tr-stat-value flex min-h-[1.4rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] whitespace-nowrap ${compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'}`}
+        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
+          exportCompact ? 'text-[9px] leading-[1.05]' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
+        }`}
         title={value}
       >
         {value}

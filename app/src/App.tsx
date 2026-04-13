@@ -169,7 +169,7 @@ function App() {
           top: frameTop + 14,
           left: frameLeft + (frameWidth / 2),
           width: Math.max(frameWidth - 24, 0),
-          maxWidth: Math.min(Math.max(frameWidth - 24, 0), 312),
+          maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
           transform: 'translateX(-50%)',
         } satisfies CSSProperties;
       }
@@ -178,7 +178,7 @@ function App() {
         top: frameTop + 16,
         left: frameLeft + 16,
         width: Math.max(frameWidth - 32, 0),
-        maxWidth: Math.min(Math.max(frameWidth - 32, 0), 408),
+        maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
       } satisfies CSSProperties;
     }
 
@@ -355,7 +355,10 @@ function App() {
                   className="absolute z-10 pointer-events-none"
                   style={statsOverlayStyle}
                 >
-                  <StatsOverlay layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'} />
+                  <StatsOverlay
+                    layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
+                    variant={activeExportCropMetrics ? 'export' : 'default'}
+                  />
                 </div>
               )}
 
