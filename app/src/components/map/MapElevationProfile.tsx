@@ -2,12 +2,14 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { convertElevation } from '@/utils/units';
+import type { CropPreviewMetrics } from '@/utils/crop';
 
 interface MapElevationProfileProps {
   className?: string;
+  exportFrame?: CropPreviewMetrics | null;
 }
 
-export function MapElevationProfile({ className = '' }: MapElevationProfileProps) {
+export function MapElevationProfile({ className = '', exportFrame = null }: MapElevationProfileProps) {
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
@@ -189,11 +191,24 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   const elevUnit = settings.unitSystem === 'metric' ? 'm' : 'ft';
 
   const formattedCurrentElev = Math.round(convertElevation(currentElevation, settings.unitSystem));
-  const isPortraitExportPreview = (isExporting || activePanel === 'export') && exportAspectRatio === '9:16';
+  const isExportPreview = isExporting || activePanel === 'export';
+  const isNonWideExportPreview = isExportPreview && exportAspectRatio !== '16:9';
+  const exportProfileStyle = exportFrame
+    ? {
+        left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075),
+        right: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075),
+        bottom: exportFrame.bottom + 10,
+      }
+    : {
+        left: 0,
+        right: 0,
+        bottom: 0,
+      };
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 z-20 ${className}`}
+      className={`absolute z-20 ${className}`}
+      style={exportProfileStyle}
       id="mapElevationProfile"
     >
       <div className="relative">
@@ -201,7 +216,7 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           preserveAspectRatio="none"
-          className="w-full h-[60px]"
+          className={`w-full ${isNonWideExportPreview ? 'h-[72px]' : 'h-[60px]'}`}
           id="elevationProfileSvg"
         >
           {/* Gradient definitions for segments */}
@@ -269,8 +284,8 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
         {playback.progress > 0 && (
           <div
             className={`absolute transform -translate-x-1/2 text-[var(--canvas)] font-bold rounded whitespace-nowrap ${
-              isPortraitExportPreview
-                ? 'bottom-1.5 text-[13px] leading-none px-2 py-1 shadow-[0_6px_14px_rgba(0,0,0,0.22)]'
+              isNonWideExportPreview
+                ? 'bottom-1.5 text-[15px] leading-none px-2.5 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.26)]'
                 : 'bottom-1 text-[10px] px-1.5 py-0.5'
             }`}
             style={{

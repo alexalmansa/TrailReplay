@@ -14,8 +14,10 @@ import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
 import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
+import type { CropPreviewMetrics } from '@/utils/crop';
 
 interface TrailMapProps {
+  exportFrame?: CropPreviewMetrics | null;
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
   onReadyChange?: (isReady: boolean) => void;
 }
@@ -197,7 +199,7 @@ export function TrailMap(_props: TrailMapProps) {
 
       {/* Elevation Profile at bottom of map */}
       {isMapLoaded && (tracks.length > 0 || allCoordinates.length > 0) && (
-        <MapElevationProfile />
+        <MapElevationProfile exportFrame={_props.exportFrame ?? null} />
       )}
     </div>
   );

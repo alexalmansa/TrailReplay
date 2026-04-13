@@ -339,7 +339,11 @@ function App() {
               className="flex-1 relative"
             >
               <Suspense fallback={<AppLoadingOverlay />}>
-                <TrailMap mapContainerRef={mapContainerRef} onReadyChange={setIsMapReady} />
+                <TrailMap
+                  mapContainerRef={mapContainerRef}
+                  onReadyChange={setIsMapReady}
+                  exportFrame={activeExportCropMetrics}
+                />
               </Suspense>
 
               {!isMapReady && <AppLoadingOverlay />}
