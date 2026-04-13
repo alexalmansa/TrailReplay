@@ -290,18 +290,24 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
         {/* Current elevation label - follows the progress, aligned to bottom */}
         {playback.progress > 0 && (
           <div
-            className={`absolute flex items-center justify-center transform -translate-x-1/2 text-[var(--canvas)] font-bold rounded whitespace-nowrap ${
+            className={`absolute transform -translate-x-1/2 whitespace-nowrap ${
               isNonWideExportPreview
-                ? 'bottom-1.5 text-[15px] leading-none px-2.5 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.26)]'
-                : 'bottom-1 text-[10px] leading-none px-1.5 py-0.5'
+                ? 'bottom-2'
+                : 'bottom-1'
             }`}
             style={{
               left: `${(markerX / svgWidth) * 100}%`,
-              backgroundColor: currentColor,
+              textShadow: isNonWideExportPreview
+                ? '0 3px 10px rgba(0, 0, 0, 0.72), 0 1px 3px rgba(0, 0, 0, 0.9)'
+                : '0 2px 6px rgba(0, 0, 0, 0.75)',
             }}
           >
             {isInTransport ? (
-              <span className="flex items-center gap-1">
+              <span
+                className={`block text-white ${
+                  isNonWideExportPreview ? 'text-[18px] leading-none' : 'text-[12px] leading-none'
+                }`}
+              >
                 {currentSegment?.segment.transportMode === 'car' && '🚗'}
                 {currentSegment?.segment.transportMode === 'bus' && '🚌'}
                 {currentSegment?.segment.transportMode === 'train' && '🚆'}
@@ -311,7 +317,24 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
                 {currentSegment?.segment.transportMode === 'ferry' && '⛴️'}
               </span>
             ) : (
-              <>{formattedCurrentElev} {elevUnit}</>
+              <span
+                className={`inline-flex items-baseline font-bold text-white ${
+                  isNonWideExportPreview ? 'gap-1.5' : 'gap-1'
+                }`}
+              >
+                <span
+                  className={isNonWideExportPreview ? 'text-[22px] leading-none tracking-[-0.03em]' : 'text-[14px] leading-none'}
+                >
+                  {formattedCurrentElev}
+                </span>
+                <span
+                  className={`font-semibold uppercase ${
+                    isNonWideExportPreview ? 'text-[14px] leading-none' : 'text-[9px] leading-none'
+                  }`}
+                >
+                  {elevUnit}
+                </span>
+              </span>
             )}
           </div>
         )}
