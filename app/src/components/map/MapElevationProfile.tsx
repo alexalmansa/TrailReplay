@@ -193,15 +193,16 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   const formattedCurrentElev = Math.round(convertElevation(currentElevation, settings.unitSystem));
   const isExportPreview = isExporting || activePanel === 'export';
   const isNonWideExportPreview = isExportPreview && exportAspectRatio !== '16:9';
+  const labelOverflowPadding = isNonWideExportPreview ? 24 : 18;
   const exportProfileStyle = exportFrame
     ? {
-        left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075),
-        right: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075),
+        left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
+        right: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
         bottom: exportFrame.bottom + 10,
       }
     : {
-        left: 0,
-        right: 0,
+        left: -labelOverflowPadding,
+        right: -labelOverflowPadding,
         bottom: 0,
       };
 
@@ -211,7 +212,13 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
       style={exportProfileStyle}
       id="mapElevationProfile"
     >
-      <div className="relative">
+      <div
+        className="relative"
+        style={{
+          marginLeft: labelOverflowPadding,
+          marginRight: labelOverflowPadding,
+        }}
+      >
         {/* SVG Profile */}
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
