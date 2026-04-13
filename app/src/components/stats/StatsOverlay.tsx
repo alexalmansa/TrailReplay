@@ -211,28 +211,28 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
           : 'grid-cols-4 gap-2 mb-0'
       }`}>
         <StatItem
-          icon={<Route className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Route className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
           label={t('stats.distance')}
           value={formatDistance(currentStats.distance, settings.unitSystem)}
           compact={isNarrowLayout}
           exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Timer className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Timer className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
           label={t('stats.duration')}
           value={formatStatsDuration(currentStats.duration)}
           compact={isNarrowLayout}
           exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Clock className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Clock className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
           label={t('stats.avgPace')}
           value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
           compact={isNarrowLayout}
           exportCompact={isExportVariant}
         />
         <StatItem
-          icon={<Mountain className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
+          icon={<Mountain className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
           label={t('stats.elev')}
           value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
           compact={isNarrowLayout}

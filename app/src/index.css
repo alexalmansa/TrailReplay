@@ -174,8 +174,7 @@ html, body {
 
 /* Stats Overlay */
 .tr-stats-overlay {
-  background:
-    linear-gradient(180deg, rgba(17, 22, 28, 0.7), rgba(10, 14, 19, 0.82));
+  background: rgba(10, 16, 21, 0.74);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
   padding: 0.8rem 0.9rem;
@@ -193,13 +192,11 @@ html, body {
 }
 
 .tr-stats-overlay--narrow {
-  background:
-    linear-gradient(180deg, rgba(18, 24, 30, 0.74), rgba(11, 16, 22, 0.86));
+  background: rgba(10, 16, 21, 0.78);
 }
 
 .tr-stats-overlay--export {
-  background:
-    linear-gradient(180deg, rgba(16, 22, 28, 0.74), rgba(8, 12, 18, 0.88));
+  background: rgba(9, 14, 19, 0.8);
   border-color: rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   box-shadow:
