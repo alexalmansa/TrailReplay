@@ -11,6 +11,22 @@ const HALO_LAYER_ID = 'route-annotations-halo';
 const CARD_LAYER_ID = 'route-annotations-card';
 const CARD_IMAGE_ID = 'route-annotations-card-image';
 
+function withAlpha(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '');
+  const expanded = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized;
+
+  if (expanded.length !== 6) {
+    return `rgba(243, 177, 51, ${alpha})`;
+  }
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16);
+  const green = Number.parseInt(expanded.slice(2, 4), 16);
+  const blue = Number.parseInt(expanded.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 function emptyFeatureCollection(): FeatureCollection<Point> {
   return {
     type: 'FeatureCollection',
@@ -29,6 +45,8 @@ function buildAnnotationsFeatureCollection(
       properties: {
         id: annotation.id,
         isActive: annotation.id === activeAnnotationId,
+        color: annotation.color,
+        haloColor: withAlpha(annotation.color, annotation.id === activeAnnotationId ? 0.24 : 0.16),
       },
       geometry: {
         type: 'Point',
@@ -63,7 +81,7 @@ function buildActiveAnnotationFeatureCollection(annotation: TextAnnotation | nul
 function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitSystem) {
   const scale = 2;
   const width = 320;
-  const height = 128;
+  const height = 116;
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -74,7 +92,6 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.clearRect(0, 0, width, height);
 
   const radius = 20;
-  const topBandHeight = 32;
   const shadowBlur = 24;
   const shadowY = 16;
 
@@ -88,14 +105,14 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.restore();
 
   context.save();
-  context.fillStyle = '#f3b133';
-  roundRect(context, 0, 0, width, topBandHeight + radius, radius);
-  context.rect(0, topBandHeight, width, radius);
+  context.fillStyle = annotation.color;
+  roundRect(context, 0, 0, width, 10 + radius, radius);
+  context.rect(0, 10, width, radius);
   context.fill();
   context.restore();
 
   context.save();
-  context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  context.fillStyle = annotation.color;
   context.beginPath();
   context.moveTo((width / 2) - 18, height - 12);
   context.lineTo(width / 2, height);
@@ -104,7 +121,6 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.fill();
   context.restore();
 
-  const topLabel = annotation.label.trim() || 'NOTE';
   const title = annotation.title.trim() || 'Annotation';
   const detail = annotation.subtitle?.trim()
     || (annotation.elevation !== undefined
@@ -112,18 +128,14 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
       : `${Math.round(annotation.progress * 100)}%`);
 
   context.textAlign = 'center';
-  context.fillStyle = '#111111';
-  context.font = '700 18px Inter, sans-serif';
-  context.textBaseline = 'middle';
-  context.fillText(topLabel.toUpperCase(), width / 2, 18);
-
   context.fillStyle = '#ffffff';
   context.font = '800 30px Inter, sans-serif';
-  context.fillText(fitText(context, title.toUpperCase(), width - 36), width / 2, 66);
+  context.textBaseline = 'middle';
+  context.fillText(fitText(context, title, width - 36), width / 2, 48);
 
   context.fillStyle = 'rgba(255, 255, 255, 0.92)';
   context.font = '700 20px Inter, sans-serif';
-  context.fillText(fitText(context, detail, width - 36), width / 2, 100);
+  context.fillText(fitText(context, detail, width - 36), width / 2, 78);
 
   return context.getImageData(0, 0, canvas.width, canvas.height);
 }
@@ -204,7 +216,7 @@ export function useTextAnnotationsLayer({
         source: SOURCE_ID,
         paint: {
           'circle-radius': ['case', ['boolean', ['get', 'isActive'], false], 14, 9],
-          'circle-color': ['case', ['boolean', ['get', 'isActive'], false], 'rgba(243, 177, 51, 0.18)', 'rgba(0, 0, 0, 0.18)'],
+          'circle-color': ['get', 'haloColor'],
           'circle-stroke-width': 0,
           'circle-pitch-alignment': 'map',
           'circle-opacity': ['case', ['boolean', ['get', 'isActive'], false], 1, 0.9],
@@ -221,7 +233,7 @@ export function useTextAnnotationsLayer({
           'circle-radius': ['case', ['boolean', ['get', 'isActive'], false], 7, 5],
           'circle-color': '#101417',
           'circle-stroke-width': ['case', ['boolean', ['get', 'isActive'], false], 3, 2],
-          'circle-stroke-color': '#f3b133',
+          'circle-stroke-color': ['get', 'color'],
           'circle-pitch-alignment': 'map',
           'circle-opacity': 1,
         },

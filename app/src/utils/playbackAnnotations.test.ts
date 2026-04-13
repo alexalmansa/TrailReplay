@@ -8,8 +8,8 @@ function createAnnotation(id: string, progress: number): TextAnnotation {
     progress,
     lat: 41.39,
     lon: 2.17,
-    label: 'NOTE',
     title: `Annotation ${id}`,
+    color: '#f3b133',
     displayDuration: 4000,
   };
 }

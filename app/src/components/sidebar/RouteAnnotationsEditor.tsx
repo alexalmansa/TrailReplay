@@ -6,6 +6,8 @@ import { convertElevation } from '@/utils/units';
 import { Eye, EyeOff, MapPinned, Play, Plus, Trash2 } from 'lucide-react';
 
 const DEFAULT_ANNOTATION_DURATION = 4000;
+const DEFAULT_ANNOTATION_COLOR = '#f3b133';
+const ANNOTATION_COLORS = ['#f3b133', '#ff7a59', '#53c16d', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 export function RouteAnnotationsEditor() {
   const { t } = useI18n();
@@ -19,9 +21,9 @@ export function RouteAnnotationsEditor() {
   const seekToProgress = useAppStore((state) => state.seekToProgress);
   const setSelectedTextAnnotationId = useAppStore((state) => state.setSelectedTextAnnotationId);
 
-  const [draftAnnotationLabel, setDraftAnnotationLabel] = useState('NOTE');
   const [draftAnnotationTitle, setDraftAnnotationTitle] = useState('');
   const [draftAnnotationSubtitle, setDraftAnnotationSubtitle] = useState('');
+  const [draftAnnotationColor, setDraftAnnotationColor] = useState(DEFAULT_ANNOTATION_COLOR);
 
   const { currentPosition } = useComputedJourney();
   const canAddAnnotation = Boolean(currentPosition);
@@ -35,9 +37,9 @@ export function RouteAnnotationsEditor() {
       progress: playback.progress,
       lat: currentPosition.lat,
       lon: currentPosition.lon,
-      label: draftAnnotationLabel.trim() || 'NOTE',
       title: draftAnnotationTitle.trim(),
       subtitle: draftAnnotationSubtitle.trim() || undefined,
+      color: draftAnnotationColor,
       elevation: currentPosition.elevation > 0 ? currentPosition.elevation : undefined,
       displayDuration: DEFAULT_ANNOTATION_DURATION,
     });
@@ -53,22 +55,13 @@ export function RouteAnnotationsEditor() {
           {t('annotations.routeAnnotationsHint')}
         </p>
 
-        <div className="grid grid-cols-[96px_1fr] gap-2">
-          <input
-            value={draftAnnotationLabel}
-            onChange={(e) => setDraftAnnotationLabel(e.target.value)}
-            placeholder={t('annotations.routeAnnotationLabelPlaceholder')}
-            className="rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm font-semibold uppercase text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
-            maxLength={18}
-          />
-          <input
-            value={draftAnnotationTitle}
-            onChange={(e) => setDraftAnnotationTitle(e.target.value)}
-            placeholder={t('annotations.routeAnnotationTitlePlaceholder')}
-            className="rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
-            maxLength={48}
-          />
-        </div>
+        <input
+          value={draftAnnotationTitle}
+          onChange={(e) => setDraftAnnotationTitle(e.target.value)}
+          placeholder={t('annotations.routeAnnotationTitlePlaceholder')}
+          className="w-full rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
+          maxLength={48}
+        />
 
         <input
           value={draftAnnotationSubtitle}
@@ -77,6 +70,35 @@ export function RouteAnnotationsEditor() {
           className="w-full rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
           maxLength={48}
         />
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+            {t('annotations.routeAnnotationColor')}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {ANNOTATION_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setDraftAnnotationColor(color)}
+                className={`h-7 w-7 rounded-full border-2 transition-transform ${
+                  draftAnnotationColor === color
+                    ? 'scale-110 border-[var(--evergreen)]'
+                    : 'border-transparent hover:scale-105'
+                }`}
+                style={{ backgroundColor: color }}
+                title={t('annotations.routeAnnotationColor')}
+              />
+            ))}
+            <input
+              type="color"
+              value={draftAnnotationColor}
+              onChange={(e) => setDraftAnnotationColor(e.target.value)}
+              className="h-8 w-10 rounded border border-[var(--evergreen)]/20 bg-[var(--canvas)]"
+              aria-label={t('annotations.routeAnnotationColor')}
+            />
+          </div>
+        </div>
 
         <div className="space-y-3 rounded-lg border border-[var(--evergreen)]/10 bg-[var(--canvas)]/55 px-3 py-3">
           <div className="min-w-0">
@@ -134,17 +156,15 @@ export function RouteAnnotationsEditor() {
                       : 'border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3'
                   }`}
                 >
-                  <div className="grid grid-cols-[96px_1fr] gap-2">
-                    <input
-                      value={annotation.label}
-                      onChange={(e) => updateTextAnnotation(annotation.id, { label: e.target.value })}
-                      className="rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm font-semibold uppercase text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
-                      maxLength={18}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-3 w-3 rounded-full border border-white/40"
+                      style={{ backgroundColor: annotation.color }}
                     />
                     <input
                       value={annotation.title}
                       onChange={(e) => updateTextAnnotation(annotation.id, { title: e.target.value })}
-                      className="rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
+                      className="flex-1 rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
                       maxLength={48}
                     />
                   </div>
@@ -158,6 +178,27 @@ export function RouteAnnotationsEditor() {
                   />
 
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--evergreen-60)]">
+                    <div className="flex items-center gap-2 rounded-full bg-[var(--canvas)]/70 px-2 py-1">
+                      {ANNOTATION_COLORS.map((color) => (
+                        <button
+                          key={`${annotation.id}-${color}`}
+                          type="button"
+                          onClick={() => updateTextAnnotation(annotation.id, { color })}
+                          className={`h-4 w-4 rounded-full border ${
+                            annotation.color === color ? 'border-[var(--evergreen)] scale-110' : 'border-transparent'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={t('annotations.routeAnnotationColor')}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={annotation.color}
+                        onChange={(e) => updateTextAnnotation(annotation.id, { color: e.target.value })}
+                        className="h-5 w-6 rounded border border-[var(--evergreen)]/20 bg-[var(--canvas)]"
+                        aria-label={t('annotations.routeAnnotationColor')}
+                      />
+                    </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-[var(--canvas)]/70 px-2 py-1">
                       <MapPinned className="w-3 h-3" />
                       {t('annotations.routeAnnotationProgress', { percent: (annotation.progress * 100).toFixed(0) })}

@@ -127,9 +127,9 @@ export interface TextAnnotation {
   progress: number;
   lat: number;
   lon: number;
-  label: string;
   title: string;
   subtitle?: string;
+  color: string;
   elevation?: number;
   displayDuration: number;
 }
