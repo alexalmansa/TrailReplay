@@ -208,7 +208,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
       <div className={`grid ${
         isExportVariant || isNarrowLayout
           ? 'grid-cols-2 gap-x-1.5 gap-y-1.5 mb-0'
-          : 'grid-cols-4 gap-1.5 mb-3'
+          : 'grid-cols-4 gap-2 mb-0'
       }`}>
         <StatItem
           icon={<Route className={isExportVariant ? 'w-3 h-3' : isNarrowLayout ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
@@ -243,7 +243,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
       {/* Secondary Stats */}
       {!isExportVariant && secondaryStats.length > 0 && (
         <div
-          className={`grid gap-1.5 border-t border-[var(--evergreen)]/14 ${isNarrowLayout ? 'pt-2' : 'pt-3'}`}
+          className={`grid gap-2 ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}
           style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
         >
           {secondaryStats.map((stat) => (
@@ -262,8 +262,8 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
 
       {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {!isExportVariant && segmentTimings.length > 1 && (
-        <div className={`border-t border-[var(--evergreen)]/14 flex items-center justify-center ${isNarrowLayout ? 'mt-2 pt-2' : 'mt-3 pt-3'}`}>
-          <span className={`text-[var(--evergreen-60)] bg-[var(--evergreen)]/8 px-2.5 py-1 rounded-full ${isNarrowLayout ? 'text-[9px]' : 'text-xs'}`}>
+        <div className={`flex items-center justify-center ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}>
+          <span className={`text-white bg-white/10 px-2.5 py-1 rounded-full ${isNarrowLayout ? 'text-[9px]' : 'text-xs'}`}>
             {trackCount} {trackCount === 1 ? t('stats.trackSingle') : t('stats.trackPlural')}
             {transportCount > 0 && ` + ${transportCount} ${transportCount === 1 ? t('stats.transportSingle') : t('stats.transportPlural')}`}
           </span>
@@ -283,23 +283,19 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
   return (
-    <div className={`min-w-0 text-center ${
-      exportCompact
-        ? 'px-0.5 py-0.5'
-        : `rounded-[0.85rem] border border-[var(--evergreen)]/12 bg-white/55 shadow-[0_1px_0_rgba(27,42,32,0.06)] ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`
-    }`}>
+    <div className={`min-w-0 text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
       <div className={`flex items-center justify-center min-w-0 ${
         exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
       }`}>
         <span className={`flex items-center justify-center ${
           exportCompact
             ? 'text-white/95 w-4.5 h-4.5'
-            : `rounded-full bg-[var(--trail-orange-15)] text-[var(--trail-orange)] ${compact ? 'w-6 h-6' : 'w-7 h-7'}`
+            : `text-white/92 ${compact ? 'w-5 h-5' : 'w-6 h-6'}`
         }`}>
           {icon}
         </span>
         <span className={`block min-w-0 ${
-          exportCompact ? 'text-[7px] text-white/82' : compact ? 'text-[9px] text-[var(--evergreen-80)]' : 'text-[10px] text-[var(--evergreen-80)]'
+          exportCompact ? 'text-[7px] text-white' : compact ? 'text-[9px] text-white' : 'text-[10px] text-white'
         } font-semibold uppercase tracking-[0.08em] leading-[1.1]`}>
           {label}
         </span>
@@ -326,19 +322,20 @@ interface SmallStatItemProps {
 }
 
 function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
+  void color;
   return (
-    <div className={`min-w-0 rounded-[0.85rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)]/55 text-center ${compact ? 'px-1.5 py-1.5' : 'px-2 py-2'}`}>
-      <div className={`flex min-h-[1.2rem] items-center justify-center gap-0.5 text-[var(--evergreen-80)] ${compact ? 'mb-0.5 py-[1px]' : 'mb-1 py-[1px]'} ${color || ''}`}>
-        <span className="opacity-85">{icon}</span>
+    <div className={`min-w-0 text-center ${compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
+      <div className={`flex min-h-[1.2rem] items-center justify-center gap-0.5 text-white/78 ${compact ? 'mb-0.5 py-[1px]' : 'mb-1 py-[1px]'}`}>
+        <span className="opacity-90">{icon}</span>
       </div>
       <div
-        className={`flex min-h-[1rem] items-center justify-center px-0.5 ${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-[1.15] min-w-0 ${color || 'text-[var(--evergreen)]'}`}
+        className={`flex min-h-[1rem] items-center justify-center px-0.5 ${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-[1.15] min-w-0 text-white`}
         title={unit ? `${value} ${unit}` : value}
       >
         {value}
-        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5`}>{unit}</span>}
+        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5 text-white/78`}>{unit}</span>}
       </div>
-      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-[var(--evergreen-80)] uppercase font-semibold tracking-[0.08em] leading-[1.2] truncate`}>{label}</div>
+      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-white uppercase font-semibold tracking-[0.08em] leading-[1.2] truncate`}>{label}</div>
     </div>
   );
 }

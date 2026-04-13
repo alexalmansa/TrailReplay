@@ -175,15 +175,15 @@ html, body {
 /* Stats Overlay */
 .tr-stats-overlay {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(248, 246, 240, 0.94));
-  border: 1px solid rgba(27, 42, 32, 0.18);
-  border-radius: 16px;
-  padding: 0.8rem 0.85rem;
+    linear-gradient(180deg, rgba(17, 22, 28, 0.7), rgba(10, 14, 19, 0.82));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 0.8rem 0.9rem;
   font-family: var(--font-family-primary);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px) saturate(135%);
   box-shadow:
-    0 14px 30px rgba(27, 42, 32, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 18px 34px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .tr-stats-overlay--compact {
@@ -194,16 +194,19 @@ html, body {
 
 .tr-stats-overlay--narrow {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(248, 246, 240, 0.96));
+    linear-gradient(180deg, rgba(18, 24, 30, 0.74), rgba(11, 16, 22, 0.86));
 }
 
 .tr-stats-overlay--export {
-  background: transparent;
-  border-color: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  padding: 0;
+  background:
+    linear-gradient(180deg, rgba(16, 22, 28, 0.74), rgba(8, 12, 18, 0.88));
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow:
+    0 16px 30px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px) saturate(135%);
+  padding: 0.45rem 0.55rem;
 }
 
 .tr-stat-item {
@@ -214,7 +217,7 @@ html, body {
 
 .tr-stat-value {
   font-weight: 700;
-  color: var(--trail-orange);
+  color: white;
   font-size: inherit;
 }
 
