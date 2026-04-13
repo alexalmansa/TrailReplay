@@ -198,13 +198,12 @@ html, body {
 }
 
 .tr-stats-overlay--export {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 246, 240, 0.97));
-  border-color: rgba(27, 42, 32, 0.14);
-  border-radius: 14px;
-  box-shadow:
-    0 10px 24px rgba(27, 42, 32, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
 }
 
 .tr-stat-item {

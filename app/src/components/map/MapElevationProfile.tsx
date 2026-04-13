@@ -13,6 +13,9 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const tracks = useAppStore((state) => state.tracks);
+  const isExporting = useAppStore((state) => state.isExporting);
+  const activePanel = useAppStore((state) => state.activePanel);
+  const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
 
   // Use computed journey for multi-track support
   const {
@@ -186,6 +189,7 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   const elevUnit = settings.unitSystem === 'metric' ? 'm' : 'ft';
 
   const formattedCurrentElev = Math.round(convertElevation(currentElevation, settings.unitSystem));
+  const isPortraitExportPreview = (isExporting || activePanel === 'export') && exportAspectRatio === '9:16';
 
   return (
     <div
@@ -264,7 +268,11 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
         {/* Current elevation label - follows the progress, aligned to bottom */}
         {playback.progress > 0 && (
           <div
-            className="absolute bottom-1 transform -translate-x-1/2 text-[var(--canvas)] text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+            className={`absolute transform -translate-x-1/2 text-[var(--canvas)] font-bold rounded whitespace-nowrap ${
+              isPortraitExportPreview
+                ? 'bottom-1.5 text-[13px] leading-none px-2 py-1 shadow-[0_6px_14px_rgba(0,0,0,0.22)]'
+                : 'bottom-1 text-[10px] px-1.5 py-0.5'
+            }`}
             style={{
               left: `${(markerX / svgWidth) * 100}%`,
               backgroundColor: currentColor,

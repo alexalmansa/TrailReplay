@@ -283,26 +283,30 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
   return (
-    <div className={`min-w-0 rounded-[0.85rem] border border-[var(--evergreen)]/12 bg-white/55 text-center shadow-[0_1px_0_rgba(27,42,32,0.06)] ${
-      exportCompact ? 'px-1.5 py-1.5' : compact ? 'px-2 py-1.5' : 'px-2.5 py-2'
+    <div className={`min-w-0 text-center ${
+      exportCompact
+        ? 'px-0.5 py-0.5'
+        : `rounded-[0.85rem] border border-[var(--evergreen)]/12 bg-white/55 shadow-[0_1px_0_rgba(27,42,32,0.06)] ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`
     }`}>
       <div className={`flex items-center justify-center min-w-0 ${
         exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
       }`}>
-        <span className={`flex items-center justify-center rounded-full bg-[var(--trail-orange-15)] text-[var(--trail-orange)] ${
-          exportCompact ? 'w-4.5 h-4.5' : compact ? 'w-6 h-6' : 'w-7 h-7'
+        <span className={`flex items-center justify-center ${
+          exportCompact
+            ? 'text-white/95 w-4.5 h-4.5'
+            : `rounded-full bg-[var(--trail-orange-15)] text-[var(--trail-orange)] ${compact ? 'w-6 h-6' : 'w-7 h-7'}`
         }`}>
           {icon}
         </span>
-        <span className={`block min-w-0 text-[var(--evergreen-80)] ${
-          exportCompact ? 'text-[7px]' : compact ? 'text-[9px]' : 'text-[10px]'
+        <span className={`block min-w-0 ${
+          exportCompact ? 'text-[7px] text-white/82' : compact ? 'text-[9px] text-[var(--evergreen-80)]' : 'text-[10px] text-[var(--evergreen-80)]'
         } font-semibold uppercase tracking-[0.08em] leading-[1.1]`}>
           {label}
         </span>
       </div>
       <div
         className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
-          exportCompact ? 'text-[9px] leading-[1.05]' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
+          exportCompact ? 'text-[9px] leading-[1.05] text-white' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
         }`}
         title={value}
       >
