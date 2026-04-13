@@ -83,13 +83,15 @@ export function Sidebar() {
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const pictures = useAppStore((state) => state.pictures);
+  const videos = useAppStore((state) => state.videos);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
 
   const tabs = [
     { id: 'tracks' as const, label: t('sidebar.tabs.tracks'), icon: MapPin, count: tracks.length },
     { id: 'journey' as const, label: t('sidebar.tabs.journey'), icon: Route, count: journeySegments.length },
     { id: 'annotations' as const, label: t('sidebar.tabs.annotations'), icon: Palette, count: 0 },
     { id: 'settings' as const, label: t('sidebar.tabs.settings'), icon: Eye, count: 0 },
-    { id: 'pictures' as const, label: t('sidebar.tabs.pictures'), icon: Image, count: pictures.length },
+    { id: 'pictures' as const, label: t('sidebar.tabs.pictures'), icon: Image, count: pictures.length + videos.length + textAnnotations.length },
     { id: 'export' as const, label: t('sidebar.tabs.export'), icon: Video, count: 0 },
   ];
 

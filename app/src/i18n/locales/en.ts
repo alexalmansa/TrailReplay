@@ -285,6 +285,7 @@ export const en = {
     selectIcon: 'Select Activity Icon',
     routeAnnotationsTitle: 'Route Annotations',
     routeAnnotationsHint: 'Add callouts at the current playback position. They stay attached to the route and appear inside the map when the animation reaches them.',
+    routeAnnotationsMovedHint: 'Route annotations now live in the Media tab so pictures, videos, and map callouts are managed together.',
     routeAnnotationLabelPlaceholder: 'Label',
     routeAnnotationTitlePlaceholder: 'Title',
     routeAnnotationSubtitlePlaceholder: 'Subtitle or fallback line',
@@ -334,7 +335,9 @@ export const en = {
   media: {
     picturesTab: 'Pictures ({count})',
     videosTab: 'Videos ({count})',
+    annotationsTab: 'Annotations ({count})',
     showPicturesHint: 'Hide photo markers from the map without removing them from the project.',
+    routeAnnotationsEmptyHint: 'Add one at the current playback position to test how it appears in the map.',
     dropFiles: 'Drop files here',
     dragDropPictures: 'Drag & drop pictures',
     dragDropVideos: 'Drag & drop videos',

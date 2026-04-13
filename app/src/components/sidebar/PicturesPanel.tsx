@@ -5,7 +5,8 @@ import { usePhotos } from '@/hooks/usePhotos';
 import { isImageFile } from '@/utils/files';
 import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
-import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2 } from 'lucide-react';
+import { RouteAnnotationsEditor } from './RouteAnnotationsEditor';
+import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2, MapPinned } from 'lucide-react';
 
 const DEFAULT_DISPLAY_DURATION = 5000; // 5 seconds
 
@@ -13,6 +14,7 @@ export function PicturesPanel() {
   const { t } = useI18n();
   const pictures = useAppStore((state) => state.pictures);
   const videos = useAppStore((state) => state.videos);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
   const showPictures = useAppStore((state) => state.settings.showPictures);
   const setSettings = useAppStore((state) => state.setSettings);
   const removePicture = useAppStore((state) => state.removePicture);
@@ -22,7 +24,7 @@ export function PicturesPanel() {
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
   const { addPhotos, isProcessing } = usePhotos();
   
-  const [activeTab, setActiveTab] = useState<'pictures' | 'videos'>('pictures');
+  const [activeTab, setActiveTab] = useState<'pictures' | 'videos' | 'annotations'>('pictures');
   const [editingPicture, setEditingPicture] = useState<string | null>(null);
   const [durationValue, setDurationValue] = useState(5);
   
@@ -37,10 +39,14 @@ export function PicturesPanel() {
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: activeTab === 'pictures' 
+    accept: activeTab === 'pictures'
       ? { 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] }
-      : { 'video/*': ['.mp4', '.webm', '.mov'] },
+      : activeTab === 'videos'
+        ? { 'video/*': ['.mp4', '.webm', '.mov'] }
+        : undefined,
     multiple: true,
+    noClick: activeTab === 'annotations',
+    noDrag: activeTab === 'annotations',
   });
 
   const handleSaveDuration = (pictureId: string) => {
@@ -64,7 +70,7 @@ export function PicturesPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => setActiveTab('pictures')}
           className={`
@@ -91,33 +97,48 @@ export function PicturesPanel() {
           <Video className="w-4 h-4" />
           {t('media.videosTab', { count: videos.length })}
         </button>
+        <button
+          onClick={() => setActiveTab('annotations')}
+          className={`
+            flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2
+            ${activeTab === 'annotations'
+              ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
+              : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
+            }
+          `}
+        >
+          <MapPinned className="w-4 h-4" />
+          {t('media.annotationsTab', { count: textAnnotations.length })}
+        </button>
       </div>
       
       {/* Upload Area */}
-      <div
-        {...getRootProps()}
-        className={`
-          tr-dropzone p-4
-          ${isDragActive ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]' : ''}
-        `}
-      >
-        <input {...getInputProps()} />
-        {activeTab === 'pictures' ? (
-          <ImageIcon className="w-8 h-8 mx-auto mb-2 text-[var(--evergreen-60)]" />
-        ) : (
-          <Video className="w-8 h-8 mx-auto mb-2 text-[var(--evergreen-60)]" />
-        )}
-        <p className="text-sm font-medium text-[var(--evergreen)]">
-          {isDragActive
-            ? t('media.dropFiles')
-            : activeTab === 'pictures'
-              ? t('media.dragDropPictures')
-              : t('media.dragDropVideos')}
-        </p>
-        <p className="text-xs text-[var(--evergreen-60)] mt-1">
-          {t('media.dropBrowse')}
-        </p>
-      </div>
+      {activeTab !== 'annotations' && (
+        <div
+          {...getRootProps()}
+          className={`
+            tr-dropzone p-4
+            ${isDragActive ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]' : ''}
+          `}
+        >
+          <input {...getInputProps()} />
+          {activeTab === 'pictures' ? (
+            <ImageIcon className="w-8 h-8 mx-auto mb-2 text-[var(--evergreen-60)]" />
+          ) : (
+            <Video className="w-8 h-8 mx-auto mb-2 text-[var(--evergreen-60)]" />
+          )}
+          <p className="text-sm font-medium text-[var(--evergreen)]">
+            {isDragActive
+              ? t('media.dropFiles')
+              : activeTab === 'pictures'
+                ? t('media.dragDropPictures')
+                : t('media.dragDropVideos')}
+          </p>
+          <p className="text-xs text-[var(--evergreen-60)] mt-1">
+            {t('media.dropBrowse')}
+          </p>
+        </div>
+      )}
       
       {/* Processing */}
       {isProcessing && (
@@ -310,6 +331,8 @@ export function PicturesPanel() {
           )}
         </div>
       )}
+
+      {activeTab === 'annotations' && <RouteAnnotationsEditor />}
     </div>
   );
 }

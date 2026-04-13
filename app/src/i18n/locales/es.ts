@@ -285,6 +285,7 @@ export const es = {
     selectIcon: 'Selecciona un icono de actividad',
     routeAnnotationsTitle: 'Anotaciones de ruta',
     routeAnnotationsHint: 'Añade cartelas en la posición actual de la animación. Quedan ancladas a la ruta y aparecen dentro del mapa cuando la animación las alcanza.',
+    routeAnnotationsMovedHint: 'Las anotaciones de ruta ahora están en la pestaña Media para gestionar juntas fotos, vídeos y cartelas del mapa.',
     routeAnnotationLabelPlaceholder: 'Etiqueta',
     routeAnnotationTitlePlaceholder: 'Título',
     routeAnnotationSubtitlePlaceholder: 'Subtítulo o línea secundaria',
@@ -334,7 +335,9 @@ export const es = {
   media: {
     picturesTab: 'Fotos ({count})',
     videosTab: 'Vídeos ({count})',
+    annotationsTab: 'Anotaciones ({count})',
     showPicturesHint: 'Oculta los marcadores de fotos del mapa sin quitarlos del proyecto.',
+    routeAnnotationsEmptyHint: 'Añade una en la posición actual de la animación para probar cómo aparece dentro del mapa.',
     dropFiles: 'Suelta los archivos aquí',
     dragDropPictures: 'Arrastra y suelta fotos',
     dragDropVideos: 'Arrastra y suelta vídeos',

@@ -285,6 +285,7 @@ export const ca = {
     selectIcon: 'Selecciona una icona d\'activitat',
     routeAnnotationsTitle: 'Anotacions de ruta',
     routeAnnotationsHint: 'Afegeix cartells a la posició actual de l\'animació. Queden ancorats a la ruta i apareixen dins del mapa quan l\'animació hi arriba.',
+    routeAnnotationsMovedHint: 'Les anotacions de ruta ara són a la pestanya Media per gestionar juntes fotos, vídeos i cartells del mapa.',
     routeAnnotationLabelPlaceholder: 'Etiqueta',
     routeAnnotationTitlePlaceholder: 'Títol',
     routeAnnotationSubtitlePlaceholder: 'Subtítol o línia secundària',
@@ -334,7 +335,9 @@ export const ca = {
   media: {
     picturesTab: 'Fotos ({count})',
     videosTab: 'Vídeos ({count})',
+    annotationsTab: 'Anotacions ({count})',
     showPicturesHint: 'Amaga els marcadors de fotos del mapa sense treure’ls del projecte.',
+    routeAnnotationsEmptyHint: 'Afegeix-ne una a la posició actual de l\'animació per provar com apareix dins del mapa.',
     dropFiles: 'Deixa els fitxers aquí',
     dragDropPictures: 'Arrossega i deixa fotos',
     dragDropVideos: 'Arrossega i deixa vídeos',
