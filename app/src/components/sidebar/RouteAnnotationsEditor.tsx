@@ -78,7 +78,7 @@ export function RouteAnnotationsEditor() {
           maxLength={48}
         />
 
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--evergreen)]/10 bg-[var(--canvas)]/55 px-3 py-2">
+        <div className="space-y-3 rounded-lg border border-[var(--evergreen)]/10 bg-[var(--canvas)]/55 px-3 py-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-[var(--evergreen)]">
               {canAddAnnotation
@@ -92,18 +92,20 @@ export function RouteAnnotationsEditor() {
                   unit: unitSystem === 'metric' ? 'm' : 'ft',
                 })}
               </p>
-            ) : null}
+              ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddAnnotation}
-            disabled={!canAddAnnotation || !draftAnnotationTitle.trim()}
-            className="tr-btn tr-btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" />
-            {t('annotations.addRouteAnnotation')}
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddAnnotation}
+              disabled={!canAddAnnotation || !draftAnnotationTitle.trim()}
+              className="tr-btn tr-btn-primary inline-flex w-full items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              {t('annotations.addRouteAnnotation')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -167,7 +169,7 @@ export function RouteAnnotationsEditor() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-[1fr_1fr_auto_44px] gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedTextAnnotationId(isSelected ? null : annotation.id)}
@@ -186,26 +188,30 @@ export function RouteAnnotationsEditor() {
                       {t('annotations.goToAnnotation')}
                     </button>
 
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={Math.round(annotation.displayDuration / 1000)}
-                      onChange={(e) => {
-                        const value = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1));
-                        updateTextAnnotation(annotation.id, { displayDuration: value * 1000 });
-                      }}
-                      className="rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-2 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
-                      title={t('annotations.annotationDuration')}
-                    />
+                    <label className="flex items-center gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/70 px-3 py-2 text-xs font-medium text-[var(--evergreen-60)]">
+                      <span className="whitespace-nowrap">{t('annotations.annotationDurationShort')}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={Math.round(annotation.displayDuration / 1000)}
+                        onChange={(e) => {
+                          const value = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1));
+                          updateTextAnnotation(annotation.id, { displayDuration: value * 1000 });
+                        }}
+                        className="min-w-0 flex-1 rounded-md border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-2 py-1.5 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]"
+                        title={t('annotations.annotationDuration')}
+                      />
+                    </label>
 
                     <button
                       type="button"
                       onClick={() => removeTextAnnotation(annotation.id)}
-                      className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 hover:bg-red-100"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 hover:bg-red-100"
                       title={t('annotations.removeRouteAnnotation')}
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
+                      <span>{t('common.remove')}</span>
                     </button>
                   </div>
                 </div>

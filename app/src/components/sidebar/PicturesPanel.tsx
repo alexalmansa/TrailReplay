@@ -54,6 +54,27 @@ export function PicturesPanel() {
     setEditingPicture(null);
   };
 
+  const mediaTabs = [
+    {
+      id: 'pictures' as const,
+      count: pictures.length,
+      icon: ImageIcon,
+      label: t('media.picturesTabLabel'),
+    },
+    {
+      id: 'videos' as const,
+      count: videos.length,
+      icon: Video,
+      label: t('media.videosTabLabel'),
+    },
+    {
+      id: 'annotations' as const,
+      count: textAnnotations.length,
+      icon: MapPinned,
+      label: t('media.annotationsTabLabel'),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
@@ -70,46 +91,39 @@ export function PicturesPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          onClick={() => setActiveTab('pictures')}
-          className={`
-            flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2
-            ${activeTab === 'pictures'
-              ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-              : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-            }
-          `}
-        >
-          <ImageIcon className="w-4 h-4" />
-          {t('media.picturesTab', { count: pictures.length })}
-        </button>
-        <button
-          onClick={() => setActiveTab('videos')}
-          className={`
-            flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2
-            ${activeTab === 'videos'
-              ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-              : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-            }
-          `}
-        >
-          <Video className="w-4 h-4" />
-          {t('media.videosTab', { count: videos.length })}
-        </button>
-        <button
-          onClick={() => setActiveTab('annotations')}
-          className={`
-            flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2
-            ${activeTab === 'annotations'
-              ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-              : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-            }
-          `}
-        >
-          <MapPinned className="w-4 h-4" />
-          {t('media.annotationsTab', { count: textAnnotations.length })}
-        </button>
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/4 p-1.5">
+        {mediaTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                relative flex min-h-[70px] flex-col items-center justify-center rounded-xl px-2 py-2 text-center transition-colors
+                ${isActive
+                  ? 'bg-[var(--trail-orange)] text-[var(--canvas)] shadow-[0_10px_18px_rgba(193,101,47,0.22)]'
+                  : 'bg-transparent text-[var(--evergreen)] hover:bg-[var(--evergreen)]/10'
+                }
+              `}
+            >
+              <span
+                className={`
+                  absolute right-1.5 top-1.5 min-w-[1.2rem] rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none
+                  ${isActive
+                    ? 'bg-[rgba(255,255,255,0.2)] text-[var(--canvas)]'
+                    : 'bg-[var(--evergreen)]/12 text-[var(--evergreen-60)]'}
+                `}
+              >
+                {tab.count}
+              </span>
+              <Icon className="h-4 w-4" />
+              <span className="mt-1 text-[11px] font-semibold leading-[1.15]">{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
       
       {/* Upload Area */}
