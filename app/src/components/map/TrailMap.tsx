@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { MAP_LAYERS } from './mapStyle';
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
+import { useTextAnnotationsLayer } from './hooks/useTextAnnotationsLayer';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
@@ -17,6 +18,7 @@ import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/ro
 import type { CropPreviewMetrics } from '@/utils/crop';
 
 interface TrailMapProps {
+  activeTextAnnotationId?: string | null;
   exportFrame?: CropPreviewMetrics | null;
   mapContainerRef?: React.RefObject<HTMLDivElement | null>;
   onReadyChange?: (isReady: boolean) => void;
@@ -40,6 +42,7 @@ export function TrailMap(_props: TrailMapProps) {
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const pictures = useAppStore((state) => state.pictures);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
@@ -107,6 +110,14 @@ export function TrailMap(_props: TrailMapProps) {
     pictures,
     setSelectedPictureId,
     showPictures: settings.showPictures,
+  });
+
+  useTextAnnotationsLayer({
+    activeAnnotationId: _props.activeTextAnnotationId ?? null,
+    annotations: textAnnotations,
+    isMapLoaded,
+    mapRef: map,
+    unitSystem: settings.unitSystem,
   });
 
   useComparisonTrackLayers({

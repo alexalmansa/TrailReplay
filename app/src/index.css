@@ -177,13 +177,13 @@ html, body {
   background: rgba(9, 14, 19, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
-  padding: 0.8rem 0.9rem;
+  padding: 0.8rem 0.9rem 0.92rem;
   font-family: var(--font-family-primary);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
 }
 
 .tr-stats-overlay--compact {
-  padding: 0.6rem 0.65rem;
+  padding: 0.6rem 0.65rem 0.72rem;
   border-width: 1px;
   border-radius: 18px;
 }
@@ -197,7 +197,7 @@ html, body {
   border-color: rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22);
-  padding: 0.45rem 0.55rem;
+  padding: 0.45rem 0.55rem 0.62rem;
 }
 
 .tr-stat-item {

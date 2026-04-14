@@ -81,6 +81,7 @@ export interface AppState {
   removeIconChange: (iconChangeId: string) => void;
   updateIconChangePosition: (iconChangeId: string, progress: number) => void;
   addTextAnnotation: (annotation: TextAnnotation) => void;
+  updateTextAnnotation: (annotationId: string, updates: Partial<TextAnnotation>) => void;
   removeTextAnnotation: (annotationId: string) => void;
   setPlayback: (playback: Partial<PlaybackState>) => void;
   play: () => void;

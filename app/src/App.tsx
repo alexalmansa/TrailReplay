@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { AppHeader } from '@/components/app/AppHeader';
@@ -17,6 +17,7 @@ import {
   getTriggeredPlaybackPictures,
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
+import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -56,6 +57,7 @@ function App() {
   const setExploreMode = useAppStore((state) => state.setExploreMode);
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const error = useAppStore((state) => state.error);
@@ -96,7 +98,7 @@ function App() {
       openNextQueuedPlaybackPicture();
     }, 0);
   }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
-  
+
   // Show error toast
   useEffect(() => {
     if (error) {
@@ -204,7 +206,7 @@ function App() {
     resumePlaybackAfterPictureQueueRef.current = false;
     clearPendingQueuedPictureOpen();
     lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
-  }, [clearPendingQueuedPictureOpen, pictures, tracks]);
+  }, [clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
 
   useEffect(() => {
     return () => {
@@ -225,25 +227,24 @@ function App() {
 
     if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
       lastPlaybackProgressRef.current = currentProgress;
-      return;
-    }
-
-    const triggeredPictures = getTriggeredPlaybackPictures({
-      pictures,
-      previousProgress,
-      currentProgress,
-      shownPictureIds: shownPlaybackPictureIdsRef.current,
-      queuedPictureIds: queuedPlaybackPictureIdsRef.current,
-    });
-
-    if (triggeredPictures.length > 0) {
-      triggeredPictures.forEach((picture) => {
-        shownPlaybackPictureIdsRef.current.add(picture.id);
+    } else {
+      const triggeredPictures = getTriggeredPlaybackPictures({
+        pictures,
+        previousProgress,
+        currentProgress,
+        shownPictureIds: shownPlaybackPictureIdsRef.current,
+        queuedPictureIds: queuedPlaybackPictureIdsRef.current,
       });
-      queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
-      resumePlaybackAfterPictureQueueRef.current = true;
-      pause();
-      scheduleNextQueuedPlaybackPicture();
+
+      if (triggeredPictures.length > 0) {
+        triggeredPictures.forEach((picture) => {
+          shownPlaybackPictureIdsRef.current.add(picture.id);
+        });
+        queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
+        resumePlaybackAfterPictureQueueRef.current = true;
+        pause();
+        scheduleNextQueuedPlaybackPicture();
+      }
     }
 
     lastPlaybackProgressRef.current = currentProgress;
@@ -289,6 +290,11 @@ function App() {
     ? pictures.find((p) => p.id === autoPlaybackPictureId)
     : undefined;
   const activePicture = selectedPicture || autoPlaybackPicture;
+  const activeTextAnnotationId = useMemo(() => getActivePlaybackAnnotationId({
+    annotations: textAnnotations,
+    currentTime: playback.currentTime,
+    totalDuration: playback.totalDuration,
+  }), [playback.currentTime, playback.totalDuration, textAnnotations]);
   const activePendingPicturePlacement = pendingPicturePlacements[0];
   
   const hasTracks = tracks.length > 0;
@@ -340,6 +346,7 @@ function App() {
             >
               <Suspense fallback={<AppLoadingOverlay />}>
                 <TrailMap
+                  activeTextAnnotationId={activeTextAnnotationId}
                   mapContainerRef={mapContainerRef}
                   onReadyChange={setIsMapReady}
                   exportFrame={activeExportCropMetrics}

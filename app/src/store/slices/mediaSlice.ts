@@ -23,6 +23,7 @@ type MediaSlice = Pick<
   | 'removeIconChange'
   | 'updateIconChangePosition'
   | 'addTextAnnotation'
+  | 'updateTextAnnotation'
   | 'removeTextAnnotation'
   | 'setSelectedPictureId'
 >;
@@ -116,6 +117,14 @@ export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
   addTextAnnotation: (annotation) =>
     set((state) => {
       state.textAnnotations.push(annotation);
+    }),
+
+  updateTextAnnotation: (annotationId, updates) =>
+    set((state) => {
+      const annotation = state.textAnnotations.find((entry) => entry.id === annotationId);
+      if (!annotation) return;
+
+      Object.assign(annotation, updates);
     }),
 
   removeTextAnnotation: (annotationId) =>
