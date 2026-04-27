@@ -81,11 +81,11 @@ The root scripts delegate to the active app in `app/`.
 ## Repository Layout
 
 - `app/`: active TrailReplay frontend, help pages, public assets, and tests
-- `api/`: serverless feedback endpoint used by the deployed site
+- `functions/`: Cloudflare Pages Functions for the deployed site
 - `docs/`: internal notes and branding assets
 
 ## Notes
 
 - V1 has been discontinued and is no longer part of the active runtime.
 - Legacy paths are redirected to the current root-served app and help pages.
-- Feedback submissions still go through [`api/contact.js`](./api/contact.js).
+- Feedback submissions go through [`functions/api/contact.js`](./functions/api/contact.js).

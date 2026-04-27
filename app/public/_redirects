@@ -1,0 +1,22 @@
+# Legacy V1 and /app aliases
+/app / 301
+/app/ / 301
+/app/tutorial /tutorial 301
+/app/tutorial.html /tutorial 301
+/app/gpx-download-guide /gpx-download-guide 301
+/app/gpx-download-guide.html /gpx-download-guide 301
+/app/privacy.html /privacy 301
+/app/terms.html /terms 301
+/app/acknowledgments.html /acknowledgments 301
+
+# Preserve legacy asset paths
+/app/assets/* /assets/:splat 200
+/app/media/* /media/:splat 200
+/app/legal.css /legal.css 200
+
+# Client-routed entry points
+/app-v1 /index.html 200
+/app-v1/ /index.html 200
+/app-v1.html /index.html 200
+/strava-callback /index.html 200
+/strava-callback.html /index.html 200

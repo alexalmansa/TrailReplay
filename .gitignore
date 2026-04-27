@@ -12,6 +12,7 @@ pnpm-debug.log*
 # Environment variables
 .env
 .env.*.local
+.dev.vars*
 
 # Build output
 dist/
