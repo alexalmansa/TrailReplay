@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { AppHeader } from '@/components/app/AppHeader';
@@ -17,6 +17,7 @@ import {
   getTriggeredPlaybackPictures,
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
+import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -25,6 +26,10 @@ const TrailMap = lazy(() => import('@/components/map/TrailMap').then((module) =>
 
 function SidebarFallback() {
   return <div className="h-full bg-[var(--canvas)]" />;
+}
+
+function isNarrowFrame(width: number, height: number) {
+  return width <= height || width < 560;
 }
 
 function App() {
@@ -52,12 +57,14 @@ function App() {
   const setExploreMode = useAppStore((state) => state.setExploreMode);
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
+  const textAnnotations = useAppStore((state) => state.textAnnotations);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const clearPendingPicturePlacements = useAppStore((state) => state.clearPendingPicturePlacements);
   const play = useAppStore((state) => state.play);
@@ -91,7 +98,7 @@ function App() {
       openNextQueuedPlaybackPicture();
     }, 0);
   }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
-  
+
   // Show error toast
   useEffect(() => {
     if (error) {
@@ -150,6 +157,48 @@ function App() {
   const activeExportCropMetrics = activePanel === 'export' || isExporting
     ? exportCropMetrics
     : null;
+  const statsShouldUseNarrowLayout = activeExportCropMetrics
+    ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
+    : isNarrowScreen;
+
+  const statsOverlayStyle = (() => {
+    if (activeExportCropMetrics) {
+      const { frameLeft, frameTop, frameWidth, frameHeight } = activeExportCropMetrics;
+      const narrowFrame = isNarrowFrame(frameWidth, frameHeight);
+
+      if (narrowFrame) {
+        return {
+          top: frameTop + 14,
+          left: frameLeft + (frameWidth / 2),
+          width: Math.max(frameWidth - 24, 0),
+          maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
+          transform: 'translateX(-50%)',
+        } satisfies CSSProperties;
+      }
+
+      return {
+        top: frameTop + 16,
+        left: frameLeft + 16,
+        width: Math.max(frameWidth - 32, 0),
+        maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
+      } satisfies CSSProperties;
+    }
+
+    if (isNarrowScreen) {
+      return {
+        top: 12,
+        left: '50%',
+        width: 'min(calc(100% - 24px), 312px)',
+        transform: 'translateX(-50%)',
+      } satisfies CSSProperties;
+    }
+
+    return {
+      top: 16,
+      left: 16,
+      width: 'min(calc(100% - 32px), 408px)',
+    } satisfies CSSProperties;
+  })();
 
   useEffect(() => {
     shownPlaybackPictureIdsRef.current.clear();
@@ -157,7 +206,7 @@ function App() {
     resumePlaybackAfterPictureQueueRef.current = false;
     clearPendingQueuedPictureOpen();
     lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
-  }, [clearPendingQueuedPictureOpen, pictures, tracks]);
+  }, [clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
 
   useEffect(() => {
     return () => {
@@ -178,25 +227,24 @@ function App() {
 
     if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
       lastPlaybackProgressRef.current = currentProgress;
-      return;
-    }
-
-    const triggeredPictures = getTriggeredPlaybackPictures({
-      pictures,
-      previousProgress,
-      currentProgress,
-      shownPictureIds: shownPlaybackPictureIdsRef.current,
-      queuedPictureIds: queuedPlaybackPictureIdsRef.current,
-    });
-
-    if (triggeredPictures.length > 0) {
-      triggeredPictures.forEach((picture) => {
-        shownPlaybackPictureIdsRef.current.add(picture.id);
+    } else {
+      const triggeredPictures = getTriggeredPlaybackPictures({
+        pictures,
+        previousProgress,
+        currentProgress,
+        shownPictureIds: shownPlaybackPictureIdsRef.current,
+        queuedPictureIds: queuedPlaybackPictureIdsRef.current,
       });
-      queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
-      resumePlaybackAfterPictureQueueRef.current = true;
-      pause();
-      scheduleNextQueuedPlaybackPicture();
+
+      if (triggeredPictures.length > 0) {
+        triggeredPictures.forEach((picture) => {
+          shownPlaybackPictureIdsRef.current.add(picture.id);
+        });
+        queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
+        resumePlaybackAfterPictureQueueRef.current = true;
+        pause();
+        scheduleNextQueuedPlaybackPicture();
+      }
     }
 
     lastPlaybackProgressRef.current = currentProgress;
@@ -242,6 +290,11 @@ function App() {
     ? pictures.find((p) => p.id === autoPlaybackPictureId)
     : undefined;
   const activePicture = selectedPicture || autoPlaybackPicture;
+  const activeTextAnnotationId = useMemo(() => getActivePlaybackAnnotationId({
+    annotations: textAnnotations,
+    currentTime: playback.currentTime,
+    totalDuration: playback.totalDuration,
+  }), [playback.currentTime, playback.totalDuration, textAnnotations]);
   const activePendingPicturePlacement = pendingPicturePlacements[0];
   
   const hasTracks = tracks.length > 0;
@@ -292,7 +345,12 @@ function App() {
               className="flex-1 relative"
             >
               <Suspense fallback={<AppLoadingOverlay />}>
-                <TrailMap mapContainerRef={mapContainerRef} onReadyChange={setIsMapReady} />
+                <TrailMap
+                  activeTextAnnotationId={activeTextAnnotationId}
+                  mapContainerRef={mapContainerRef}
+                  onReadyChange={setIsMapReady}
+                  exportFrame={activeExportCropMetrics}
+                />
               </Suspense>
 
               {!isMapReady && <AppLoadingOverlay />}
@@ -304,8 +362,14 @@ function App() {
 
               {/* Stats Overlay */}
               {hasTracks && (
-                <div className="absolute top-4 left-4 z-10">
-                  <StatsOverlay />
+                <div
+                  className="absolute z-10 pointer-events-none"
+                  style={statsOverlayStyle}
+                >
+                  <StatsOverlay
+                    layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
+                    variant={activeExportCropMetrics ? 'export' : 'default'}
+                  />
                 </div>
               )}
 
@@ -315,6 +379,31 @@ function App() {
                   totalPendingPlacements={pendingPicturePlacements.length}
                   onCancelAll={clearPendingPicturePlacements}
                   onSkip={() => removePendingPicturePlacement(activePendingPicturePlacement.id)}
+                  onUseTimestamp={activePendingPicturePlacement.timestampAlternative
+                    ? () => {
+                        const timestampPlacement = activePendingPicturePlacement.timestampAlternative;
+                        if (!timestampPlacement) {
+                          return;
+                        }
+
+                        addPicture({
+                          id: activePendingPicturePlacement.id,
+                          file: activePendingPicturePlacement.file,
+                          displayFile: activePendingPicturePlacement.displayFile,
+                          url: activePendingPicturePlacement.url,
+                          lat: timestampPlacement.lat,
+                          lon: timestampPlacement.lon,
+                          timestamp: activePendingPicturePlacement.timestamp,
+                          progress: timestampPlacement.progress,
+                          position: timestampPlacement.progress,
+                          placementSource: 'timestamp',
+                          title: activePendingPicturePlacement.title,
+                          description: activePendingPicturePlacement.description,
+                          displayDuration: activePendingPicturePlacement.displayDuration,
+                        });
+                        removePendingPicturePlacement(activePendingPicturePlacement.id);
+                      }
+                    : undefined}
                 />
               )}
               

@@ -58,6 +58,7 @@ export function useManualPicturePlacement({
       addPicture({
         id: pendingPicture.id,
         file: pendingPicture.file,
+        displayFile: pendingPicture.displayFile,
         url: pendingPicture.url,
         lat: placement.lat,
         lon: placement.lon,

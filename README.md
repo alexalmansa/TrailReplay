@@ -1,8 +1,25 @@
-# TrailReplay
+<p align="center">
+  <img src="./docs/branding-assets/SVG/logohorizontalfondo.svg" alt="TrailReplay" width="520">
+</p>
 
-TrailReplay turns raw GPX files into polished, shareable route stories. You can import one or more activities, replay them on a 3D map, add photos and annotations, compare tracks, and export the result as a video, all directly in the browser.
+TrailReplay is a browser-based GPX storytelling studio for runners, cyclists, hikers, and outdoor creators. It turns raw route files into polished, shareable replays with map animation, live stats, elevation, media, and export-ready video, all directly in the browser.
 
-The active product lives in [`app/`](./app), built with React and TypeScript, and powers [trailreplay.com](https://trailreplay.com).
+The active product lives in [`app/`](./app) and powers [trailreplay.com](https://trailreplay.com).
+
+## Why It Exists
+
+Most GPX tools stop at route inspection. TrailReplay is built for presentation: turning an activity, a trip, or a comparison between tracks into something easy to review, explain, and share.
+
+## What You Can Do
+
+- Import one or many GPX files and replay them on an interactive 3D map.
+- Build a full journey by combining tracks, reordering them, and adding transport segments.
+- Display live stats, elevation, pace, and route progress during playback.
+- Attach photos to the route from metadata when available or place them manually.
+- Add annotations and storytelling moments along the route.
+- Compare tracks from the same time window and inspect timing differences.
+- Export polished videos with map motion, stats overlays, elevation profile, and branded output.
+- Keep the core GPX workflow local in the browser by default.
 
 ## Demo Videos
 
@@ -22,27 +39,13 @@ https://github.com/user-attachments/assets/c42e5efd-6c08-4591-ab66-92cc16484f24
 
 > If GitHub does not render the inline previews for your session, you can still watch them in the tutorial or open the original MP4 files in [`media/video/`](./media/video).
 
-## What It Is
+## Core Workflow
 
-TrailReplay is a browser-based GPX storytelling studio for runners, cyclists, hikers, and outdoor creators. Instead of just viewing a route on a static map, it lets you turn that route into an animated replay with timing, stats, elevation, images, and exportable video.
-
-## What TrailReplay Does
-
-- Import one or many GPX files and replay them on an interactive map.
-- Build a full journey by combining tracks, reordering them, and adding transport segments.
-- Display live stats, elevation, pace, and route progress during playback.
-- Attach photos to the route, either from GPS metadata or by manual placement on the map.
-- Compare activities side by side with different colors and timing offsets.
-- Export polished videos with map motion, stats overlays, elevation profile, and media popups.
-- Keep the core workflow local in the browser so GPX files and exported media are not uploaded by default.
-
-## Main Product Areas
-
-- GPX replay: animate a single activity or several combined tracks on an interactive 3D map.
-- Journey builder: stitch routes together, reorder them, and add transport segments between activities.
-- Storytelling layer: place photos along the route and use annotations to highlight moments.
-- Comparison mode: replay different tracks together to compare timing and movement.
-- Video export: generate ready-to-share route videos with overlays, branding, and elevation data.
+1. Import GPX tracks.
+2. Clean up or combine them into a single journey.
+3. Add photos, annotations, and visual context.
+4. Replay the route on the map.
+5. Export a ready-to-share video.
 
 ## Live Links
 
@@ -52,7 +55,7 @@ TrailReplay is a browser-based GPX storytelling studio for runners, cyclists, hi
 
 ## Local Development
 
-From the repo root:
+From the repository root:
 
 ```bash
 npm install
@@ -74,18 +77,29 @@ Useful commands:
 npm run lint
 npm run test
 npm run build
+npm run preview
 ```
 
-The root scripts delegate to the active app in `app/`.
+The root scripts delegate to the active frontend in `app/`.
+
+## Stack
+
+- React 19 + TypeScript + Vite for the frontend application.
+- MapLibre GL for the interactive map and route playback surfaces.
+- Zustand for app state and editor workflows.
+- Vitest and Testing Library for test coverage.
+- A Cloudflare Pages Function in [`functions/api/contact.js`](./functions/api/contact.js) for feedback submissions.
 
 ## Repository Layout
 
 - `app/`: active TrailReplay frontend, help pages, public assets, and tests
 - `functions/`: Cloudflare Pages Functions for the deployed site
-- `docs/`: internal notes and branding assets
+- `docs/`: internal notes, issue plans, and branding assets
+- `media/`: repository media used in documentation and demos
 
 ## Notes
 
-- V1 has been discontinued and is no longer part of the active runtime.
-- Legacy paths are redirected to the current root-served app and help pages.
-- Feedback submissions go through [`functions/api/contact.js`](./functions/api/contact.js).
+- The active runtime is the browser app inside `app/`.
+- Legacy V1 work is not part of the current product surface.
+- Help, tutorial, and GPX guide pages ship alongside the main app.
+- GPX processing stays local in the browser by default; feedback submissions are the main server-side flow in this repo.

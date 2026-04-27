@@ -1,0 +1,240 @@
+import type { GPXTrack } from '@/types';
+import type { ComputedJourney, SegmentTiming } from '@/utils/journeyUtils';
+import { calculateDistance } from '@/utils/journeyUtils';
+
+export interface RouteMatch {
+  progress: number;
+  lat: number;
+  lon: number;
+  distanceMeters: number;
+}
+
+const METERS_PER_DEGREE_LAT = 111_320;
+
+interface ProjectionCandidate {
+  fraction: number;
+  lat: number;
+  lon: number;
+  distanceMeters: number;
+}
+
+function toMeters(lat: number, lon: number, latitudeReference: number) {
+  const cosLatitude = Math.cos((latitudeReference * Math.PI) / 180);
+  return {
+    x: lon * METERS_PER_DEGREE_LAT * cosLatitude,
+    y: lat * METERS_PER_DEGREE_LAT,
+  };
+}
+
+function projectOntoSegment(
+  targetLat: number,
+  targetLon: number,
+  startLat: number,
+  startLon: number,
+  endLat: number,
+  endLon: number,
+): ProjectionCandidate {
+  const latitudeReference = (targetLat + startLat + endLat) / 3;
+  const target = toMeters(targetLat, targetLon, latitudeReference);
+  const start = toMeters(startLat, startLon, latitudeReference);
+  const end = toMeters(endLat, endLon, latitudeReference);
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const segmentLengthSquared = dx * dx + dy * dy;
+
+  if (segmentLengthSquared <= 0) {
+    return {
+      fraction: 0,
+      lat: startLat,
+      lon: startLon,
+      distanceMeters: calculateDistance(targetLat, targetLon, startLat, startLon) * 1000,
+    };
+  }
+
+  const projectedFraction = ((target.x - start.x) * dx + (target.y - start.y) * dy) / segmentLengthSquared;
+  const fraction = Math.max(0, Math.min(1, projectedFraction));
+  const projectedX = start.x + dx * fraction;
+  const projectedY = start.y + dy * fraction;
+
+  const projectedLat = projectedY / METERS_PER_DEGREE_LAT;
+  const projectedLon = projectedX / (METERS_PER_DEGREE_LAT * Math.cos((latitudeReference * Math.PI) / 180));
+
+  return {
+    fraction,
+    lat: projectedLat,
+    lon: projectedLon,
+    distanceMeters: calculateDistance(targetLat, targetLon, projectedLat, projectedLon) * 1000,
+  };
+}
+
+function matchSinglePoint(
+  targetLat: number,
+  targetLon: number,
+  pointLat: number,
+  pointLon: number,
+  progress: number,
+): RouteMatch {
+  return {
+    lat: pointLat,
+    lon: pointLon,
+    progress,
+    distanceMeters: calculateDistance(targetLat, targetLon, pointLat, pointLon) * 1000,
+  };
+}
+
+export function projectCoordinateToTrack(
+  track: GPXTrack,
+  targetLat: number,
+  targetLon: number,
+  fallbackProgress: number,
+): RouteMatch | null {
+  if (track.points.length === 0) {
+    return null;
+  }
+
+  if (track.points.length === 1) {
+    return matchSinglePoint(
+      targetLat,
+      targetLon,
+      track.points[0].lat,
+      track.points[0].lon,
+      fallbackProgress,
+    );
+  }
+
+  let bestMatch: RouteMatch | null = null;
+
+  for (let index = 0; index < track.points.length - 1; index += 1) {
+    const start = track.points[index];
+    const end = track.points[index + 1];
+    const projection = projectOntoSegment(
+      targetLat,
+      targetLon,
+      start.lat,
+      start.lon,
+      end.lat,
+      end.lon,
+    );
+
+    const projectedDistance = start.distance + (end.distance - start.distance) * projection.fraction;
+    const progress = track.totalDistance > 0 ? projectedDistance / track.totalDistance : fallbackProgress;
+
+    if (!bestMatch || projection.distanceMeters < bestMatch.distanceMeters) {
+      bestMatch = {
+        lat: projection.lat,
+        lon: projection.lon,
+        progress: Math.max(0, Math.min(1, progress)),
+        distanceMeters: projection.distanceMeters,
+      };
+    }
+  }
+
+  return bestMatch;
+}
+
+export function projectCoordinateToTracks(
+  tracks: GPXTrack[],
+  targetLat: number,
+  targetLon: number,
+  fallbackProgress: number,
+): RouteMatch | null {
+  let bestMatch: RouteMatch | null = null;
+
+  for (const track of tracks) {
+    const candidate = projectCoordinateToTrack(track, targetLat, targetLon, fallbackProgress);
+    if (!candidate) {
+      continue;
+    }
+
+    if (!bestMatch || candidate.distanceMeters < bestMatch.distanceMeters) {
+      bestMatch = candidate;
+    }
+  }
+
+  return bestMatch;
+}
+
+function progressForJourneySegment(segmentTiming: SegmentTiming, startCoordIndex: number, exactIndex: number) {
+  const segmentCoordCount = Math.max(segmentTiming.endCoordIndex - segmentTiming.startCoordIndex, 1);
+  const localProgress = (exactIndex - startCoordIndex) / segmentCoordCount;
+  return segmentTiming.progressStartRatio +
+    localProgress * (segmentTiming.progressEndRatio - segmentTiming.progressStartRatio);
+}
+
+export function projectCoordinateToJourney(
+  computedJourney: ComputedJourney,
+  targetLat: number,
+  targetLon: number,
+  fallbackProgress: number,
+): RouteMatch | null {
+  const { coordinates, segmentTimings } = computedJourney;
+
+  if (coordinates.length === 0) {
+    return null;
+  }
+
+  if (coordinates.length === 1) {
+    const segmentProgress = segmentTimings[0]?.progressStartRatio ?? fallbackProgress;
+    return matchSinglePoint(
+      targetLat,
+      targetLon,
+      coordinates[0].lat,
+      coordinates[0].lon,
+      segmentProgress,
+    );
+  }
+
+  let bestMatch: RouteMatch | null = null;
+
+  for (const segmentTiming of segmentTimings) {
+    if (segmentTiming.endCoordIndex <= segmentTiming.startCoordIndex) {
+      const point = coordinates[segmentTiming.startCoordIndex];
+      if (!point) {
+        continue;
+      }
+
+      const progress = segmentTiming.progressStartRatio;
+      const candidate = matchSinglePoint(targetLat, targetLon, point.lat, point.lon, progress);
+      if (!bestMatch || candidate.distanceMeters < bestMatch.distanceMeters) {
+        bestMatch = candidate;
+      }
+      continue;
+    }
+
+    for (let index = segmentTiming.startCoordIndex; index < segmentTiming.endCoordIndex; index += 1) {
+      const start = coordinates[index];
+      const end = coordinates[index + 1];
+      if (!start || !end) {
+        continue;
+      }
+
+      const projection = projectOntoSegment(
+        targetLat,
+        targetLon,
+        start.lat,
+        start.lon,
+        end.lat,
+        end.lon,
+      );
+      const exactIndex = index + projection.fraction;
+      const progress = progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
+
+      if (!bestMatch || projection.distanceMeters < bestMatch.distanceMeters) {
+        bestMatch = {
+          lat: projection.lat,
+          lon: projection.lon,
+          progress: Math.max(0, Math.min(1, progress)),
+          distanceMeters: projection.distanceMeters,
+        };
+      }
+    }
+  }
+
+  if (bestMatch) {
+    return bestMatch;
+  }
+
+  const firstPoint = coordinates[0];
+  return matchSinglePoint(targetLat, targetLon, firstPoint.lat, firstPoint.lon, fallbackProgress);
+}

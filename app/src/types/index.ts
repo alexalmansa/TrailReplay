@@ -14,6 +14,7 @@ export interface GPXPoint {
 export interface GPXTrack {
   id: string;
   name: string;
+  activityIcon: string;
   points: GPXPoint[];
   totalDistance: number;
   totalTime: number;
@@ -67,13 +68,14 @@ export interface Journey {
 export interface PictureAnnotation {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;
   progress: number;
   position: number;
-  placementSource?: 'gps' | 'manual';
+  placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;
   displayDuration: number;
@@ -82,15 +84,23 @@ export interface PictureAnnotation {
 export interface PendingPicturePlacement {
   id: string;
   file: File;
+  displayFile?: File;
   url: string;
   timestamp?: Date;
   title?: string;
   description?: string;
   displayDuration: number;
-  placementReason: 'missing-gps' | 'route-mismatch';
+  placementReason: 'missing-gps' | 'route-mismatch' | 'no-timed-route' | 'timestamp-out-of-range';
   originalLat?: number;
   originalLon?: number;
   mismatchDistanceMeters?: number;
+  hasGpsMetadata?: boolean;
+  hasTimestampMetadata?: boolean;
+  timestampAlternative?: {
+    lat: number;
+    lon: number;
+    progress: number;
+  };
 }
 
 export interface VideoAnnotation {
@@ -115,8 +125,13 @@ export interface IconChange {
 export interface TextAnnotation {
   id: string;
   progress: number;
-  text: string;
-  icon?: string;
+  lat: number;
+  lon: number;
+  title: string;
+  subtitle?: string;
+  color: string;
+  elevation?: number;
+  displayDuration: number;
 }
 
 export interface PlaybackState {
@@ -197,6 +212,7 @@ export interface TrailStyleSettings {
   colorMode: ColorMode;
   heartRateZones: HeartRateZone[];
   // Marker Settings
+  markerColor: string;
   showMarker: boolean;
   markerSize: number;
   currentIcon: string;

@@ -102,20 +102,11 @@ export function useBaseMapPresentation({
 
     const color = currentTrackColor || trailStyle.trailColor;
 
-    if (trailStyle.colorMode !== 'heartRate') {
-      if (map.getLayer('trail-line')) {
-        map.setPaintProperty('trail-line', 'line-color', color);
-      }
-      if (map.getLayer('trail-completed')) {
-        map.setPaintProperty('trail-completed', 'line-color', color);
-      }
-    } else {
-      if (map.getLayer('trail-line')) {
-        map.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
-      }
-      if (map.getLayer('trail-completed')) {
-        map.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
-      }
+    if (map.getLayer('trail-line')) {
+      map.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
+    }
+    if (map.getLayer('trail-completed')) {
+      map.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
     }
   }, [currentTrackColor, isMapLoaded, mapRef, trailStyle.colorMode, trailStyle.trailColor]);
 

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createAppStore } from './createAppStore';
 import type { GPXTrack, PendingPicturePlacement } from '@/types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 function createTrack(overrides: Partial<GPXTrack> = {}): GPXTrack {
   return {
     id: overrides.id ?? 'track-1',
     name: overrides.name ?? 'Sample Track',
+    activityIcon: overrides.activityIcon ?? DEFAULT_ACTIVITY_ICON,
     points: overrides.points ?? [
       {
         lat: 42,
@@ -70,6 +72,64 @@ describe('createAppStore', () => {
     });
     expect(state.activePanel).toBe('journey');
     expect(state.settings.trailStyle.trailColor).toBe(track.color);
+    expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
+    expect(state.settings.trailStyle.markerColor).toBe(track.color);
+    expect(state.cameraSettings.followBehindPreset).toBe('close');
+  });
+
+  it('chooses a farther default follow-behind preset for long tracks', () => {
+    const useStore = createAppStore();
+    const longTrack = createTrack({
+      totalDistance: 120000,
+    });
+
+    useStore.getState().addTrack(longTrack);
+
+    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('far');
+  });
+
+  it('does not override the follow-behind preset after the first track import', () => {
+    const useStore = createAppStore();
+    const shortTrack = createTrack({
+      id: 'track-short',
+      totalDistance: 2000,
+    });
+    const secondTrack = createTrack({
+      id: 'track-long',
+      totalDistance: 120000,
+    });
+
+    useStore.getState().addTrack(shortTrack);
+    useStore.getState().setCameraSettings({ followBehindPreset: 'medium' });
+    useStore.getState().addTrack(secondTrack);
+
+    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('medium');
+  });
+
+  it('preserves a custom marker color when the active track color changes', () => {
+    const useStore = createAppStore();
+    const track = createTrack({
+      color: '#10B981',
+    });
+
+    useStore.getState().addTrack(track);
+    useStore.getState().setTrailStyle({ markerColor: '#111111' });
+    useStore.getState().updateTrackColor(track.id, '#3B82F6');
+
+    const state = useStore.getState();
+    expect(state.settings.trailStyle.trailColor).toBe('#3B82F6');
+    expect(state.settings.trailStyle.markerColor).toBe('#111111');
+  });
+
+  it('updates the active icon when the active track icon changes', () => {
+    const useStore = createAppStore();
+    const track = createTrack();
+
+    useStore.getState().addTrack(track);
+    useStore.getState().updateTrackIcon(track.id, 'svg-running');
+
+    expect(useStore.getState().tracks[0]?.activityIcon).toBe('svg-running');
+    expect(useStore.getState().settings.trailStyle.currentIcon).toBe('svg-running');
   });
 
   it('keeps manual picture placements queued in upload order until the queue is cleared', () => {
@@ -100,6 +160,7 @@ describe('createAppStore', () => {
 
     useStore.getState().setTrailStyle({
       currentIcon: '🚵',
+      markerColor: '#123456',
       trackLabel: 'Changed',
     });
     useStore.getState().setSettings({
@@ -110,7 +171,8 @@ describe('createAppStore', () => {
 
     const state = useStore.getState();
     expect(state.settings.mapStyle).toBe('esri-clarity');
-    expect(state.settings.trailStyle.currentIcon).toBe('🏃');
+    expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
+    expect(state.settings.trailStyle.markerColor).toBe('#C1652F');
     expect(state.settings.trailStyle.trackLabel).toBe('Track 1');
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });

@@ -15,7 +15,7 @@ type Rect = {
 export type ExportOverlayMetrics = ReturnType<typeof getExportOverlayMetrics>;
 
 export function getOverlayRefreshIntervalMs(fps: number) {
-  return Math.max(42, Math.round(1000 / Math.min(fps, 24)));
+  return Math.max(21, Math.round(1000 / Math.min(fps * 2, 48)));
 }
 
 export function getExportOverlayMetrics(
@@ -43,6 +43,31 @@ export function getCapturedCanvasDrawSize(
   return {
     drawWidth: (captureCanvas.width * scaleToRecording) / captureScale,
     drawHeight: (captureCanvas.height * scaleToRecording) / captureScale,
+  };
+}
+
+export function getStatsOverlayDrawRect(params: {
+  captureCanvas: Size;
+  scaleToRecording: number;
+  recordW: number;
+  recordH: number;
+  margin: number;
+}) {
+  const rawWidth = params.captureCanvas.width * params.scaleToRecording;
+  const isNarrowFrame = params.recordW <= params.recordH;
+  const maxWidth = Math.min(
+    rawWidth,
+    params.recordW - (params.margin * 2),
+    params.recordW * (isNarrowFrame ? 0.56 : 0.28),
+  );
+  const drawWidth = Math.max(0, maxWidth);
+  const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);
+
+  return {
+    drawX: isNarrowFrame ? (params.recordW - drawWidth) / 2 : params.margin,
+    drawY: params.margin,
+    drawWidth,
+    drawHeight,
   };
 }
 

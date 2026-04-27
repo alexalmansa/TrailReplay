@@ -2,17 +2,22 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { convertElevation } from '@/utils/units';
+import type { CropPreviewMetrics } from '@/utils/crop';
 
 interface MapElevationProfileProps {
   className?: string;
+  exportFrame?: CropPreviewMetrics | null;
 }
 
-export function MapElevationProfile({ className = '' }: MapElevationProfileProps) {
+export function MapElevationProfile({ className = '', exportFrame = null }: MapElevationProfileProps) {
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const tracks = useAppStore((state) => state.tracks);
+  const isExporting = useAppStore((state) => state.isExporting);
+  const activePanel = useAppStore((state) => state.activePanel);
+  const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
 
   // Use computed journey for multi-track support
   const {
@@ -186,18 +191,39 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
   const elevUnit = settings.unitSystem === 'metric' ? 'm' : 'ft';
 
   const formattedCurrentElev = Math.round(convertElevation(currentElevation, settings.unitSystem));
+  const isExportPreview = isExporting || activePanel === 'export';
+  const isNonWideExportPreview = isExportPreview && exportAspectRatio !== '16:9';
+  const labelOverflowPadding = isNonWideExportPreview ? 24 : 18;
+  const exportProfileStyle = exportFrame
+    ? {
+        left: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
+        right: exportFrame.frameLeft + (exportFrame.frameWidth * 0.075) - labelOverflowPadding,
+        bottom: exportFrame.bottom + 10,
+      }
+    : {
+        left: -labelOverflowPadding,
+        right: -labelOverflowPadding,
+        bottom: 0,
+      };
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 z-20 ${className}`}
+      className={`absolute z-20 ${className}`}
+      style={exportProfileStyle}
       id="mapElevationProfile"
     >
-      <div className="relative">
+      <div
+        className="relative"
+        style={{
+          marginLeft: labelOverflowPadding,
+          marginRight: labelOverflowPadding,
+        }}
+      >
         {/* SVG Profile */}
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           preserveAspectRatio="none"
-          className="w-full h-[60px]"
+          className={`w-full ${isNonWideExportPreview ? 'h-[72px]' : 'h-[60px]'}`}
           id="elevationProfileSvg"
         >
           {/* Gradient definitions for segments */}
@@ -264,14 +290,24 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
         {/* Current elevation label - follows the progress, aligned to bottom */}
         {playback.progress > 0 && (
           <div
-            className="absolute bottom-1 transform -translate-x-1/2 text-[var(--canvas)] text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+            className={`absolute transform -translate-x-1/2 whitespace-nowrap ${
+              isNonWideExportPreview
+                ? 'bottom-2'
+                : 'bottom-1'
+            }`}
             style={{
               left: `${(markerX / svgWidth) * 100}%`,
-              backgroundColor: currentColor,
+              textShadow: isNonWideExportPreview
+                ? '0 3px 10px rgba(0, 0, 0, 0.72), 0 1px 3px rgba(0, 0, 0, 0.9)'
+                : '0 2px 6px rgba(0, 0, 0, 0.75)',
             }}
           >
             {isInTransport ? (
-              <span className="flex items-center gap-1">
+              <span
+                className={`block text-white ${
+                  isNonWideExportPreview ? 'text-[18px] leading-none' : 'text-[12px] leading-none'
+                }`}
+              >
                 {currentSegment?.segment.transportMode === 'car' && '🚗'}
                 {currentSegment?.segment.transportMode === 'bus' && '🚌'}
                 {currentSegment?.segment.transportMode === 'train' && '🚆'}
@@ -281,7 +317,24 @@ export function MapElevationProfile({ className = '' }: MapElevationProfileProps
                 {currentSegment?.segment.transportMode === 'ferry' && '⛴️'}
               </span>
             ) : (
-              <>{formattedCurrentElev} {elevUnit}</>
+              <span
+                className={`inline-flex items-baseline font-bold text-white ${
+                  isNonWideExportPreview ? 'gap-1.5' : 'gap-1'
+                }`}
+              >
+                <span
+                  className={isNonWideExportPreview ? 'text-[22px] leading-none tracking-[-0.03em]' : 'text-[14px] leading-none'}
+                >
+                  {formattedCurrentElev}
+                </span>
+                <span
+                  className={`font-semibold uppercase ${
+                    isNonWideExportPreview ? 'text-[14px] leading-none' : 'text-[9px] leading-none'
+                  }`}
+                >
+                  {elevUnit}
+                </span>
+              </span>
             )}
           </div>
         )}

@@ -1,7 +1,8 @@
 import { createId } from '@/utils/id';
-import { trackColors } from '@/store/defaults';
+import { getDefaultFollowBehindPreset, trackColors } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
 import type { AppSliceCreator } from './types';
+import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
 
 type TracksSlice = Pick<
   AppState,
@@ -12,6 +13,7 @@ type TracksSlice = Pick<
   | 'removeTrack'
   | 'setActiveTrack'
   | 'updateTrackColor'
+  | 'updateTrackIcon'
   | 'updateTrackName'
   | 'toggleTrackVisibility'
   | 'reorderTracks'
@@ -32,13 +34,21 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
     set((state) => {
       const colorIndex = state.tracks.length % trackColors.length;
       const trackColor = track.color || trackColors[colorIndex];
-      const trackWithColor = { ...track, color: trackColor, visible: true };
+      const trackWithColor = {
+        ...track,
+        activityIcon: track.activityIcon || DEFAULT_ACTIVITY_ICON,
+        color: trackColor,
+        visible: true,
+      };
       state.tracks.push(trackWithColor);
       state.exploreMode = false;
 
       if (!state.activeTrackId) {
         state.activeTrackId = track.id;
         state.settings.trailStyle.trailColor = trackColor;
+        state.settings.trailStyle.currentIcon = trackWithColor.activityIcon;
+        state.settings.trailStyle.markerColor = trackColor;
+        state.cameraSettings.followBehindPreset = getDefaultFollowBehindPreset(track.totalDistance);
       }
 
       if (!state.journey) {
@@ -68,7 +78,12 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
       );
 
       if (state.activeTrackId === trackId) {
-        state.activeTrackId = state.tracks[0]?.id || null;
+        const nextActiveTrack = state.tracks[0] ?? null;
+        state.activeTrackId = nextActiveTrack?.id || null;
+        if (nextActiveTrack) {
+          state.settings.trailStyle.trailColor = nextActiveTrack.color;
+          state.settings.trailStyle.currentIcon = nextActiveTrack.activityIcon;
+        }
       }
     }),
 
@@ -76,8 +91,13 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
     set((state) => {
       state.activeTrackId = trackId;
       const activeTrack = state.tracks.find((track) => track.id === trackId);
-      if (activeTrack?.color) {
+      if (activeTrack) {
+        const previousTrailColor = state.settings.trailStyle.trailColor;
         state.settings.trailStyle.trailColor = activeTrack.color;
+        state.settings.trailStyle.currentIcon = activeTrack.activityIcon;
+        if (state.settings.trailStyle.markerColor === previousTrailColor) {
+          state.settings.trailStyle.markerColor = activeTrack.color;
+        }
       }
     }),
 
@@ -88,7 +108,22 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
 
       track.color = color;
       if (state.activeTrackId === trackId) {
+        const previousTrailColor = state.settings.trailStyle.trailColor;
         state.settings.trailStyle.trailColor = color;
+        if (state.settings.trailStyle.markerColor === previousTrailColor) {
+          state.settings.trailStyle.markerColor = color;
+        }
+      }
+    }),
+
+  updateTrackIcon: (trackId, icon) =>
+    set((state) => {
+      const track = state.tracks.find((entry) => entry.id === trackId);
+      if (!track) return;
+
+      track.activityIcon = icon;
+      if (state.activeTrackId === trackId) {
+        state.settings.trailStyle.currentIcon = icon;
       }
     }),
 

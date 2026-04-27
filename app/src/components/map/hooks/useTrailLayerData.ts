@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { getHeartRateColor } from '@/utils/gpxParser';
+import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 
 const INITIAL_FIT_BOUNDS_DELAY_MS = 100;
 const INITIAL_ZOOM_OUT_DELAY_MS = 2000;
@@ -60,9 +61,13 @@ interface UseTrailLayerDataParams {
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
   playbackProgress: number;
   segmentTimings: Array<{
-    type: string;
+    segmentIndex: number;
+    type: 'track' | 'transport';
+    startCoordIndex: number;
+    endCoordIndex: number;
     progressStartRatio: number;
     progressEndRatio: number;
+    color?: string;
   }>;
   trailColor: string;
   colorMode: 'fixed' | 'heartRate';
@@ -109,11 +114,24 @@ export function useTrailLayerData({
         features,
       });
     } else if (allCoordinates.length > 0 && mapRef.current.getSource('trail-line')) {
-      (mapRef.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: allCoordinates },
+      const coloredFeatures = buildSegmentLineFeatures({
+        coordinates: allCoordinates,
+        segmentTimings,
+        fallbackColor: trailColor,
       });
+
+      (mapRef.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData(
+        coloredFeatures.length > 0
+          ? {
+              type: 'FeatureCollection',
+              features: coloredFeatures,
+            }
+          : {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates: allCoordinates },
+            }
+      );
     }
 
     if (segmentTimings.length > 0 && mapRef.current.getSource('transport-line')) {

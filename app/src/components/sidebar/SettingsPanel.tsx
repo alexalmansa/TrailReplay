@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import type { MapStyle, CameraMode, UnitSystem, MapOverlays, CameraSettings } from '@/types';
+import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
-import { languageLabels } from '@/i18n/translations';
 import {
   Map as MapIcon,
   Video,
   Mountain,
-  Heart,
-  Ruler,
-  Globe
 } from 'lucide-react';
 
 const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
@@ -87,15 +83,13 @@ const getWaybackItems = async (): Promise<WaybackItem[]> => {
 };
 
 export function SettingsPanel() {
-  const { t, language, setLanguage } = useI18n();
+  const { t } = useI18n();
   const settings = useAppStore((state) => state.settings);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const setSettings = useAppStore((state) => state.setSettings);
   const setCameraSettings = useAppStore((state) => state.setCameraSettings);
   const setCameraMode = useAppStore((state) => state.setCameraMode);
   const setMapStyle = useAppStore((state) => state.setMapStyle);
-  const setUnitSystem = useAppStore((state) => state.setUnitSystem);
-  const setTrailStyle = useAppStore((state) => state.setTrailStyle);
   const [waybackItems, setWaybackItems] = useState<WaybackItem[]>([]);
   const [waybackLoading, setWaybackLoading] = useState(false);
   const [waybackError, setWaybackError] = useState<string | null>(null);
@@ -351,156 +345,25 @@ export function SettingsPanel() {
           </div>
         )}
       </div>
-      
-      {/* Display Options */}
+
+      {/* Terrain */}
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
-          <Globe className="w-4 h-4" />
-          {t('settings.displayOptions')}
+          <Mountain className="w-4 h-4" />
+          {t('settings.terrainTitle')}
         </h3>
-        
-        <div className="space-y-3">
-          <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
-            <div className="flex items-center gap-2">
-              <Mountain className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">{t('settings.show3dTerrain')}</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.show3DTerrain}
-              onChange={(e) => setSettings({ show3DTerrain: e.target.checked })}
-              className="w-5 h-5 accent-[var(--trail-orange)]"
-            />
-          </label>
-          
-          <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
-            <div className="flex items-center gap-2">
-              <Heart className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">{t('settings.showHeartRate')}</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.showHeartRate}
-              onChange={(e) => {
-                console.log('🏃 Heart rate toggle:', e.target.checked);
-                setSettings({ showHeartRate: e.target.checked });
-                setTrailStyle({ colorMode: e.target.checked ? 'heartRate' : 'fixed' });
-                console.log('🏃 Set colorMode to:', e.target.checked ? 'heartRate' : 'fixed');
-              }}
-              className="w-5 h-5 accent-[var(--trail-orange)]"
-            />
-          </label>
-
-          {/* Heart Rate Zones Legend */}
-          {settings.showHeartRate && (
-            <div className="space-y-3 bg-[var(--evergreen)]/5 p-3 rounded-lg">
-              <h4 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">{t('settings.heartRateZones')}</h4>
-              <div className="space-y-3">
-                {settings.trailStyle.heartRateZones.map((zone, idx) => (
-                  <div key={idx} className="bg-[var(--canvas)] p-2 rounded border border-[var(--evergreen)]/10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <input
-                        type="color"
-                        value={zone.color}
-                        onChange={(e) => {
-                          const newZones = [...settings.trailStyle.heartRateZones];
-                          newZones[idx].color = e.target.value;
-                          setTrailStyle({ heartRateZones: newZones });
-                        }}
-                        className="w-6 h-6 cursor-pointer rounded border border-[var(--evergreen)]/20"
-                      />
-                      <span className="text-xs font-semibold text-[var(--evergreen)]">{t('settings.heartRateZone', { index: idx + 1 })}</span>
-                      <span className="text-xs text-[var(--evergreen-60)]">{zone.color}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        min="0"
-                        max="300"
-                        value={zone.min}
-                        onChange={(e) => {
-                          const newZones = [...settings.trailStyle.heartRateZones];
-                          newZones[idx].min = Math.max(0, parseInt(e.target.value) || 0);
-                          setTrailStyle({ heartRateZones: newZones });
-                        }}
-                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
-                      />
-                      <span className="text-xs text-[var(--evergreen-60)] font-semibold">-</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="300"
-                        value={zone.max}
-                        onChange={(e) => {
-                          const newZones = [...settings.trailStyle.heartRateZones];
-                          newZones[idx].max = Math.max(0, parseInt(e.target.value) || 0);
-                          setTrailStyle({ heartRateZones: newZones });
-                        }}
-                        className="w-14 px-2 py-1 text-xs bg-[var(--canvas)] border border-[var(--evergreen)]/30 rounded text-[var(--evergreen)] font-medium"
-                      />
-                      <span className="text-xs text-[var(--evergreen-60)]">{t('stats.bpm')}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
-            <div className="flex items-center gap-2">
-              <MapIcon className="w-4 h-4 text-[var(--evergreen)]" />
-              <span className="text-sm text-[var(--evergreen)]">{t('settings.showPictures')}</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.showPictures}
-              onChange={(e) => setSettings({ showPictures: e.target.checked })}
-              className="w-5 h-5 accent-[var(--trail-orange)]"
-            />
-          </label>
-        </div>
-      </div>
-      
-      {/* Units */}
-      <div>
-        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
-          <Ruler className="w-4 h-4" />
-          {t('settings.units')}
-        </h3>
-        <div className="flex gap-2">
-          {(['metric', 'imperial'] as UnitSystem[]).map((unit) => (
-            <button
-              key={unit}
-              onClick={() => setUnitSystem(unit)}
-              className={`
-                flex-1 py-2 px-3 rounded-lg text-sm font-medium capitalize transition-colors
-                ${settings.unitSystem === unit
-                  ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                  : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                }
-              `}
-            >
-              {unit === 'metric' ? t('settings.unitMetric') : t('settings.unitImperial')}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Language */}
-      <div>
-        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
-          <Globe className="w-4 h-4" />
-          {t('settings.language')}
-        </h3>
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as keyof typeof languageLabels)}
-          className="w-full text-sm rounded-lg border border-[var(--evergreen)]/30 bg-[var(--canvas)] text-[var(--evergreen)] px-3 py-2 focus:outline-none focus:border-[var(--trail-orange)]"
-        >
-          {Object.entries(languageLabels).map(([code, label]) => (
-            <option key={code} value={code}>{label}</option>
-          ))}
-        </select>
+        <label className="flex items-center justify-between p-3 bg-[var(--evergreen)]/5 rounded-lg cursor-pointer">
+          <div className="flex items-center gap-2">
+            <Mountain className="w-4 h-4 text-[var(--evergreen)]" />
+            <span className="text-sm text-[var(--evergreen)]">{t('settings.show3dTerrain')}</span>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings.show3DTerrain}
+            onChange={(e) => setSettings({ show3DTerrain: e.target.checked })}
+            className="w-5 h-5 accent-[var(--trail-orange)]"
+          />
+        </label>
       </div>
     </div>
   );
