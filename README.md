@@ -88,12 +88,12 @@ The root scripts delegate to the active frontend in `app/`.
 - MapLibre GL for the interactive map and route playback surfaces.
 - Zustand for app state and editor workflows.
 - Vitest and Testing Library for test coverage.
-- A small serverless endpoint in [`api/contact.js`](./api/contact.js) for feedback submissions.
+- A Cloudflare Pages Function in [`functions/api/contact.js`](./functions/api/contact.js) for feedback submissions.
 
 ## Repository Layout
 
 - `app/`: active TrailReplay frontend, help pages, public assets, and tests
-- `api/`: serverless feedback endpoint used by the deployed site
+- `functions/`: Cloudflare Pages Functions for the deployed site
 - `docs/`: internal notes, issue plans, and branding assets
 - `media/`: repository media used in documentation and demos
 

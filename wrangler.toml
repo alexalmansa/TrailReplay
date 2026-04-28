@@ -1,0 +1,6 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "trailreplay"
+pages_build_output_dir = "./app/dist"
+compatibility_date = "2026-04-28"
+upload_source_maps = true

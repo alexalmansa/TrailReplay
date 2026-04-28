@@ -11,9 +11,6 @@
     "test": "npm --prefix app run test:run",
     "preview": "npm --prefix app run preview"
   },
-  "dependencies": {
-    "resend": "^6.0.1"
-  },
   "keywords": [
     "gpx",
     "trail",
