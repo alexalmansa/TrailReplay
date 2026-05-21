@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createAppStore } from './createAppStore';
 import type { GPXTrack, PendingPicturePlacement } from '@/types';
 import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
+import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
 
 function createTrack(overrides: Partial<GPXTrack> = {}): GPXTrack {
   return {
@@ -74,10 +75,13 @@ describe('createAppStore', () => {
     expect(state.settings.trailStyle.trailColor).toBe(track.color);
     expect(state.settings.trailStyle.currentIcon).toBe(DEFAULT_ACTIVITY_ICON);
     expect(state.settings.trailStyle.markerColor).toBe(track.color);
-    expect(state.cameraSettings.followBehindPreset).toBe('close');
+    expect(state.cameraSettings.followBehindPreset).toBe('medium');
+    expect(state.cameraSettings.followBehindZoomLevel).toBe(
+      getFollowBehindZoomLevelForPreset('medium')
+    );
   });
 
-  it('chooses a farther default follow-behind preset for long tracks', () => {
+  it('keeps the default follow-behind preset at medium for long tracks', () => {
     const useStore = createAppStore();
     const longTrack = createTrack({
       totalDistance: 120000,
@@ -85,7 +89,7 @@ describe('createAppStore', () => {
 
     useStore.getState().addTrack(longTrack);
 
-    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('far');
+    expect(useStore.getState().cameraSettings.followBehindPreset).toBe('medium');
   });
 
   it('does not override the follow-behind preset after the first track import', () => {

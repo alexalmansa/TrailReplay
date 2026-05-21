@@ -597,6 +597,7 @@ export const en = {
   },
   map: {
     loading: 'Loading map...',
+    zoomButtonsHint: 'Use the + and - buttons to change the zoom while the animation plays.',
   },
   errors: {
     noValidGpx: 'No valid GPX or KML files found',

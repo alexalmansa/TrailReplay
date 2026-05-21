@@ -597,6 +597,7 @@ export const ca = {
   },
   map: {
     loading: 'Carregant mapa...',
+    zoomButtonsHint: 'Fes servir els botons + i - per canviar el nivell de zoom mentre es reprodueix l’animació.',
   },
   errors: {
     noValidGpx: 'No s\'han trobat fitxers GPX o KML vàlids',

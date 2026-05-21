@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
+import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
 import {
   Map as MapIcon,
   Video,
@@ -33,13 +34,11 @@ const CAMERA_MODES: { id: CameraMode; nameKey: string; descriptionKey: string }[
 const FOLLOW_PRESETS: Array<{
   id: CameraSettings['followBehindPreset'];
   nameKey: string;
-  zoom: number;
-  pitch: number;
 }> = [
-  { id: 'very-close', nameKey: 'settings.followPresets.veryClose', zoom: 17, pitch: 65 },
-  { id: 'close', nameKey: 'settings.followPresets.close', zoom: 16, pitch: 60 },
-  { id: 'medium', nameKey: 'settings.followPresets.medium', zoom: 15, pitch: 55 },
-  { id: 'far', nameKey: 'settings.followPresets.far', zoom: 14, pitch: 45 },
+  { id: 'very-close', nameKey: 'settings.followPresets.veryClose' },
+  { id: 'close', nameKey: 'settings.followPresets.close' },
+  { id: 'medium', nameKey: 'settings.followPresets.medium' },
+  { id: 'far', nameKey: 'settings.followPresets.far' },
 ];
 
 type WaybackItem = {
@@ -329,7 +328,12 @@ export function SettingsPanel() {
               {FOLLOW_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
-                  onClick={() => setCameraSettings({ followBehindPreset: preset.id })}
+                  onClick={() =>
+                    setCameraSettings({
+                      followBehindPreset: preset.id,
+                      followBehindZoomLevel: getFollowBehindZoomLevelForPreset(preset.id),
+                    })
+                  }
                   className={`
                     flex-1 py-2 px-1 rounded text-xs font-medium transition-colors
                     ${cameraSettings.followBehindPreset === preset.id

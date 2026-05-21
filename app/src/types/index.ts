@@ -169,6 +169,7 @@ export interface CameraSettings {
   pitch: number;
   bearing: number;
   followBehindPreset: 'very-close' | 'close' | 'medium' | 'far';
+  followBehindZoomLevel: number;
 }
 
 export type VideoFormat = 'webm' | 'mp4';
