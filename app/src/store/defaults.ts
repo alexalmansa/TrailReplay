@@ -15,6 +15,7 @@ export function createDefaultPlayback(): PlaybackState {
     speed: 1,
     currentSegmentIndex: 0,
     segmentProgress: 0,
+    routeTimingMode: 'recorded',
   };
 }
 
@@ -28,7 +29,6 @@ export function createDefaultSettings(): AppSettings {
     showPictures: true,
     cameraMode: 'follow-behind',
     defaultAnimationSpeed: 1,
-    defaultTotalTime: 30,
     trailStyle: {
       trailColor: '#C1652F',
       colorMode: 'fixed',

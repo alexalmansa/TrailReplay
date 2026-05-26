@@ -89,6 +89,7 @@ export interface AppState {
   seek: (time: number) => void;
   seekToProgress: (progress: number) => void;
   setSpeed: (speed: number) => void;
+  setRouteTimingMode: (mode: PlaybackState['routeTimingMode']) => void;
   setCurrentSegment: (index: number, progress: number) => void;
   setCinematicPlayed: (played: boolean) => void;
   setAnimationPhase: (phase: 'idle' | 'intro' | 'playing' | 'outro' | 'ended') => void;

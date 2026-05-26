@@ -17,9 +17,10 @@ export function createTransportSegment(
   from: { lat: number; lon: number },
   to: { lat: number; lon: number }
 ): TransportSegment {
-  const distance = calculateDistance(from.lat, from.lon, to.lat, to.lon);
+  const distanceKm = calculateDistance(from.lat, from.lon, to.lat, to.lon);
+  const distance = distanceKm * 1000;
   const speed = TRANSPORT_SPEEDS[mode] || 30;
-  const defaultDuration = Math.max(3000, (distance / speed) * 3600 * 1000);
+  const defaultDuration = Math.max(3000, (distanceKm / speed) * 3600 * 1000);
 
   return {
     id: createId('transport'),
