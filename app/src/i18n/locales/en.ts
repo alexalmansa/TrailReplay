@@ -307,6 +307,10 @@ export const en = {
     defaultSettings: 'Default Settings',
     defaultTrackTime: 'Default Track Time',
     defaultTrackTimeHint: 'Each track will take this time to complete in the animation',
+    routeTiming: 'Route Timing',
+    routeTimingRecorded: 'Recorded',
+    routeTimingUniform: 'Uniform',
+    routeTimingHint: 'Segment durations below set when each part of the replay happens. Recorded follows the original route timing inside each segment, while Uniform keeps motion steady along the route.',
     totalDistance: 'Total Distance:',
     totalDuration: 'Total Duration:',
     totalSegments: 'Segments:',
@@ -597,6 +601,7 @@ export const en = {
   },
   map: {
     loading: 'Loading map...',
+    zoomButtonsHint: 'Use the + and - buttons to change the zoom while the animation plays.',
   },
   errors: {
     noValidGpx: 'No valid GPX or KML files found',

@@ -1,21 +1,10 @@
 import { getInitialLanguage } from '@/i18n/translations';
 import type { AppSettings, CameraSettings, PlaybackState, VideoExportSettings } from '@/types';
+import {
+  DEFAULT_FOLLOW_BEHIND_PRESET,
+  getFollowBehindZoomLevelForPreset,
+} from '@/utils/followBehindCamera';
 import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
-
-export function getDefaultFollowBehindPreset(
-  totalDistanceMeters: number,
-): CameraSettings['followBehindPreset'] {
-  if (totalDistanceMeters <= 5_000) {
-    return 'very-close';
-  }
-  if (totalDistanceMeters <= 15_000) {
-    return 'close';
-  }
-  if (totalDistanceMeters <= 50_000) {
-    return 'medium';
-  }
-  return 'far';
-}
 
 export function createDefaultPlayback(): PlaybackState {
   return {
@@ -26,6 +15,7 @@ export function createDefaultPlayback(): PlaybackState {
     speed: 1,
     currentSegmentIndex: 0,
     segmentProgress: 0,
+    routeTimingMode: 'recorded',
   };
 }
 
@@ -39,7 +29,6 @@ export function createDefaultSettings(): AppSettings {
     showPictures: true,
     cameraMode: 'follow-behind',
     defaultAnimationSpeed: 1,
-    defaultTotalTime: 30,
     trailStyle: {
       trailColor: '#C1652F',
       colorMode: 'fixed',
@@ -70,7 +59,8 @@ export function createDefaultCameraSettings(): CameraSettings {
     zoom: 14,
     pitch: 55,
     bearing: 0,
-    followBehindPreset: 'medium',
+    followBehindPreset: DEFAULT_FOLLOW_BEHIND_PRESET,
+    followBehindZoomLevel: getFollowBehindZoomLevelForPreset(DEFAULT_FOLLOW_BEHIND_PRESET),
   };
 }
 

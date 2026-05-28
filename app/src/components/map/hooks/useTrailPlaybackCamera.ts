@@ -6,6 +6,7 @@ import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { getActivityIconMarkerHtml, isSvgActivityIcon } from '@/utils/activityIcons';
 import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
+import { getFollowBehindCameraTarget } from '@/utils/followBehindCamera';
 import {
   calculateTerrainAwareAdjustments,
   smoothBearing,
@@ -26,7 +27,7 @@ interface UseTrailPlaybackCameraParams {
   currentTrackColor: string | null;
   currentTrackName: string | null;
   elevationData: Array<{ elevation: number; progress?: number }>;
-  followBehindPreset: 'very-close' | 'close' | 'medium' | 'far';
+  followBehindZoomLevel: number;
   isInTransport: boolean;
   isMapLoaded: boolean;
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
@@ -76,7 +77,7 @@ export function useTrailPlaybackCamera({
   currentTrackColor,
   currentTrackName,
   elevationData,
-  followBehindPreset,
+  followBehindZoomLevel,
   introZoomTriggeredRef,
   isInTransport,
   isMapLoaded,
@@ -198,13 +199,7 @@ export function useTrailPlaybackCamera({
       });
     }
 
-    const presets = {
-      'very-close': { zoom: 16, pitch: 55 },
-      'close': { zoom: 15, pitch: 45 },
-      'medium': { zoom: 14, pitch: 35 },
-      'far': { zoom: 11, pitch: 30 },
-    };
-    const preset = presets[followBehindPreset] || presets.medium;
+    const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'playback');
 
     if (animationPhase === 'idle' && lastAnimationPhaseRef.current !== 'idle') {
       introZoomTriggeredRef.current = false;
@@ -269,7 +264,7 @@ export function useTrailPlaybackCamera({
     currentSegment,
     currentTrackColor,
     currentTrackName,
-    followBehindPreset,
+    followBehindZoomLevel,
     introZoomTriggeredRef,
     isInTransport,
     isMapLoaded,
@@ -297,13 +292,7 @@ export function useTrailPlaybackCamera({
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
 
-    const introPresets = {
-      'very-close': { zoom: 17, pitch: 60 },
-      'close': { zoom: 16, pitch: 55 },
-      'medium': { zoom: 15, pitch: 50 },
-      'far': { zoom: 14, pitch: 45 },
-    };
-    const preset = introPresets[followBehindPreset] || introPresets.medium;
+    const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'intro');
 
     if (animationPhase === 'intro' && allCoordinates.length > 0) {
       const startPoint = allCoordinates[0];
@@ -358,7 +347,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     elevationData,
-    followBehindPreset,
+    followBehindZoomLevel,
     isMapLoaded,
     mapRef,
     smoothBearingRef,

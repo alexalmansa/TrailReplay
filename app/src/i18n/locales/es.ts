@@ -307,6 +307,10 @@ export const es = {
     defaultSettings: 'Ajustes predeterminados',
     defaultTrackTime: 'Tiempo por defecto de la ruta',
     defaultTrackTimeHint: 'Cada ruta tardará este tiempo en completarse en la animación',
+    routeTiming: 'Ritmo de la ruta',
+    routeTimingRecorded: 'Grabado',
+    routeTimingUniform: 'Uniforme',
+    routeTimingHint: 'Las duraciones de abajo marcan cuándo ocurre cada parte de la repetición. Grabado sigue el ritmo original dentro de cada segmento, mientras que Uniforme mantiene el movimiento constante a lo largo de la ruta.',
     totalDistance: 'Distancia total:',
     totalDuration: 'Duración total:',
     totalSegments: 'Segmentos:',
@@ -597,6 +601,7 @@ export const es = {
   },
   map: {
     loading: 'Cargando mapa...',
+    zoomButtonsHint: 'Usa los botones + y - para cambiar el nivel de zoom mientras se reproduce la animación.',
   },
   errors: {
     noValidGpx: 'No se encontraron archivos GPX o KML válidos',

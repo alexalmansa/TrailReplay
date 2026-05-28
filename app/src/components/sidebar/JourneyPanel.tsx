@@ -10,10 +10,11 @@ import { createTransportSegment } from './journey/createTransportSegment';
 import {
   Plus,
   Clock,
-  Settings2,
   Route,
   GitCompareArrows,
 } from 'lucide-react';
+
+const DEFAULT_TRACK_SEGMENT_DURATION_MS = 30_000;
 
 export function JourneyPanel() {
   const { t } = useI18n();
@@ -26,7 +27,8 @@ export function JourneyPanel() {
   const updateJourneySegmentDuration = useAppStore((state) => state.updateJourneySegmentDuration);
   const clearJourney = useAppStore((state) => state.clearJourney);
   const settings = useAppStore((state) => state.settings);
-  const setSettings = useAppStore((state) => state.setSettings);
+  const routeTimingMode = useAppStore((state) => state.playback.routeTimingMode);
+  const setRouteTimingMode = useAppStore((state) => state.setRouteTimingMode);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
   
   const [showTransportMenu, setShowTransportMenu] = useState(false);
@@ -60,14 +62,12 @@ export function JourneyPanel() {
   const addTrackToJourney = (trackId: string) => {
     const track = tracks.find((t) => t.id === trackId);
     if (!track) return;
-    
-    const defaultDuration = (settings.defaultTotalTime || 30) * 1000;
-    
+
     addJourneySegment({
       id: createId('track-seg'),
       type: 'track',
       trackId: track.id,
-      duration: defaultDuration,
+      duration: DEFAULT_TRACK_SEGMENT_DURATION_MS,
     });
   };
 
@@ -147,32 +147,6 @@ export function JourneyPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Journey Configuration */}
-      <div className="bg-[var(--evergreen)]/5 border border-[var(--evergreen)]/20 rounded-lg p-3">
-        <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide mb-2 flex items-center gap-1">
-          <Settings2 className="w-3 h-3" />
-          {t('journey.defaultSettings')}
-        </h3>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-[var(--evergreen-60)]">{t('journey.defaultTrackTime')}</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={settings.defaultTotalTime || 30}
-                onChange={(e) => setSettings({ defaultTotalTime: Math.max(1, parseInt(e.target.value) || 30) })}
-                className="w-16 px-2 py-1 text-xs border border-[var(--evergreen)]/30 rounded bg-[var(--canvas)]"
-                min="1"
-              />
-              <span className="text-xs text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>
-            </div>
-          </div>
-          <p className="text-[10px] text-[var(--evergreen-60)]">
-            {t('journey.defaultTrackTimeHint')}
-          </p>
-        </div>
-      </div>
-      
       {/* Journey Stats */}
       {journeySegments.length > 0 && (
         <div className="bg-[var(--evergreen)] text-[var(--canvas)] p-3 rounded-lg">
@@ -267,6 +241,37 @@ export function JourneyPanel() {
               {t('journey.dragToReorder')}
             </span>
           )}
+        </div>
+
+        <div className="mb-3 rounded-lg border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
+                {t('journey.routeTiming')}
+              </p>
+              <p className="mt-1 text-[10px] text-[var(--evergreen-60)]">
+                {t('journey.routeTimingHint')}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-1">
+            {(['recorded', 'uniform'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setRouteTimingMode(mode)}
+                className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                  routeTimingMode === mode
+                    ? 'bg-[var(--evergreen)] text-[var(--canvas)]'
+                    : 'bg-[var(--canvas)] text-[var(--evergreen)] border border-[var(--evergreen)]/20 hover:bg-[var(--evergreen)]/5'
+                }`}
+              >
+                {mode === 'recorded'
+                  ? t('journey.routeTimingRecorded')
+                  : t('journey.routeTimingUniform')}
+              </button>
+            ))}
+          </div>
         </div>
         
         {journeySegments.length === 0 ? (

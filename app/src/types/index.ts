@@ -142,10 +142,12 @@ export interface PlaybackState {
   speed: number;
   currentSegmentIndex: number;
   segmentProgress: number;
+  routeTimingMode: RouteTimingMode;
 }
 
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback';
 export type LanguageCode = 'en' | 'es' | 'ca';
+export type RouteTimingMode = 'recorded' | 'uniform';
 
 export interface MapOverlays {
   skiPistes: boolean;
@@ -169,6 +171,7 @@ export interface CameraSettings {
   pitch: number;
   bearing: number;
   followBehindPreset: 'very-close' | 'close' | 'medium' | 'far';
+  followBehindZoomLevel: number;
 }
 
 export type VideoFormat = 'webm' | 'mp4';
@@ -232,7 +235,6 @@ export interface AppSettings {
   showPictures: boolean;
   cameraMode: CameraMode;
   defaultAnimationSpeed: number;
-  defaultTotalTime: number;
   trailStyle: TrailStyleSettings;
   waybackRelease: number | null;
   waybackItemURL: string | null;

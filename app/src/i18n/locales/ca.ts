@@ -307,6 +307,10 @@ export const ca = {
     defaultSettings: 'Ajustos predeterminats',
     defaultTrackTime: 'Temps per defecte de la ruta',
     defaultTrackTimeHint: 'Cada ruta trigarà aquest temps a completar-se a l\'animació',
+    routeTiming: 'Ritme de la ruta',
+    routeTimingRecorded: 'Enregistrat',
+    routeTimingUniform: 'Uniforme',
+    routeTimingHint: 'Les durades de sota marquen quan passa cada part de la repetició. Enregistrat segueix el ritme original dins de cada segment, mentre que Uniforme manté el moviment constant al llarg de la ruta.',
     totalDistance: 'Distància total:',
     totalDuration: 'Durada total:',
     totalSegments: 'Segments:',
@@ -597,6 +601,7 @@ export const ca = {
   },
   map: {
     loading: 'Carregant mapa...',
+    zoomButtonsHint: 'Fes servir els botons + i - per canviar el nivell de zoom mentre es reprodueix l’animació.',
   },
   errors: {
     noValidGpx: 'No s\'han trobat fitxers GPX o KML vàlids',

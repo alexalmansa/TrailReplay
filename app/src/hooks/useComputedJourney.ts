@@ -2,18 +2,27 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import {
   buildComputedJourney,
-  getJourneyPointAtProgress,
-  getCompletedCoordinates,
-  getAllJourneyCoordinates,
+  buildJourneyDistanceProfile,
+  calculateBearing,
   getBearingAtProgress,
-  getSegmentAtProgress,
+  getBearingAtDistance,
+  getCompletedCoordinates,
+  getCompletedCoordinatesAtDistance,
+  getJourneyDistanceAtProgress,
   getJourneyElevationData,
+  getJourneyPointAtDistance,
+  getJourneyPointAtProgress,
+  getSegmentAtDistance,
+  getSegmentAtProgress,
+  getAllJourneyCoordinates,
   TRANSPORT_ICONS,
   type ComputedJourney,
+  type JourneyDistanceProfile,
   type JourneyPoint,
   type SegmentTiming,
 } from '@/utils/journeyUtils';
 import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
+import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
 
 /**
  * Hook that provides computed journey data for multi-track animations
@@ -23,6 +32,7 @@ export function useComputedJourney() {
   const journeySegments = useAppStore((state) => state.journeySegments);
   const activeTrackId = useAppStore((state) => state.activeTrackId);
   const playback = useAppStore((state) => state.playback);
+  const routeTimingMode = playback.routeTimingMode;
 
   // Build the computed journey whenever segments or tracks change
   const computedJourney = useMemo<ComputedJourney | null>(() => {
@@ -34,6 +44,31 @@ export function useComputedJourney() {
     return tracks.find((t) => t.id === activeTrackId);
   }, [tracks, activeTrackId]);
 
+  const journeyDistanceProfile = useMemo<JourneyDistanceProfile | null>(() => {
+    if (!computedJourney) return null;
+    return buildJourneyDistanceProfile(computedJourney.coordinates);
+  }, [computedJourney]);
+
+  const routeDistance = useMemo(() => {
+    if (computedJourney && journeyDistanceProfile) {
+      if (routeTimingMode === 'uniform') {
+        return journeyDistanceProfile.totalDistance * playback.progress;
+      }
+
+      return getJourneyDistanceAtProgress(
+        playback.progress,
+        journeyDistanceProfile,
+        computedJourney.segmentTimings
+      );
+    }
+
+    if (activeTrack) {
+      return activeTrack.totalDistance * playback.progress;
+    }
+
+    return 0;
+  }, [activeTrack, computedJourney, journeyDistanceProfile, playback.progress, routeTimingMode]);
+
   // Determine if we're in journey mode (multiple segments) or single track mode
   const isJourneyMode = journeySegments.length > 1 ||
     (journeySegments.length === 1 && computedJourney !== null);
@@ -44,7 +79,19 @@ export function useComputedJourney() {
       // Fall back to single track mode
       if (!activeTrack || activeTrack.points.length === 0) return null;
 
-      const targetDistance = activeTrack.totalDistance * playback.progress;
+      const targetDistance = routeDistance;
+      if (routeTimingMode === 'uniform') {
+        const point = interpolateTrackPoint(activeTrack, targetDistance);
+        if (!point) return null;
+
+        return {
+          ...point,
+          segmentIndex: 0,
+          segmentType: 'track' as const,
+          trackId: activeTrack.id,
+        };
+      }
+
       let pointIndex = 0;
 
       for (let i = 0; i < activeTrack.points.length; i++) {
@@ -64,18 +111,37 @@ export function useComputedJourney() {
       };
     }
 
+    if (routeTimingMode === 'uniform' && journeyDistanceProfile) {
+      return getJourneyPointAtDistance(journeyDistanceProfile, routeDistance);
+    }
+
     return getJourneyPointAtProgress(
       playback.progress,
       computedJourney.coordinates,
       computedJourney.segmentTimings
     );
-  }, [computedJourney, activeTrack, playback.progress]);
+  }, [computedJourney, activeTrack, journeyDistanceProfile, playback.progress, routeDistance, routeTimingMode]);
 
   // Get current bearing
   const currentBearing = useMemo<number>(() => {
     if (!computedJourney) {
       // Fall back to single track bearing calculation
       if (!activeTrack || activeTrack.points.length < 2) return 0;
+
+      if (routeTimingMode === 'uniform') {
+        const current = interpolateTrackPoint(activeTrack, routeDistance);
+        const next = interpolateTrackPoint(
+          activeTrack,
+          Math.min(routeDistance + Math.max(activeTrack.totalDistance * 0.01, 10), activeTrack.totalDistance)
+        );
+
+        if (!current || !next) return 0;
+
+        return calculateBearing(
+          { lat: current.lat, lon: current.lon },
+          { lat: next.lat, lon: next.lon }
+        );
+      }
 
       const pointIndex = Math.floor(playback.progress * (activeTrack.points.length - 1));
       const lookAhead = Math.min(10, activeTrack.points.length - pointIndex - 1);
@@ -100,18 +166,25 @@ export function useComputedJourney() {
       return (bearing + 360) % 360;
     }
 
+    if (routeTimingMode === 'uniform' && journeyDistanceProfile) {
+      return getBearingAtDistance(journeyDistanceProfile, routeDistance);
+    }
+
     return getBearingAtProgress(
       playback.progress,
       computedJourney.coordinates,
       computedJourney.segmentTimings
     );
-  }, [computedJourney, activeTrack, playback.progress]);
+  }, [computedJourney, activeTrack, journeyDistanceProfile, playback.progress, routeDistance, routeTimingMode]);
 
   // Get current segment info
   const currentSegment = useMemo<{ segment: SegmentTiming; localProgress: number } | null>(() => {
     if (!computedJourney) return null;
+    if (routeTimingMode === 'uniform' && journeyDistanceProfile) {
+      return getSegmentAtDistance(journeyDistanceProfile, routeDistance, computedJourney.segmentTimings);
+    }
     return getSegmentAtProgress(playback.progress, computedJourney.segmentTimings);
-  }, [computedJourney, playback.progress]);
+  }, [computedJourney, journeyDistanceProfile, playback.progress, routeDistance, routeTimingMode]);
 
   // Get completed coordinates for trail rendering
   const completedCoordinates = useMemo<number[][]>(() => {
@@ -119,7 +192,7 @@ export function useComputedJourney() {
       // Fall back to single track
       if (!activeTrack) return [];
 
-      const targetDistance = activeTrack.totalDistance * playback.progress;
+      const targetDistance = routeDistance;
       const completed: number[][] = [];
 
       for (const point of activeTrack.points) {
@@ -130,7 +203,23 @@ export function useComputedJourney() {
         }
       }
 
+      if (routeTimingMode === 'uniform') {
+        const currentPoint = interpolateTrackPoint(activeTrack, targetDistance);
+        if (
+          currentPoint &&
+          (completed.length === 0 ||
+            completed[completed.length - 1][0] !== currentPoint.lon ||
+            completed[completed.length - 1][1] !== currentPoint.lat)
+        ) {
+          completed.push([currentPoint.lon, currentPoint.lat]);
+        }
+      }
+
       return completed;
+    }
+
+    if (routeTimingMode === 'uniform' && journeyDistanceProfile) {
+      return getCompletedCoordinatesAtDistance(journeyDistanceProfile, routeDistance);
     }
 
     return getCompletedCoordinates(
@@ -138,7 +227,7 @@ export function useComputedJourney() {
       computedJourney.coordinates,
       computedJourney.segmentTimings
     );
-  }, [computedJourney, activeTrack, playback.progress]);
+  }, [computedJourney, activeTrack, journeyDistanceProfile, playback.progress, routeDistance, routeTimingMode]);
 
   // Get all journey coordinates for the full trail line
   const allCoordinates = useMemo<number[][]>(() => {
@@ -195,6 +284,11 @@ export function useComputedJourney() {
     return undefined;
   }, [currentSegment, tracks]);
 
+  const totalDistance = computedJourney
+    ? journeyDistanceProfile?.totalDistance ?? computedJourney.totalDistance
+    : activeTrack?.totalDistance ?? 0;
+  const routeProgress = totalDistance > 0 ? routeDistance / totalDistance : playback.progress;
+
   return {
     computedJourney,
     isJourneyMode,
@@ -211,6 +305,9 @@ export function useComputedJourney() {
     // Expose segment timings for other components
     segmentTimings: computedJourney?.segmentTimings || [],
     totalDuration: computedJourney?.totalDuration || 0,
-    totalDistance: computedJourney?.totalDistance || 0,
+    totalDistance,
+    routeDistance,
+    routeProgress,
+    routeTimingMode,
   };
 }

@@ -9,8 +9,6 @@ import {
   Clock,
   Mountain,
   Heart,
-  Zap,
-  TrendingUp
 } from 'lucide-react';
 
 interface StatsOverlayProps {
@@ -144,8 +142,6 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
       currentSpeed: currentPosition.speed || 0, // km/h for transport display
       elevationGain: cumulativeElevationGain, // meters
       heartRate: currentPosition.heartRate,
-      cadence: currentPosition.cadence,
-      power: currentPosition.power,
     };
   }, [currentPosition, playback, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
 
@@ -165,24 +161,6 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
           value: `${Math.round(currentStats.heartRate)}`,
           unit: t('stats.bpm'),
           color: 'text-red-500',
-        }
-      : null,
-    currentStats.cadence && !isInTransport
-      ? {
-          key: 'cadence',
-          icon: <Zap className="w-3 h-3" />,
-          label: t('stats.cadence'),
-          value: `${Math.round(currentStats.cadence)}`,
-          unit: t('stats.rpm'),
-        }
-      : null,
-    currentStats.power && !isInTransport
-      ? {
-          key: 'power',
-          icon: <TrendingUp className="w-3 h-3" />,
-          label: t('stats.power'),
-          value: `${Math.round(currentStats.power)}`,
-          unit: t('stats.watts'),
         }
       : null,
   ].filter(Boolean) as Array<{

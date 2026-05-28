@@ -13,6 +13,7 @@ type PlaybackSlice = Pick<
   | 'seek'
   | 'seekToProgress'
   | 'setSpeed'
+  | 'setRouteTimingMode'
   | 'setCurrentSegment'
   | 'setCinematicPlayed'
   | 'setAnimationPhase'
@@ -58,6 +59,11 @@ export const createPlaybackSlice: AppSliceCreator<PlaybackSlice> = (set) => ({
       state.playback.speed = speed;
     }),
 
+  setRouteTimingMode: (mode) =>
+    set((state) => {
+      state.playback.routeTimingMode = mode;
+    }),
+
   setCurrentSegment: (index, progress) =>
     set((state) => {
       state.playback.currentSegmentIndex = index;
@@ -76,7 +82,11 @@ export const createPlaybackSlice: AppSliceCreator<PlaybackSlice> = (set) => ({
 
   resetPlayback: () =>
     set((state) => {
-      state.playback = createDefaultPlayback();
+      const routeTimingMode = state.playback.routeTimingMode;
+      state.playback = {
+        ...createDefaultPlayback(),
+        routeTimingMode,
+      };
       state.cinematicPlayed = false;
       state.animationPhase = 'idle';
     }),

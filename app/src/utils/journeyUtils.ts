@@ -46,10 +46,14 @@ export interface SegmentTiming {
   duration: number; // in ms
   startTime: number; // in ms
   endTime: number; // in ms
+  startDistance: number; // in meters
+  endDistance: number; // in meters
   startCoordIndex: number;
   endCoordIndex: number;
   progressStartRatio: number; // 0-1
   progressEndRatio: number; // 0-1
+  distanceStartRatio: number; // 0-1
+  distanceEndRatio: number; // 0-1
   trackId?: string;
   transportMode?: string;
   color?: string;
@@ -65,6 +69,12 @@ export interface ComputedJourney {
   totalDistance: number; // in meters (from gpxParser Haversine)
   trackDuration: number; // in ms
   transportDuration: number; // in ms
+}
+
+export interface JourneyDistanceProfile {
+  coordinates: JourneyPoint[];
+  cumulativeDistances: number[];
+  totalDistance: number;
 }
 
 /**
@@ -148,13 +158,29 @@ export function buildComputedJourney(
   let transportDuration = 0;
   let currentCoordIndex = 0;
   let accumulatedTime = 0;
+  let accumulatedDistance = 0;
 
-  // First pass: calculate total duration for progress ratios
+  // First pass: calculate totals for progress ratios
   const totalJourneyDuration = journeySegments.reduce((sum, seg) => sum + (seg.duration || 0), 0);
+  const totalJourneyDistance = journeySegments.reduce((sum, segment) => {
+    if (segment.type === 'track') {
+      const track = tracks.find((t) => t.id === segment.trackId);
+      return sum + (track?.totalDistance || 0);
+    }
+
+    return sum + calculateDistance(
+      segment.from.lat,
+      segment.from.lon,
+      segment.to.lat,
+      segment.to.lon
+    ) * 1000;
+  }, 0);
 
   journeySegments.forEach((segment, segmentIndex) => {
     const startCoordIndex = currentCoordIndex;
     const startTime = accumulatedTime;
+    const startDistance = accumulatedDistance;
+    let segmentDistance = 0;
 
     if (segment.type === 'track') {
       const trackSeg = segment as TrackSegment;
@@ -172,7 +198,8 @@ export function buildComputedJourney(
           currentCoordIndex++;
         });
 
-        totalDistance += track.totalDistance;
+        segmentDistance = track.totalDistance;
+        totalDistance += segmentDistance;
         trackDuration += segment.duration || 0;
       }
     } else {
@@ -190,7 +217,7 @@ export function buildComputedJourney(
         transportSeg.from.lon,
         transportSeg.to.lat,
         transportSeg.to.lon
-      );
+      ) * 1000;
 
       let accDistance = 0;
       transportPoints.forEach((point, i) => {
@@ -200,7 +227,7 @@ export function buildComputedJourney(
             transportPoints[i - 1].lon,
             point.lat,
             point.lon
-          );
+          ) * 1000;
         }
 
         coordinates.push({
@@ -221,18 +248,23 @@ export function buildComputedJourney(
         currentCoordIndex++;
       });
 
-      totalDistance += transportDistance;
+      segmentDistance = transportDistance;
+      totalDistance += segmentDistance;
       transportDuration += segment.duration || 0;
     }
 
     const endCoordIndex = currentCoordIndex - 1;
     const endTime = startTime + (segment.duration || 0);
+    const endDistance = startDistance + segmentDistance;
     accumulatedTime = endTime;
+    accumulatedDistance = endDistance;
     totalDuration += segment.duration || 0;
 
     // Calculate progress ratios for this segment
     const progressStartRatio = totalJourneyDuration > 0 ? startTime / totalJourneyDuration : 0;
     const progressEndRatio = totalJourneyDuration > 0 ? endTime / totalJourneyDuration : 1;
+    const distanceStartRatio = totalJourneyDistance > 0 ? startDistance / totalJourneyDistance : 0;
+    const distanceEndRatio = totalJourneyDistance > 0 ? endDistance / totalJourneyDistance : 1;
 
     // Get track color if available
     let color: string | undefined;
@@ -247,10 +279,14 @@ export function buildComputedJourney(
       duration: segment.duration || 0,
       startTime,
       endTime,
+      startDistance,
+      endDistance,
       startCoordIndex,
       endCoordIndex,
       progressStartRatio,
       progressEndRatio,
+      distanceStartRatio,
+      distanceEndRatio,
       trackId: segment.type === 'track' ? (segment as TrackSegment).trackId : undefined,
       transportMode: segment.type === 'transport' ? (segment as TransportSegment).mode : undefined,
       color,
@@ -265,6 +301,65 @@ export function buildComputedJourney(
     trackDuration,
     transportDuration,
   };
+}
+
+function clampDistance(distance: number, totalDistance: number) {
+  return Math.max(0, Math.min(distance, totalDistance));
+}
+
+function interpolateNullableNumber(
+  start: number | null,
+  end: number | null,
+  ratio: number
+): number | null {
+  if (start == null && end == null) return null;
+  if (start == null) return end;
+  if (end == null) return start;
+  return start + (end - start) * ratio;
+}
+
+export function buildJourneyDistanceProfile(coordinates: JourneyPoint[]): JourneyDistanceProfile | null {
+  if (coordinates.length === 0) return null;
+
+  const cumulativeDistances: number[] = [0];
+
+  for (let i = 1; i < coordinates.length; i += 1) {
+    const previous = coordinates[i - 1];
+    const current = coordinates[i];
+    const isSameTrackSegment =
+      previous.segmentIndex === current.segmentIndex &&
+      previous.segmentType === 'track' &&
+      current.segmentType === 'track' &&
+      previous.trackId === current.trackId;
+
+    const delta = isSameTrackSegment && current.distance >= previous.distance
+      ? current.distance - previous.distance
+      : calculateDistance(previous.lat, previous.lon, current.lat, current.lon) * 1000;
+
+    cumulativeDistances.push(cumulativeDistances[i - 1] + Math.max(0, delta));
+  }
+
+  return {
+    coordinates,
+    cumulativeDistances,
+    totalDistance: cumulativeDistances[cumulativeDistances.length - 1] ?? 0,
+  };
+}
+
+function findDistanceIndex(profile: JourneyDistanceProfile, distance: number): number {
+  let left = 0;
+  let right = profile.cumulativeDistances.length - 1;
+
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2);
+    if (profile.cumulativeDistances[middle] < distance) {
+      left = middle + 1;
+    } else {
+      right = middle;
+    }
+  }
+
+  return left;
 }
 
 /**
@@ -343,6 +438,78 @@ export function getJourneyPointAtProgress(
   };
 }
 
+export function getJourneyDistanceAtProgress(
+  progress: number,
+  profile: JourneyDistanceProfile,
+  segmentTimings: SegmentTiming[]
+): number {
+  if (profile.coordinates.length === 0 || segmentTimings.length === 0) return 0;
+
+  const segmentInfo = getSegmentAtProgress(progress, segmentTimings);
+  if (!segmentInfo) return 0;
+
+  const { segment, localProgress } = segmentInfo;
+  const segmentCoordCount = segment.endCoordIndex - segment.startCoordIndex;
+  const exactIndex = segment.startCoordIndex + localProgress * segmentCoordCount;
+  const lowerIndex = Math.floor(exactIndex);
+  const upperIndex = Math.min(lowerIndex + 1, profile.cumulativeDistances.length - 1);
+  const ratio = exactIndex - lowerIndex;
+  const lowerDistance = profile.cumulativeDistances[lowerIndex] ?? 0;
+  const upperDistance = profile.cumulativeDistances[upperIndex] ?? lowerDistance;
+
+  return lowerDistance + (upperDistance - lowerDistance) * ratio;
+}
+
+export function getJourneyPointAtDistance(
+  profile: JourneyDistanceProfile,
+  distance: number
+): JourneyPoint | null {
+  if (profile.coordinates.length === 0) return null;
+
+  const clampedDistance = clampDistance(distance, profile.totalDistance);
+  if (clampedDistance <= 0) return profile.coordinates[0];
+  if (clampedDistance >= profile.totalDistance) {
+    return profile.coordinates[profile.coordinates.length - 1];
+  }
+
+  const pointIndex = Math.max(1, findDistanceIndex(profile, clampedDistance));
+  const lowerIndex = pointIndex - 1;
+  const upperIndex = pointIndex;
+  const lower = profile.coordinates[lowerIndex];
+  const upper = profile.coordinates[upperIndex];
+  const startDistance = profile.cumulativeDistances[lowerIndex];
+  const endDistance = profile.cumulativeDistances[upperIndex];
+  const span = endDistance - startDistance;
+  const ratio = span > 0 ? (clampedDistance - startDistance) / span : 0;
+  const metaPoint = ratio < 1 ? lower : upper;
+  const isSameTrackSegment =
+    lower.segmentIndex === upper.segmentIndex &&
+    lower.segmentType === 'track' &&
+    upper.segmentType === 'track' &&
+    lower.trackId === upper.trackId;
+
+  return {
+    lat: lower.lat + (upper.lat - lower.lat) * ratio,
+    lon: lower.lon + (upper.lon - lower.lon) * ratio,
+    elevation: lower.elevation + (upper.elevation - lower.elevation) * ratio,
+    time: lower.time && upper.time
+      ? new Date(lower.time.getTime() + (upper.time.getTime() - lower.time.getTime()) * ratio)
+      : metaPoint.time,
+    heartRate: interpolateNullableNumber(lower.heartRate, upper.heartRate, ratio),
+    cadence: interpolateNullableNumber(lower.cadence, upper.cadence, ratio),
+    power: interpolateNullableNumber(lower.power, upper.power, ratio),
+    temperature: interpolateNullableNumber(lower.temperature, upper.temperature, ratio),
+    distance: isSameTrackSegment
+      ? lower.distance + (upper.distance - lower.distance) * ratio
+      : metaPoint.distance,
+    speed: lower.speed + (upper.speed - lower.speed) * ratio,
+    segmentIndex: metaPoint.segmentIndex,
+    segmentType: metaPoint.segmentType,
+    trackId: metaPoint.trackId,
+    transportMode: metaPoint.transportMode,
+  };
+}
+
 /**
  * Get completed coordinates up to a progress point
  */
@@ -376,6 +543,37 @@ export function getCompletedCoordinates(
   }
 
   return completedCoords;
+}
+
+export function getCompletedCoordinatesAtDistance(
+  profile: JourneyDistanceProfile,
+  distance: number
+): number[][] {
+  if (profile.coordinates.length === 0) return [];
+
+  const clampedDistance = clampDistance(distance, profile.totalDistance);
+  const completed: number[][] = [];
+
+  for (let i = 0; i < profile.coordinates.length; i += 1) {
+    if (profile.cumulativeDistances[i] > clampedDistance) {
+      break;
+    }
+
+    const point = profile.coordinates[i];
+    completed.push([point.lon, point.lat]);
+  }
+
+  const currentPoint = getJourneyPointAtDistance(profile, clampedDistance);
+  if (
+    currentPoint &&
+    (completed.length === 0 ||
+      completed[completed.length - 1][0] !== currentPoint.lon ||
+      completed[completed.length - 1][1] !== currentPoint.lat)
+  ) {
+    completed.push([currentPoint.lon, currentPoint.lat]);
+  }
+
+  return completed;
 }
 
 /**
@@ -440,6 +638,48 @@ export function getBearingAtProgress(
     { lat: current.lat, lon: current.lon },
     { lat: next.lat, lon: next.lon }
   );
+}
+
+export function getBearingAtDistance(profile: JourneyDistanceProfile, distance: number): number {
+  if (profile.coordinates.length < 2) return 0;
+
+  const clampedDistance = clampDistance(distance, profile.totalDistance);
+  const currentPoint = getJourneyPointAtDistance(profile, clampedDistance);
+  const lookAheadDistance = Math.max(profile.totalDistance * 0.01, 10);
+  const nextPoint = getJourneyPointAtDistance(
+    profile,
+    Math.min(clampedDistance + lookAheadDistance, profile.totalDistance)
+  );
+
+  if (!currentPoint || !nextPoint) return 0;
+
+  return calculateBearing(
+    { lat: currentPoint.lat, lon: currentPoint.lon },
+    { lat: nextPoint.lat, lon: nextPoint.lon }
+  );
+}
+
+export function getSegmentAtDistance(
+  profile: JourneyDistanceProfile,
+  distance: number,
+  segmentTimings: SegmentTiming[]
+): { segment: SegmentTiming; localProgress: number } | null {
+  const point = getJourneyPointAtDistance(profile, distance);
+  if (!point) return null;
+
+  const segment = segmentTimings.find((timing) => timing.segmentIndex === point.segmentIndex);
+  if (!segment) return null;
+
+  const clampedDistance = clampDistance(distance, profile.totalDistance);
+  const segmentSpan = segment.endDistance - segment.startDistance;
+  const localProgress = segmentSpan > 0
+    ? (clampedDistance - segment.startDistance) / segmentSpan
+    : 0;
+
+  return {
+    segment,
+    localProgress: Math.max(0, Math.min(localProgress, 1)),
+  };
 }
 
 /**

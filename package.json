@@ -5,8 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "check:pages-assets": "node ./scripts/check-pages-asset-sizes.mjs ./app/dist",
     "dev": "npm --prefix app run dev",
-    "build": "npm --prefix app ci && npm --prefix app run build",
+    "build": "npm --prefix app ci && npm --prefix app run build && npm run check:pages-assets",
     "lint": "npm --prefix app run lint",
     "test": "npm --prefix app run test:run",
     "preview": "npm --prefix app run preview"
