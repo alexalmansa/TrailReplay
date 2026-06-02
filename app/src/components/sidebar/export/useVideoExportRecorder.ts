@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import fixWebmDuration from 'fix-webm-duration';
 import { useAppStore } from '@/store/useAppStore';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
@@ -11,6 +12,11 @@ import {
   getVideoBitrate,
   MP4_MIME_TYPES,
 } from './exportConfig';
+import {
+  createMp4CanvasEncoder,
+  isWebCodecsMp4Supported,
+  type Mp4CanvasEncoder,
+} from './mp4CanvasEncoder';
 import {
   getCapturedCanvasDrawSize,
   getElevationOverlayDrawRect,
@@ -95,7 +101,9 @@ export function useVideoExportRecorder() {
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
 
   const mp4Supported = useMemo(
-    () => MP4_MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType)),
+    () =>
+      isWebCodecsMp4Supported() ||
+      MP4_MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType)),
     []
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
@@ -106,7 +114,11 @@ export function useVideoExportRecorder() {
   const recordingContextRef = useRef<CanvasRenderingContext2D | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef(0);
   const isRecordingRef = useRef(false);
+  const recordingCancelledRef = useRef(false);
+  const mp4EncoderRef = useRef<Mp4CanvasEncoder | null>(null);
+  const useWebCodecsRef = useRef(false);
   const frameRequestRef = useRef<number | null>(null);
   const frameCleanupRef = useRef<(() => void) | null>(null);
   const cachedOverlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -435,6 +447,14 @@ export function useVideoExportRecorder() {
     }
   }, [overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
+  // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
+  // No-op for the MediaRecorder path, which samples the canvas stream itself.
+  const encodeWebCodecsFrame = useCallback(() => {
+    if (!useWebCodecsRef.current || !mp4EncoderRef.current || !recordingCanvasRef.current) return;
+    const elapsedMicros = (performance.now() - recordingStartTimeRef.current) * 1000;
+    mp4EncoderRef.current.encodeCanvas(recordingCanvasRef.current, elapsedMicros);
+  }, []);
+
   const startFrameCapture = useCallback(() => {
     const map = mapGlobalRef.current;
     const targetFrameInterval = 1000 / videoExportSettings.fps;
@@ -443,7 +463,12 @@ export function useVideoExportRecorder() {
     if (!map) {
       const captureLoop = () => {
         if (!isRecordingRef.current) return;
-        captureFrame();
+        const now = performance.now();
+        if (now - lastCaptureTime >= targetFrameInterval) {
+          captureFrame();
+          encodeWebCodecsFrame();
+          lastCaptureTime = now;
+        }
         frameRequestRef.current = requestAnimationFrame(captureLoop);
       };
       frameRequestRef.current = requestAnimationFrame(captureLoop);
@@ -455,6 +480,7 @@ export function useVideoExportRecorder() {
       const now = performance.now();
       if (now - lastCaptureTime >= targetFrameInterval) {
         captureFrame();
+        encodeWebCodecsFrame();
         lastCaptureTime = now;
       }
     };
@@ -468,7 +494,50 @@ export function useVideoExportRecorder() {
       frameRequestRef.current = requestAnimationFrame(keepRendering);
     };
     frameRequestRef.current = requestAnimationFrame(keepRendering);
-  }, [captureFrame, videoExportSettings.fps]);
+  }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps]);
+
+  // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
+  const finalizeWebCodecsExport = useCallback(async () => {
+    const encoder = mp4EncoderRef.current;
+    if (!encoder) return;
+    mp4EncoderRef.current = null;
+    useWebCodecsRef.current = false;
+
+    if (recordingCancelledRef.current) {
+      encoder.close();
+      setIsExporting(false);
+      return;
+    }
+
+    try {
+      const blob = await encoder.finalize();
+      if (blob.size > 0) {
+        setExportedBlob(blob);
+        setExportStage(t('export.stageComplete'));
+        setExportProgress(100);
+        trackEvent('export_completed', {
+          export_blob_size: blob.size,
+          export_format: 'mp4',
+        });
+
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `trail-replay-${Date.now()}.mp4`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      } else {
+        setExportStage(t('export.stageFailedNoData'));
+        trackEvent('export_failed', { export_failure_scope: 'no_data' });
+      }
+    } catch (error) {
+      console.error('WebCodecs export failed', error);
+      setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
+      trackEvent('export_failed', { export_failure_scope: 'encoder_finalize' });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [setExportProgress, setExportStage, setIsExporting, t]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -486,10 +555,25 @@ export function useVideoExportRecorder() {
 
     setExportStage(t('export.stageFinalizing'));
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    if (useWebCodecsRef.current) {
+      void finalizeWebCodecsExport();
+      return;
     }
-  }, [setExportStage, t]);
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      // Flush the trailing partial timeslice before stopping so the tail of
+      // the animation isn't dropped from the recording.
+      if (recorder.state === 'recording') {
+        try {
+          recorder.requestData();
+        } catch {
+          // requestData can throw if the recorder already stopped; ignore.
+        }
+      }
+      recorder.stop();
+    }
+  }, [finalizeWebCodecsExport, setExportStage, t]);
 
   useEffect(() => {
     if (!isRecordingRef.current) return;
@@ -510,6 +594,101 @@ export function useVideoExportRecorder() {
     }
   }, [animationPhase, finishRecording, playback.progress, setExportProgress, setExportStage, t]);
 
+  // Fallback path when WebCodecs MP4 encoding isn't available: record the canvas
+  // stream with MediaRecorder. For WebM output we patch the duration on stop so
+  // the file stays seekable and doesn't freeze in players other than Chrome.
+  const setupMediaRecorderFallback = useCallback(() => {
+    if (!recordingCanvasRef.current) return;
+
+    const stream = recordingCanvasRef.current.captureStream(videoExportSettings.fps);
+    const { mimeType, actualFormat: recordedFormat } = getSupportedMimeType(videoExportSettings.format);
+    const extension = recordedFormat === 'mp4' ? 'mp4' : 'webm';
+
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: getVideoBitrate(videoExportSettings.quality),
+    });
+    mediaRecorderRef.current = recorder;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunksRef.current.push(event.data);
+      }
+    };
+
+    recorder.onstop = async () => {
+      // A cancelled export still fires onstop; don't save or download it.
+      if (recordingCancelledRef.current) {
+        setIsExporting(false);
+        return;
+      }
+      let blob = new Blob(recordedChunksRef.current, { type: mimeType });
+      if (blob.size > 0) {
+        // MediaRecorder writes WebM without a Duration/Cues header, so many
+        // players (QuickTime, Windows, social uploads, editors) freeze after
+        // the first cluster. Patch in the real measured duration so the file
+        // is seekable and plays to the end everywhere.
+        if (recordedFormat === 'webm') {
+          const durationMs = recordingStartTimeRef.current > 0
+            ? performance.now() - recordingStartTimeRef.current
+            : 0;
+          if (durationMs > 0) {
+            try {
+              blob = await fixWebmDuration(blob, durationMs, { logger: false });
+            } catch (fixError) {
+              console.warn('Failed to patch WebM duration, using raw recording', fixError);
+            }
+          }
+        }
+
+        setExportedBlob(blob);
+        setExportStage(t('export.stageComplete'));
+        setExportProgress(100);
+        trackEvent('export_completed', {
+          export_blob_size: blob.size,
+          export_format: extension,
+        });
+
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `trail-replay-${Date.now()}.${extension}`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      } else {
+        setExportStage(t('export.stageFailedNoData'));
+        trackEvent('export_failed', {
+          export_failure_scope: 'no_data',
+        });
+      }
+      setIsExporting(false);
+    };
+
+    recorder.onerror = (event) => {
+      // On weaker hardware the encoder can stall or error partway through a
+      // high-resolution recording. Stop the capture loop and let onstop
+      // finalize whatever was captured so the user still gets a video.
+      console.error('MediaRecorder error during export', event);
+      trackEvent('export_failed', {
+        export_failure_scope: 'recorder_error',
+      });
+      if (frameCleanupRef.current) {
+        frameCleanupRef.current();
+        frameCleanupRef.current = null;
+      }
+      if (frameRequestRef.current) {
+        cancelAnimationFrame(frameRequestRef.current);
+        frameRequestRef.current = null;
+      }
+      isRecordingRef.current = false;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+
+    recorder.start(100);
+  }, [setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
+
   const handleStartExport = useCallback(async () => {
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
     if (!mapCanvas) {
@@ -522,6 +701,9 @@ export function useVideoExportRecorder() {
     setExportStage(t('export.stagePreparing'));
     setExportedBlob(null);
     recordedChunksRef.current = [];
+    recordingCancelledRef.current = false;
+    useWebCodecsRef.current = false;
+    mp4EncoderRef.current = null;
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
     overlayLastUpdateRef.current = 0;
@@ -569,49 +751,32 @@ export function useVideoExportRecorder() {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       setExportStage(t('export.stageSetupRecorder'));
-      const stream = recordingCanvasRef.current.captureStream(videoExportSettings.fps);
-      const { mimeType, actualFormat: recordedFormat } = getSupportedMimeType(videoExportSettings.format);
-      const extension = recordedFormat === 'mp4' ? 'mp4' : 'webm';
 
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: getVideoBitrate(videoExportSettings.quality),
-      });
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-        if (blob.size > 0) {
-          setExportedBlob(blob);
-          setExportStage(t('export.stageComplete'));
-          setExportProgress(100);
-          trackEvent('export_completed', {
-            export_blob_size: blob.size,
-            export_format: extension,
+      // Preferred path: encode MP4 with WebCodecs + mp4-muxer. This produces a
+      // clean, seekable file with a real moov/duration, avoiding the fragmented
+      // MediaRecorder MP4 that freezes after the first fragment in many players.
+      if (videoExportSettings.format === 'mp4') {
+        try {
+          mp4EncoderRef.current = await createMp4CanvasEncoder({
+            width,
+            height,
+            fps: videoExportSettings.fps,
+            bitrate: getVideoBitrate(videoExportSettings.quality),
           });
-
-          const url = URL.createObjectURL(blob);
-          const anchor = document.createElement('a');
-          anchor.href = url;
-          anchor.download = `trail-replay-${Date.now()}.${extension}`;
-          anchor.click();
-          URL.revokeObjectURL(url);
-        } else {
-          setExportStage(t('export.stageFailedNoData'));
-          trackEvent('export_failed', {
-            export_failure_scope: 'no_data',
-          });
+          useWebCodecsRef.current = mp4EncoderRef.current !== null;
+        } catch (encoderError) {
+          console.warn('WebCodecs MP4 encoder unavailable, falling back to MediaRecorder', encoderError);
+          mp4EncoderRef.current = null;
+          useWebCodecsRef.current = false;
         }
-        setIsExporting(false);
-      };
+      }
+
+      if (!useWebCodecsRef.current) {
+        setupMediaRecorderFallback();
+      }
 
       setExportStage(t('export.stageStartingRecording'));
-      mediaRecorderRef.current.start(100);
+      recordingStartTimeRef.current = performance.now();
       isRecordingRef.current = true;
 
       startFrameCapture();
@@ -627,11 +792,17 @@ export function useVideoExportRecorder() {
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
       setIsExporting(false);
       isRecordingRef.current = false;
+      if (mp4EncoderRef.current) {
+        mp4EncoderRef.current.close();
+        mp4EncoderRef.current = null;
+      }
+      useWebCodecsRef.current = false;
     }
-  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setupMediaRecorderFallback, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
+    recordingCancelledRef.current = true;
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
     overlayRunIdRef.current += 1;
@@ -646,6 +817,11 @@ export function useVideoExportRecorder() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
+    if (mp4EncoderRef.current) {
+      mp4EncoderRef.current.close();
+      mp4EncoderRef.current = null;
+    }
+    useWebCodecsRef.current = false;
 
     trackEvent('export_cancelled', {
       export_progress_percent: exportProgress,

@@ -107,7 +107,13 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
       const deltaTime = timestamp - lastTimeRef.current;
       lastTimeRef.current = timestamp;
 
-      const newTime = playback.currentTime + deltaTime * playback.speed;
+      // Read the latest time/speed from the store rather than closing over them,
+      // so this effect doesn't need `playback.currentTime` as a dependency.
+      // Depending on it would tear down and recreate this rAF loop every frame,
+      // resetting lastTimeRef and dropping elapsed time — which stretched a 30s
+      // animation into ~75s of wall-clock (and recording) time.
+      const { currentTime, speed } = useAppStore.getState().playback;
+      const newTime = currentTime + deltaTime * speed;
 
       if (newTime >= totalDuration) {
         // End of playback - start outro sequence
@@ -139,7 +145,7 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [playback.isPlaying, playback.speed, playback.currentTime, animationPhase, calculateTotalDuration, pause, setPlayback, setAnimationPhase, resetPlayback]);
+  }, [playback.isPlaying, animationPhase, calculateTotalDuration, pause, setPlayback, setAnimationPhase, resetPlayback]);
 
   // Update total duration when track or journey changes
   useEffect(() => {
