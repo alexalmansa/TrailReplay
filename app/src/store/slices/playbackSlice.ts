@@ -82,10 +82,17 @@ export const createPlaybackSlice: AppSliceCreator<PlaybackSlice> = (set) => ({
 
   resetPlayback: () =>
     set((state) => {
-      const routeTimingMode = state.playback.routeTimingMode;
+      // totalDuration is derived from the loaded journey/track, not transient
+      // playback runtime state. Preserve it (like routeTimingMode) so a reset
+      // after export/cancel/auto-reset doesn't zero it out — otherwise the
+      // PlaybackProvider effect that recomputes it won't re-run (its deps are
+      // unchanged) and UI gated on totalDuration (e.g. the export button) gets
+      // stuck disabled.
+      const { routeTimingMode, totalDuration } = state.playback;
       state.playback = {
         ...createDefaultPlayback(),
         routeTimingMode,
+        totalDuration,
       };
       state.cinematicPlayed = false;
       state.animationPhase = 'idle';

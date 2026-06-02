@@ -52,6 +52,11 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
       duration = 60000;
     }
 
+    // No journey/track loaded yet — nothing to play or export. Keep this 0 so
+    // UI guards (export button, "needs journey" hint) can detect empty state;
+    // the clamp below must not lift it off zero.
+    if (duration === 0) return 0;
+
     // Clamp duration between MIN and MAX
     return Math.max(MIN_DURATION, Math.min(MAX_DURATION, duration));
   }, [journeySegments, activeTrack]);

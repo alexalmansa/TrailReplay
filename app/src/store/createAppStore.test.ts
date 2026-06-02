@@ -181,6 +181,23 @@ describe('createAppStore', () => {
     expect(state.settings.trailStyle).not.toBe(initialTrailStyle);
   });
 
+  it('preserves totalDuration across resetPlayback so the export button stays enabled', () => {
+    const useStore = createAppStore();
+
+    // Simulate the computed journey duration written by PlaybackProvider.
+    useStore.getState().setPlayback({ totalDuration: 20000, currentTime: 12000, progress: 0.6 });
+
+    // resetPlayback runs at export start/cancel and on auto-reset after playback.
+    useStore.getState().resetPlayback();
+
+    const playback = useStore.getState().playback;
+    expect(playback.totalDuration).toBe(20000);
+    expect(playback.currentTime).toBe(0);
+    expect(playback.progress).toBe(0);
+    expect(playback.isPlaying).toBe(false);
+    expect(useStore.getState().animationPhase).toBe('idle');
+  });
+
   it('locks the sidebar on export while recording is active', () => {
     const useStore = createAppStore();
 
