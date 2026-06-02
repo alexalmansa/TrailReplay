@@ -12,7 +12,10 @@ const OUTRO_DURATION = 3000; // 3 seconds for zoom-out
 const AUTO_RESET_DELAY = 3000; // 3 seconds after outro before auto-reset
 
 // Duration limits (in milliseconds)
-const MIN_DURATION = 30000; // 30 seconds minimum
+// Floor kept low so a user's chosen segment duration is honored (e.g. a 20s
+// setting plays/exports as ~20s). The intro/outro are scheduled separately and
+// are unaffected by this trail-playback floor.
+const MIN_DURATION = 3000; // 3 seconds minimum
 const MAX_DURATION = 120000; // 120 seconds maximum
 
 export function PlaybackProvider({ children }: PlaybackProviderProps) {
@@ -37,7 +40,7 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
   const activeTrack = tracks.find((t) => t.id === activeTrackId);
 
   // Calculate total duration based on journey segments or active track
-  // Duration is clamped between 30-120 seconds for good viewing experience
+  // Duration is clamped between MIN_DURATION and MAX_DURATION seconds
   const calculateTotalDuration = useCallback(() => {
     let duration = 0;
 

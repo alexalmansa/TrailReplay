@@ -220,27 +220,32 @@ export function useTrailPlaybackCamera({
         easing: (value: number) => 1 - Math.pow(1 - value, 3),
       });
     } else if (animationPhase === 'playing' && cameraMode !== 'overview') {
+      // Drive the camera with jumpTo, not easeTo. Progress now advances at full
+      // wall-clock speed, so a fresh easeTo({duration:100}) issued every frame
+      // never finishes before the next one starts: the eases stack, the camera
+      // lags behind the marker (wrong marker position in exports) and the
+      // mid-animation getZoom()/bearing reads oscillate — badly so under the
+      // continuous triggerRepaint used during export. jumpTo locks the camera
+      // onto the marker each frame; since currentPosition is itself continuous
+      // (one update per rAF), the motion stays smooth in normal playback too.
       const currentZoom = mapRef.current.getZoom();
       const newZoom = currentZoom < preset.zoom
         ? Math.min(currentZoom + 0.1, preset.zoom)
         : Math.max(currentZoom - 0.1, preset.zoom);
 
       if (cameraMode === 'follow') {
-        mapRef.current.easeTo({
+        mapRef.current.jumpTo({
           center: [currentPosition.lon, currentPosition.lat],
           zoom: 14,
           pitch: 0,
           bearing: 0,
-          duration: 100,
         });
       } else {
-        mapRef.current.easeTo({
+        mapRef.current.jumpTo({
           center: [currentPosition.lon, currentPosition.lat],
           zoom: newZoom,
           pitch: preset.pitch,
           bearing: smoothBearingRef.current,
-          duration: 100,
-          easing: (value: number) => value * (2 - value),
         });
       }
     }
