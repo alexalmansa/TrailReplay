@@ -180,7 +180,8 @@ export function TracksPanel() {
                 <input
                   ref={comparisonFileRef}
                   type="file"
-                  accept=".gpx,.kml,application/xml,text/xml,application/octet-stream"
+                  // No `accept`: iOS greys out .gpx/.kml (no known UTI). Allow
+                  // any file; the GPX/KML parser validates content.
                   onChange={handleComparisonFile}
                   className="hidden"
                 />

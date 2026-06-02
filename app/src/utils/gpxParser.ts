@@ -31,8 +31,9 @@ export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
   const tracks: GPXTrack[] = [];
 
   for (const file of files) {
-    const isGPX = file.name.endsWith('.gpx');
-    const isKML = file.name.endsWith('.kml');
+    const lowerName = file.name.toLowerCase();
+    const isGPX = lowerName.endsWith('.gpx');
+    const isKML = lowerName.endsWith('.kml');
 
     if (!isGPX && !isKML) continue;
 

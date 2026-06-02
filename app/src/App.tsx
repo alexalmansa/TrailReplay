@@ -421,7 +421,9 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml,application/xml,text/xml,application/octet-stream"
+                // No `accept`: iOS maps accept entries to UTIs and greys out
+                // .gpx/.kml (no known UTI), making them unpickable. Allow any
+                // file; parseFiles validates content and rejects non-GPX/KML.
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
