@@ -180,7 +180,7 @@ export function TracksPanel() {
                 <input
                   ref={comparisonFileRef}
                   type="file"
-                  accept=".gpx,.kml"
+                  accept=".gpx,.kml,application/xml,text/xml,application/octet-stream"
                   onChange={handleComparisonFile}
                   className="hidden"
                 />
