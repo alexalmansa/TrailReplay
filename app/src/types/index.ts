@@ -146,7 +146,7 @@ export interface PlaybackState {
 }
 
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback';
-export type LanguageCode = 'en' | 'es' | 'ca';
+export type LanguageCode = 'en' | 'es' | 'ca' | 'fr';
 export type RouteTimingMode = 'recorded' | 'uniform';
 
 export interface MapOverlays {

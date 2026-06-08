@@ -1,11 +1,13 @@
 import { ca } from './locales/ca';
 import { en } from './locales/en';
 import { es } from './locales/es';
+import { fr } from './locales/fr';
 
 export const translations = {
   en,
   es,
   ca,
+  fr,
 } as const;
 
 export type LanguageCode = keyof typeof translations;
@@ -15,6 +17,7 @@ export const languageLabels: Record<LanguageCode, string> = {
   en: 'English',
   es: 'Español',
   ca: 'Català',
+  fr: 'Français',
 };
 
 export function getInitialLanguage(): LanguageCode {
