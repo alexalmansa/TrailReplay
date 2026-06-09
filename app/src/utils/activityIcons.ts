@@ -39,6 +39,7 @@ export const ACTIVITY_ICONS: ActivityIconOption[] = [
   { value: '🛹', labelKey: 'activities.skate', kind: 'emoji', content: '🛹' },
   { value: '🎿', labelKey: 'activities.ski', kind: 'emoji', content: '🎿' },
   { value: '🏂', labelKey: 'activities.snowboard', kind: 'emoji', content: '🏂' },
+  { value: '🏍️', labelKey: 'activities.motorcycle', kind: 'emoji', content: '🏍️' },
   { value: '🚗', labelKey: 'activities.car', kind: 'emoji', content: '🚗' },
   { value: '✈️', labelKey: 'activities.plane', kind: 'emoji', content: '✈️' },
   { value: '🚂', labelKey: 'activities.train', kind: 'emoji', content: '🚂' },
