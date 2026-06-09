@@ -258,6 +258,7 @@ export const fr = {
     ski: 'Ski',
     snowboard: 'Snowboard',
     car: 'Voiture',
+    motorcycle: 'Moto',
     plane: 'Avion',
     train: 'Train',
   },

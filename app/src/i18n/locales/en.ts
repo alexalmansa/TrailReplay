@@ -258,6 +258,7 @@ export const en = {
     ski: 'Ski',
     snowboard: 'Snowboard',
     car: 'Car',
+    motorcycle: 'Motorcycle',
     plane: 'Plane',
     train: 'Train',
   },
