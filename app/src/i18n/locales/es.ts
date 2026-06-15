@@ -602,6 +602,7 @@ export const es = {
   },
   map: {
     loading: 'Cargando mapa...',
+    preparingReplay: 'Preparando la repetición…',
     zoomButtonsHint: 'Usa los botones + y - para cambiar el nivel de zoom mientras se reproduce la animación.',
   },
   errors: {

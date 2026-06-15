@@ -602,6 +602,7 @@ export const ca = {
   },
   map: {
     loading: 'Carregant mapa...',
+    preparingReplay: 'Preparant la reproducció…',
     zoomButtonsHint: 'Fes servir els botons + i - per canviar el nivell de zoom mentre es reprodueix l’animació.',
   },
   errors: {

@@ -69,21 +69,41 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
     }
   }, []);
 
-  // Handle play start - trigger intro animation if not played yet
+  // Handle play start - trigger tile preloading before the intro animation.
+  // The map tiles for the high-zoom/pitched playback start aren't loaded yet on a
+  // fresh play, so we insert a `preloading` phase (see useTilePreload) that warms
+  // those tiles via the MapLibre `idle` event before the cinematic intro runs.
   useEffect(() => {
     if (playback.isPlaying && !cinematicPlayed && playback.progress < 0.01) {
-      // Start intro animation
-      setAnimationPhase('intro');
-
-      // After intro, start actual playback
-      introTimeoutRef.current = setTimeout(() => {
-        setCinematicPlayed(true);
-        setAnimationPhase('playing');
-      }, INTRO_DURATION);
+      // Cold cinematic start: preload tiles first. The preload hook advances the
+      // phase to 'intro' once tiles are ready (or a safety timeout elapses).
+      if (animationPhase === 'idle') {
+        setAnimationPhase('preloading');
+      }
     } else if (playback.isPlaying && cinematicPlayed && animationPhase === 'idle') {
+      // Warm resume mid-track: skip preload and intro entirely.
       setAnimationPhase('playing');
     }
-  }, [playback.isPlaying, cinematicPlayed, playback.progress, animationPhase, setCinematicPlayed, setAnimationPhase]);
+  }, [playback.isPlaying, cinematicPlayed, playback.progress, animationPhase, setAnimationPhase]);
+
+  // Once preloading completes and we enter the intro phase, run the cinematic
+  // intro timer. This fires after the warm-up rather than before it, so the intro
+  // flyTo animates against an already-loaded tile cache (no white squares).
+  useEffect(() => {
+    if (animationPhase !== 'intro') return;
+
+    introTimeoutRef.current = setTimeout(() => {
+      setCinematicPlayed(true);
+      setAnimationPhase('playing');
+    }, INTRO_DURATION);
+
+    return () => {
+      if (introTimeoutRef.current) {
+        clearTimeout(introTimeoutRef.current);
+        introTimeoutRef.current = null;
+      }
+    };
+  }, [animationPhase, setCinematicPlayed, setAnimationPhase]);
 
   // Animation loop - only run when in 'playing' phase
   useEffect(() => {

@@ -36,6 +36,10 @@ export function useMapInitialization({
       maxPitch: 85,
       preserveDrawingBuffer: true,
       attributionControl: false,
+      // Keep more tiles in memory than the viewport-based default so the tiles
+      // warmed during the `preloading` phase (and along the route) aren't evicted
+      // mid-flythrough, which would re-introduce white tiles. See issue #63.
+      maxTileCacheSize: 1000,
     } as ConstructorParameters<typeof maplibregl.Map>[0]);
 
     mapGlobalRef.current = mapRef.current;

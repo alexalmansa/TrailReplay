@@ -602,6 +602,7 @@ help: {
   },
   map: {
     loading: 'Chargement de la carte...',
+    preparingReplay: 'Préparation de la rediffusion…',
     zoomButtonsHint: 'Utilisez les boutons + et - pour modifier le zoom pendant l\'animation.',
   },
   errors: {
