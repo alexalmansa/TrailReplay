@@ -20,6 +20,7 @@ import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
+import { useTilePreload } from './hooks/useTilePreload';
 import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
 import type { CropPreviewMetrics } from '@/utils/crop';
 
@@ -56,6 +57,8 @@ export function TrailMap(_props: TrailMapProps) {
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
+  const isExporting = useAppStore((state) => state.isExporting);
+  const setAnimationPhase = useAppStore((state) => state.setAnimationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setCameraSettings = useAppStore((state) => state.setCameraSettings);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
@@ -215,6 +218,19 @@ export function TrailMap(_props: TrailMapProps) {
     },
   });
 
+  useTilePreload({
+    allCoordinates,
+    animationPhase,
+    elevationData,
+    followBehindZoomLevel,
+    isMapLoaded,
+    isPlaying: playback.isPlaying,
+    mapRef: map,
+    setAnimationPhase,
+    smoothBearingRef,
+    targetBearingRef,
+  });
+
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
@@ -296,6 +312,15 @@ export function TrailMap(_props: TrailMapProps) {
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-2 border-[var(--trail-orange)] border-t-transparent rounded-full animate-spin" />
             <span className="text-[var(--evergreen)]">{t('map.loading')}</span>
+          </div>
+        </div>
+      )}
+
+      {animationPhase === 'preloading' && !isExporting && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[rgba(9,14,19,0.55)] backdrop-blur-[1px]">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-[rgba(9,14,19,0.88)] px-4 py-3 text-white shadow-[0_16px_36px_rgba(0,0,0,0.28)]">
+            <div className="w-6 h-6 border-2 border-[var(--trail-orange)] border-t-transparent rounded-full animate-spin" />
+            <span>{t('map.preparingReplay')}</span>
           </div>
         </div>
       )}

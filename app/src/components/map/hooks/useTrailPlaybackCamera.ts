@@ -16,7 +16,7 @@ import {
 interface UseTrailPlaybackCameraParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
-  animationPhase: 'idle' | 'intro' | 'playing' | 'outro' | 'ended';
+  animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;

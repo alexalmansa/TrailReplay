@@ -32,7 +32,7 @@ export interface AppState {
   textAnnotations: TextAnnotation[];
   playback: PlaybackState;
   cinematicPlayed: boolean;
-  animationPhase: 'idle' | 'intro' | 'playing' | 'outro' | 'ended';
+  animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
   settings: AppSettings;
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;
@@ -92,7 +92,7 @@ export interface AppState {
   setRouteTimingMode: (mode: PlaybackState['routeTimingMode']) => void;
   setCurrentSegment: (index: number, progress: number) => void;
   setCinematicPlayed: (played: boolean) => void;
-  setAnimationPhase: (phase: 'idle' | 'intro' | 'playing' | 'outro' | 'ended') => void;
+  setAnimationPhase: (phase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended') => void;
   resetPlayback: () => void;
   setSettings: (settings: Partial<AppSettings>) => void;
   setCameraSettings: (settings: Partial<CameraSettings>) => void;

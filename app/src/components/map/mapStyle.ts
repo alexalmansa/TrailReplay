@@ -67,6 +67,11 @@ export const MAP_STYLE = {
     },
   },
   layers: [
+    // Neutral base fill underneath every raster basemap. When a tile hasn't
+    // loaded yet (cold start, slow network, or the preload safety timeout firing
+    // offline), the gap shows this muted color instead of glaring white. See
+    // issue #63.
+    { id: 'base-fill', type: 'background', paint: { 'background-color': '#141b22' } },
     { id: 'background', type: 'raster', source: 'satellite' },
     { id: 'esri-clarity', type: 'raster', source: 'esri-clarity', layout: { visibility: 'none' } },
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
