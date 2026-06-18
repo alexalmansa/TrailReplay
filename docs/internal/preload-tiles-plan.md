@@ -1,4 +1,4 @@
-# Plan — Fix white/missing map tiles at replay start (Issue #63)
+# Plan: Fix white or missing map tiles at replay start (Issue #63)
 
 > **Scope of this document: Option A only** — gate the cinematic intro on map tile
 > readiness using MapLibre's `idle` event, via a new `preloading` animation phase.

@@ -1,7 +1,7 @@
 {
   "name": "trail-replay",
   "version": "1.0.0",
-  "description": "Open source GPX trail visualization and video generation app",
+  "description": "Browser-based GPX storytelling studio for animated route replays and export-ready video",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -14,12 +14,13 @@
   },
   "keywords": [
     "gpx",
-    "trail",
-    "visualization",
+    "gpx-replay",
+    "trail-replay",
+    "route-animation",
+    "map-animation",
     "maplibre",
-    "threejs",
-    "opensource"
+    "video-export"
   ],
-  "author": "",
+  "author": "Alex Almansa",
   "license": "MIT"
 }
