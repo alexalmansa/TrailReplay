@@ -1,5 +1,6 @@
 # Media Auto-Placement Implementation Plan
 
+
 ## Goal
 
 Make photo placement work automatically in the common cases, with a robust fallback order:

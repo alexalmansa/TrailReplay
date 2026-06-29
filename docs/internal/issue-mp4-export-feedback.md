@@ -1,5 +1,6 @@
 Title: Video export UX regressions (MP4/WebM/manual stats)
 
+
 Reported feedback (Windows 10, Firefox 147 UA):
 - MP4 recording fails with brief red error toasts; user can’t read them.
 - WebM recording is jittery / unusable.

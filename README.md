@@ -94,12 +94,12 @@ The root scripts delegate to the active frontend in `app/`.
 
 - `app/`: active TrailReplay frontend, help pages, public assets, and tests
 - `functions/`: Cloudflare Pages Functions for the deployed site
-- `docs/`: internal notes, issue plans, and branding assets
+- `docs/branding-assets/`: logo files and brand assets used by the project
+- `docs/internal/`: maintainer-facing implementation notes and issue writeups
 - `media/`: repository media used in documentation and demos
 
 ## Notes
 
 - The active runtime is the browser app inside `app/`.
-- Legacy V1 work is not part of the current product surface.
 - Help, tutorial, and GPX guide pages ship alongside the main app.
 - GPX processing stays local in the browser by default; feedback submissions are the main server-side flow in this repo.
