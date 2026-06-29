@@ -19,6 +19,7 @@ export function SocialSharePanel() {
   const {
     previewUrl, isRendering, exportPng,
     settings, setSocialShareSettings, pictures, hasTracks,
+    routeBboxNorm,
   } = useSocialShareExport();
   const [showPreview, setShowPreview] = useState(false);
 
@@ -234,6 +235,9 @@ export function SocialSharePanel() {
           isRendering={isRendering}
           onClose={() => setShowPreview(false)}
           onExport={async () => { await exportPng(); setShowPreview(false); }}
+          settings={settings}
+          setSocialShareSettings={setSocialShareSettings}
+          routeBboxNorm={routeBboxNorm}
         />
       )}
     </div>
