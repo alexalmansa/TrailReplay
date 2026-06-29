@@ -63,6 +63,12 @@ export function exportSocialPosterBlob(input: RenderInput): Promise<Blob> {
 
 // --- Drawing helpers ---
 
+function tracePath(ctx: CanvasRenderingContext2D, points: CanvasPoint[]) {
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+}
+
 function drawRouteGlow(
   ctx: CanvasRenderingContext2D,
   points: CanvasPoint[],
@@ -75,19 +81,39 @@ function drawRouteGlow(
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  // Drop shadow — gives elevation / 3-D depth
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.75)';
+  ctx.shadowBlur = lineWidth * 2.5;
+  ctx.shadowOffsetX = lineWidth * 0.35;
+  ctx.shadowOffsetY = lineWidth * 0.45;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = lineWidth * 2.8;
+  tracePath(ctx, points); ctx.stroke();
+  ctx.restore();
+
+  // Wide outer glow
+  ctx.save();
   ctx.shadowColor = BRAND_ORANGE;
-  ctx.shadowBlur = lineWidth * 3;
+  ctx.shadowBlur = lineWidth * 9;
+  ctx.strokeStyle = `${BRAND_ORANGE}55`;
+  ctx.lineWidth = lineWidth * 2.2;
+  tracePath(ctx, points); ctx.stroke();
+  ctx.restore();
+
+  // Main route body
+  ctx.save();
+  ctx.shadowColor = BRAND_ORANGE;
+  ctx.shadowBlur = lineWidth * 3.5;
   ctx.strokeStyle = BRAND_ORANGE;
   ctx.lineWidth = lineWidth;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-  ctx.stroke();
+  tracePath(ctx, points); ctx.stroke();
+  ctx.restore();
 
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(255,210,160,0.45)';
-  ctx.lineWidth = lineWidth * 0.35;
-  ctx.stroke();
+  // Bright specular core — simulates 3-D tube highlight
+  ctx.strokeStyle = 'rgba(255,225,175,0.85)';
+  ctx.lineWidth = lineWidth * 0.32;
+  tracePath(ctx, points); ctx.stroke();
 
   ctx.restore();
 }
@@ -210,7 +236,11 @@ function drawLogo(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null, 
   if (!logo) return;
   ctx.save();
   ctx.globalAlpha = 0.9;
-  ctx.drawImage(logo, x, y, w, Math.round(w / 3.5));
+  // Use intrinsic SVG ratio (500×200 viewBox → 2.5:1); fall back gracefully
+  const aspect = logo.naturalWidth > 0 && logo.naturalHeight > 0
+    ? logo.naturalWidth / logo.naturalHeight
+    : 2.5;
+  ctx.drawImage(logo, x, y, w, Math.round(w / aspect));
   ctx.restore();
 }
 
@@ -323,7 +353,8 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
 
   // Logo
   const logoW = Math.round(w * 0.30);
-  const logoH = Math.round(logoW / 3.5);
+  const logoAspect = logo && logo.naturalWidth > 0 && logo.naturalHeight > 0 ? logo.naturalWidth / logo.naturalHeight : 2.5;
+  const logoH = Math.round(logoW / logoAspect);
   drawLogo(ctx, logo, pad, pad, logoW);
 
   // Title
@@ -412,7 +443,8 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
 
   // Logo
   const logoW = Math.round(w * 0.30);
-  const logoH = Math.round(logoW / 3.5);
+  const logoAspect = logo && logo.naturalWidth > 0 && logo.naturalHeight > 0 ? logo.naturalWidth / logo.naturalHeight : 2.5;
+  const logoH = Math.round(logoW / logoAspect);
   drawLogo(ctx, logo, pad, pad, logoW);
 
   // Title

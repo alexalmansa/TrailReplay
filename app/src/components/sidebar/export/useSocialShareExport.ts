@@ -61,7 +61,7 @@ export function useSocialShareExport() {
     img.src = selectedPicture.url;
   }, [selectedPicture]);
 
-  const buildInput = useCallback((): RenderInput => {
+  const buildInput = useCallback((preCapuredMapCanvas: HTMLCanvasElement | null = null): RenderInput => {
     const summary = buildSocialShareSummary(
       settings, tracks, activeTrackId, journey, journeySegments, unitSystem,
     );
@@ -71,8 +71,8 @@ export function useSocialShareExport() {
     let routeLatLons: Array<{ lat: number; lon: number }> | null = null;
 
     if (settings.template === 'map-first') {
-      mapCanvas = (mapGlobalRef.current?.getCanvas()
-        ?? document.querySelector('.maplibregl-canvas')) as HTMLCanvasElement | null;
+      // Use the pre-captured 2D snapshot — raw WebGL canvas is passed here only as a fallback
+      mapCanvas = preCapuredMapCanvas;
 
       const map = mapGlobalRef.current;
       const container = document.getElementById('map-capture-container');
@@ -146,22 +146,37 @@ export function useSocialShareExport() {
     if (tracks.length === 0) { setPreviewUrl(null); return; }
     setIsRendering(true);
     try {
-      // Ensure the map has committed a fresh frame before capturing (WebGL frame sync)
+      let preCapuredMapCanvas: HTMLCanvasElement | null = null;
+
       if (settings.template === 'map-first') {
         const map = mapGlobalRef.current;
         if (map) {
-          await new Promise<void>((resolve) => {
-            const timeout = setTimeout(resolve, 500);
+          // Copy WebGL pixels to a 2D canvas IMMEDIATELY in the render callback.
+          // Reading a WebGL canvas outside its own render cycle can yield blank pixels
+          // even with preserveDrawingBuffer:true on some GPU/driver combinations.
+          preCapuredMapCanvas = await new Promise<HTMLCanvasElement | null>((resolve) => {
+            const timeout = setTimeout(() => resolve(null), 1000);
             map.once('render', () => {
               clearTimeout(timeout);
-              requestAnimationFrame(() => resolve());
+              try {
+                const glCanvas = map.getCanvas();
+                const offscreen = document.createElement('canvas');
+                offscreen.width = glCanvas.width;
+                offscreen.height = glCanvas.height;
+                const ctx2d = offscreen.getContext('2d');
+                ctx2d?.drawImage(glCanvas, 0, 0);
+                resolve(offscreen);
+              } catch (e) {
+                console.warn('[social] map capture failed:', e);
+                resolve(null);
+              }
             });
             map.triggerRepaint();
           });
         }
       }
 
-      const input = buildInput();
+      const input = buildInput(preCapuredMapCanvas);
 
       // Compute route bbox for photo-first interactive overlay
       if (settings.template === 'photo-first' && input.routeLatLons) {
@@ -205,7 +220,28 @@ export function useSocialShareExport() {
     if (tracks.length === 0) return;
     setIsRendering(true);
     try {
-      const blob = await exportSocialPosterBlob(buildInput());
+      let preCapuredMapCanvas: HTMLCanvasElement | null = null;
+      if (settings.template === 'map-first') {
+        const map = mapGlobalRef.current;
+        if (map) {
+          preCapuredMapCanvas = await new Promise<HTMLCanvasElement | null>((resolve) => {
+            const timeout = setTimeout(() => resolve(null), 1000);
+            map.once('render', () => {
+              clearTimeout(timeout);
+              try {
+                const glCanvas = map.getCanvas();
+                const offscreen = document.createElement('canvas');
+                offscreen.width = glCanvas.width;
+                offscreen.height = glCanvas.height;
+                offscreen.getContext('2d')?.drawImage(glCanvas, 0, 0);
+                resolve(offscreen);
+              } catch { resolve(null); }
+            });
+            map.triggerRepaint();
+          });
+        }
+      }
+      const blob = await exportSocialPosterBlob(buildInput(preCapuredMapCanvas));
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
