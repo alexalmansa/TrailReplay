@@ -154,8 +154,7 @@ export function useSocialShareExport() {
             const timeout = setTimeout(resolve, 500);
             map.once('render', () => {
               clearTimeout(timeout);
-              // One rAF after render to let the GPU flush
-              requestAnimationFrame(resolve);
+              requestAnimationFrame(() => resolve());
             });
             map.triggerRepaint();
           });
