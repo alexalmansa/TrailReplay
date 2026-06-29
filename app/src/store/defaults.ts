@@ -1,5 +1,5 @@
 import { getInitialLanguage } from '@/i18n/translations';
-import type { AppSettings, CameraSettings, PlaybackState, VideoExportSettings } from '@/types';
+import type { AppSettings, CameraSettings, PlaybackState, SocialShareSettings, VideoExportSettings } from '@/types';
 import {
   DEFAULT_FOLLOW_BEHIND_PRESET,
   getFollowBehindZoomLevelForPreset,
@@ -74,6 +74,21 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
     includeStats: true,
     includeElevation: true,
     includeAudio: false,
+  };
+}
+
+export function createDefaultSocialShareSettings(): SocialShareSettings {
+  return {
+    template: 'map-first',
+    aspectRatio: '4:5',
+    selectedPictureId: null,
+    titleMode: 'journey-name',
+    customTitle: '',
+    locationLabel: '',
+    showLocation: false,
+    showStats: true,
+    showElevationMiniChart: true,
+    routeTransform: { offsetX: 0, offsetY: 0, scale: 1, opacity: 0.9 },
   };
 }
 

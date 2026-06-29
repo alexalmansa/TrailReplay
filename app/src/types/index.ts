@@ -189,6 +189,29 @@ export interface VideoExportSettings {
   includeAudio: boolean;
 }
 
+export type SocialShareTemplate = 'map-first' | 'photo-first';
+export type SocialShareAspectRatio = '4:5' | '1:1' | '9:16';
+
+export interface SocialShareRouteTransform {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+  opacity: number;
+}
+
+export interface SocialShareSettings {
+  template: SocialShareTemplate;
+  aspectRatio: SocialShareAspectRatio;
+  selectedPictureId: string | null;
+  titleMode: 'journey-name' | 'track-name' | 'custom';
+  customTitle: string;
+  locationLabel: string;
+  showLocation: boolean;
+  showStats: boolean;
+  showElevationMiniChart: boolean;
+  routeTransform: SocialShareRouteTransform;
+}
+
 export interface HeartRateZone {
   min: number;
   max: number;

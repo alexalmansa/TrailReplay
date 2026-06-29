@@ -4,6 +4,7 @@ import {
   createDefaultCameraSettings,
   createDefaultPlayback,
   createDefaultSettings,
+  createDefaultSocialShareSettings,
   createDefaultVideoExportSettings,
 } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
@@ -42,6 +43,7 @@ export function createAppStore() {
           state.settings = createDefaultSettings();
           state.cameraSettings = createDefaultCameraSettings();
           state.videoExportSettings = createDefaultVideoExportSettings();
+          state.socialShareSettings = createDefaultSocialShareSettings();
           state.isExporting = false;
           state.exportProgress = 0;
           state.exportStage = '';
