@@ -3,12 +3,8 @@ import { ImageIcon, Loader2 } from 'lucide-react';
 import { useSocialShareExport } from './useSocialShareExport';
 import { SocialSharePreviewModal } from './SocialSharePreviewModal';
 import { mapGlobalRef } from '@/utils/mapRef';
+import { useI18n } from '@/i18n/useI18n';
 import type { SocialShareTemplate, SocialShareAspectRatio } from '@/types';
-
-const TEMPLATES: { value: SocialShareTemplate; label: string }[] = [
-  { value: 'map-first', label: 'Map First' },
-  { value: 'photo-first', label: 'Photo First' },
-];
 
 const RATIOS: { value: SocialShareAspectRatio; label: string }[] = [
   { value: '4:5', label: '4:5' },
@@ -17,8 +13,9 @@ const RATIOS: { value: SocialShareAspectRatio; label: string }[] = [
 ];
 
 export function SocialSharePanel() {
+  const { t } = useI18n();
   const {
-    previewUrl, isRendering, exportPng, fitTrackToMap,
+    previewUrl, isRendering, generatePreview, exportPng, fitTrackToMap,
     settings, setSocialShareSettings, pictures, hasTracks,
     routeBboxNorm,
   } = useSocialShareExport();
@@ -39,13 +36,18 @@ export function SocialSharePanel() {
     mapGlobalRef.current?.jumpTo({ bearing: v });
   };
 
+  const templates: { value: SocialShareTemplate; label: string }[] = [
+    { value: 'map-first', label: t('imageExport.templateMapFirst') },
+    { value: 'photo-first', label: t('imageExport.templatePhotoFirst') },
+  ];
+
   return (
     <div className="space-y-4 text-[var(--evergreen)]">
       {/* Template */}
       <div>
-        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Template</div>
+        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.template')}</div>
         <div className="grid grid-cols-2 gap-2">
-          {TEMPLATES.map(({ value, label }) => (
+          {templates.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setSocialShareSettings({ template: value })}
@@ -63,7 +65,7 @@ export function SocialSharePanel() {
 
       {/* Aspect ratio */}
       <div>
-        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Ratio</div>
+        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.ratio')}</div>
         <div className="grid grid-cols-3 gap-2">
           {RATIOS.map(({ value, label }) => (
             <button
@@ -83,9 +85,9 @@ export function SocialSharePanel() {
 
       {/* Photo chooser */}
       <div>
-        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Photo</div>
+        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.photo')}</div>
         {pictures.length === 0 ? (
-          <p className="text-xs opacity-50">No photos uploaded yet.</p>
+          <p className="text-xs opacity-50">{t('imageExport.noPhotos')}</p>
         ) : (
           <div className="grid grid-cols-5 gap-1.5 max-h-28 overflow-y-auto">
             <button
@@ -117,7 +119,7 @@ export function SocialSharePanel() {
 
       {/* Title */}
       <div>
-        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Title</div>
+        <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.title')}</div>
         <div className="grid grid-cols-3 gap-1 mb-2">
           {(['journey-name', 'track-name', 'custom'] as const).map((mode) => (
             <button
@@ -129,7 +131,11 @@ export function SocialSharePanel() {
                   : 'bg-black/5 hover:bg-black/10'
               }`}
             >
-              {mode === 'journey-name' ? 'Journey' : mode === 'track-name' ? 'Track' : 'Custom'}
+              {mode === 'journey-name'
+                ? t('imageExport.titleModeJourney')
+                : mode === 'track-name'
+                  ? t('imageExport.titleModeTrack')
+                  : t('imageExport.titleModeCustom')}
             </button>
           ))}
         </div>
@@ -138,7 +144,7 @@ export function SocialSharePanel() {
             type="text"
             value={settings.customTitle}
             onChange={(e) => setSocialShareSettings({ customTitle: e.target.value })}
-            placeholder="Enter title…"
+            placeholder={t('imageExport.titlePlaceholder')}
             className="w-full bg-black/5 border border-black/10 rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--trail-orange)]"
           />
         )}
@@ -147,7 +153,7 @@ export function SocialSharePanel() {
       {/* Location */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <div className="text-xs uppercase tracking-wide opacity-60">Location</div>
+          <div className="text-xs uppercase tracking-wide opacity-60">{t('imageExport.location')}</div>
           <button
             onClick={() => setSocialShareSettings({ showLocation: !settings.showLocation })}
             className={`relative w-9 h-5 rounded-full transition-colors ${
@@ -166,7 +172,7 @@ export function SocialSharePanel() {
             type="text"
             value={settings.locationLabel}
             onChange={(e) => setSocialShareSettings({ locationLabel: e.target.value })}
-            placeholder="City, Country…"
+            placeholder={t('imageExport.locationPlaceholder')}
             className="w-full bg-black/5 border border-black/10 rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--trail-orange)]"
           />
         )}
@@ -181,7 +187,7 @@ export function SocialSharePanel() {
             onChange={(e) => setSocialShareSettings({ showStats: e.target.checked })}
             className="accent-[var(--trail-orange)]"
           />
-          Stats
+          {t('imageExport.stats')}
         </label>
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
@@ -190,17 +196,17 @@ export function SocialSharePanel() {
             onChange={(e) => setSocialShareSettings({ showElevationMiniChart: e.target.checked })}
             className="accent-[var(--trail-orange)]"
           />
-          Elevation
+          {t('imageExport.elevation')}
         </label>
       </div>
 
       {/* Map camera controls (map-first only) */}
       {settings.template === 'map-first' && (
         <div>
-          <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Map Camera</div>
+          <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.mapCamera')}</div>
           <div className="space-y-2 mb-2">
             <div className="flex items-center gap-3 text-xs">
-              <span className="w-16 shrink-0 opacity-70">3D Tilt</span>
+              <span className="w-16 shrink-0 opacity-70">{t('imageExport.tilt3D')}</span>
               <input
                 type="range" min={0} max={60} step={1}
                 value={pitch}
@@ -210,7 +216,7 @@ export function SocialSharePanel() {
               <span className="w-8 text-right opacity-50 tabular-nums">{pitch}°</span>
             </div>
             <div className="flex items-center gap-3 text-xs">
-              <span className="w-16 shrink-0 opacity-70">Rotate</span>
+              <span className="w-16 shrink-0 opacity-70">{t('imageExport.rotate')}</span>
               <input
                 type="range" min={-180} max={180} step={1}
                 value={bearing}
@@ -225,7 +231,7 @@ export function SocialSharePanel() {
             disabled={!hasTracks}
             className="w-full text-xs py-1.5 rounded bg-black/5 hover:bg-black/10 transition-colors disabled:opacity-40"
           >
-            Fit track to view
+            {t('imageExport.fitTrack')}
           </button>
         </div>
       )}
@@ -233,18 +239,18 @@ export function SocialSharePanel() {
       {/* Photo-first route controls */}
       {settings.template === 'photo-first' && (
         <div>
-          <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Route Overlay</div>
+          <div className="text-xs uppercase tracking-wide opacity-60 mb-2">{t('imageExport.routeOverlay')}</div>
           <div className="space-y-2">
             {(
               [
-                { key: 'scale', label: 'Scale', min: 0.3, max: 2.5, step: 0.05 },
-                { key: 'offsetX', label: 'Horizontal', min: -0.4, max: 0.4, step: 0.01 },
-                { key: 'offsetY', label: 'Vertical', min: -0.4, max: 0.4, step: 0.01 },
-                { key: 'opacity', label: 'Opacity', min: 0.2, max: 1, step: 0.05 },
+                { key: 'scale', labelKey: 'imageExport.scale', min: 0.3, max: 2.5, step: 0.05 },
+                { key: 'offsetX', labelKey: 'imageExport.horizontal', min: -0.4, max: 0.4, step: 0.01 },
+                { key: 'offsetY', labelKey: 'imageExport.vertical', min: -0.4, max: 0.4, step: 0.01 },
+                { key: 'opacity', labelKey: 'imageExport.opacity', min: 0.2, max: 1, step: 0.05 },
               ] as const
-            ).map(({ key, label, min, max, step }) => (
+            ).map(({ key, labelKey, min, max, step }) => (
               <div key={key} className="flex items-center gap-3 text-xs">
-                <span className="w-20 shrink-0 opacity-70">{label}</span>
+                <span className="w-20 shrink-0 opacity-70">{t(labelKey)}</span>
                 <input
                   type="range"
                   min={min}
@@ -261,7 +267,7 @@ export function SocialSharePanel() {
       )}
 
       {!hasTracks && (
-        <p className="text-xs opacity-50 text-center">Load a track to generate a poster.</p>
+        <p className="text-xs opacity-50 text-center">{t('imageExport.noTrackHint')}</p>
       )}
 
       {/* Preview button — always re-renders so camera changes are captured */}
@@ -275,7 +281,7 @@ export function SocialSharePanel() {
         ) : (
           <ImageIcon className="w-4 h-4" />
         )}
-        {isRendering ? 'Rendering…' : 'Preview & Download'}
+        {isRendering ? t('imageExport.rendering') : t('imageExport.previewDownload')}
       </button>
 
       {showPreview && previewUrl && (

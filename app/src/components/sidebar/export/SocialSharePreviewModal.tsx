@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 import type { SocialShareSettings, SocialShareRouteTransform } from '@/types';
 import type { RouteBboxNorm } from './useSocialShareExport';
+import { useI18n } from '@/i18n/useI18n';
 
 interface Props {
   previewUrl: string;
@@ -26,6 +27,7 @@ export function SocialSharePreviewModal({
   previewUrl, isRendering, onClose, onExport,
   settings, setSocialShareSettings, routeBboxNorm,
 }: Props) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const [dragVisual, setDragVisual] = useState({ dx: 0, dy: 0, sf: 1, active: false });
@@ -118,10 +120,10 @@ export function SocialSharePreviewModal({
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-black/10 shrink-0">
           <h2 className="font-bold text-sm uppercase tracking-wide text-[var(--evergreen)]">
-            Poster Preview
+            {t('imageExport.posterPreview')}
             {showOverlay && (
               <span className="ml-2 text-xs font-normal opacity-50 normal-case tracking-normal">
-                drag trail · corner to resize
+                {t('imageExport.dragHint')}
               </span>
             )}
           </h2>
@@ -184,7 +186,7 @@ export function SocialSharePreviewModal({
 
         <div className="px-4 py-3 border-t border-black/10 flex gap-2 shrink-0">
           <button onClick={onClose} className="tr-btn tr-btn-secondary flex-1">
-            Back
+            {t('imageExport.back')}
           </button>
           <button
             onClick={onExport}
@@ -196,7 +198,7 @@ export function SocialSharePreviewModal({
             ) : (
               <Download className="w-4 h-4" />
             )}
-            Download PNG
+            {t('imageExport.downloadPng')}
           </button>
         </div>
       </div>

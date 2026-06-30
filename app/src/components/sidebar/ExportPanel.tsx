@@ -41,7 +41,7 @@ export function ExportPanel() {
               : 'bg-transparent border-[var(--evergreen-20)] text-[var(--evergreen)] hover:bg-[var(--evergreen-10)]'
           }`}
         >
-          <Film className="w-3.5 h-3.5" /> Video
+          <Film className="w-3.5 h-3.5" /> {t('imageExport.modeVideo')}
         </button>
         <button
           onClick={() => setExportMode('social')}
@@ -51,7 +51,7 @@ export function ExportPanel() {
               : 'bg-transparent border-[var(--evergreen-20)] text-[var(--evergreen)] hover:bg-[var(--evergreen-10)]'
           }`}
         >
-          <ImageIcon className="w-3.5 h-3.5" /> Image
+          <ImageIcon className="w-3.5 h-3.5" /> {t('imageExport.modeImage')}
         </button>
       </div>
 
