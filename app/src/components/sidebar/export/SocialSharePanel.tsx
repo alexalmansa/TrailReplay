@@ -31,11 +31,12 @@ export function SocialSharePanel() {
 
   const handlePitch = (v: number) => {
     setPitch(v);
-    mapGlobalRef.current?.setPitch(v);
+    // jumpTo is instant (no animation) so the canvas is settled when Preview captures it
+    mapGlobalRef.current?.jumpTo({ pitch: v });
   };
   const handleBearing = (v: number) => {
     setBearing(v);
-    mapGlobalRef.current?.setBearing(v);
+    mapGlobalRef.current?.jumpTo({ bearing: v });
   };
 
   return (

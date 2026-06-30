@@ -321,14 +321,14 @@ function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w:
 // --- Template renderers ---
 
 function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input: RenderInput) {
-  const { mapCanvas, summary, settings, logo, selectedPhoto, projectedRouteForMap } = input;
+  const { mapCanvas, summary, settings, logo, projectedRouteForMap } = input;
   const pad = Math.round(w * 0.04);
 
-  // Dark fallback background
+  // Fallback background (only visible if map capture failed)
   ctx.fillStyle = '#1a2030';
   ctx.fillRect(0, 0, w, h);
 
-  // Map: full-bleed background
+  // Map: full-bleed — covers the entire poster exactly as the user sees it
   if (mapCanvas) {
     const container = document.getElementById('map-capture-container');
     if (container) {
@@ -340,66 +340,52 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
     }
   }
 
-  // Subtle top scrim — just enough contrast for the logo (18% of height)
-  const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.18);
-  topGrad.addColorStop(0, 'rgba(10,10,10,0.70)');
-  topGrad.addColorStop(1, 'rgba(10,10,10,0)');
+  // Subtle top scrim — only enough to make the logo + title readable
+  const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.22);
+  topGrad.addColorStop(0, 'rgba(0,0,0,0.62)');
+  topGrad.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = topGrad;
-  ctx.fillRect(0, 0, w, h * 0.18);
+  ctx.fillRect(0, 0, w, h * 0.22);
 
-  // Route glow (3-D layered effect) — visible across the whole map
+  // Route glow (3-D layered) — full poster, no clipping
   if (projectedRouteForMap && projectedRouteForMap.length > 1) {
     drawRouteGlow(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity);
   }
 
-  // Logo (top-left)
-  const logoW = Math.round(w * 0.26);
+  // Logo (top-left, slightly smaller to stay subtle)
+  const logoW = Math.round(w * 0.22);
   const logoAspect = logo && logo.naturalWidth > 0 && logo.naturalHeight > 0 ? logo.naturalWidth / logo.naturalHeight : 2.5;
   const logoH = Math.round(logoW / logoAspect);
   drawLogo(ctx, logo, pad, pad, logoW);
 
-  // Title + location below logo (still in top scrim zone)
-  const titleSize = Math.round(h * 0.052);
-  const titleY = pad + logoH + Math.round(h * 0.012) + titleSize;
-  const titleLines = drawTitle(ctx, summary.title, pad, titleY, w * 0.7, titleSize);
+  // Title + location below logo
+  const titleSize = Math.round(h * 0.050);
+  const titleY = pad + logoH + Math.round(h * 0.010) + titleSize;
+  const titleLines = drawTitle(ctx, summary.title, pad, titleY, w * 0.72, titleSize);
   if (settings.showLocation && summary.locationLabel) {
-    const locSize = Math.round(h * 0.022);
+    const locSize = Math.round(h * 0.021);
     drawLocation(ctx, summary.locationLabel, pad, titleY + titleLines * titleSize * 1.12 + locSize + 2, locSize);
   }
 
-  // Bottom band — dark panel covering the lower 32%
-  // Map is fully visible from ~18% to ~68% of poster height (50% clear window)
-  const bandStart = Math.round(h * 0.68);
-  const bandH = h - bandStart;
+  // Subtle bottom scrim — only enough contrast for stats text (not a black band)
+  if (settings.showStats || settings.showElevationMiniChart) {
+    const elevH = settings.showElevationMiniChart ? Math.round(h * 0.105) : 0;
+    const statsH = settings.showStats ? Math.round(h * 0.115) : 0;
+    const scrimH = elevH + statsH + Math.round(h * 0.02);
+    const scrimY = h - scrimH - Math.round(h * 0.04);
 
-  const botGrad = ctx.createLinearGradient(0, bandStart - Math.round(h * 0.06), 0, h);
-  botGrad.addColorStop(0, 'rgba(10,10,10,0)');
-  botGrad.addColorStop(0.12, 'rgba(10,10,10,0.88)');
-  botGrad.addColorStop(1, DARK_BG);
-  ctx.fillStyle = botGrad;
-  ctx.fillRect(0, bandStart - Math.round(h * 0.06), w, h - bandStart + Math.round(h * 0.06));
+    const botGrad = ctx.createLinearGradient(0, scrimY, 0, h);
+    botGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    botGrad.addColorStop(0.3, 'rgba(0,0,0,0.52)');
+    botGrad.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = botGrad;
+    ctx.fillRect(0, scrimY, w, h - scrimY);
 
-  // Optional photo strip (top 38% of band)
-  const hasPhoto = !!selectedPhoto;
-  const photoH = Math.round(bandH * 0.38);
-  const photoY = bandStart + Math.round(bandH * 0.02);
-  if (hasPhoto) {
-    const r = Math.round(w * 0.02);
-    coverFit(ctx, selectedPhoto!, pad, photoY, w - pad * 2, photoH, () =>
-      roundedRectPath(ctx, pad, photoY, w - pad * 2, photoH, r),
-    );
-  }
-
-  // Stats (next 33% of band)
-  const statsH = Math.round(bandH * 0.33);
-  const statsY = hasPhoto ? photoY + photoH + Math.round(bandH * 0.02) : bandStart + Math.round(bandH * 0.06);
-  if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
-
-  // Elevation (remaining band)
-  const elevY = statsY + statsH;
-  const elevH = h - elevY - Math.round(h * 0.01);
-  if (settings.showElevationMiniChart && elevH > 40) {
-    drawElevationChart(ctx, pad, elevY, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem });
+    const statsY = h - elevH - statsH;
+    if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
+    if (settings.showElevationMiniChart) {
+      drawElevationChart(ctx, pad, h - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem });
+    }
   }
 }
 
