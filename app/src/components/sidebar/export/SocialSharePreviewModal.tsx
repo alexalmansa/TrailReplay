@@ -12,20 +12,22 @@ interface Props {
   settings: SocialShareSettings;
   setSocialShareSettings: (patch: Partial<SocialShareSettings>) => void;
   routeBboxNorm: RouteBboxNorm | null;
+  dataPanelBboxNorm: RouteBboxNorm | null;
 }
 
 interface DragState {
-  type: 'move' | 'resize';
+  type: 'move' | 'resize' | 'panel-move';
   startX: number;
   startY: number;
   startTransform: SocialShareRouteTransform;
+  startOffsetY: number;
   containerW: number;
   containerH: number;
 }
 
 export function SocialSharePreviewModal({
   previewUrl, isRendering, onClose, onExport,
-  settings, setSocialShareSettings, routeBboxNorm,
+  settings, setSocialShareSettings, routeBboxNorm, dataPanelBboxNorm,
 }: Props) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,9 +37,11 @@ export function SocialSharePreviewModal({
   const aspectStyle = settings.aspectRatio === '4:5' ? '4 / 5'
     : settings.aspectRatio === '9:16' ? '9 / 16' : '1 / 1';
 
-  const showOverlay = settings.template === 'photo-first' && !!routeBboxNorm;
+  const showRouteOverlay = settings.template === 'photo-first' && !!routeBboxNorm;
+  const showPanelOverlay = !!dataPanelBboxNorm;
+  const hasAnyOverlay = showRouteOverlay || showPanelOverlay;
 
-  const startDrag = (e: React.PointerEvent, type: 'move' | 'resize') => {
+  const startDrag = (e: React.PointerEvent, type: DragState['type']) => {
     if (!containerRef.current) return;
     e.preventDefault();
     e.stopPropagation();
@@ -47,6 +51,7 @@ export function SocialSharePreviewModal({
       startX: e.clientX,
       startY: e.clientY,
       startTransform: { ...settings.routeTransform },
+      startOffsetY: settings.dataPanelOffsetY,
       containerW: rect.width,
       containerH: rect.height,
     };
@@ -64,8 +69,10 @@ export function SocialSharePreviewModal({
       const dy = e.clientY - ds.startY;
       if (ds.type === 'move') {
         setDragVisual({ dx, dy, sf: 1, active: true });
+      } else if (ds.type === 'panel-move') {
+        setDragVisual({ dx: 0, dy, sf: 1, active: true });
       } else {
-        // Diagonal drag: bottom-right outward → scale up
+        // resize: diagonal drag bottom-right outward → scale up
         const diag = (dx + dy) * 0.5;
         const sf = Math.max(0.2, 1 + diag / (ds.containerW * 0.3));
         setDragVisual({ dx: 0, dy: 0, sf, active: true });
@@ -86,6 +93,10 @@ export function SocialSharePreviewModal({
               offsetY: ds.startTransform.offsetY + prev.dy / ds.containerH,
             },
           });
+        } else if (ds.type === 'panel-move') {
+          // Drag up (negative dy) increases offsetY (moves panel up)
+          const newOffsetY = Math.max(0, Math.min(0.85, ds.startOffsetY - prev.dy / ds.containerH));
+          setSocialShareSettings({ dataPanelOffsetY: newOffsetY });
         } else {
           setSocialShareSettings({
             routeTransform: {
@@ -109,6 +120,9 @@ export function SocialSharePreviewModal({
     };
   }, [dragVisual.active, setSocialShareSettings]);
 
+  const isPanelDragging = dragVisual.active && dragStateRef.current?.type === 'panel-move';
+  const isRouteDragging = dragVisual.active && dragStateRef.current?.type !== 'panel-move';
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -121,7 +135,7 @@ export function SocialSharePreviewModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-black/10 shrink-0">
           <h2 className="font-bold text-sm uppercase tracking-wide text-[var(--evergreen)]">
             {t('imageExport.posterPreview')}
-            {showOverlay && (
+            {hasAnyOverlay && (
               <span className="ml-2 text-xs font-normal opacity-50 normal-case tracking-normal">
                 {t('imageExport.dragHint')}
               </span>
@@ -147,7 +161,7 @@ export function SocialSharePreviewModal({
             />
 
             {/* Interactive route overlay (photo-first only) */}
-            {showOverlay && routeBboxNorm && (
+            {showRouteOverlay && routeBboxNorm && (
               <div className="absolute inset-0" style={{ touchAction: 'none' }}>
                 <div
                   className="absolute border-2 border-dashed border-[var(--trail-orange)] rounded select-none"
@@ -156,9 +170,9 @@ export function SocialSharePreviewModal({
                     top: `${routeBboxNorm.y * 100}%`,
                     width: `${routeBboxNorm.w * 100}%`,
                     height: `${routeBboxNorm.h * 100}%`,
-                    transform: `translate(${dragVisual.dx}px, ${dragVisual.dy}px) scale(${dragVisual.sf})`,
+                    transform: `translate(${isRouteDragging ? dragVisual.dx : 0}px, ${isRouteDragging ? dragVisual.dy : 0}px) scale(${isRouteDragging ? dragVisual.sf : 1})`,
                     transformOrigin: '50% 50%',
-                    cursor: dragVisual.active ? 'grabbing' : 'grab',
+                    cursor: isRouteDragging ? 'grabbing' : 'grab',
                   }}
                   onPointerDown={(e) => startDrag(e, 'move')}
                 >
@@ -173,6 +187,24 @@ export function SocialSharePreviewModal({
                     </svg>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Interactive data panel overlay (stats + elevation) */}
+            {showPanelOverlay && dataPanelBboxNorm && (
+              <div className="absolute inset-0" style={{ touchAction: 'none' }}>
+                <div
+                  className="absolute border-2 border-dashed border-white/70 rounded select-none"
+                  style={{
+                    left: `${dataPanelBboxNorm.x * 100}%`,
+                    top: `${dataPanelBboxNorm.y * 100}%`,
+                    width: `${dataPanelBboxNorm.w * 100}%`,
+                    height: `${dataPanelBboxNorm.h * 100}%`,
+                    transform: `translateY(${isPanelDragging ? dragVisual.dy : 0}px)`,
+                    cursor: isPanelDragging ? 'grabbing' : 'grab',
+                  }}
+                  onPointerDown={(e) => startDrag(e, 'panel-move')}
+                />
               </div>
             )}
 

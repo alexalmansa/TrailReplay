@@ -640,7 +640,7 @@ export const es = {
     rendering: 'Generando…',
     previewDownload: 'Vista previa y descarga',
     posterPreview: 'Vista previa del póster',
-    dragHint: 'arrastra la ruta · esquina para redimensionar',
+    dragHint: 'arrastra la ruta o las estadísticas · esquina para redimensionar',
     back: 'Atrás',
     downloadPng: 'Descargar PNG',
   },

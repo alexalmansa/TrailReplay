@@ -640,7 +640,7 @@ help: {
     rendering: 'Génération…',
     previewDownload: 'Aperçu et téléchargement',
     posterPreview: 'Aperçu de l\'affiche',
-    dragHint: 'glisser le tracé · coin pour redimensionner',
+    dragHint: 'glisser le tracé ou les stats · coin pour redimensionner',
     back: 'Retour',
     downloadPng: 'Télécharger PNG',
   },

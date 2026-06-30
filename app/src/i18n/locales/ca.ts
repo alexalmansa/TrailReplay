@@ -640,7 +640,7 @@ export const ca = {
     rendering: 'Generant…',
     previewDownload: 'Previsualitza i descarrega',
     posterPreview: 'Previsualització del pòster',
-    dragHint: 'arrossega la ruta · cantonada per redimensionar',
+    dragHint: 'arrossega la ruta o les estadístiques · cantonada per redimensionar',
     back: 'Enrere',
     downloadPng: 'Descarregar PNG',
   },

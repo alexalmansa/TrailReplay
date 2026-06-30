@@ -640,7 +640,7 @@ export const en = {
     rendering: 'Rendering…',
     previewDownload: 'Preview & Download',
     posterPreview: 'Poster Preview',
-    dragHint: 'drag trail · corner to resize',
+    dragHint: 'drag trail or stats to reposition · corner to resize',
     back: 'Back',
     downloadPng: 'Download PNG',
   },

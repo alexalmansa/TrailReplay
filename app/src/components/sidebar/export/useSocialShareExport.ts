@@ -288,6 +288,17 @@ export function useSocialShareExport() {
     }
   }, [buildInput, settings.aspectRatio, settings.template, tracks.length]);
 
+  // Normalized bounding box for the data panel (stats + elevation) in poster coordinates
+  const dataPanelBboxNorm: RouteBboxNorm | null = (() => {
+    if (!settings.showStats && !settings.showElevationMiniChart) return null;
+    const isPhotoFirst = settings.template === 'photo-first';
+    const elevHNorm = settings.showElevationMiniChart ? (isPhotoFirst ? 0.155 : 0.105) : 0;
+    const statsHNorm = settings.showStats ? (isPhotoFirst ? 0.125 : 0.115) : 0;
+    const panelH = elevHNorm + statsHNorm;
+    const panelY = 1 - panelH - settings.dataPanelOffsetY;
+    return { x: 0, y: Math.max(0, panelY), w: 1, h: panelH };
+  })();
+
   return {
     previewUrl,
     isRendering,
@@ -300,5 +311,6 @@ export function useSocialShareExport() {
     pictures,
     hasTracks: tracks.length > 0,
     routeBboxNorm,
+    dataPanelBboxNorm,
   };
 }

@@ -361,20 +361,22 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
   if (settings.showStats || settings.showElevationMiniChart) {
     const elevH = settings.showElevationMiniChart ? Math.round(h * 0.105) : 0;
     const statsH = settings.showStats ? Math.round(h * 0.115) : 0;
+    const shift = Math.round(settings.dataPanelOffsetY * h);
     const scrimH = elevH + statsH + Math.round(h * 0.02);
-    const scrimY = h - scrimH - Math.round(h * 0.04);
+    const scrimBottom = h - shift;
+    const scrimY = scrimBottom - scrimH - Math.round(h * 0.04);
 
-    const botGrad = ctx.createLinearGradient(0, scrimY, 0, h);
+    const botGrad = ctx.createLinearGradient(0, scrimY, 0, scrimBottom);
     botGrad.addColorStop(0, 'rgba(0,0,0,0)');
     botGrad.addColorStop(0.3, 'rgba(0,0,0,0.52)');
     botGrad.addColorStop(1, 'rgba(0,0,0,0.72)');
     ctx.fillStyle = botGrad;
-    ctx.fillRect(0, scrimY, w, h - scrimY);
+    ctx.fillRect(0, scrimY, w, scrimBottom - scrimY);
 
-    const statsY = h - elevH - statsH;
+    const statsY = scrimBottom - elevH - statsH;
     if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
     if (settings.showElevationMiniChart) {
-      drawElevationChart(ctx, pad, h - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
+      drawElevationChart(ctx, pad, scrimBottom - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
     }
   }
 }
@@ -439,8 +441,10 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
   // Stats + elevation
   const elevH = Math.round(h * 0.155);
   const statsH = Math.round(h * 0.125);
-  const statsY = h - elevH - statsH;
-  const elevY = h - elevH;
+  const shift = Math.round(settings.dataPanelOffsetY * h);
+  const panelBottom = h - shift;
+  const statsY = panelBottom - elevH - statsH;
+  const elevY = panelBottom - elevH;
 
   if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
   if (settings.showElevationMiniChart) {

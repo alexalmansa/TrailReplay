@@ -17,7 +17,7 @@ export function SocialSharePanel() {
   const {
     previewUrl, isRendering, generatePreview, exportPng, fitTrackToMap,
     settings, setSocialShareSettings, pictures, hasTracks,
-    routeBboxNorm,
+    routeBboxNorm, dataPanelBboxNorm,
   } = useSocialShareExport();
   const [showPreview, setShowPreview] = useState(false);
   const [pitch, setPitch] = useState(() => Math.round(mapGlobalRef.current?.getPitch() ?? 0));
@@ -293,6 +293,7 @@ export function SocialSharePanel() {
           settings={settings}
           setSocialShareSettings={setSocialShareSettings}
           routeBboxNorm={routeBboxNorm}
+          dataPanelBboxNorm={dataPanelBboxNorm}
         />
       )}
     </div>
