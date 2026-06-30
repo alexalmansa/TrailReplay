@@ -362,24 +362,41 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
     drawLocation(ctx, summary.locationLabel, pad, titleY + titleLines * titleSize * 1.12 + locSize + 2, locSize);
   }
 
-  // Subtle bottom scrim — only enough contrast for stats text (not a black band)
+  // Bottom scrim + stats/elevation
   if (settings.showStats || settings.showElevationMiniChart) {
     const elevH = settings.showElevationMiniChart ? Math.round(h * 0.105) : 0;
     const statsH = settings.showStats ? Math.round(h * 0.115) : 0;
     const shift = Math.round(settings.dataPanelOffsetY * h);
-    const scrimH = elevH + statsH + Math.round(h * 0.02);
     const scrimBottom = h - shift;
-    const scrimY = scrimBottom - scrimH - Math.round(h * 0.04);
+    const panelTop = scrimBottom - elevH - statsH;
 
-    const botGrad = ctx.createLinearGradient(0, scrimY, 0, scrimBottom);
-    botGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    botGrad.addColorStop(0.3, 'rgba(0,0,0,0.52)');
-    botGrad.addColorStop(1, 'rgba(0,0,0,0.72)');
-    ctx.fillStyle = botGrad;
-    ctx.fillRect(0, scrimY, w, scrimBottom - scrimY);
+    if (shift < 4) {
+      // Default position: gradient flows naturally to the poster bottom
+      const scrimY = panelTop - Math.round(h * 0.06);
+      const botGrad = ctx.createLinearGradient(0, scrimY, 0, h);
+      botGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      botGrad.addColorStop(0.3, 'rgba(0,0,0,0.52)');
+      botGrad.addColorStop(1, 'rgba(0,0,0,0.72)');
+      ctx.fillStyle = botGrad;
+      ctx.fillRect(0, scrimY, w, h - scrimY);
+    } else {
+      // Moved up: localized pill — fades in above, solid behind text, fades out below
+      const fadeH = Math.round(h * 0.045);
+      const gradTop = panelTop - fadeH;
+      const gradBottom = scrimBottom + fadeH;
+      const totalH = gradBottom - gradTop;
+      const t0 = fadeH / totalH;
+      const t1 = (fadeH + elevH + statsH) / totalH;
+      const botGrad = ctx.createLinearGradient(0, gradTop, 0, gradBottom);
+      botGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      botGrad.addColorStop(t0, 'rgba(0,0,0,0.68)');
+      botGrad.addColorStop(t1, 'rgba(0,0,0,0.68)');
+      botGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = botGrad;
+      ctx.fillRect(0, gradTop, w, totalH);
+    }
 
-    const statsY = scrimBottom - elevH - statsH;
-    if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
+    if (settings.showStats) drawStatsBar(ctx, 0, panelTop, w, statsH, summary);
     if (settings.showElevationMiniChart) {
       drawElevationChart(ctx, pad, scrimBottom - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
     }
@@ -397,14 +414,16 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
     coverFit(ctx, selectedPhoto, 0, 0, w, h);
   }
 
-  // Bottom dark gradient
-  const botStart = h * 0.52;
-  const botGrad = ctx.createLinearGradient(0, botStart, 0, h);
+  // Bottom dark gradient — ends at the data panel bottom so it doesn't bleed below when panel is moved up
+  const shift = Math.round(settings.dataPanelOffsetY * h);
+  const panelBottom = h - shift;
+  const botStart = Math.min(h * 0.52, panelBottom - h * 0.22);
+  const botGrad = ctx.createLinearGradient(0, botStart, 0, panelBottom);
   botGrad.addColorStop(0, 'rgba(10,10,10,0)');
   botGrad.addColorStop(0.38, 'rgba(10,10,10,0.88)');
   botGrad.addColorStop(1, DARK_BG);
   ctx.fillStyle = botGrad;
-  ctx.fillRect(0, botStart, w, h - botStart);
+  ctx.fillRect(0, botStart, w, panelBottom - botStart);
 
   // Top gradient for text
   const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.38);
@@ -443,16 +462,13 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
     drawLocation(ctx, summary.locationLabel, pad, titleY + titleLines * titleSize * 1.12 + locSize + 4, locSize);
   }
 
-  // Stats + elevation
+  // Stats + elevation (panelBottom and shift already computed above)
   const elevH = Math.round(h * 0.155);
   const statsH = Math.round(h * 0.125);
-  const shift = Math.round(settings.dataPanelOffsetY * h);
-  const panelBottom = h - shift;
   const statsY = panelBottom - elevH - statsH;
-  const elevY = panelBottom - elevH;
 
   if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
   if (settings.showElevationMiniChart) {
-    drawElevationChart(ctx, pad, elevY, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
+    drawElevationChart(ctx, pad, panelBottom - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
   }
 }

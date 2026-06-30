@@ -4,6 +4,7 @@ import { useSocialShareExport } from './useSocialShareExport';
 import { SocialSharePreviewModal } from './SocialSharePreviewModal';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
+import { trackEvent } from '@/utils/analytics';
 import type { SocialShareTemplate, SocialShareAspectRatio } from '@/types';
 
 const RATIOS: { value: SocialShareAspectRatio; label: string }[] = [
@@ -272,7 +273,14 @@ export function SocialSharePanel() {
 
       {/* Preview button — always re-renders so camera changes are captured */}
       <button
-        onClick={async () => { await generatePreview(); setShowPreview(true); }}
+        onClick={async () => {
+          trackEvent('social_share_preview_opened', {
+            template: settings.template,
+            aspect_ratio: settings.aspectRatio,
+          });
+          await generatePreview();
+          setShowPreview(true);
+        }}
         disabled={isRendering || !hasTracks}
         className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
       >
