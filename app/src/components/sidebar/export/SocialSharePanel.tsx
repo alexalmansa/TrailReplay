@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ImageIcon, Loader2 } from 'lucide-react';
 import { useSocialShareExport } from './useSocialShareExport';
 import { SocialSharePreviewModal } from './SocialSharePreviewModal';
+import { mapGlobalRef } from '@/utils/mapRef';
 import type { SocialShareTemplate, SocialShareAspectRatio } from '@/types';
 
 const TEMPLATES: { value: SocialShareTemplate; label: string }[] = [
@@ -17,14 +18,25 @@ const RATIOS: { value: SocialShareAspectRatio; label: string }[] = [
 
 export function SocialSharePanel() {
   const {
-    previewUrl, isRendering, exportPng,
+    previewUrl, isRendering, exportPng, fitTrackToMap,
     settings, setSocialShareSettings, pictures, hasTracks,
     routeBboxNorm,
   } = useSocialShareExport();
   const [showPreview, setShowPreview] = useState(false);
+  const [pitch, setPitch] = useState(() => Math.round(mapGlobalRef.current?.getPitch() ?? 0));
+  const [bearing, setBearing] = useState(() => Math.round(mapGlobalRef.current?.getBearing() ?? 0));
 
   const setRouteTransform = (patch: Partial<typeof settings.routeTransform>) =>
     setSocialShareSettings({ routeTransform: { ...settings.routeTransform, ...patch } });
+
+  const handlePitch = (v: number) => {
+    setPitch(v);
+    mapGlobalRef.current?.setPitch(v);
+  };
+  const handleBearing = (v: number) => {
+    setBearing(v);
+    mapGlobalRef.current?.setBearing(v);
+  };
 
   return (
     <div className="space-y-4 text-[var(--evergreen)]">
@@ -180,6 +192,42 @@ export function SocialSharePanel() {
           Elevation
         </label>
       </div>
+
+      {/* Map camera controls (map-first only) */}
+      {settings.template === 'map-first' && (
+        <div>
+          <div className="text-xs uppercase tracking-wide opacity-60 mb-2">Map Camera</div>
+          <div className="space-y-2 mb-2">
+            <div className="flex items-center gap-3 text-xs">
+              <span className="w-16 shrink-0 opacity-70">3D Tilt</span>
+              <input
+                type="range" min={0} max={60} step={1}
+                value={pitch}
+                onChange={(e) => handlePitch(Number(e.target.value))}
+                className="flex-1 accent-[var(--trail-orange)]"
+              />
+              <span className="w-8 text-right opacity-50 tabular-nums">{pitch}°</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="w-16 shrink-0 opacity-70">Rotate</span>
+              <input
+                type="range" min={-180} max={180} step={1}
+                value={bearing}
+                onChange={(e) => handleBearing(Number(e.target.value))}
+                className="flex-1 accent-[var(--trail-orange)]"
+              />
+              <span className="w-8 text-right opacity-50 tabular-nums">{bearing}°</span>
+            </div>
+          </div>
+          <button
+            onClick={fitTrackToMap}
+            disabled={!hasTracks}
+            className="w-full text-xs py-1.5 rounded bg-black/5 hover:bg-black/10 transition-colors disabled:opacity-40"
+          >
+            Fit track to view
+          </button>
+        </div>
+      )}
 
       {/* Photo-first route controls */}
       {settings.template === 'photo-first' && (

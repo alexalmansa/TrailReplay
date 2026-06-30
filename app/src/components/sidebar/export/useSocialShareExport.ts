@@ -216,6 +216,19 @@ export function useSocialShareExport() {
     generatePreview,
   ]);
 
+  const fitTrackToMap = useCallback(() => {
+    const map = mapGlobalRef.current;
+    if (!map || tracks.length === 0) return;
+    const pts = tracks.flatMap((t) => t.visible ? t.points : []);
+    if (pts.length === 0) return;
+    const lons = pts.map((p) => p.lon);
+    const lats = pts.map((p) => p.lat);
+    map.fitBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: 80, maxZoom: 15, duration: 600 },
+    );
+  }, [tracks]);
+
   const exportPng = useCallback(async () => {
     if (tracks.length === 0) return;
     setIsRendering(true);
@@ -265,6 +278,7 @@ export function useSocialShareExport() {
     selectedPicture,
     generatePreview,
     exportPng,
+    fitTrackToMap,
     settings,
     setSocialShareSettings,
     pictures,
