@@ -264,10 +264,10 @@ export function SocialSharePanel() {
         <p className="text-xs opacity-50 text-center">Load a track to generate a poster.</p>
       )}
 
-      {/* Preview button */}
+      {/* Preview button — always re-renders so camera changes are captured */}
       <button
-        onClick={() => setShowPreview(true)}
-        disabled={isRendering || !previewUrl || !hasTracks}
+        onClick={async () => { await generatePreview(); setShowPreview(true); }}
+        disabled={isRendering || !hasTracks}
         className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isRendering ? (

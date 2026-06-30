@@ -125,6 +125,7 @@ function drawElevationChart(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
   { profile, minElev, maxElev, unitSystem }: SocialShareSummaryData['elevation'] & { unitSystem: SocialShareSummaryData['unitSystem'] },
+  color: string,
 ) {
   if (profile.length < 2) return;
 
@@ -149,8 +150,8 @@ function drawElevationChart(
 
   // Area fill
   const grad = ctx.createLinearGradient(0, chartY, 0, chartY + chartH);
-  grad.addColorStop(0, `${BRAND_ORANGE}55`);
-  grad.addColorStop(1, `${BRAND_ORANGE}0A`);
+  grad.addColorStop(0, `${color}55`);
+  grad.addColorStop(1, `${color}0A`);
   ctx.beginPath();
   ctx.moveTo(x + profile[0].x * w, chartY + chartH - profile[0].y * chartH * 0.88);
   for (const pt of profile.slice(1)) {
@@ -168,7 +169,7 @@ function drawElevationChart(
   for (const pt of profile.slice(1)) {
     ctx.lineTo(x + pt.x * w, chartY + chartH - pt.y * chartH * 0.88);
   }
-  ctx.strokeStyle = BRAND_ORANGE;
+  ctx.strokeStyle = color;
   ctx.lineWidth = 2.5;
   ctx.stroke();
 }
@@ -374,7 +375,7 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
     const statsY = h - elevH - statsH;
     if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
     if (settings.showElevationMiniChart) {
-      drawElevationChart(ctx, pad, h - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem });
+      drawElevationChart(ctx, pad, h - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
     }
   }
 }
@@ -444,6 +445,6 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
 
   if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
   if (settings.showElevationMiniChart) {
-    drawElevationChart(ctx, pad, elevY, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem });
+    drawElevationChart(ctx, pad, elevY, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
   }
 }
