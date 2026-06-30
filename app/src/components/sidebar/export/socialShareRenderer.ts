@@ -29,6 +29,8 @@ export interface RenderInput {
   routeLatLons: Array<{ lat: number; lon: number }> | null;
   selectedPhoto: HTMLImageElement | null;
   logo: HTMLImageElement | null;
+  /** Primary route color from track settings (hex). */
+  routeColor: string;
 }
 
 export function renderSocialPoster(input: RenderInput): string {
@@ -74,6 +76,7 @@ function drawRouteGlow(
   points: CanvasPoint[],
   lineWidth: number,
   opacity: number,
+  color: string,
 ) {
   if (points.length < 2) return;
   ctx.save();
@@ -94,24 +97,24 @@ function drawRouteGlow(
 
   // Wide outer glow
   ctx.save();
-  ctx.shadowColor = BRAND_ORANGE;
+  ctx.shadowColor = color;
   ctx.shadowBlur = lineWidth * 9;
-  ctx.strokeStyle = `${BRAND_ORANGE}55`;
+  ctx.strokeStyle = `${color}55`;
   ctx.lineWidth = lineWidth * 2.2;
   tracePath(ctx, points); ctx.stroke();
   ctx.restore();
 
   // Main route body
   ctx.save();
-  ctx.shadowColor = BRAND_ORANGE;
+  ctx.shadowColor = color;
   ctx.shadowBlur = lineWidth * 3.5;
-  ctx.strokeStyle = BRAND_ORANGE;
+  ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   tracePath(ctx, points); ctx.stroke();
   ctx.restore();
 
   // Bright specular core — simulates 3-D tube highlight
-  ctx.strokeStyle = 'rgba(255,225,175,0.85)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.70)';
   ctx.lineWidth = lineWidth * 0.32;
   tracePath(ctx, points); ctx.stroke();
 
@@ -336,7 +339,7 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
 
   // Route glow (3-D layered) — full poster, no clipping
   if (projectedRouteForMap && projectedRouteForMap.length > 1) {
-    drawRouteGlow(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity);
+    drawRouteGlow(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity, input.routeColor);
   }
 
   // Logo (top-left, slightly smaller to stay subtle)
@@ -413,7 +416,7 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
       offsetY: offsetY * h,
       scale,
     });
-    drawRouteGlow(ctx, projected, Math.round(w * 0.012), opacity);
+    drawRouteGlow(ctx, projected, Math.round(w * 0.012), opacity, input.routeColor);
   }
 
   // Logo

@@ -51,7 +51,7 @@ export function ExportPanel() {
               : 'bg-transparent border-[var(--evergreen-20)] text-[var(--evergreen)] hover:bg-[var(--evergreen-10)]'
           }`}
         >
-          <ImageIcon className="w-3.5 h-3.5" /> Social
+          <ImageIcon className="w-3.5 h-3.5" /> Image
         </button>
       </div>
 
