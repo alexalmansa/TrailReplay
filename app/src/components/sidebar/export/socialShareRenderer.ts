@@ -237,13 +237,18 @@ function drawStatsBar(
 
 function drawLogo(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null, x: number, y: number, w: number) {
   if (!logo) return;
-  ctx.save();
-  ctx.globalAlpha = 0.9;
   // Use intrinsic SVG ratio (500×200 viewBox → 2.5:1); fall back gracefully
   const aspect = logo.naturalWidth > 0 && logo.naturalHeight > 0
     ? logo.naturalWidth / logo.naturalHeight
     : 2.5;
-  ctx.drawImage(logo, x, y, w, Math.round(w / aspect));
+  const lh = Math.round(w / aspect);
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = 'rgba(0,0,0,0.65)';
+  ctx.shadowBlur = Math.round(w * 0.06);
+  ctx.shadowOffsetX = Math.round(w * 0.01);
+  ctx.shadowOffsetY = Math.round(w * 0.015);
+  ctx.drawImage(logo, x, y, w, lh);
   ctx.restore();
 }
 
@@ -342,8 +347,8 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
     drawRouteGlow(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity, input.routeColor);
   }
 
-  // Logo (top-left, slightly smaller to stay subtle)
-  const logoW = Math.round(w * 0.22);
+  // Logo (top-left)
+  const logoW = Math.round(w * 0.28);
   const logoAspect = logo && logo.naturalWidth > 0 && logo.naturalHeight > 0 ? logo.naturalWidth / logo.naturalHeight : 2.5;
   const logoH = Math.round(logoW / logoAspect);
   drawLogo(ctx, logo, pad, pad, logoW);
