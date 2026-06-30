@@ -7,7 +7,6 @@ import { downsampleRoute, fitRouteToBox } from './socialShareRouteFit';
 
 // ponytail: layout geometry lives here; extract to socialShareLayout.ts if templates exceed 2
 
-const BRAND_ORANGE = '#C1652F';
 const DARK_BG = 'rgba(10,10,10,0.97)';
 const WHITE = 'rgba(255,255,255,0.95)';
 const WHITE_DIM = 'rgba(255,255,255,0.60)';
