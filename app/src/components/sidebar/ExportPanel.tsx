@@ -12,8 +12,9 @@ export function ExportPanel() {
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
   const setVideoExportSettings = useAppStore((state) => state.setVideoExportSettings);
   const playback = useAppStore((state) => state.playback);
+  const exportMode = useAppStore((state) => state.exportSubMode);
+  const setExportMode = useAppStore((state) => state.setExportSubMode);
   const [showSettings, setShowSettings] = useState(false);
-  const [exportMode, setExportMode] = useState<'video' | 'social'>('video');
 
   const {
     actualFormat,
@@ -44,9 +45,9 @@ export function ExportPanel() {
           <Film className="w-3.5 h-3.5" /> {t('imageExport.modeVideo')}
         </button>
         <button
-          onClick={() => setExportMode('social')}
+          onClick={() => setExportMode('image')}
           className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-1.5 border transition-colors ${
-            exportMode === 'social'
+            exportMode === 'image'
               ? 'bg-[var(--evergreen)] text-[var(--canvas)] border-[var(--evergreen)]'
               : 'bg-transparent border-[var(--evergreen-20)] text-[var(--evergreen)] hover:bg-[var(--evergreen-10)]'
           }`}
@@ -55,7 +56,7 @@ export function ExportPanel() {
         </button>
       </div>
 
-      {exportMode === 'social' ? (
+      {exportMode === 'image' ? (
         <SocialSharePanel />
       ) : (
         <>

@@ -71,6 +71,8 @@ function App() {
   const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
   const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
+  const socialShareAspectRatio = useAppStore((state) => state.socialShareSettings.aspectRatio);
+  const exportSubMode = useAppStore((state) => state.exportSubMode);
   const isExporting = useAppStore((state) => state.isExporting);
 
   const openNextQueuedPlaybackPicture = useCallback(() => {
@@ -139,22 +141,25 @@ function App() {
     fileInputRef.current?.click();
   };
 
+  const activeCropRatio = exportSubMode === 'image' ? socialShareAspectRatio : exportAspectRatio;
+
   useEffect(() => {
     const shouldPreviewExportFrame = activePanel === 'export' || isExporting;
     const el = mapContainerRef.current;
     if (!shouldPreviewExportFrame || !el) return;
 
     const update = () => {
-      setExportCropMetrics(getCropPreviewMetrics(el.clientWidth, el.clientHeight, exportAspectRatio));
+      setExportCropMetrics(getCropPreviewMetrics(el.clientWidth, el.clientHeight, activeCropRatio));
     };
 
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [activePanel, exportAspectRatio, isExporting]);
+  }, [activePanel, activeCropRatio, isExporting]);
 
-  const activeExportCropMetrics = activePanel === 'export' || isExporting
+  // Stats overlay positioning only applies to video export, not image export
+  const activeExportCropMetrics = (activePanel === 'export' || isExporting) && exportSubMode !== 'image'
     ? exportCropMetrics
     : null;
   const statsShouldUseNarrowLayout = activeExportCropMetrics
@@ -357,7 +362,7 @@ function App() {
 
               {/* Aspect ratio crop preview when in Export panel */}
               {activePanel === 'export' && (
-                <CropPreviewBars ratio={exportAspectRatio} containerRef={mapContainerRef} />
+                <CropPreviewBars ratio={activeCropRatio} containerRef={mapContainerRef} />
               )}
 
               {/* Stats Overlay */}

@@ -38,6 +38,7 @@ export interface AppState {
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;
   socialShareSettings: SocialShareSettings;
+  exportSubMode: 'video' | 'image';
   isExporting: boolean;
   exportProgress: number;
   exportStage: string;
@@ -104,6 +105,7 @@ export interface AppState {
   setTrailStyle: (settings: Partial<TrailStyleSettings>) => void;
   setVideoExportSettings: (settings: Partial<VideoExportSettings>) => void;
   setSocialShareSettings: (settings: Partial<SocialShareSettings>) => void;
+  setExportSubMode: (mode: 'video' | 'image') => void;
   setIsExporting: (isExporting: boolean) => void;
   setExportProgress: (progress: number) => void;
   setExportStage: (stage: string) => void;
