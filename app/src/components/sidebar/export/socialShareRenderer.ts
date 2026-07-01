@@ -242,12 +242,22 @@ function drawLogo(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null, 
     ? logo.naturalWidth / logo.naturalHeight
     : 2.5;
   const lh = Math.round(w / aspect);
+  const padX = Math.round(w * 0.14);
+  const padY = Math.round(lh * 0.30);
+  const radius = Math.round(lh * 0.30);
+
+  // Semi-transparent pill background
+  ctx.save();
+  ctx.globalAlpha = 0.52;
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  ctx.beginPath();
+  ctx.roundRect(x - padX, y - padY, w + padX * 2, lh + padY * 2, radius);
+  ctx.fill();
+  ctx.restore();
+
+  // Logo image on top
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.shadowColor = 'rgba(0,0,0,0.65)';
-  ctx.shadowBlur = Math.round(w * 0.06);
-  ctx.shadowOffsetX = Math.round(w * 0.01);
-  ctx.shadowOffsetY = Math.round(w * 0.015);
   ctx.drawImage(logo, x, y, w, lh);
   ctx.restore();
 }
