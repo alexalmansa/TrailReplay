@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
-import type { SocialShareSettings, SocialShareRouteTransform } from '@/types';
+import type { SocialShareSettings } from '@/types';
 import type { RouteBboxNorm } from './useSocialShareExport';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -15,13 +15,20 @@ interface Props {
   dataPanelBboxNorm: RouteBboxNorm | null;
 }
 
-interface DragState {
-  type: 'move' | 'resize' | 'panel-move';
+interface RouteDragState {
+  type: 'move' | 'resize';
   startX: number;
   startY: number;
-  startTransform: SocialShareRouteTransform;
+  startScale: number;
+  startOffsetX: number;
   startOffsetY: number;
   containerW: number;
+  containerH: number;
+}
+
+interface PanelDragState {
+  startY: number;
+  startOffsetY: number;
   containerH: number;
 }
 
@@ -31,8 +38,14 @@ export function SocialSharePreviewModal({
 }: Props) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<DragState | null>(null);
-  const [dragVisual, setDragVisual] = useState({ dx: 0, dy: 0, sf: 1, active: false });
+
+  // Route overlay drag state
+  const routeDragRef = useRef<RouteDragState | null>(null);
+  const [routeDragVisual, setRouteDragVisual] = useState({ dx: 0, dy: 0, sf: 1, active: false });
+
+  // Panel overlay drag state
+  const panelDragRef = useRef<PanelDragState | null>(null);
+  const [panelDragVisual, setPanelDragVisual] = useState({ dy: 0, active: false });
 
   const aspectStyle = settings.aspectRatio === '4:5' ? '4 / 5'
     : settings.aspectRatio === '9:16' ? '9 / 16' : '1 / 1';
@@ -41,87 +54,98 @@ export function SocialSharePreviewModal({
   const showPanelOverlay = !!dataPanelBboxNorm;
   const hasAnyOverlay = showRouteOverlay || showPanelOverlay;
 
-  const startDrag = (e: React.PointerEvent, type: DragState['type']) => {
-    if (!containerRef.current) return;
-    e.preventDefault();
+  // ── Route drag handlers (pointer capture on the bbox div) ─────────────────
+  const onRoutePointerDown = (e: React.PointerEvent, type: 'move' | 'resize') => {
     e.stopPropagation();
-    const rect = containerRef.current.getBoundingClientRect();
-    dragStateRef.current = {
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = container.getBoundingClientRect();
+    routeDragRef.current = {
       type,
       startX: e.clientX,
       startY: e.clientY,
-      startTransform: { ...settings.routeTransform },
-      startOffsetY: settings.dataPanelOffsetY,
+      startScale: settings.routeTransform.scale,
+      startOffsetX: settings.routeTransform.offsetX,
+      startOffsetY: settings.routeTransform.offsetY,
       containerW: rect.width,
       containerH: rect.height,
     };
-    setDragVisual({ dx: 0, dy: 0, sf: 1, active: true });
+    setRouteDragVisual({ dx: 0, dy: 0, sf: 1, active: true });
   };
 
-  // Global pointer listeners during drag — avoids stale-closure issues with React synthetic events
-  useEffect(() => {
-    if (!dragVisual.active) return;
+  const onRoutePointerMove = (e: React.PointerEvent) => {
+    const ds = routeDragRef.current;
+    if (!ds) return;
+    const dx = e.clientX - ds.startX;
+    const dy = e.clientY - ds.startY;
+    if (ds.type === 'move') {
+      setRouteDragVisual({ dx, dy, sf: 1, active: true });
+    } else {
+      const diag = (dx + dy) * 0.5;
+      const sf = Math.max(0.2, 1 + diag / (ds.containerW * 0.3));
+      setRouteDragVisual({ dx: 0, dy: 0, sf, active: true });
+    }
+  };
 
-    const handleMove = (e: PointerEvent) => {
-      const ds = dragStateRef.current;
-      if (!ds) return;
-      const dx = e.clientX - ds.startX;
-      const dy = e.clientY - ds.startY;
+  const onRoutePointerUp = () => {
+    const ds = routeDragRef.current;
+    if (!ds) return;
+    setRouteDragVisual((prev) => {
       if (ds.type === 'move') {
-        setDragVisual({ dx, dy, sf: 1, active: true });
-      } else if (ds.type === 'panel-move') {
-        setDragVisual({ dx: 0, dy, sf: 1, active: true });
+        setSocialShareSettings({
+          routeTransform: {
+            ...settings.routeTransform,
+            offsetX: ds.startOffsetX + prev.dx / ds.containerW,
+            offsetY: ds.startOffsetY + prev.dy / ds.containerH,
+          },
+        });
       } else {
-        // resize: diagonal drag bottom-right outward → scale up
-        const diag = (dx + dy) * 0.5;
-        const sf = Math.max(0.2, 1 + diag / (ds.containerW * 0.3));
-        setDragVisual({ dx: 0, dy: 0, sf, active: true });
+        setSocialShareSettings({
+          routeTransform: {
+            ...settings.routeTransform,
+            scale: Math.max(0.3, Math.min(4, ds.startScale * prev.sf)),
+          },
+        });
       }
+      routeDragRef.current = null;
+      return { dx: 0, dy: 0, sf: 1, active: false };
+    });
+  };
+
+  // ── Panel drag handlers (pointer capture on the panel div) ────────────────
+  const onPanelPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const rect = container.getBoundingClientRect();
+    panelDragRef.current = {
+      startY: e.clientY,
+      startOffsetY: settings.dataPanelOffsetY,
+      containerH: rect.height,
     };
+    setPanelDragVisual({ dy: 0, active: true });
+  };
 
-    const handleUp = () => {
-      const ds = dragStateRef.current;
-      if (!ds) { setDragVisual({ dx: 0, dy: 0, sf: 1, active: false }); return; }
+  const onPanelPointerMove = (e: React.PointerEvent) => {
+    const ds = panelDragRef.current;
+    if (!ds) return;
+    setPanelDragVisual({ dy: e.clientY - ds.startY, active: true });
+  };
 
-      // Use functional setState to read latest visual state without stale closure
-      setDragVisual((prev) => {
-        if (ds.type === 'move') {
-          setSocialShareSettings({
-            routeTransform: {
-              ...ds.startTransform,
-              offsetX: ds.startTransform.offsetX + prev.dx / ds.containerW,
-              offsetY: ds.startTransform.offsetY + prev.dy / ds.containerH,
-            },
-          });
-        } else if (ds.type === 'panel-move') {
-          // Drag up (negative dy) increases offsetY (moves panel up)
-          const newOffsetY = Math.max(0, Math.min(0.85, ds.startOffsetY - prev.dy / ds.containerH));
-          setSocialShareSettings({ dataPanelOffsetY: newOffsetY });
-        } else {
-          setSocialShareSettings({
-            routeTransform: {
-              ...ds.startTransform,
-              scale: Math.max(0.3, Math.min(4, ds.startTransform.scale * prev.sf)),
-            },
-          });
-        }
-        dragStateRef.current = null;
-        return { dx: 0, dy: 0, sf: 1, active: false };
-      });
-    };
-
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
-    return () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
-    };
-  }, [dragVisual.active, setSocialShareSettings]);
-
-  const isPanelDragging = dragVisual.active && dragStateRef.current?.type === 'panel-move';
-  const isRouteDragging = dragVisual.active && dragStateRef.current?.type !== 'panel-move';
+  const onPanelPointerUp = () => {
+    const ds = panelDragRef.current;
+    if (!ds) return;
+    setPanelDragVisual((prev) => {
+      const newOffsetY = Math.max(0, Math.min(0.85, ds.startOffsetY - prev.dy / ds.containerH));
+      setSocialShareSettings({ dataPanelOffsetY: newOffsetY });
+      panelDragRef.current = null;
+      return { dy: 0, active: false };
+    });
+  };
 
   return (
     <div
@@ -147,7 +171,6 @@ export function SocialSharePreviewModal({
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 flex justify-center items-start">
-          {/* Container locked to poster aspect ratio — img fills it exactly */}
           <div
             ref={containerRef}
             className="relative rounded-lg overflow-hidden shadow-lg w-full"
@@ -160,51 +183,58 @@ export function SocialSharePreviewModal({
               draggable={false}
             />
 
-            {/* Interactive route overlay (photo-first only) */}
-            {showRouteOverlay && routeBboxNorm && (
-              <div className="absolute inset-0" style={{ touchAction: 'none' }}>
-                <div
-                  className="absolute border-2 border-dashed border-[var(--trail-orange)] rounded select-none"
-                  style={{
-                    left: `${routeBboxNorm.x * 100}%`,
-                    top: `${routeBboxNorm.y * 100}%`,
-                    width: `${routeBboxNorm.w * 100}%`,
-                    height: `${routeBboxNorm.h * 100}%`,
-                    transform: `translate(${isRouteDragging ? dragVisual.dx : 0}px, ${isRouteDragging ? dragVisual.dy : 0}px) scale(${isRouteDragging ? dragVisual.sf : 1})`,
-                    transformOrigin: '50% 50%',
-                    cursor: isRouteDragging ? 'grabbing' : 'grab',
-                  }}
-                  onPointerDown={(e) => startDrag(e, 'move')}
-                >
-                  {/* Resize handle — bottom-right corner */}
-                  <div
-                    className="absolute bottom-0 right-0 w-5 h-5 bg-[var(--trail-orange)] rounded-tl-md flex items-center justify-center cursor-nwse-resize"
-                    style={{ transform: 'translate(50%, 50%)' }}
-                    onPointerDown={(e) => startDrag(e, 'resize')}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1 7L7 1M4 7L7 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
+            {/* Panel overlay — rendered first (lower z-order) */}
+            {showPanelOverlay && dataPanelBboxNorm && (
+              <div
+                className="absolute border-2 border-dashed border-white/70 rounded select-none"
+                style={{
+                  left: `${dataPanelBboxNorm.x * 100}%`,
+                  top: `${dataPanelBboxNorm.y * 100}%`,
+                  width: `${dataPanelBboxNorm.w * 100}%`,
+                  height: `${dataPanelBboxNorm.h * 100}%`,
+                  transform: `translateY(${panelDragVisual.active ? panelDragVisual.dy : 0}px)`,
+                  cursor: panelDragVisual.active ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                onPointerDown={onPanelPointerDown}
+                onPointerMove={onPanelPointerMove}
+                onPointerUp={onPanelPointerUp}
+                onPointerCancel={onPanelPointerUp}
+              />
             )}
 
-            {/* Interactive data panel overlay (stats + elevation) */}
-            {showPanelOverlay && dataPanelBboxNorm && (
-              <div className="absolute inset-0" style={{ touchAction: 'none' }}>
+            {/* Route overlay — rendered last (higher z-order), photo-first only */}
+            {showRouteOverlay && routeBboxNorm && (
+              <div
+                className="absolute border-2 border-dashed border-[var(--trail-orange)] rounded select-none"
+                style={{
+                  left: `${routeBboxNorm.x * 100}%`,
+                  top: `${routeBboxNorm.y * 100}%`,
+                  width: `${routeBboxNorm.w * 100}%`,
+                  height: `${routeBboxNorm.h * 100}%`,
+                  transform: `translate(${routeDragVisual.active ? routeDragVisual.dx : 0}px, ${routeDragVisual.active ? routeDragVisual.dy : 0}px) scale(${routeDragVisual.active ? routeDragVisual.sf : 1})`,
+                  transformOrigin: '50% 50%',
+                  cursor: routeDragVisual.active ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                onPointerDown={(e) => onRoutePointerDown(e, 'move')}
+                onPointerMove={onRoutePointerMove}
+                onPointerUp={onRoutePointerUp}
+                onPointerCancel={onRoutePointerUp}
+              >
+                {/* Resize handle — bottom-right corner */}
                 <div
-                  className="absolute border-2 border-dashed border-white/70 rounded select-none"
-                  style={{
-                    left: `${dataPanelBboxNorm.x * 100}%`,
-                    top: `${dataPanelBboxNorm.y * 100}%`,
-                    width: `${dataPanelBboxNorm.w * 100}%`,
-                    height: `${dataPanelBboxNorm.h * 100}%`,
-                    transform: `translateY(${isPanelDragging ? dragVisual.dy : 0}px)`,
-                    cursor: isPanelDragging ? 'grabbing' : 'grab',
+                  className="absolute bottom-0 right-0 w-5 h-5 bg-[var(--trail-orange)] rounded-tl-md flex items-center justify-center cursor-nwse-resize"
+                  style={{ transform: 'translate(50%, 50%)' }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onRoutePointerDown(e, 'resize');
                   }}
-                  onPointerDown={(e) => startDrag(e, 'panel-move')}
-                />
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <path d="M1 7L7 1M4 7L7 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
               </div>
             )}
 
