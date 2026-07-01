@@ -1,4 +1,6 @@
-import type { AspectRatio } from '@/types';
+import type { AspectRatio, SocialShareAspectRatio } from '@/types';
+
+export type CropRatio = AspectRatio | SocialShareAspectRatio;
 
 export type CropPreviewMetrics = {
   left: number;
@@ -18,16 +20,17 @@ export type CropRegion = {
   cropH: number;
 };
 
-export function getAspectRatioValue(ratio: AspectRatio) {
+export function getAspectRatioValue(ratio: CropRatio) {
   if (ratio === '16:9') return 16 / 9;
   if (ratio === '1:1') return 1;
+  if (ratio === '4:5') return 4 / 5;
   return 9 / 16;
 }
 
 export function getCropPreviewMetrics(
   width: number,
   height: number,
-  ratio: AspectRatio
+  ratio: CropRatio
 ): CropPreviewMetrics {
   const containerAspect = width / height;
   const targetAspect = getAspectRatioValue(ratio);

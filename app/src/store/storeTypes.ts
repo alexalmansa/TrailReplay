@@ -9,6 +9,7 @@ import type {
   Journey,
   PlaybackState,
   VideoExportSettings,
+  SocialShareSettings,
   ComparisonTrack,
   AppSettings,
   UnitSystem,
@@ -36,6 +37,8 @@ export interface AppState {
   settings: AppSettings;
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;
+  socialShareSettings: SocialShareSettings;
+  exportSubMode: 'video' | 'image';
   isExporting: boolean;
   exportProgress: number;
   exportStage: string;
@@ -101,6 +104,8 @@ export interface AppState {
   setUnitSystem: (unit: UnitSystem) => void;
   setTrailStyle: (settings: Partial<TrailStyleSettings>) => void;
   setVideoExportSettings: (settings: Partial<VideoExportSettings>) => void;
+  setSocialShareSettings: (settings: Partial<SocialShareSettings>) => void;
+  setExportSubMode: (mode: 'video' | 'image') => void;
   setIsExporting: (isExporting: boolean) => void;
   setExportProgress: (progress: number) => void;
   setExportStage: (stage: string) => void;

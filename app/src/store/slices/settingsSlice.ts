@@ -1,6 +1,7 @@
 import {
   createDefaultCameraSettings,
   createDefaultSettings,
+  createDefaultSocialShareSettings,
   createDefaultVideoExportSettings,
 } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
@@ -11,6 +12,7 @@ type SettingsSlice = Pick<
   | 'settings'
   | 'cameraSettings'
   | 'videoExportSettings'
+  | 'socialShareSettings'
   | 'isExporting'
   | 'exportProgress'
   | 'exportStage'
@@ -22,6 +24,9 @@ type SettingsSlice = Pick<
   | 'setUnitSystem'
   | 'setTrailStyle'
   | 'setVideoExportSettings'
+  | 'setSocialShareSettings'
+  | 'exportSubMode'
+  | 'setExportSubMode'
   | 'setIsExporting'
   | 'setExportProgress'
   | 'setExportStage'
@@ -32,6 +37,8 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   settings: createDefaultSettings(),
   cameraSettings: createDefaultCameraSettings(),
   videoExportSettings: createDefaultVideoExportSettings(),
+  socialShareSettings: createDefaultSocialShareSettings(),
+  exportSubMode: 'video',
   isExporting: false,
   exportProgress: 0,
   exportStage: '',
@@ -71,6 +78,16 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   setVideoExportSettings: (settings) =>
     set((state) => {
       Object.assign(state.videoExportSettings, settings);
+    }),
+
+  setSocialShareSettings: (settings) =>
+    set((state) => {
+      Object.assign(state.socialShareSettings, settings);
+    }),
+
+  setExportSubMode: (mode) =>
+    set((state) => {
+      state.exportSubMode = mode;
     }),
 
   setIsExporting: (isExporting) =>
