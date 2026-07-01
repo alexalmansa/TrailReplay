@@ -636,6 +636,7 @@ export const ca = {
     horizontal: 'Horitzontal',
     vertical: 'Vertical',
     opacity: 'Opacitat',
+    routeGlow: 'Brillantor de ruta',
     noTrackHint: 'Carrega una ruta per generar el pòster.',
     rendering: 'Generant…',
     previewDownload: 'Previsualitza i descarrega',

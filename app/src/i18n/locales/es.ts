@@ -636,6 +636,7 @@ export const es = {
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     opacity: 'Opacidad',
+    routeGlow: 'Brillo de ruta',
     noTrackHint: 'Carga una ruta para generar el póster.',
     rendering: 'Generando…',
     previewDownload: 'Vista previa y descarga',

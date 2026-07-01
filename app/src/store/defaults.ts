@@ -90,6 +90,7 @@ export function createDefaultSocialShareSettings(): SocialShareSettings {
     showElevationMiniChart: true,
     routeTransform: { offsetX: 0, offsetY: 0, scale: 1, opacity: 0.9 },
     dataPanelOffsetY: 0,
+    routeGlow: true,
   };
 }
 

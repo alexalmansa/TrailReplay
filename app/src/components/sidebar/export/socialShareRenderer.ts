@@ -70,6 +70,25 @@ function tracePath(ctx: CanvasRenderingContext2D, points: CanvasPoint[]) {
   for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
 }
 
+function drawRoutePlain(
+  ctx: CanvasRenderingContext2D,
+  points: CanvasPoint[],
+  lineWidth: number,
+  opacity: number,
+  color: string,
+) {
+  if (points.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  tracePath(ctx, points);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawRouteGlow(
   ctx: CanvasRenderingContext2D,
   points: CanvasPoint[],
@@ -241,24 +260,9 @@ function drawLogo(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null, 
   const aspect = logo.naturalWidth > 0 && logo.naturalHeight > 0
     ? logo.naturalWidth / logo.naturalHeight
     : 2.5;
-  const lh = Math.round(w / aspect);
-  const padX = Math.round(w * 0.14);
-  const padY = Math.round(lh * 0.30);
-  const radius = Math.round(lh * 0.30);
-
-  // Semi-transparent pill background
-  ctx.save();
-  ctx.globalAlpha = 0.52;
-  ctx.fillStyle = 'rgba(0,0,0,1)';
-  ctx.beginPath();
-  ctx.roundRect(x - padX, y - padY, w + padX * 2, lh + padY * 2, radius);
-  ctx.fill();
-  ctx.restore();
-
-  // Logo image on top
   ctx.save();
   ctx.globalAlpha = 1;
-  ctx.drawImage(logo, x, y, w, lh);
+  ctx.drawImage(logo, x, y, w, Math.round(w / aspect));
   ctx.restore();
 }
 
@@ -354,7 +358,8 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
 
   // Route glow (3-D layered) — full poster, no clipping
   if (projectedRouteForMap && projectedRouteForMap.length > 1) {
-    drawRouteGlow(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity, input.routeColor);
+    const drawRoute = settings.routeGlow ? drawRouteGlow : drawRoutePlain;
+    drawRoute(ctx, projectedRouteForMap, Math.round(w * 0.014), settings.routeTransform.opacity, input.routeColor);
   }
 
   // Logo (top-left)
@@ -452,7 +457,8 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
       offsetY: offsetY * h,
       scale,
     });
-    drawRouteGlow(ctx, projected, Math.round(w * 0.012), opacity, input.routeColor);
+    const drawRoute = settings.routeGlow ? drawRouteGlow : drawRoutePlain;
+    drawRoute(ctx, projected, Math.round(w * 0.012), opacity, input.routeColor);
   }
 
   // Logo

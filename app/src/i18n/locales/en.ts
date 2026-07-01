@@ -636,6 +636,7 @@ export const en = {
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     opacity: 'Opacity',
+    routeGlow: 'Route glow',
     noTrackHint: 'Load a track to generate a poster.',
     rendering: 'Rendering…',
     previewDownload: 'Preview & Download',

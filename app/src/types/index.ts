@@ -212,6 +212,7 @@ export interface SocialShareSettings {
   routeTransform: SocialShareRouteTransform;
   /** How far up the data panel (stats + elevation) is shifted from the bottom, as a fraction of poster height (0 = bottom). */
   dataPanelOffsetY: number;
+  routeGlow: boolean;
 }
 
 export interface HeartRateZone {

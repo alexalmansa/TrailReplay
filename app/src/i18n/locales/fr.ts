@@ -636,6 +636,7 @@ help: {
     horizontal: 'Horizontal',
     vertical: 'Vertical',
     opacity: 'Opacité',
+    routeGlow: 'Lueur du tracé',
     noTrackHint: 'Chargez un itinéraire pour générer l\'affiche.',
     rendering: 'Génération…',
     previewDownload: 'Aperçu et téléchargement',

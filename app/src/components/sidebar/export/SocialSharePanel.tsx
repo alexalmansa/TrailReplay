@@ -180,7 +180,7 @@ export function SocialSharePanel() {
       </div>
 
       {/* Overlays toggles */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="checkbox"
@@ -198,6 +198,15 @@ export function SocialSharePanel() {
             className="accent-[var(--trail-orange)]"
           />
           {t('imageExport.elevation')}
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={settings.routeGlow}
+            onChange={(e) => setSocialShareSettings({ routeGlow: e.target.checked })}
+            className="accent-[var(--trail-orange)]"
+          />
+          {t('imageExport.routeGlow')}
         </label>
       </div>
 

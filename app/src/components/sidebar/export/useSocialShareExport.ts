@@ -40,7 +40,7 @@ export function useSocialShareExport() {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => { logoRef.current = img; };
-    img.src = '/media/images/logohorizontal.svg';
+    img.src = '/media/images/logohorizontalfondo.svg';
   }, []);
 
   useEffect(() => {
