@@ -30,6 +30,8 @@ export interface RenderInput {
   logo: HTMLImageElement | null;
   /** Primary route color from track settings (hex). */
   routeColor: string;
+  /** Translated stat labels for the stats bar. */
+  labels: { distance: string; elevGain: string; time: string };
 }
 
 export function renderSocialPoster(input: RenderInput): string {
@@ -196,6 +198,7 @@ function drawStatsBar(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
   { distanceMeters, durationSeconds, elevationGainMeters, unitSystem }: SocialShareSummaryData,
+  labels: RenderInput['labels'],
 ) {
   const isMetric = unitSystem === 'metric';
   const colW = w / 3;
@@ -217,9 +220,9 @@ function drawStatsBar(
   const mins = totalMins % 60;
 
   const stats = [
-    { label: 'Distance', num: distNum, unit: isMetric ? 'km' : 'mi' },
-    { label: 'Elev Gain', num: elevNum, unit: isMetric ? 'm' : 'ft' },
-    { label: 'Time', num: hrs > 0 ? `${hrs}h` : `${mins}m`, unit: hrs > 0 ? `${mins}m` : '' },
+    { label: labels.distance, num: distNum, unit: isMetric ? 'km' : 'mi' },
+    { label: labels.elevGain, num: elevNum, unit: isMetric ? 'm' : 'ft' },
+    { label: labels.time, num: hrs > 0 ? `${hrs}h` : `${mins}m`, unit: hrs > 0 ? `${mins}m` : '' },
   ];
 
   stats.forEach(({ label, num, unit }, i) => {
@@ -411,7 +414,7 @@ function drawMapFirst(ctx: CanvasRenderingContext2D, w: number, h: number, input
       ctx.fillRect(0, gradTop, w, totalH);
     }
 
-    if (settings.showStats) drawStatsBar(ctx, 0, panelTop, w, statsH, summary);
+    if (settings.showStats) drawStatsBar(ctx, 0, panelTop, w, statsH, summary, input.labels);
     if (settings.showElevationMiniChart) {
       drawElevationChart(ctx, pad, scrimBottom - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
     }
@@ -483,7 +486,7 @@ function drawPhotoFirst(ctx: CanvasRenderingContext2D, w: number, h: number, inp
   const statsH = Math.round(h * 0.125);
   const statsY = panelBottom - elevH - statsH;
 
-  if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary);
+  if (settings.showStats) drawStatsBar(ctx, 0, statsY, w, statsH, summary, input.labels);
   if (settings.showElevationMiniChart) {
     drawElevationChart(ctx, pad, panelBottom - elevH, w - pad * 2, elevH, { ...summary.elevation, unitSystem: summary.unitSystem }, input.routeColor);
   }

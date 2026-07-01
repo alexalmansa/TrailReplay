@@ -4,6 +4,7 @@ import { mapGlobalRef } from '@/utils/mapRef';
 import { getCropRegion } from '@/utils/crop';
 import { trackEvent } from '@/utils/analytics';
 import { buildSocialShareSummary } from './socialShareData';
+import { translate } from '@/i18n/translations';
 import { getPosterSize, renderSocialPoster, exportSocialPosterBlob } from './socialShareRenderer';
 import type { RenderInput } from './socialShareRenderer';
 import type { CanvasPoint, FitBox } from './socialShareRouteFit';
@@ -24,6 +25,7 @@ export function useSocialShareExport() {
   const journeySegments = useAppStore((s) => s.journeySegments);
   const pictures = useAppStore((s) => s.pictures);
   const unitSystem = useAppStore((s) => s.settings.unitSystem);
+  const language = useAppStore((s) => s.settings.language);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
@@ -112,6 +114,13 @@ export function useSocialShareExport() {
     const primaryTrack = tracks.find((t) => t.visible);
     const routeColor = primaryTrack?.color ?? BRAND_ORANGE;
 
+    const t = (key: string) => translate(language, key);
+    const labels = {
+      distance: t('imageExport.statDistance'),
+      elevGain: t('imageExport.statElevGain'),
+      time: t('imageExport.statTime'),
+    };
+
     return {
       settings,
       summary,
@@ -121,8 +130,9 @@ export function useSocialShareExport() {
       selectedPhoto: photoRef.current,
       logo: logoRef.current,
       routeColor,
+      labels,
     };
-  }, [settings, tracks, activeTrackId, journey, journeySegments, unitSystem]);
+  }, [settings, tracks, activeTrackId, journey, journeySegments, unitSystem, language]);
 
   const computeRouteBbox = useCallback((
     latLons: Array<{ lat: number; lon: number }>,
