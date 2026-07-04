@@ -17,6 +17,8 @@ export interface Mp4CanvasEncoder {
   encodeCanvas(canvas: HTMLCanvasElement, timestampMicros: number): void;
   /** Number of frames still queued in the encoder (for backpressure decisions). */
   pendingFrames(): number;
+  /** Running total of frames dropped by the backpressure guard. */
+  droppedFrames(): number;
   /** Flush, mux and return the finished MP4 as a Blob. */
   finalize(): Promise<Blob>;
   /** Abort without producing a file (e.g. on cancel). */
@@ -103,6 +105,7 @@ export async function createMp4CanvasEncoder(
   let lastTimestampMicros = -1;
   let lastKeyframeMicros = -keyFrameIntervalMicros;
   let finalized = false;
+  let dropped = 0;
 
   return {
     encodeCanvas(canvas, timestampMicros) {
@@ -110,7 +113,10 @@ export async function createMp4CanvasEncoder(
       // If the encoder falls badly behind on a heavy resolution, drop this frame
       // rather than exhausting memory. The previous frame simply shows a little
       // longer; timestamps stay correct so playback never desyncs.
-      if (encoder.encodeQueueSize > 30) return;
+      if (encoder.encodeQueueSize > 30) {
+        dropped += 1;
+        return;
+      }
 
       // Timestamps must be strictly increasing; skip any non-advancing frame.
       const timestamp = Math.max(0, Math.round(timestampMicros));
@@ -132,6 +138,9 @@ export async function createMp4CanvasEncoder(
     },
     pendingFrames() {
       return encoder.encodeQueueSize;
+    },
+    droppedFrames() {
+      return dropped;
     },
     async finalize() {
       finalized = true;

@@ -26,6 +26,9 @@ import {
   getStatsOverlayDrawRect,
   isDrawableRect,
 } from './exportOverlay';
+import { createStageProfiler, type StageProfiler } from './exportProfiler';
+
+const EXPORT_PROFILING = false;
 
 type Html2Canvas = (
   element: HTMLElement,
@@ -128,6 +131,10 @@ export function useVideoExportRecorder() {
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
   const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
   const overlayRunIdRef = useRef(0);
+  const profilerRef = useRef<StageProfiler>(createStageProfiler());
+  const encodeQueueHighWaterRef = useRef(0);
+  const lastRenderTickRef = useRef(0);
+  const mediaRecorderStopAtRef = useRef(0);
   const svgMarkerImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const pendingSvgMarkerLoadsRef = useRef<Set<string>>(new Set());
 
@@ -344,6 +351,7 @@ export function useVideoExportRecorder() {
 
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;
+    const captureStart = EXPORT_PROFILING ? performance.now() : 0;
     const { width: recordW, height: recordH } = videoExportSettings.resolution;
     const context = recordingContextRef.current;
     const mapCanvas = (mapGlobalRef.current?.getCanvas()
@@ -444,6 +452,10 @@ export function useVideoExportRecorder() {
       context.restore();
     }
 
+    if (EXPORT_PROFILING) {
+      profilerRef.current.mark('capture', performance.now() - captureStart);
+    }
+
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
@@ -454,7 +466,15 @@ export function useVideoExportRecorder() {
   const encodeWebCodecsFrame = useCallback(() => {
     if (!useWebCodecsRef.current || !mp4EncoderRef.current || !recordingCanvasRef.current) return;
     const elapsedMicros = (performance.now() - recordingStartTimeRef.current) * 1000;
+    const encodeStart = EXPORT_PROFILING ? performance.now() : 0;
     mp4EncoderRef.current.encodeCanvas(recordingCanvasRef.current, elapsedMicros);
+    if (EXPORT_PROFILING) {
+      profilerRef.current.mark('encodeEnqueue', performance.now() - encodeStart);
+      const pending = mp4EncoderRef.current.pendingFrames();
+      if (pending > encodeQueueHighWaterRef.current) {
+        encodeQueueHighWaterRef.current = pending;
+      }
+    }
   }, []);
 
   const startFrameCapture = useCallback(() => {
@@ -479,6 +499,14 @@ export function useVideoExportRecorder() {
 
     const onRender = () => {
       if (!isRecordingRef.current) return;
+      if (EXPORT_PROFILING) {
+        const tickNow = performance.now();
+        profilerRef.current.tick('render');
+        if (lastRenderTickRef.current > 0) {
+          profilerRef.current.mark('renderInterval', tickNow - lastRenderTickRef.current);
+        }
+        lastRenderTickRef.current = tickNow;
+      }
       const now = performance.now();
       if (now - lastCaptureTime >= targetFrameInterval) {
         captureFrame();
@@ -498,10 +526,37 @@ export function useVideoExportRecorder() {
     frameRequestRef.current = requestAnimationFrame(keepRendering);
   }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps]);
 
+  const logProfilingSummary = useCallback((
+    backend: 'webcodecs' | 'mediarecorder',
+    extra: { finalizeMs: number; blobSize: number; dropped: number },
+  ) => {
+    if (!EXPORT_PROFILING) return;
+    const snap = profilerRef.current.snapshot();
+    const { width, height } = videoExportSettings.resolution;
+
+    /* eslint-disable no-console */
+    console.log(`[export-profile] ${backend} ${width}x${height} @${videoExportSettings.fps}fps`);
+    console.table({
+      render: snap.render,
+      renderInterval: snap.renderInterval,
+      capture: snap.capture,
+      encodeEnqueue: snap.encodeEnqueue,
+    });
+    console.log(
+      '[export-profile]',
+      'encodeQueue high-water:', encodeQueueHighWaterRef.current,
+      '| dropped(webcodecs):', extra.dropped,
+      '| finalizeMs:', Math.round(extra.finalizeMs),
+      '| blobSize(MB):', (extra.blobSize / (1024 * 1024)).toFixed(2),
+    );
+    /* eslint-enable no-console */
+  }, [videoExportSettings.fps, videoExportSettings.resolution]);
+
   // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
   const finalizeWebCodecsExport = useCallback(async () => {
     const encoder = mp4EncoderRef.current;
     if (!encoder) return;
+    const droppedAtFinalize = EXPORT_PROFILING ? encoder.droppedFrames() : 0;
     mp4EncoderRef.current = null;
     useWebCodecsRef.current = false;
 
@@ -512,7 +567,15 @@ export function useVideoExportRecorder() {
     }
 
     try {
+      const finalizeStart = EXPORT_PROFILING ? performance.now() : 0;
       const blob = await encoder.finalize();
+      if (EXPORT_PROFILING) {
+        logProfilingSummary('webcodecs', {
+          finalizeMs: performance.now() - finalizeStart,
+          blobSize: blob.size,
+          dropped: droppedAtFinalize,
+        });
+      }
       if (blob.size > 0) {
         setExportedBlob(blob);
         setExportStage(t('export.stageComplete'));
@@ -539,7 +602,7 @@ export function useVideoExportRecorder() {
     } finally {
       setIsExporting(false);
     }
-  }, [setExportProgress, setExportStage, setIsExporting, t]);
+  }, [logProfilingSummary, setExportProgress, setExportStage, setIsExporting, t]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -572,6 +635,9 @@ export function useVideoExportRecorder() {
         } catch {
           // requestData can throw if the recorder already stopped; ignore.
         }
+      }
+      if (EXPORT_PROFILING) {
+        mediaRecorderStopAtRef.current = performance.now();
       }
       recorder.stop();
     }
@@ -643,6 +709,16 @@ export function useVideoExportRecorder() {
           }
         }
 
+        if (EXPORT_PROFILING) {
+          logProfilingSummary('mediarecorder', {
+            finalizeMs: mediaRecorderStopAtRef.current > 0
+              ? performance.now() - mediaRecorderStopAtRef.current
+              : 0,
+            blobSize: blob.size,
+            dropped: 0,
+          });
+        }
+
         setExportedBlob(blob);
         setExportStage(t('export.stageComplete'));
         setExportProgress(100);
@@ -689,7 +765,7 @@ export function useVideoExportRecorder() {
     };
 
     recorder.start(100);
-  }, [setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
+  }, [logProfilingSummary, setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
 
   const handleStartExport = useCallback(async () => {
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
@@ -710,6 +786,12 @@ export function useVideoExportRecorder() {
     overlayBusyRef.current = false;
     overlayLastUpdateRef.current = 0;
     overlayRunIdRef.current += 1;
+    if (EXPORT_PROFILING) {
+      profilerRef.current.reset();
+      encodeQueueHighWaterRef.current = 0;
+      lastRenderTickRef.current = 0;
+      mediaRecorderStopAtRef.current = 0;
+    }
     trackEvent('export_started', {
       export_format: actualFormat,
       export_quality: videoExportSettings.quality,
