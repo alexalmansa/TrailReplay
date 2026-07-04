@@ -74,6 +74,9 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
     includeStats: true,
     includeElevation: true,
     includeAudio: false,
+    miniOverlay: false,
+    miniFields: { distance: true, speed: true, elevation: true, elapsed: true },
+    overlayPosition: 'auto',
   };
 }
 

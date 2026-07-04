@@ -196,4 +196,24 @@ describe('createAppStore', () => {
     useStore.getState().setActivePanel('settings');
     expect(useStore.getState().activePanel).toBe('settings');
   });
+
+  it('defaults mini overlay off with all fields on and top-center position', () => {
+    const useStore = createAppStore();
+    const settings = useStore.getState().videoExportSettings;
+    expect(settings.miniOverlay).toBe(false);
+    expect(settings.miniFields).toEqual({
+      distance: true,
+      speed: true,
+      elevation: true,
+      elapsed: true,
+    });
+    expect(settings.overlayPosition).toBe('auto');
+  });
+
+  it('partially updates mini overlay settings', () => {
+    const useStore = createAppStore();
+    useStore.getState().setVideoExportSettings({ miniOverlay: true });
+    expect(useStore.getState().videoExportSettings.miniOverlay).toBe(true);
+    expect(useStore.getState().videoExportSettings.overlayPosition).toBe('auto');
+  });
 });

@@ -178,6 +178,22 @@ export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'low' | 'medium' | 'high' | 'ultra';
 export type AspectRatio = '16:9' | '1:1' | '9:16';
 
+export type OverlayPosition =
+  | 'auto'
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+export interface MiniOverlayFields {
+  distance: boolean;
+  speed: boolean;
+  elevation: boolean;
+  elapsed: boolean;
+}
+
 export interface VideoExportSettings {
   format: VideoFormat;
   quality: VideoQuality;
@@ -187,6 +203,9 @@ export interface VideoExportSettings {
   includeStats: boolean;
   includeElevation: boolean;
   includeAudio: boolean;
+  miniOverlay: boolean;
+  miniFields: MiniOverlayFields;
+  overlayPosition: OverlayPosition;
 }
 
 export interface HeartRateZone {
