@@ -210,7 +210,7 @@ export function useVideoExportRecorder() {
       const overlayContext = overlay.getContext('2d');
       if (!overlayContext) return;
 
-      if (videoExportSettings.includeStats) {
+      if (videoExportSettings.includeStats || videoExportSettings.miniOverlay) {
         const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
         if (statsElement) {
           try {
@@ -232,6 +232,7 @@ export function useVideoExportRecorder() {
               recordW,
               recordH,
               margin,
+              overlayPosition: videoExportSettings.overlayPosition,
             });
             overlayContext.drawImage(
               captureCanvas,
@@ -250,7 +251,7 @@ export function useVideoExportRecorder() {
         }
       }
 
-      if (videoExportSettings.includeElevation) {
+      if (videoExportSettings.includeElevation && !videoExportSettings.miniOverlay) {
         const elevationElement = document.getElementById('mapElevationProfile') as HTMLElement | null;
         if (elevationElement) {
           try {
@@ -338,7 +339,7 @@ export function useVideoExportRecorder() {
     } finally {
       overlayBusyRef.current = false;
     }
-  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats]);
+  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats, videoExportSettings.miniOverlay, videoExportSettings.overlayPosition]);
 
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;

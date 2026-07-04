@@ -1,4 +1,6 @@
 import { getCropRegion } from '@/utils/crop';
+import { computeOverlayDrawPosition } from './overlayPosition';
+import type { OverlayPosition } from '@/types';
 
 type Size = {
   width: number;
@@ -52,6 +54,7 @@ export function getStatsOverlayDrawRect(params: {
   recordW: number;
   recordH: number;
   margin: number;
+  overlayPosition: OverlayPosition;
 }) {
   const rawWidth = params.captureCanvas.width * params.scaleToRecording;
   const isNarrowFrame = params.recordW <= params.recordH;
@@ -63,12 +66,18 @@ export function getStatsOverlayDrawRect(params: {
   const drawWidth = Math.max(0, maxWidth);
   const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);
 
-  return {
-    drawX: isNarrowFrame ? (params.recordW - drawWidth) / 2 : params.margin,
-    drawY: params.margin,
-    drawWidth,
-    drawHeight,
-  };
+  const { drawX, drawY } = computeOverlayDrawPosition({
+    position: params.overlayPosition,
+    frameLeft: 0,
+    frameTop: 0,
+    frameWidth: params.recordW,
+    frameHeight: params.recordH,
+    overlayWidth: drawWidth,
+    overlayHeight: drawHeight,
+    margin: params.margin,
+  });
+
+  return { drawX, drawY, drawWidth, drawHeight };
 }
 
 export function getElevationOverlayDrawRect(params: {

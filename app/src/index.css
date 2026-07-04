@@ -205,6 +205,14 @@ html, body {
   padding: 0.45rem 0.55rem 0.62rem;
 }
 
+.tr-stats-overlay--mini {
+  background: rgba(9, 14, 19, 0.88);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
+  padding: 1rem 1.1rem 1.1rem;
+}
+
 .tr-stat-item {
   display: flex;
   align-items: center;

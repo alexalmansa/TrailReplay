@@ -47,6 +47,7 @@ describe('exportOverlay', () => {
       recordW: 1080,
       recordH: 1920,
       margin: 27,
+      overlayPosition: 'auto',
     });
 
     expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.56);
@@ -61,11 +62,38 @@ describe('exportOverlay', () => {
       recordW: 1920,
       recordH: 1080,
       margin: 48,
+      overlayPosition: 'auto',
     });
 
     expect(rect.drawX).toBe(48);
     expect(rect.drawY).toBe(48);
     expect(rect.drawWidth).toBeLessThanOrEqual(1920 * 0.28);
+  });
+
+  it('positions the stats overlay for each overlayPosition', () => {
+    const shared = {
+      captureCanvas: { width: 300, height: 150 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+    };
+
+    const topLeft = getStatsOverlayDrawRect({ ...shared, overlayPosition: 'top-left' });
+    expect(topLeft.drawX).toBe(48);
+    expect(topLeft.drawY).toBe(48);
+
+    const topRight = getStatsOverlayDrawRect({ ...shared, overlayPosition: 'top-right' });
+    expect(topRight.drawX).toBeCloseTo(1920 - topRight.drawWidth - 48);
+    expect(topRight.drawY).toBe(48);
+
+    const bottomCenter = getStatsOverlayDrawRect({ ...shared, overlayPosition: 'bottom-center' });
+    expect(bottomCenter.drawX).toBeCloseTo((1920 - bottomCenter.drawWidth) / 2);
+    expect(bottomCenter.drawY).toBeCloseTo(1080 - bottomCenter.drawHeight - 48);
+
+    const bottomRight = getStatsOverlayDrawRect({ ...shared, overlayPosition: 'bottom-right' });
+    expect(bottomRight.drawX).toBeCloseTo(1920 - bottomRight.drawWidth - 48);
+    expect(bottomRight.drawY).toBeCloseTo(1080 - bottomRight.drawHeight - 48);
   });
 
   it('maps popup coordinates into the cropped export frame', () => {

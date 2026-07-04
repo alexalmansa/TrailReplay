@@ -18,6 +18,7 @@ import {
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
 import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
+import { resolveOverlayPlacement } from '@/components/sidebar/export/overlayPosition';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -71,6 +72,9 @@ function App() {
   const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
   const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
+  const overlayPosition = useAppStore((state) => state.videoExportSettings.overlayPosition);
+  const miniOverlay = useAppStore((state) => state.videoExportSettings.miniOverlay);
+  const miniFields = useAppStore((state) => state.videoExportSettings.miniFields);
   const isExporting = useAppStore((state) => state.isExporting);
 
   const openNextQueuedPlaybackPicture = useCallback(() => {
@@ -165,23 +169,35 @@ function App() {
     if (activeExportCropMetrics) {
       const { frameLeft, frameTop, frameWidth, frameHeight } = activeExportCropMetrics;
       const narrowFrame = isNarrowFrame(frameWidth, frameHeight);
+      const { vertical, horizontal } = overlayPosition === 'auto'
+        ? { vertical: 'top' as const, horizontal: narrowFrame ? 'center' as const : 'left' as const }
+        : resolveOverlayPlacement(overlayPosition, frameWidth, frameHeight);
+      const margin = narrowFrame ? 14 : 16;
+      const gutter = narrowFrame ? 24 : 32;
+      const maxW = Math.min(Math.max(frameWidth - gutter, 0), narrowFrame ? 268 : 320);
 
-      if (narrowFrame) {
-        return {
-          top: frameTop + 14,
-          left: frameLeft + (frameWidth / 2),
-          width: Math.max(frameWidth - 24, 0),
-          maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
-          transform: 'translateX(-50%)',
-        } satisfies CSSProperties;
+      const style: CSSProperties = {
+        width: Math.max(frameWidth - gutter, 0),
+        maxWidth: maxW,
+      };
+
+      if (vertical === 'top') {
+        style.top = frameTop + margin;
+      } else {
+        style.bottom = `calc(100% - ${frameTop + frameHeight - margin}px)`;
       }
 
-      return {
-        top: frameTop + 16,
-        left: frameLeft + 16,
-        width: Math.max(frameWidth - 32, 0),
-        maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
-      } satisfies CSSProperties;
+      if (horizontal === 'left') {
+        style.left = frameLeft + margin;
+      } else if (horizontal === 'right') {
+        style.left = frameLeft + frameWidth - margin;
+        style.transform = 'translateX(-100%)';
+      } else {
+        style.left = frameLeft + frameWidth / 2;
+        style.transform = 'translateX(-50%)';
+      }
+
+      return style;
     }
 
     if (isNarrowScreen) {
@@ -368,7 +384,12 @@ function App() {
                 >
                   <StatsOverlay
                     layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
-                    variant={activeExportCropMetrics ? 'export' : 'default'}
+                    variant={
+                      activeExportCropMetrics
+                        ? (miniOverlay ? 'mini' : 'export')
+                        : 'default'
+                    }
+                    miniFields={miniFields}
                   />
                 </div>
               )}

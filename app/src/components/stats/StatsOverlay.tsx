@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatPace, formatStatsDuration, formatElevation } from '@/utils/units';
+import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
+import type { MiniOverlayFields } from '@/types';
 import {
   Route,
   Timer,
@@ -14,10 +15,16 @@ import {
 interface StatsOverlayProps {
   compact?: boolean;
   layout?: 'default' | 'narrow';
-  variant?: 'default' | 'export';
+  variant?: 'default' | 'export' | 'mini';
+  miniFields?: MiniOverlayFields;
 }
 
-export function StatsOverlay({ compact = false, layout = 'default', variant = 'default' }: StatsOverlayProps) {
+export function StatsOverlay({
+  compact = false,
+  layout = 'default',
+  variant = 'default',
+  miniFields = { distance: true, speed: true, elevation: true, elapsed: true },
+}: StatsOverlayProps) {
   const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
@@ -25,6 +32,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
   const settings = useAppStore((state) => state.settings);
   const isNarrowLayout = compact || layout === 'narrow';
   const isExportVariant = variant === 'export';
+  const isMiniVariant = variant === 'mini';
 
   // Use computed journey for multi-track support
   const {
@@ -171,6 +179,65 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     unit?: string;
     color?: string;
   }>;
+
+  const miniItems = isMiniVariant
+    ? [
+        miniFields.distance && {
+          key: 'distance',
+          icon: <Route className="w-4 h-4 text-white" />,
+          label: t('stats.distance'),
+          value: formatDistance(currentStats.distance, settings.unitSystem),
+        },
+        miniFields.speed && {
+          key: 'speed',
+          icon: <Timer className="w-4 h-4 text-white" />,
+          label: t('stats.speed'),
+          // currentStats.currentSpeed is in km/h (from currentPosition.speed);
+          // formatSpeedFromKmh handles the metric/imperial conversion + unit label.
+          value: isInTransport
+            ? '--'
+            : formatSpeedFromKmh(currentStats.currentSpeed || 0, settings.unitSystem),
+        },
+        miniFields.elevation && {
+          key: 'elevation',
+          icon: <Mountain className="w-4 h-4 text-white" />,
+          label: t('stats.elev'),
+          value: isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem),
+        },
+        miniFields.elapsed && {
+          key: 'elapsed',
+          icon: <Clock className="w-4 h-4 text-white" />,
+          label: t('stats.duration'),
+          value: formatStatsDuration(currentStats.duration),
+        },
+      ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; label: string; value: string }>
+    : [];
+
+  if (isMiniVariant) {
+    const columns = miniItems.length <= 1 ? 1 : 2;
+    return (
+      <div className="tr-stats-overlay tr-stats-overlay--mini">
+        <div
+          className="grid gap-x-3 gap-y-2"
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        >
+          {miniItems.map((item) => (
+            <div key={item.key} className="min-w-0 text-center px-1 py-0.5">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <span className="flex items-center justify-center text-white/95">{item.icon}</span>
+                <span className="block text-[10px] text-white font-semibold uppercase tracking-[0.08em] leading-[1.1]">
+                  {item.label}
+                </span>
+              </div>
+              <div className="tr-stat-value flex items-center justify-center text-[15px] leading-[1.05] text-white font-semibold tabular-nums tracking-[-0.02em]">
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
