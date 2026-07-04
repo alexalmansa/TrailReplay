@@ -9,7 +9,6 @@ interface UseBaseMapPresentationOptions {
   mapRef: React.RefObject<maplibregl.Map | null>;
   settings: AppSettings;
   trailStyle: TrailStyleSettings;
-  miniExportActive: boolean;
 }
 
 export function useBaseMapPresentation({
@@ -19,7 +18,6 @@ export function useBaseMapPresentation({
   mapRef,
   settings,
   trailStyle,
-  miniExportActive,
 }: UseBaseMapPresentationOptions) {
   useEffect(() => {
     const map = mapRef.current;
@@ -58,9 +56,8 @@ export function useBaseMapPresentation({
       map.setLayoutProperty('aspect-overlay', 'visibility', settings.mapOverlays?.aspectOverlay ? 'visible' : 'none');
     }
 
-    const showLabels = (['street', 'topo', 'outdoor'].includes(settings.mapStyle)
-      || !!settings.mapOverlays?.placeLabels)
-      && !miniExportActive;
+    const showLabels = ['street', 'topo', 'outdoor'].includes(settings.mapStyle)
+      || !!settings.mapOverlays?.placeLabels;
     if (map.getLayer('carto-labels')) {
       map.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
     }
@@ -72,7 +69,6 @@ export function useBaseMapPresentation({
     settings.mapOverlays?.skiPistes,
     settings.mapOverlays?.slopeOverlay,
     settings.mapStyle,
-    miniExportActive,
   ]);
 
   useEffect(() => {
@@ -105,26 +101,21 @@ export function useBaseMapPresentation({
     if (!map || !isMapLoaded) return;
 
     const color = currentTrackColor || trailStyle.trailColor;
-    const completedWidth = miniExportActive ? 10 : 6;
-    const lineWidth = miniExportActive ? 7 : 4;
 
     if (map.getLayer('trail-line')) {
       map.setPaintProperty('trail-line', 'line-color', ['coalesce', ['get', 'color'], color]);
-      map.setPaintProperty('trail-line', 'line-width', lineWidth);
     }
     if (map.getLayer('trail-completed')) {
       map.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
-      map.setPaintProperty('trail-completed', 'line-width', completedWidth);
     }
-  }, [currentTrackColor, isMapLoaded, mapRef, trailStyle.colorMode, trailStyle.trailColor, miniExportActive]);
+  }, [currentTrackColor, isMapLoaded, mapRef, trailStyle.colorMode, trailStyle.trailColor]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
     if (map.getLayer('main-track-label')) {
-      const showLabel = trailStyle.showTrackLabels && !miniExportActive;
-      map.setLayoutProperty('main-track-label', 'visibility', showLabel ? 'visible' : 'none');
+      map.setLayoutProperty('main-track-label', 'visibility', trailStyle.showTrackLabels ? 'visible' : 'none');
       const color = currentTrackColor || trailStyle.trailColor;
       map.setPaintProperty('main-track-label', 'text-color', color);
     }
@@ -136,7 +127,7 @@ export function useBaseMapPresentation({
         geometry: { type: 'Point', coordinates: [0, 0] },
       });
     }
-  }, [currentTrackColor, currentTrackName, isMapLoaded, mapRef, trailStyle.showTrackLabels, trailStyle.trailColor, miniExportActive]);
+  }, [currentTrackColor, currentTrackName, isMapLoaded, mapRef, trailStyle.showTrackLabels, trailStyle.trailColor]);
 
   useEffect(() => {
     const map = mapRef.current;

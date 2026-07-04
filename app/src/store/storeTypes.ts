@@ -17,6 +17,7 @@ import type {
   CameraSettings,
   TransportMode,
   TrailStyleSettings,
+  StatsOverlaySettings,
 } from '@/types';
 
 export interface AppState {
@@ -100,6 +101,7 @@ export interface AppState {
   setMapStyle: (style: MapStyle) => void;
   setUnitSystem: (unit: UnitSystem) => void;
   setTrailStyle: (settings: Partial<TrailStyleSettings>) => void;
+  setStatsOverlaySettings: (settings: Partial<StatsOverlaySettings>) => void;
   setVideoExportSettings: (settings: Partial<VideoExportSettings>) => void;
   setIsExporting: (isExporting: boolean) => void;
   setExportProgress: (progress: number) => void;

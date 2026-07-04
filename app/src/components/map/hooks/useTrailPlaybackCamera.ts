@@ -61,7 +61,6 @@ interface UseTrailPlaybackCameraParams {
     showTrackLabels: boolean;
     trailColor: string;
   };
-  markerScale: number;
 }
 
 export function useTrailPlaybackCamera({
@@ -91,7 +90,6 @@ export function useTrailPlaybackCamera({
   smoothBearingRef,
   targetBearingRef,
   trailStyle,
-  markerScale,
 }: UseTrailPlaybackCameraParams) {
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
@@ -110,8 +108,8 @@ export function useTrailPlaybackCamera({
       markerRef.current?.remove();
       markerRef.current = null;
     } else {
-      const fontSize = Math.round(28 * trailStyle.markerSize * markerScale);
-      const circleSize = Math.round(40 * trailStyle.markerSize * markerScale);
+      const fontSize = Math.round(28 * trailStyle.markerSize);
+      const circleSize = Math.round(40 * trailStyle.markerSize);
       const markerColor = trailStyle.markerColor;
       const iconColor = isSvgActivityIcon(icon) ? markerColor : currentColor;
       const iconHtml = getActivityIconMarkerHtml(icon, fontSize, iconColor);
@@ -279,7 +277,6 @@ export function useTrailPlaybackCamera({
     smoothBearingRef,
     targetBearingRef,
     trailStyle,
-    markerScale,
   ]);
 
   useEffect(() => {

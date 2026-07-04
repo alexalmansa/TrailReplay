@@ -21,6 +21,7 @@ type SettingsSlice = Pick<
   | 'setMapStyle'
   | 'setUnitSystem'
   | 'setTrailStyle'
+  | 'setStatsOverlaySettings'
   | 'setVideoExportSettings'
   | 'setIsExporting'
   | 'setExportProgress'
@@ -66,6 +67,11 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   setTrailStyle: (settings) =>
     set((state) => {
       Object.assign(state.settings.trailStyle, settings);
+    }),
+
+  setStatsOverlaySettings: (settings) =>
+    set((state) => {
+      Object.assign(state.settings.statsOverlay, settings);
     }),
 
   setVideoExportSettings: (settings) =>

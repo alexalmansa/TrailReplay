@@ -187,11 +187,17 @@ export type OverlayPosition =
   | 'bottom-center'
   | 'bottom-right';
 
-export interface MiniOverlayFields {
+export interface StatsOverlayFields {
   distance: boolean;
   speed: boolean;
   elevation: boolean;
   elapsed: boolean;
+  heartRate: boolean;
+}
+
+export interface StatsOverlaySettings {
+  fields: StatsOverlayFields;
+  position: OverlayPosition;
 }
 
 export interface VideoExportSettings {
@@ -203,9 +209,6 @@ export interface VideoExportSettings {
   includeStats: boolean;
   includeElevation: boolean;
   includeAudio: boolean;
-  miniOverlay: boolean;
-  miniFields: MiniOverlayFields;
-  overlayPosition: OverlayPosition;
 }
 
 export interface HeartRateZone {
@@ -255,6 +258,7 @@ export interface AppSettings {
   cameraMode: CameraMode;
   defaultAnimationSpeed: number;
   trailStyle: TrailStyleSettings;
+  statsOverlay: StatsOverlaySettings;
   waybackRelease: number | null;
   waybackItemURL: string | null;
 }

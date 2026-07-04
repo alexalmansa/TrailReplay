@@ -48,6 +48,10 @@ export function createDefaultSettings(): AppSettings {
       trackLabel: 'Track 1',
     },
     mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
+    statsOverlay: {
+      fields: { distance: true, speed: true, elevation: true, elapsed: true, heartRate: true },
+      position: 'auto',
+    },
     waybackRelease: null,
     waybackItemURL: null,
   };
@@ -74,9 +78,6 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
     includeStats: true,
     includeElevation: true,
     includeAudio: false,
-    miniOverlay: false,
-    miniFields: { distance: true, speed: true, elevation: true, elapsed: true },
-    overlayPosition: 'auto',
   };
 }
 

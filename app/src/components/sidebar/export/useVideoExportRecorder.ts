@@ -84,6 +84,7 @@ function drawTintedSvgIcon(
 export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const statsOverlaySettings = useAppStore((state) => state.settings.statsOverlay);
   const tracks = useAppStore((state) => state.tracks);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const playback = useAppStore((state) => state.playback);
@@ -210,7 +211,7 @@ export function useVideoExportRecorder() {
       const overlayContext = overlay.getContext('2d');
       if (!overlayContext) return;
 
-      if (videoExportSettings.includeStats || videoExportSettings.miniOverlay) {
+      if (videoExportSettings.includeStats) {
         const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
         if (statsElement) {
           try {
@@ -232,7 +233,7 @@ export function useVideoExportRecorder() {
               recordW,
               recordH,
               margin,
-              overlayPosition: videoExportSettings.overlayPosition,
+              overlayPosition: statsOverlaySettings.position,
             });
             overlayContext.drawImage(
               captureCanvas,
@@ -251,7 +252,7 @@ export function useVideoExportRecorder() {
         }
       }
 
-      if (videoExportSettings.includeElevation && !videoExportSettings.miniOverlay) {
+      if (videoExportSettings.includeElevation) {
         const elevationElement = document.getElementById('mapElevationProfile') as HTMLElement | null;
         if (elevationElement) {
           try {
@@ -339,7 +340,7 @@ export function useVideoExportRecorder() {
     } finally {
       overlayBusyRef.current = false;
     }
-  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats, videoExportSettings.miniOverlay, videoExportSettings.overlayPosition]);
+  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats, statsOverlaySettings.position]);
 
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;

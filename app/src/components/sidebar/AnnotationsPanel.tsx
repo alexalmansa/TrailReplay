@@ -130,12 +130,27 @@ function TrackStyleSection({
 }
 
 // ─── Main panel ────────────────────────────────────────────────────────────
+const STATS_OVERLAY_POSITIONS = [
+  'top-left', 'top-center', 'top-right',
+  'bottom-left', 'bottom-center', 'bottom-right',
+] as const;
+
+const STATS_OVERLAY_FIELD_KEYS = [
+  ['distance', 'export.fieldDistance'],
+  ['speed', 'export.fieldSpeed'],
+  ['elevation', 'export.fieldElevation'],
+  ['elapsed', 'export.fieldElapsed'],
+  ['heartRate', 'export.fieldHeartRate'],
+] as const;
+
 export function AnnotationsPanel() {
   const { t } = useI18n();
   const settings = useAppStore((state) => state.settings);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
+  const statsOverlay = useAppStore((state) => state.settings.statsOverlay);
   const setSettings = useAppStore((state) => state.setSettings);
   const setTrailStyle = useAppStore((state) => state.setTrailStyle);
+  const setStatsOverlaySettings = useAppStore((state) => state.setStatsOverlaySettings);
 
   const tracks = useAppStore((state) => state.tracks);
   const activeTrackId = useAppStore((state) => state.activeTrackId);
@@ -152,6 +167,7 @@ export function AnnotationsPanel() {
   const hasMultiple = tracks.length > 1 || comparisonTracks.length > 0;
   const activeTrack = tracks.find((track) => track.id === activeTrackId) ?? tracks[0] ?? null;
   const displayedIcon = activeTrack?.activityIcon ?? trailStyle.currentIcon;
+  const hasHeartRateData = tracks.some((track) => track.points.some((point) => point.heartRate != null));
 
   // When the active track color changes, also sync trailStyle
   const handleMainColorChange = (trackId: string, color: string) => {
@@ -237,6 +253,70 @@ export function AnnotationsPanel() {
             {t('annotations.labelsHint')}
           </p>
         )}
+      </div>
+
+      {/* ── Stats overlay panel ──────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+          {t('export.statsOverlayTitle')}
+        </h3>
+
+        <div className="grid grid-cols-2 gap-2">
+          {STATS_OVERLAY_FIELD_KEYS.map(([field, labelKey]) => {
+            const disabled = field === 'heartRate' && !hasHeartRateData;
+            return (
+              <label
+                key={field}
+                className={`flex items-center gap-2 text-sm text-[var(--evergreen)] ${
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+                title={disabled ? t('export.fieldHeartRateDisabledHint') : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={statsOverlay.fields[field]}
+                  disabled={disabled}
+                  onChange={() =>
+                    setStatsOverlaySettings({
+                      fields: {
+                        ...statsOverlay.fields,
+                        [field]: !statsOverlay.fields[field],
+                      },
+                    })
+                  }
+                />
+                {t(labelKey)}
+              </label>
+            );
+          })}
+        </div>
+
+        <div>
+          <span className="block text-xs font-medium text-[var(--evergreen)] mb-1">
+            {t('export.overlayPosition')}
+          </span>
+          <div className="grid grid-cols-3 gap-1">
+            {STATS_OVERLAY_POSITIONS.map((pos) => (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setStatsOverlaySettings({ position: pos })}
+                aria-label={pos}
+                className={`h-8 rounded border-2 transition-colors ${
+                  statsOverlay.position === pos
+                    ? 'border-[var(--trail-orange)] bg-[var(--trail-orange)]/15'
+                    : 'border-[var(--evergreen)]/30 hover:border-[var(--evergreen)]/60'
+                }`}
+              >
+                <span className={`block w-2 h-2 rounded-sm bg-[var(--evergreen)] ${
+                  pos.includes('top') ? 'mt-0.5' : 'mb-0.5 mt-auto'
+                } ${
+                  pos.endsWith('left') ? 'ml-0.5' : pos.endsWith('right') ? 'ml-auto mr-0.5' : 'mx-auto'
+                }`} />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Heart rate styling ─────────────────────────────────── */}

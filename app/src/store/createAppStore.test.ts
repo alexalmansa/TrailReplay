@@ -197,23 +197,23 @@ describe('createAppStore', () => {
     expect(useStore.getState().activePanel).toBe('settings');
   });
 
-  it('defaults mini overlay off with all fields on and top-center position', () => {
+  it('defaults stats overlay to all fields on and auto position', () => {
     const useStore = createAppStore();
-    const settings = useStore.getState().videoExportSettings;
-    expect(settings.miniOverlay).toBe(false);
-    expect(settings.miniFields).toEqual({
+    const statsOverlay = useStore.getState().settings.statsOverlay;
+    expect(statsOverlay.fields).toEqual({
       distance: true,
       speed: true,
       elevation: true,
       elapsed: true,
+      heartRate: true,
     });
-    expect(settings.overlayPosition).toBe('auto');
+    expect(statsOverlay.position).toBe('auto');
   });
 
-  it('partially updates mini overlay settings', () => {
+  it('partially updates stats overlay settings', () => {
     const useStore = createAppStore();
-    useStore.getState().setVideoExportSettings({ miniOverlay: true });
-    expect(useStore.getState().videoExportSettings.miniOverlay).toBe(true);
-    expect(useStore.getState().videoExportSettings.overlayPosition).toBe('auto');
+    useStore.getState().setStatsOverlaySettings({ position: 'bottom-right' });
+    expect(useStore.getState().settings.statsOverlay.position).toBe('bottom-right');
+    expect(useStore.getState().settings.statsOverlay.fields.distance).toBe(true);
   });
 });

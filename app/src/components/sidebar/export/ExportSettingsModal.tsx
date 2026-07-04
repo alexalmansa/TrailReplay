@@ -159,106 +159,30 @@ export function ExportSettingsModal({
           <div className="space-y-2">
             <label className="flex items-center gap-3 cursor-pointer">
               <div
-                onClick={() => setVideoExportSettings({ miniOverlay: !videoExportSettings.miniOverlay })}
+                onClick={() => setVideoExportSettings({ includeStats: !videoExportSettings.includeStats })}
                 className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                  videoExportSettings.miniOverlay ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
+                  videoExportSettings.includeStats ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
                 }`}
               >
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  videoExportSettings.miniOverlay ? 'translate-x-5' : 'translate-x-0.5'
+                  videoExportSettings.includeStats ? 'translate-x-5' : 'translate-x-0.5'
                 }`} />
               </div>
-              <span className="text-sm text-[var(--evergreen)]">{t('export.miniOverlay')}</span>
+              <span className="text-sm text-[var(--evergreen)]">{t('export.statsOverlay')}</span>
             </label>
-
-            {videoExportSettings.miniOverlay ? (
-              <>
-                <p className="text-xs text-[var(--evergreen-60)]">{t('export.miniOverlayHint')}</p>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {([
-                    ['distance', 'export.fieldDistance'],
-                    ['speed', 'export.fieldSpeed'],
-                    ['elevation', 'export.fieldElevation'],
-                    ['elapsed', 'export.fieldElapsed'],
-                  ] as const).map(([field, labelKey]) => (
-                    <label key={field} className="flex items-center gap-2 cursor-pointer text-sm text-[var(--evergreen)]">
-                      <input
-                        type="checkbox"
-                        checked={videoExportSettings.miniFields[field]}
-                        onChange={() =>
-                          setVideoExportSettings({
-                            miniFields: {
-                              ...videoExportSettings.miniFields,
-                              [field]: !videoExportSettings.miniFields[field],
-                            },
-                          })
-                        }
-                      />
-                      {t(labelKey)}
-                    </label>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    onClick={() => setVideoExportSettings({ includeStats: !videoExportSettings.includeStats })}
-                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                      videoExportSettings.includeStats ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      videoExportSettings.includeStats ? 'translate-x-5' : 'translate-x-0.5'
-                    }`} />
-                  </div>
-                  <span className="text-sm text-[var(--evergreen)]">{t('export.statsOverlay')}</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    onClick={() => setVideoExportSettings({ includeElevation: !videoExportSettings.includeElevation })}
-                    className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                      videoExportSettings.includeElevation ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      videoExportSettings.includeElevation ? 'translate-x-5' : 'translate-x-0.5'
-                    }`} />
-                  </div>
-                  <span className="text-sm text-[var(--evergreen)]">{t('export.elevationProfile')}</span>
-                </label>
-              </>
-            )}
-
-            <div className="pt-2">
-              <span className="block text-xs font-medium text-[var(--evergreen)] mb-1">
-                {t('export.overlayPosition')}
-              </span>
-              <div className="grid grid-cols-3 gap-1">
-                {([
-                  'top-left', 'top-center', 'top-right',
-                  'bottom-left', 'bottom-center', 'bottom-right',
-                ] as const).map((pos) => (
-                  <button
-                    key={pos}
-                    type="button"
-                    onClick={() => setVideoExportSettings({ overlayPosition: pos })}
-                    aria-label={pos}
-                    className={`h-8 rounded border-2 transition-colors ${
-                      videoExportSettings.overlayPosition === pos
-                        ? 'border-[var(--trail-orange)] bg-[var(--trail-orange)]/15'
-                        : 'border-[var(--evergreen)]/30 hover:border-[var(--evergreen)]/60'
-                    }`}
-                  >
-                    <span className={`block w-2 h-2 rounded-sm bg-[var(--evergreen)] ${
-                      pos.includes('top') ? 'mt-0.5' : 'mb-0.5 mt-auto'
-                    } ${
-                      pos.endsWith('left') ? 'ml-0.5' : pos.endsWith('right') ? 'ml-auto mr-0.5' : 'mx-auto'
-                    }`} />
-                  </button>
-                ))}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setVideoExportSettings({ includeElevation: !videoExportSettings.includeElevation })}
+                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
+                  videoExportSettings.includeElevation ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                  videoExportSettings.includeElevation ? 'translate-x-5' : 'translate-x-0.5'
+                }`} />
               </div>
-            </div>
+              <span className="text-sm text-[var(--evergreen)]">{t('export.elevationProfile')}</span>
+            </label>
 
             <p className="text-xs text-[var(--evergreen-60)] pt-1">{t('export.logoNote')}</p>
           </div>

@@ -58,8 +58,6 @@ export function TrailMap(_props: TrailMapProps) {
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const isExporting = useAppStore((state) => state.isExporting);
-  const miniOverlay = useAppStore((state) => state.videoExportSettings.miniOverlay);
-  const miniExportActive = isExporting && miniOverlay;
   const setAnimationPhase = useAppStore((state) => state.setAnimationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setCameraSettings = useAppStore((state) => state.setCameraSettings);
@@ -159,7 +157,6 @@ export function TrailMap(_props: TrailMapProps) {
     mapRef: map,
     settings,
     trailStyle,
-    miniExportActive,
   });
 
   useMapInitialization({
@@ -219,7 +216,6 @@ export function TrailMap(_props: TrailMapProps) {
       showTrackLabels: trailStyle.showTrackLabels,
       trailColor: trailStyle.trailColor,
     },
-    markerScale: miniExportActive ? 1.3 : 1,
   });
 
   useTilePreload({

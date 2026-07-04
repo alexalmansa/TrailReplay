@@ -44,6 +44,7 @@ function App() {
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
   );
   const [exportCropMetrics, setExportCropMetrics] = useState<CropPreviewMetrics | null>(null);
+  const [mapContainerSize, setMapContainerSize] = useState<{ width: number; height: number } | null>(null);
   const shownPlaybackPictureIdsRef = useRef<Set<string>>(new Set());
   const queuedPlaybackPictureIdsRef = useRef<string[]>([]);
   const lastPlaybackProgressRef = useRef(0);
@@ -72,9 +73,7 @@ function App() {
   const pause = useAppStore((state) => state.pause);
   const activePanel = useAppStore((state) => state.activePanel);
   const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
-  const overlayPosition = useAppStore((state) => state.videoExportSettings.overlayPosition);
-  const miniOverlay = useAppStore((state) => state.videoExportSettings.miniOverlay);
-  const miniFields = useAppStore((state) => state.videoExportSettings.miniFields);
+  const overlayPosition = useAppStore((state) => state.settings.statsOverlay.position);
   const isExporting = useAppStore((state) => state.isExporting);
 
   const openNextQueuedPlaybackPicture = useCallback(() => {
@@ -158,16 +157,40 @@ function App() {
     return () => ro.disconnect();
   }, [activePanel, exportAspectRatio, isExporting]);
 
+  // Track the map container's own bounds at all times (not just during export)
+  // so the stats overlay position setting applies identically whether or not
+  // an export frame is active.
+  useEffect(() => {
+    const el = mapContainerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setMapContainerSize({ width: el.clientWidth, height: el.clientHeight });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const activeExportCropMetrics = activePanel === 'export' || isExporting
     ? exportCropMetrics
     : null;
-  const statsShouldUseNarrowLayout = activeExportCropMetrics
-    ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
+
+  const overlayFrame = activeExportCropMetrics
+    ? activeExportCropMetrics
+    : mapContainerSize
+      ? { frameLeft: 0, frameTop: 0, frameWidth: mapContainerSize.width, frameHeight: mapContainerSize.height }
+      : null;
+
+  const statsShouldUseNarrowLayout = overlayFrame
+    ? isNarrowFrame(overlayFrame.frameWidth, overlayFrame.frameHeight)
     : isNarrowScreen;
 
   const statsOverlayStyle = (() => {
-    if (activeExportCropMetrics) {
-      const { frameLeft, frameTop, frameWidth, frameHeight } = activeExportCropMetrics;
+    if (overlayFrame) {
+      const { frameLeft, frameTop, frameWidth, frameHeight } = overlayFrame;
       const narrowFrame = isNarrowFrame(frameWidth, frameHeight);
       const { vertical, horizontal } = overlayPosition === 'auto'
         ? { vertical: 'top' as const, horizontal: narrowFrame ? 'center' as const : 'left' as const }
@@ -384,12 +407,6 @@ function App() {
                 >
                   <StatsOverlay
                     layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
-                    variant={
-                      activeExportCropMetrics
-                        ? (miniOverlay ? 'mini' : 'export')
-                        : 'default'
-                    }
-                    miniFields={miniFields}
                   />
                 </div>
               )}

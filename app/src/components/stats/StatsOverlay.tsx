@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
+import { formatDistance, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
-import type { MiniOverlayFields } from '@/types';
 import {
   Route,
   Timer,
@@ -15,24 +14,16 @@ import {
 interface StatsOverlayProps {
   compact?: boolean;
   layout?: 'default' | 'narrow';
-  variant?: 'default' | 'export' | 'mini';
-  miniFields?: MiniOverlayFields;
 }
 
-export function StatsOverlay({
-  compact = false,
-  layout = 'default',
-  variant = 'default',
-  miniFields = { distance: true, speed: true, elevation: true, elapsed: true },
-}: StatsOverlayProps) {
+export function StatsOverlay({ compact = false, layout = 'default' }: StatsOverlayProps) {
   const { t } = useI18n();
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
+  const statsOverlayFields = useAppStore((state) => state.settings.statsOverlay.fields);
   const isNarrowLayout = compact || layout === 'narrow';
-  const isExportVariant = variant === 'export';
-  const isMiniVariant = variant === 'mini';
 
   // Use computed journey for multi-track support
   const {
@@ -153,234 +144,70 @@ export function StatsOverlay({
     };
   }, [currentPosition, playback, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
 
-
   // Don't show if no data
   if (!currentStats || journeySegments.length === 0) return null;
 
-  // Count segments
-  const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
-  const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
-  const secondaryStats = [
-    settings.showHeartRate && currentStats.heartRate && !isInTransport
-      ? {
-          key: 'heart-rate',
-          icon: <Heart className="w-3 h-3" />,
-          label: t('stats.heartRateShort'),
-          value: `${Math.round(currentStats.heartRate)}`,
-          unit: t('stats.bpm'),
-          color: 'text-red-500',
-        }
-      : null,
-  ].filter(Boolean) as Array<{
-    key: string;
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    unit?: string;
-    color?: string;
-  }>;
+  const hasHeartRate = settings.showHeartRate && currentStats.heartRate != null;
 
-  const miniItems = isMiniVariant
-    ? [
-        miniFields.distance && {
-          key: 'distance',
-          icon: <Route className="w-4 h-4 text-white" />,
-          label: t('stats.distance'),
-          value: formatDistance(currentStats.distance, settings.unitSystem),
-        },
-        miniFields.speed && {
-          key: 'speed',
-          icon: <Timer className="w-4 h-4 text-white" />,
-          label: t('stats.speed'),
-          // currentStats.currentSpeed is in km/h (from currentPosition.speed);
-          // formatSpeedFromKmh handles the metric/imperial conversion + unit label.
-          value: isInTransport
-            ? '--'
-            : formatSpeedFromKmh(currentStats.currentSpeed || 0, settings.unitSystem),
-        },
-        miniFields.elevation && {
-          key: 'elevation',
-          icon: <Mountain className="w-4 h-4 text-white" />,
-          label: t('stats.elev'),
-          value: isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem),
-        },
-        miniFields.elapsed && {
-          key: 'elapsed',
-          icon: <Clock className="w-4 h-4 text-white" />,
-          label: t('stats.duration'),
-          value: formatStatsDuration(currentStats.duration),
-        },
-      ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; label: string; value: string }>
-    : [];
+  const items = [
+    statsOverlayFields.distance && {
+      key: 'distance',
+      icon: <Route className="w-4 h-4 text-white" />,
+      label: t('stats.distance'),
+      value: formatDistance(currentStats.distance, settings.unitSystem),
+    },
+    statsOverlayFields.speed && {
+      key: 'speed',
+      icon: <Timer className="w-4 h-4 text-white" />,
+      label: t('stats.speed'),
+      // currentStats.currentSpeed is in km/h (from currentPosition.speed);
+      // formatSpeedFromKmh handles the metric/imperial conversion + unit label.
+      value: isInTransport
+        ? '--'
+        : formatSpeedFromKmh(currentStats.currentSpeed || 0, settings.unitSystem),
+    },
+    statsOverlayFields.elevation && {
+      key: 'elevation',
+      icon: <Mountain className="w-4 h-4 text-white" />,
+      label: t('stats.elev'),
+      value: isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem),
+    },
+    statsOverlayFields.elapsed && {
+      key: 'elapsed',
+      icon: <Clock className="w-4 h-4 text-white" />,
+      label: t('stats.duration'),
+      value: formatStatsDuration(currentStats.duration),
+    },
+    statsOverlayFields.heartRate && hasHeartRate && {
+      key: 'heartRate',
+      icon: <Heart className="w-4 h-4 text-white" />,
+      label: t('stats.heartRateShort'),
+      value: isInTransport ? '--' : `${Math.round(currentStats.heartRate!)} ${t('stats.bpm')}`,
+    },
+  ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; label: string; value: string }>;
 
-  if (isMiniVariant) {
-    const columns = miniItems.length <= 1 ? 1 : 2;
-    return (
-      <div className="tr-stats-overlay tr-stats-overlay--mini">
-        <div
-          className="grid gap-x-3 gap-y-2"
-          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-        >
-          {miniItems.map((item) => (
-            <div key={item.key} className="min-w-0 text-center px-1 py-0.5">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="flex items-center justify-center text-white/95">{item.icon}</span>
-                <span className="block text-[10px] text-white font-semibold uppercase tracking-[0.08em] leading-[1.1]">
-                  {item.label}
-                </span>
-              </div>
-              <div className="tr-stat-value flex items-center justify-center text-[15px] leading-[1.05] text-white font-semibold tabular-nums tracking-[-0.02em]">
-                {item.value}
-              </div>
+  const columns = items.length <= 1 ? 1 : 2;
+
+  return (
+    <div className={`tr-stats-overlay tr-stats-overlay--mini ${isNarrowLayout ? 'max-w-[19.5rem]' : 'max-w-[25.5rem]'}`}>
+      <div
+        className="grid gap-x-3 gap-y-2"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {items.map((item) => (
+          <div key={item.key} className="min-w-0 text-center px-1 py-0.5">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <span className="flex items-center justify-center text-white/95">{item.icon}</span>
+              <span className="block text-[10px] text-white font-semibold uppercase tracking-[0.08em] leading-[1.1]">
+                {item.label}
+              </span>
             </div>
-          ))}
-        </div>
+            <div className="tr-stat-value flex items-center justify-center text-[15px] leading-[1.05] text-white font-semibold tabular-nums tracking-[-0.02em]">
+              {item.value}
+            </div>
+          </div>
+        ))}
       </div>
-    );
-  }
-
-  return (
-    <div
-      className={`tr-stats-overlay ${
-        isExportVariant
-          ? 'tr-stats-overlay--compact tr-stats-overlay--export max-w-[15.5rem]'
-          : isNarrowLayout
-            ? 'tr-stats-overlay--compact tr-stats-overlay--narrow max-w-[19.5rem]'
-            : 'max-w-[25.5rem]'
-      }`}
-    >
-      {/* Main Stats Grid */}
-      <div className={`grid ${
-        isExportVariant || isNarrowLayout
-          ? 'grid-cols-2 gap-x-1.5 gap-y-1.5 mb-0'
-          : 'grid-cols-4 gap-2 mb-0'
-      }`}>
-        <StatItem
-          icon={<Route className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.distance')}
-          value={formatDistance(currentStats.distance, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Timer className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.duration')}
-          value={formatStatsDuration(currentStats.duration)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Clock className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.avgPace')}
-          value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Mountain className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.elev')}
-          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-      </div>
-
-      {/* Secondary Stats */}
-      {!isExportVariant && secondaryStats.length > 0 && (
-        <div
-          className={`grid gap-2 ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}
-          style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
-        >
-          {secondaryStats.map((stat) => (
-            <SmallStatItem
-              key={stat.key}
-              icon={stat.icon}
-              label={stat.label}
-              value={stat.value}
-              unit={stat.unit}
-              color={stat.color}
-              compact={isNarrowLayout}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Multi-segment indicator (show only if journey has multiple segments) */}
-      {!isExportVariant && segmentTimings.length > 1 && (
-        <div className={`flex items-center justify-center ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}>
-          <span className={`text-white bg-white/10 px-2.5 py-1 rounded-full ${isNarrowLayout ? 'text-[9px]' : 'text-xs'}`}>
-            {trackCount} {trackCount === 1 ? t('stats.trackSingle') : t('stats.trackPlural')}
-            {transportCount > 0 && ` + ${transportCount} ${transportCount === 1 ? t('stats.transportSingle') : t('stats.transportPlural')}`}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface StatItemProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  compact?: boolean;
-  exportCompact?: boolean;
-}
-
-function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
-  return (
-    <div className={`min-w-0 text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
-      <div className={`flex items-center justify-center min-w-0 ${
-        exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
-      }`}>
-        <span className={`flex items-center justify-center ${
-          exportCompact
-            ? 'text-white/95 w-4.5 h-4.5'
-            : `text-white/92 ${compact ? 'w-5 h-5' : 'w-6 h-6'}`
-        }`}>
-          {icon}
-        </span>
-        <span className={`block min-w-0 ${
-          exportCompact ? 'text-[7px] text-white' : compact ? 'text-[9px] text-white' : 'text-[10px] text-white'
-        } font-semibold uppercase tracking-[0.08em] leading-[1.1]`}>
-          {label}
-        </span>
-      </div>
-      <div
-        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
-          exportCompact ? 'text-[9px] leading-[1.05] text-white' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
-        }`}
-        title={value}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-interface SmallStatItemProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  unit?: string;
-  color?: string;
-  compact?: boolean;
-}
-
-function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
-  void color;
-  return (
-    <div className={`min-w-0 text-center ${compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
-      <div className={`flex min-h-[1.2rem] items-center justify-center gap-0.5 text-white/78 ${compact ? 'mb-0.5 py-[1px]' : 'mb-1 py-[1px]'}`}>
-        <span className="opacity-90">{icon}</span>
-      </div>
-      <div
-        className={`flex min-h-[1rem] items-center justify-center px-0.5 ${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-[1.15] min-w-0 text-white`}
-        title={unit ? `${value} ${unit}` : value}
-      >
-        {value}
-        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5 text-white/78`}>{unit}</span>}
-      </div>
-      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-white uppercase font-semibold tracking-[0.08em] leading-[1.2] truncate`}>{label}</div>
     </div>
   );
 }
