@@ -1,12 +1,11 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { getCropPreviewMetrics } from '@/utils/crop';
-import type { AspectRatio } from '@/types';
+import { getCropPreviewMetrics, type CropRatio } from '@/utils/crop';
 
 export function CropPreviewBars({
   ratio,
   containerRef,
 }: {
-  ratio: AspectRatio;
+  ratio: CropRatio;
   containerRef: RefObject<HTMLDivElement | null>;
 }) {
   const [cropPreview, setCropPreview] = useState<{

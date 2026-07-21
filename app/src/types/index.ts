@@ -211,6 +211,32 @@ export interface VideoExportSettings {
   includeAudio: boolean;
 }
 
+export type SocialShareTemplate = 'map-first' | 'photo-first';
+export type SocialShareAspectRatio = '4:5' | '1:1' | '9:16';
+
+export interface SocialShareRouteTransform {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+  opacity: number;
+}
+
+export interface SocialShareSettings {
+  template: SocialShareTemplate;
+  aspectRatio: SocialShareAspectRatio;
+  selectedPictureId: string | null;
+  titleMode: 'journey-name' | 'track-name' | 'custom';
+  customTitle: string;
+  locationLabel: string;
+  showLocation: boolean;
+  showStats: boolean;
+  showElevationMiniChart: boolean;
+  routeTransform: SocialShareRouteTransform;
+  /** How far up the data panel (stats + elevation) is shifted from the bottom, as a fraction of poster height (0 = bottom). */
+  dataPanelOffsetY: number;
+  routeGlow: boolean;
+}
+
 export interface HeartRateZone {
   min: number;
   max: number;
