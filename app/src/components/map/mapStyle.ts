@@ -1,3 +1,5 @@
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+
 export const MAP_STYLE = {
   version: 8,
   glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
@@ -58,6 +60,14 @@ export const MAP_STYLE = {
       maxzoom: 15,
       attribution: 'Aspect derived from AWS Terrain Tiles',
     },
+    'mapbox-streets': {
+      type: 'raster',
+      tiles: MAPBOX_TOKEN
+        ? [`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`]
+        : [],
+      tileSize: 512,
+      attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
     'terrain-dem': {
       type: 'raster-dem',
       tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -77,6 +87,7 @@ export const MAP_STYLE = {
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },
     { id: 'street', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
+    { id: 'mapbox-streets', type: 'raster', source: 'mapbox-streets', layout: { visibility: 'none' } },
     { id: 'enhanced-hillshade', type: 'raster', source: 'enhanced-hillshade', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.6 } },
     { id: 'ski-pistes', type: 'raster', source: 'opensnowmap', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.9 } },
     { id: 'slope-overlay', type: 'raster', source: 'slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7 } },
@@ -95,4 +106,5 @@ export const MAP_LAYERS: Record<string, { name: string; icon: string }> = {
   'enhanced-hillshade': { name: 'Terrain', icon: '🏔️' },
   'esri-clarity': { name: 'Esri Clarity', icon: '📡' },
   wayback: { name: 'Wayback', icon: '🕰️' },
+  ...(MAPBOX_TOKEN ? { 'mapbox-streets': { name: 'Mapbox Streets', icon: '🗺️' } } : {}),
 };
