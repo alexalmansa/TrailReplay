@@ -95,6 +95,7 @@ export function useVideoExportRecorder() {
   const setExportProgress = useAppStore((state) => state.setExportProgress);
   const setExportStage = useAppStore((state) => state.setExportStage);
   const resetPlayback = useAppStore((state) => state.resetPlayback);
+  const setSpeed = useAppStore((state) => state.setSpeed);
   const play = useAppStore((state) => state.play);
   const setCinematicPlayed = useAppStore((state) => state.setCinematicPlayed);
 
@@ -215,6 +216,7 @@ export function useVideoExportRecorder() {
         if (statsElement) {
           try {
             const statsCaptureScale = 4;
+            const statsRect = statsElement.getBoundingClientRect();
             const captureCanvas = await capture(statsElement, {
               backgroundColor: null,
               scale: statsCaptureScale,
@@ -223,15 +225,23 @@ export function useVideoExportRecorder() {
               allowTaint: true,
             });
             const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
+            const hasCustomPosition = useAppStore.getState().settings.statsPosition !== null;
             const statsDrawRect = getStatsOverlayDrawRect({
               captureCanvas: {
                 width: drawWidth,
                 height: drawHeight,
               },
               scaleToRecording: 1,
+              positionScale: scaleToRecording,
               recordW,
               recordH,
               margin,
+              ...(hasCustomPosition && {
+                elementRect: statsRect,
+                containerRect: containerRect,
+                cropX,
+                cropY,
+              }),
             });
             overlayContext.drawImage(
               captureCanvas,
@@ -745,7 +755,9 @@ export function useVideoExportRecorder() {
       await updateOverlayAsync(width, height);
 
       setExportStage(t('export.stageResetting'));
+      const exportSpeed = useAppStore.getState().playback.speed;
       resetPlayback();
+      setSpeed(exportSpeed);
       setCinematicPlayed(false);
 
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -798,7 +810,7 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setupMediaRecorderFallback, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     isRecordingRef.current = false;
