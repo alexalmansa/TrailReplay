@@ -30,11 +30,12 @@ export function useBaseMapPresentation({
       outdoor: 'opentopomap',
       'esri-clarity': 'esri-clarity',
       wayback: 'wayback',
+      'mapbox-streets': 'mapbox-streets',
     };
 
     const targetLayer = layerMap[settings.mapStyle] || 'background';
 
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 'esri-clarity', 'wayback'].forEach((layerId) => {
+    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 'esri-clarity', 'wayback', 'mapbox-streets'].forEach((layerId) => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', 'none');
       }
@@ -57,7 +58,7 @@ export function useBaseMapPresentation({
     }
 
     const showLabels = ['street', 'topo', 'outdoor'].includes(settings.mapStyle)
-      || !!settings.mapOverlays?.placeLabels;
+      || (!!settings.mapOverlays?.placeLabels && settings.mapStyle !== 'mapbox-streets');
     if (map.getLayer('carto-labels')) {
       map.setLayoutProperty('carto-labels', 'visibility', showLabels ? 'visible' : 'none');
     }
@@ -109,6 +110,15 @@ export function useBaseMapPresentation({
       map.setPaintProperty('trail-completed', 'line-color', ['coalesce', ['get', 'color'], color]);
     }
   }, [currentTrackColor, isMapLoaded, mapRef, trailStyle.colorMode, trailStyle.trailColor]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded) return;
+
+    if (map.getLayer('trail-line')) {
+      map.setPaintProperty('trail-line', 'line-opacity', trailStyle.ghostTrailOpacity);
+    }
+  }, [isMapLoaded, mapRef, trailStyle.ghostTrailOpacity]);
 
   useEffect(() => {
     const map = mapRef.current;

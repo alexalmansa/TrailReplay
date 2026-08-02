@@ -7,6 +7,8 @@ import { getActivityIconMarkerHtml, isSvgActivityIcon } from '@/utils/activityIc
 import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { getFollowBehindCameraTarget } from '@/utils/followBehindCamera';
+import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
+import type { TrailColorZone } from '@/types';
 import {
   calculateTerrainAwareAdjustments,
   smoothBearing,
@@ -50,12 +52,15 @@ interface UseTrailPlaybackCameraParams {
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
   introZoomTriggeredRef: React.MutableRefObject<boolean>;
+  isExporting: boolean;
   lastAnimationPhaseRef: React.MutableRefObject<string>;
   trailStyle: {
-    colorMode: 'fixed' | 'heartRate';
+    colorMode: 'fixed' | 'heartRate' | 'zones';
+    colorZones: readonly TrailColorZone[];
     currentIcon: string;
     markerColor: string;
     markerSize: number;
+    markerType: 'icon' | 'dot';
     showCircle: boolean;
     showMarker: boolean;
     showTrackLabels: boolean;
@@ -79,6 +84,7 @@ export function useTrailPlaybackCamera({
   elevationData,
   followBehindZoomLevel,
   introZoomTriggeredRef,
+  isExporting,
   isInTransport,
   isMapLoaded,
   lastAnimationPhaseRef,
@@ -108,25 +114,40 @@ export function useTrailPlaybackCamera({
       markerRef.current?.remove();
       markerRef.current = null;
     } else {
-      const fontSize = Math.round(28 * trailStyle.markerSize);
-      const circleSize = Math.round(40 * trailStyle.markerSize);
       const markerColor = trailStyle.markerColor;
-      const iconColor = isSvgActivityIcon(icon) ? markerColor : currentColor;
-      const iconHtml = getActivityIconMarkerHtml(icon, fontSize, iconColor);
-      const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${markerColor}40`;
-      const markerHtml = `
-        ${trailStyle.showCircle ? `<div style="
-          position: absolute;
-          width: ${circleSize}px;
-          height: ${circleSize}px;
-          background: ${glowBackground};
-          border: 2px solid ${markerColor};
+      let markerHtml: string;
+
+      if (trailStyle.markerType === 'dot') {
+        const dotSize = Math.round(14 * trailStyle.markerSize);
+        markerHtml = `<div style="
+          width: ${dotSize}px;
+          height: ${dotSize}px;
+          background: ${markerColor};
           border-radius: 50%;
-          animation: pulse 1.5s ease-in-out infinite;
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-        "></div>` : ''}
-        ${iconHtml}
-      `;
+          border: 2.5px solid white;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+          flex-shrink: 0;
+        "></div>`;
+      } else {
+        const fontSize = Math.round(28 * trailStyle.markerSize);
+        const circleSize = Math.round(40 * trailStyle.markerSize);
+        const iconColor = isSvgActivityIcon(icon) ? markerColor : currentColor;
+        const iconHtml = getActivityIconMarkerHtml(icon, fontSize, iconColor);
+        const glowBackground = isSvgActivityIcon(icon) ? 'rgba(22, 32, 40, 0.72)' : `${markerColor}40`;
+        markerHtml = `
+          ${trailStyle.showCircle ? `<div style="
+            position: absolute;
+            width: ${circleSize}px;
+            height: ${circleSize}px;
+            background: ${glowBackground};
+            border: 2px solid ${markerColor};
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+          "></div>` : ''}
+          ${iconHtml}
+        `;
+      }
 
       if (!markerRef.current) {
         const element = document.createElement('div');
@@ -164,6 +185,20 @@ export function useTrailPlaybackCamera({
         (mapRef.current.getSource('trail-completed') as maplibregl.GeoJSONSource).setData({
           type: 'FeatureCollection',
           features,
+        });
+      } else if (trailStyle.colorMode === 'zones') {
+        const completedBaseIndex = Math.max(0, Math.min(allCoordinates.length - 1, completedCoordinates.length - 2));
+        const zoneFeatures = buildColorZoneLineFeatures({
+          coordinates: allCoordinates,
+          colorZones: trailStyle.colorZones,
+          fallbackColor: trailStyle.trailColor,
+          maxCoordIndex: completedBaseIndex,
+          partialEndpoint: currentPosition ? [currentPosition.lon, currentPosition.lat] : null,
+        });
+
+        (mapRef.current.getSource('trail-completed') as maplibregl.GeoJSONSource).setData({
+          type: 'FeatureCollection',
+          features: zoneFeatures,
         });
       } else {
         const completedBaseIndex = Math.max(0, Math.min(allCoordinates.length - 1, completedCoordinates.length - 2));
@@ -294,7 +329,7 @@ export function useTrailPlaybackCamera({
 
     const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'intro');
 
-    if (animationPhase === 'intro' && allCoordinates.length > 0) {
+    if (animationPhase === 'intro' && cameraMode !== 'overview' && allCoordinates.length > 0) {
       const startPoint = allCoordinates[0];
       const lookAheadPoint = allCoordinates[Math.min(10, allCoordinates.length - 1)];
       if (!startPoint || !lookAheadPoint) return;
@@ -328,7 +363,7 @@ export function useTrailPlaybackCamera({
 
       smoothBearingRef.current = initialBearing;
       targetBearingRef.current = initialBearing;
-    } else if (animationPhase === 'outro' && allCoordinates.length > 0) {
+    } else if (animationPhase === 'outro' && cameraMode !== 'overview' && allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
       mapRef.current.fitBounds(bounds, {
@@ -338,7 +373,7 @@ export function useTrailPlaybackCamera({
         duration: OUTRO_DURATION,
         easing: (value) => 1 - Math.pow(1 - value, 2),
       } as maplibregl.FitBoundsOptions);
-    } else if (animationPhase === 'idle' && allCoordinates.length > 0) {
+    } else if (animationPhase === 'idle' && !isExporting && allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
       mapRef.current.fitBounds(bounds, { padding: 100, duration: 1000 });
@@ -346,8 +381,10 @@ export function useTrailPlaybackCamera({
   }, [
     allCoordinates,
     animationPhase,
+    cameraMode,
     elevationData,
     followBehindZoomLevel,
+    isExporting,
     isMapLoaded,
     mapRef,
     smoothBearingRef,
