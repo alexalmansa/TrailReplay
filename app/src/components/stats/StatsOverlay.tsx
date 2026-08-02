@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { formatDistance, formatPace, formatStatsDuration, formatElevation } from '@/utils/units';
+import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
+import type { StatId } from '@/types';
 import {
   Route,
   Timer,
   Clock,
   Mountain,
   Heart,
+  Zap,
+  ArrowUp,
 } from 'lucide-react';
 
 interface StatsOverlayProps {
@@ -26,7 +29,6 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
   const isNarrowLayout = compact || layout === 'narrow';
   const isExportVariant = variant === 'export';
 
-  // Use computed journey for multi-track support
   const {
     currentPosition,
     isInTransport,
@@ -36,82 +38,117 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     computedJourney,
   } = useComputedJourney();
 
-  /**
-   * Calculate elevation gain by summing positive elevation differences between consecutive points
-   */
   const calculateElevationGainFromPoints = (points: Array<{ elevation: number }>, upToIndex: number): number => {
     if (upToIndex <= 0 || points.length === 0) return 0;
-
     let elevationGain = 0;
     const endIndex = Math.min(upToIndex, points.length - 1);
-
     for (let i = 1; i <= endIndex; i++) {
       const elevationDiff = points[i].elevation - points[i - 1].elevation;
-      if (elevationDiff > 0) {
-        elevationGain += elevationDiff;
-      }
+      if (elevationDiff > 0) elevationGain += elevationDiff;
     }
-
     return elevationGain;
   };
+
+  const computeRealElapsedAtProgress = useMemo(() => {
+    return (progress: number): number => {
+      if (segmentTimings.length > 0) {
+        let elapsed = 0;
+        for (const timing of segmentTimings) {
+          if (timing.type !== 'track' || !timing.trackId) continue;
+          const track = tracks.find((t) => t.id === timing.trackId);
+          if (!track) continue;
+          const trackRealTime = track.movingTime || track.totalTime;
+          if (progress >= timing.progressEndRatio) {
+            elapsed += trackRealTime;
+          } else if (progress > timing.progressStartRatio) {
+            const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
+            const localProgress = segmentSpan > 0
+              ? (progress - timing.progressStartRatio) / segmentSpan
+              : 0;
+            elapsed += trackRealTime * localProgress;
+          }
+        }
+        return elapsed;
+      } else if (activeTrack) {
+        return (activeTrack.movingTime || activeTrack.totalTime) * progress;
+      }
+      return 0;
+    };
+  }, [segmentTimings, tracks, activeTrack]);
 
   const currentStats = useMemo(() => {
     if (!currentPosition) return null;
 
-    // Calculate cumulative distance based on journey progress
-    // totalDistance is in meters (from gpxParser using Haversine)
-    const distanceAtProgress = totalDistance * playback.progress;
-
-    // Calculate real elapsed time from actual track data (not animation time)
-    // For single track: use track's totalTime proportional to progress
-    // For multi-segment journeys: sum real track durations proportionally
-    let realElapsedSeconds = 0;
-    if (segmentTimings.length > 0) {
-      // Multi-segment journey: sum real track time up to current progress
-      for (const timing of segmentTimings) {
-        if (timing.type !== 'track' || !timing.trackId) continue;
-        const track = tracks.find((t) => t.id === timing.trackId);
-        if (!track) continue;
-        const trackRealTime = track.movingTime || track.totalTime;
-        if (playback.progress >= timing.progressEndRatio) {
-          realElapsedSeconds += trackRealTime;
-        } else if (playback.progress > timing.progressStartRatio) {
-          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
-          const localProgress = segmentSpan > 0
-            ? (playback.progress - timing.progressStartRatio) / segmentSpan
-            : 0;
-          realElapsedSeconds += trackRealTime * localProgress;
-        }
+    // Accurate current journey distance from actual interpolated position
+    let distanceAtProgress = totalDistance * playback.progress;
+    if (currentPosition) {
+      if (segmentTimings.length > 0) {
+        const posTiming = segmentTimings.find((t) => t.segmentIndex === currentPosition.segmentIndex);
+        if (posTiming) distanceAtProgress = posTiming.startDistance + (currentPosition.distance ?? 0);
+      } else {
+        distanceAtProgress = currentPosition.distance ?? distanceAtProgress;
       }
-    } else if (activeTrack) {
-      // Single track mode: use track's real time proportional to progress
-      const trackRealTime = activeTrack.movingTime || activeTrack.totalTime;
-      realElapsedSeconds = trackRealTime * playback.progress;
     }
 
+    const realElapsedSeconds = computeRealElapsedAtProgress(playback.progress);
     const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
 
-    // Calculate cumulative elevation gain by summing actual elevation differences
+    // Per-km pace: pace for the last *completed* km using GPS timestamps (only updates at km boundaries)
+    const completedKms = Math.floor(distanceAtProgress / 1000);
+    let perKmSpeedMps = 0; // shows '--:--' until first km completes
+    if (completedKms >= 1) {
+      const kmStartDist = (completedKms - 1) * 1000;
+      const kmEndDist = completedKms * 1000;
+
+      // Find the coordinate nearest to a journey-cumulative distance via binary search
+      const findCoordAt = (targetMeters: number) => {
+        if (computedJourney && segmentTimings.length > 0) {
+          for (const t of segmentTimings) {
+            if (targetMeters >= t.startDistance && targetMeters <= t.endDistance) {
+              const seg = computedJourney.coordinates.slice(t.startCoordIndex, t.endCoordIndex + 1);
+              const local = targetMeters - t.startDistance;
+              let lo = 0, hi = seg.length - 1;
+              while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if ((seg[mid].distance ?? 0) < local) lo = mid + 1;
+                else hi = mid;
+              }
+              return seg[lo] ?? null;
+            }
+          }
+        } else if (activeTrack) {
+          const pts = activeTrack.points;
+          let lo = 0, hi = pts.length - 1;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (pts[mid].distance < targetMeters) lo = mid + 1;
+            else hi = mid;
+          }
+          return pts[lo] ?? null;
+        }
+        return null;
+      };
+
+      const startCoord = findCoordAt(kmStartDist);
+      const endCoord = findCoordAt(kmEndDist);
+      if (startCoord?.time && endCoord?.time) {
+        const elapsed = (endCoord.time.getTime() - startCoord.time.getTime()) / 1000;
+        if (elapsed > 0) perKmSpeedMps = 1000 / elapsed;
+      }
+    }
+
     let cumulativeElevationGain = 0;
     if (computedJourney && segmentTimings.length > 0) {
-      // Multi-segment journey: find current coordinate index and sum elevation gain up to it
       for (const timing of segmentTimings) {
-        if (timing.type !== 'track') {
-          // Skip transport segments in elevation calculation
-          continue;
-        }
-
+        if (timing.type !== 'track') continue;
         if (playback.progress >= timing.progressEndRatio) {
-          // Completed segment: add all elevation gain
           const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
           cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, segmentCoords.length - 1);
         } else if (playback.progress > timing.progressStartRatio) {
-          // Partial segment: add elevation gain up to current progress
           const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
           const localProgress = segmentSpan > 0
             ? (playback.progress - timing.progressStartRatio) / segmentSpan
             : 0;
-
           const segmentLength = timing.endCoordIndex - timing.startCoordIndex + 1;
           const upToIndex = Math.floor(localProgress * (segmentLength - 1));
           const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
@@ -120,57 +157,91 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
         }
       }
     } else if (activeTrack) {
-      // Single track mode: find current point and sum elevation gain up to it
       const targetDistance = activeTrack.totalDistance * playback.progress;
       let currentPointIndex = 0;
-
       for (let i = 0; i < activeTrack.points.length; i++) {
-        if (activeTrack.points[i].distance >= targetDistance) {
-          currentPointIndex = i;
-          break;
-        }
+        if (activeTrack.points[i].distance >= targetDistance) { currentPointIndex = i; break; }
         currentPointIndex = i;
       }
-
       cumulativeElevationGain = calculateElevationGainFromPoints(activeTrack.points, currentPointIndex);
     }
 
     return {
-      distance: distanceAtProgress, // in meters
+      distance: distanceAtProgress,
       duration: realElapsedSeconds,
-      averageSpeed: averageSpeedMps, // m/s for pace calculation
-      currentSpeed: currentPosition.speed || 0, // km/h for transport display
-      elevationGain: cumulativeElevationGain, // meters
+      averageSpeed: averageSpeedMps,
+      rollingSpeed: perKmSpeedMps,
+      currentSpeed: currentPosition.speed || 0,
+      elevationGain: cumulativeElevationGain,
+      altitude: currentPosition.elevation ?? null,
       heartRate: currentPosition.heartRate,
     };
-  }, [currentPosition, playback, totalDistance, segmentTimings, activeTrack, tracks, computedJourney]);
+  }, [currentPosition, playback, totalDistance, computeRealElapsedAtProgress, segmentTimings, activeTrack, tracks, computedJourney]);
 
-
-  // Don't show if no data
   if (!currentStats || journeySegments.length === 0) return null;
 
-  // Count segments
+  const iconCls = isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white';
+
+  const ALL_STATS: Array<{ id: StatId; icon: React.ReactNode; label: string; value: string | null }> = [
+    {
+      id: 'duration',
+      icon: <Timer className={iconCls} />,
+      label: t('stats.duration'),
+      value: formatStatsDuration(currentStats.duration),
+    },
+    {
+      id: 'distance',
+      icon: <Route className={iconCls} />,
+      label: t('stats.distance'),
+      value: formatDistance(currentStats.distance, settings.unitSystem),
+    },
+    {
+      id: 'pace',
+      icon: <Clock className={iconCls} />,
+      label: settings.paceMode === 'per-km' ? t('stats.pace') : t('stats.avgPace'),
+      value: isInTransport ? '--' : formatPace(
+        settings.paceMode === 'per-km' ? currentStats.rollingSpeed : currentStats.averageSpeed,
+        settings.unitSystem,
+      ),
+    },
+    {
+      id: 'elevation',
+      icon: <Mountain className={iconCls} />,
+      label: t('stats.elev'),
+      value: isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem),
+    },
+    {
+      id: 'speed',
+      icon: <Zap className={iconCls} />,
+      label: t('stats.speed'),
+      value: formatSpeedFromKmh(currentStats.currentSpeed, settings.unitSystem),
+    },
+    {
+      id: 'altitude',
+      icon: <ArrowUp className={iconCls} />,
+      label: t('stats.altitude'),
+      value: currentStats.altitude != null ? formatElevation(currentStats.altitude, settings.unitSystem) : '--',
+    },
+    {
+      id: 'heartRate',
+      icon: <Heart className={iconCls} />,
+      label: t('stats.heartRateShort'),
+      value: currentStats.heartRate ? `${Math.round(currentStats.heartRate)} ${t('stats.bpm')}` : null,
+    },
+  ];
+
+  const visibleStats = ALL_STATS.filter(
+    (s) => settings.visibleStats.includes(s.id) && s.value !== null,
+  );
+
+  if (visibleStats.length === 0) return null;
+
+  const cols = isExportVariant || isNarrowLayout
+    ? Math.min(visibleStats.length, 2)
+    : Math.min(visibleStats.length, 4);
+
   const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
   const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
-  const secondaryStats = [
-    settings.showHeartRate && currentStats.heartRate && !isInTransport
-      ? {
-          key: 'heart-rate',
-          icon: <Heart className="w-3 h-3" />,
-          label: t('stats.heartRateShort'),
-          value: `${Math.round(currentStats.heartRate)}`,
-          unit: t('stats.bpm'),
-          color: 'text-red-500',
-        }
-      : null,
-  ].filter(Boolean) as Array<{
-    key: string;
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    unit?: string;
-    color?: string;
-  }>;
 
   return (
     <div
@@ -182,63 +253,22 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
             : 'max-w-[25.5rem]'
       }`}
     >
-      {/* Main Stats Grid */}
-      <div className={`grid ${
-        isExportVariant || isNarrowLayout
-          ? 'grid-cols-2 gap-x-1.5 gap-y-1.5 mb-0'
-          : 'grid-cols-4 gap-2 mb-0'
-      }`}>
-        <StatItem
-          icon={<Route className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.distance')}
-          value={formatDistance(currentStats.distance, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Timer className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.duration')}
-          value={formatStatsDuration(currentStats.duration)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Clock className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.avgPace')}
-          value={isInTransport ? '--' : formatPace(currentStats.averageSpeed, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
-        <StatItem
-          icon={<Mountain className={isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white'} />}
-          label={t('stats.elev')}
-          value={isInTransport ? '--' : formatElevation(currentStats.elevationGain, settings.unitSystem)}
-          compact={isNarrowLayout}
-          exportCompact={isExportVariant}
-        />
+      <div
+        className={`grid ${isExportVariant || isNarrowLayout ? 'gap-x-1.5 gap-y-1.5 mb-0' : 'gap-2 mb-0'}`}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {visibleStats.map((stat) => (
+          <StatItem
+            key={stat.id}
+            icon={stat.icon}
+            label={stat.label}
+            value={stat.value!}
+            compact={isNarrowLayout}
+            exportCompact={isExportVariant}
+          />
+        ))}
       </div>
 
-      {/* Secondary Stats */}
-      {!isExportVariant && secondaryStats.length > 0 && (
-        <div
-          className={`grid gap-2 ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}
-          style={{ gridTemplateColumns: `repeat(${secondaryStats.length}, minmax(0, 1fr))` }}
-        >
-          {secondaryStats.map((stat) => (
-            <SmallStatItem
-              key={stat.key}
-              icon={stat.icon}
-              label={stat.label}
-              value={stat.value}
-              unit={stat.unit}
-              color={stat.color}
-              compact={isNarrowLayout}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Multi-segment indicator (show only if journey has multiple segments) */}
       {!isExportVariant && segmentTimings.length > 1 && (
         <div className={`flex items-center justify-center ${isNarrowLayout ? 'mt-2' : 'mt-3'}`}>
           <span className={`text-white bg-white/10 px-2.5 py-1 rounded-full ${isNarrowLayout ? 'text-[9px]' : 'text-xs'}`}>
@@ -266,9 +296,7 @@ function StatItem({ icon, label, value, compact = false, exportCompact = false }
         exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
       }`}>
         <span className={`flex items-center justify-center ${
-          exportCompact
-            ? 'text-white/95 w-4.5 h-4.5'
-            : `text-white/92 ${compact ? 'w-5 h-5' : 'w-6 h-6'}`
+          exportCompact ? 'text-white/95 w-4.5 h-4.5' : `text-white/92 ${compact ? 'w-5 h-5' : 'w-6 h-6'}`
         }`}>
           {icon}
         </span>
@@ -286,34 +314,6 @@ function StatItem({ icon, label, value, compact = false, exportCompact = false }
       >
         {value}
       </div>
-    </div>
-  );
-}
-
-interface SmallStatItemProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  unit?: string;
-  color?: string;
-  compact?: boolean;
-}
-
-function SmallStatItem({ icon, label, value, unit, color, compact = false }: SmallStatItemProps) {
-  void color;
-  return (
-    <div className={`min-w-0 text-center ${compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
-      <div className={`flex min-h-[1.2rem] items-center justify-center gap-0.5 text-white/78 ${compact ? 'mb-0.5 py-[1px]' : 'mb-1 py-[1px]'}`}>
-        <span className="opacity-90">{icon}</span>
-      </div>
-      <div
-        className={`flex min-h-[1rem] items-center justify-center px-0.5 ${compact ? 'text-[8px]' : 'text-[9px]'} font-bold whitespace-nowrap leading-[1.15] min-w-0 text-white`}
-        title={unit ? `${value} ${unit}` : value}
-      >
-        {value}
-        {unit && <span className={`${compact ? 'text-[7px]' : 'text-[8px]'} font-normal ml-0.5 text-white/78`}>{unit}</span>}
-      </div>
-      <div className={`${compact ? 'text-[8px]' : 'text-[9px]'} text-white uppercase font-semibold tracking-[0.08em] leading-[1.2] truncate`}>{label}</div>
     </div>
   );
 }

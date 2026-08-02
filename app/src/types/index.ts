@@ -145,7 +145,7 @@ export interface PlaybackState {
   routeTimingMode: RouteTimingMode;
 }
 
-export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback';
+export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback' | 'mapbox-streets';
 export type LanguageCode = 'en' | 'es' | 'ca' | 'fr';
 export type RouteTimingMode = 'recorded' | 'uniform';
 
@@ -233,7 +233,14 @@ export interface ComparisonTrack {
 
 export type UnitSystem = 'metric' | 'imperial';
 
-export type ColorMode = 'fixed' | 'heartRate';
+export type ColorMode = 'fixed' | 'heartRate' | 'zones';
+
+export interface TrailColorZone {
+  id: string;
+  fromProgress: number;
+  toProgress: number;
+  color: string;
+}
 
 export interface TrailStyleSettings {
   // Trail Color
@@ -241,6 +248,7 @@ export interface TrailStyleSettings {
   colorMode: ColorMode;
   heartRateZones: HeartRateZone[];
   // Marker Settings
+  markerType: 'icon' | 'dot';
   markerColor: string;
   showMarker: boolean;
   markerSize: number;
@@ -249,7 +257,11 @@ export interface TrailStyleSettings {
   // Track Labels
   showTrackLabels: boolean;
   trackLabel: string;
+  ghostTrailOpacity: number;
+  colorZones: TrailColorZone[];
 }
+
+export type StatId = 'distance' | 'duration' | 'pace' | 'elevation' | 'heartRate' | 'speed' | 'altitude';
 
 export interface AppSettings {
   unitSystem: UnitSystem;
@@ -264,6 +276,10 @@ export interface AppSettings {
   trailStyle: TrailStyleSettings;
   waybackRelease: number | null;
   waybackItemURL: string | null;
+  visibleStats: StatId[];
+  statsPosition: { x: number; y: number } | null;
+  paceMode: 'cumulative' | 'per-km';
+  showElevationProfile: boolean;
 }
 
 export interface LiveStats {

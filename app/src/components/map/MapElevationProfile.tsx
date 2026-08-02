@@ -179,8 +179,10 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
     return { pathD, currentElevation, markerX: progressX, markerY, currentColor };
   }, [profileData, playback.progress, currentTrackColor, trailStyle.trailColor, isInTransport]);
 
-  // Don't show during intro/outro animations
-  const shouldShow = profileData && (animationPhase === 'idle' || animationPhase === 'playing');
+  // Don't show during intro/outro animations or when disabled in settings
+  const shouldShow = profileData &&
+    settings.showElevationProfile &&
+    (animationPhase === 'idle' || animationPhase === 'playing');
 
   if (!shouldShow) {
     return null;
