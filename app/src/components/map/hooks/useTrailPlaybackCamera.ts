@@ -25,7 +25,15 @@ interface UseTrailPlaybackCameraParams {
   currentBearing: number;
   currentIcon: string;
   currentPosition: { lat: number; lon: number } | null;
-  currentSegment?: { segment: { segmentIndex?: number; transportMode?: string } } | null;
+  currentSegment?: {
+    segment: {
+      segmentIndex?: number;
+      startCoordIndex: number;
+      endCoordIndex: number;
+      transportMode?: string;
+    };
+    localProgress?: number;
+  } | null;
   currentTrackColor: string | null;
   currentTrackName: string | null;
   elevationData: Array<{ elevation: number; progress?: number }>;
@@ -187,7 +195,18 @@ export function useTrailPlaybackCamera({
           features,
         });
       } else if (trailStyle.colorMode === 'zones') {
-        const completedBaseIndex = Math.max(0, Math.min(allCoordinates.length - 1, completedCoordinates.length - 2));
+        // Keep the completed line to the marker's exact fractional coordinate.
+        // `completedCoordinates` includes the next whole point followed by the
+        // interpolated marker position, so deriving an index from its length
+        // would draw the line ahead of the marker between GPS samples.
+        const activeSegment = currentSegment?.segment;
+        const localProgress = currentSegment?.localProgress;
+        const completedBaseIndex = activeSegment && localProgress !== undefined
+          ? activeSegment.startCoordIndex + (
+              Math.max(0, Math.min(1, localProgress))
+              * (activeSegment.endCoordIndex - activeSegment.startCoordIndex)
+            )
+          : playbackProgress * Math.max(0, allCoordinates.length - 1);
         const zoneFeatures = buildColorZoneLineFeatures({
           coordinates: allCoordinates,
           colorZones: trailStyle.colorZones,

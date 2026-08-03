@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildSegmentLineFeatures, TRANSPORT_SEGMENT_COLOR } from './trailColorFeatures';
+import { buildColorZoneLineFeatures, buildSegmentLineFeatures, TRANSPORT_SEGMENT_COLOR } from './trailColorFeatures';
 import type { ColoredSegmentTiming } from './trailColorFeatures';
+import type { TrailColorZone } from '@/types';
 
 const segmentTimings: ColoredSegmentTiming[] = [
   {
@@ -78,5 +79,44 @@ describe('buildSegmentLineFeatures', () => {
     });
 
     expect(features[0].properties.color).toBe(TRANSPORT_SEGMENT_COLOR);
+  });
+});
+
+describe('buildColorZoneLineFeatures', () => {
+  const coordinates = [
+    [0, 0],
+    [10, 0],
+    [20, 0],
+  ];
+  const zones: TrailColorZone[] = [
+    { id: 'red-middle', fromProgress: 0.25, toProgress: 0.75, color: '#ff0000' },
+  ];
+
+  it('interpolates zone boundaries instead of snapping to GPS coordinates', () => {
+    const features = buildColorZoneLineFeatures({
+      coordinates,
+      colorZones: zones,
+      fallbackColor: '#00ff00',
+    });
+
+    expect(features.map((feature) => feature.properties.color)).toEqual(['#00ff00', '#ff0000', '#00ff00']);
+    expect(features.map((feature) => feature.geometry.coordinates)).toEqual([
+      [[0, 0], [5, 0]],
+      [[5, 0], [10, 0], [15, 0]],
+      [[15, 0], [20, 0]],
+    ]);
+  });
+
+  it('does not extend a partially completed trail to the next GPS point', () => {
+    const features = buildColorZoneLineFeatures({
+      coordinates,
+      colorZones: [{ id: 'all-red', fromProgress: 0, toProgress: 1, color: '#ff0000' }],
+      fallbackColor: '#00ff00',
+      maxCoordIndex: 0.5,
+      partialEndpoint: [5, 0],
+    });
+
+    expect(features).toHaveLength(1);
+    expect(features[0].geometry.coordinates).toEqual([[0, 0], [5, 0]]);
   });
 });

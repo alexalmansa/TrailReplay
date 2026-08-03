@@ -17,7 +17,9 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
   const tracks = useAppStore((state) => state.tracks);
   const isExporting = useAppStore((state) => state.isExporting);
   const activePanel = useAppStore((state) => state.activePanel);
-  const exportAspectRatio = useAppStore((state) => state.videoExportSettings.aspectRatio);
+  const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const exportSubMode = useAppStore((state) => state.exportSubMode);
+  const exportAspectRatio = videoExportSettings.aspectRatio;
 
   // Use computed journey for multi-track support
   const {
@@ -179,9 +181,15 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
     return { pathD, currentElevation, markerX: progressX, markerY, currentColor };
   }, [profileData, playback.progress, currentTrackColor, trailStyle.trailColor, isInTransport]);
 
-  // Don't show during intro/outro animations or when disabled in settings
+  // Keep a capture-only profile mounted for video exports that explicitly
+  // include elevation, even if the on-map preference is disabled.
+  const shouldShowForVideoExport = videoExportSettings.includeElevation &&
+    exportSubMode === 'video' &&
+    (isExporting || activePanel === 'export');
+
+  // Don't show during intro/outro animations unless it is needed for export.
   const shouldShow = profileData &&
-    settings.showElevationProfile &&
+    (settings.showElevationProfile || shouldShowForVideoExport) &&
     (animationPhase === 'idle' || animationPhase === 'playing');
 
   if (!shouldShow) {
