@@ -55,13 +55,11 @@ function simulateInitialZoomOut(map: maplibregl.Map) {
 interface UseTrailLayerDataParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
-  animationPhase: string;
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
   isExporting: boolean;
   isMapLoaded: boolean;
   loadZoomDoneRef: React.MutableRefObject<boolean>;
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
-  playbackProgress: number;
   segmentTimings: Array<{
     segmentIndex: number;
     type: 'track' | 'transport';
@@ -79,7 +77,6 @@ interface UseTrailLayerDataParams {
 export function useTrailLayerData({
   activeTrack,
   allCoordinates,
-  animationPhase,
   colorMode,
   colorZones,
   computedJourney,
@@ -87,7 +84,6 @@ export function useTrailLayerData({
   isMapLoaded,
   loadZoomDoneRef,
   mapRef,
-  playbackProgress,
   segmentTimings,
   trailColor,
 }: UseTrailLayerDataParams) {
@@ -191,11 +187,13 @@ export function useTrailLayerData({
     trailColor,
   ]);
 
-  // Separate effect for initial camera fit so that styling changes (colors, zones)
-  // don't trigger a zoom reset.
+  // Keep this initialization independent from playback state. In particular, the
+  // manual zoom-out must survive the transition from `idle` to `preloading` on
+  // the first Play click; otherwise its timeout is cancelled before MapLibre has
+  // received the interaction that makes the first cinematic zoom reliable.
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || isExporting) return;
-    if (allCoordinates.length === 0 || animationPhase !== 'idle' || playbackProgress !== 0) return;
+    if (allCoordinates.length === 0 || loadZoomDoneRef.current) return;
 
     const bounds = new maplibregl.LngLatBounds();
     allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
@@ -212,19 +210,15 @@ export function useTrailLayerData({
       });
     };
 
-    if (!loadZoomDoneRef.current) {
-      loadZoomDoneRef.current = true;
-      timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
-      timeoutIds.push(window.setTimeout(() => {
-        if (!mapRef.current) return;
-        simulateInitialZoomOut(mapRef.current);
-      }, INITIAL_ZOOM_OUT_DELAY_MS));
-    } else {
-      timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
-    }
+    loadZoomDoneRef.current = true;
+    timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
+    timeoutIds.push(window.setTimeout(() => {
+      if (!mapRef.current) return;
+      simulateInitialZoomOut(mapRef.current);
+    }, INITIAL_ZOOM_OUT_DELAY_MS));
 
     return () => {
       timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
-  }, [allCoordinates, animationPhase, isExporting, isMapLoaded, loadZoomDoneRef, mapRef, playbackProgress]);
+  }, [allCoordinates, isExporting, isMapLoaded, loadZoomDoneRef, mapRef]);
 }

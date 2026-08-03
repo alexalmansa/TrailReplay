@@ -169,7 +169,6 @@ export function TrailMap(_props: TrailMapProps) {
   useTrailLayerData({
     activeTrack,
     allCoordinates,
-    animationPhase,
     colorMode: trailStyle.colorMode,
     colorZones: trailStyle.colorZones,
     computedJourney,
@@ -177,7 +176,6 @@ export function TrailMap(_props: TrailMapProps) {
     isMapLoaded,
     loadZoomDoneRef,
     mapRef: map,
-    playbackProgress: playback.progress,
     segmentTimings,
     trailColor: trailStyle.trailColor,
   });
