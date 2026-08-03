@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { getHeartRateColor } from '@/utils/gpxParser';
-import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
+import { buildSegmentLineFeatures, buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
+import type { TrailColorZone } from '@/types';
 
 const INITIAL_FIT_BOUNDS_DELAY_MS = 100;
 const INITIAL_ZOOM_OUT_DELAY_MS = 2000;
@@ -54,12 +55,11 @@ function simulateInitialZoomOut(map: maplibregl.Map) {
 interface UseTrailLayerDataParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
-  animationPhase: string;
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
+  isExporting: boolean;
   isMapLoaded: boolean;
   loadZoomDoneRef: React.MutableRefObject<boolean>;
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
-  playbackProgress: number;
   segmentTimings: Array<{
     segmentIndex: number;
     type: 'track' | 'transport';
@@ -70,19 +70,20 @@ interface UseTrailLayerDataParams {
     color?: string;
   }>;
   trailColor: string;
-  colorMode: 'fixed' | 'heartRate';
+  colorMode: 'fixed' | 'heartRate' | 'zones';
+  colorZones: readonly TrailColorZone[];
 }
 
 export function useTrailLayerData({
   activeTrack,
   allCoordinates,
-  animationPhase,
   colorMode,
+  colorZones,
   computedJourney,
+  isExporting,
   isMapLoaded,
   loadZoomDoneRef,
   mapRef,
-  playbackProgress,
   segmentTimings,
   trailColor,
 }: UseTrailLayerDataParams) {
@@ -112,6 +113,17 @@ export function useTrailLayerData({
       (mapRef.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
         type: 'FeatureCollection',
         features,
+      });
+    } else if (colorMode === 'zones' && allCoordinates.length > 0 && mapRef.current.getSource('trail-line')) {
+      const zoneFeatures = buildColorZoneLineFeatures({
+        coordinates: allCoordinates,
+        colorZones,
+        fallbackColor: trailColor,
+      });
+
+      (mapRef.current.getSource('trail-line') as maplibregl.GeoJSONSource).setData({
+        type: 'FeatureCollection',
+        features: zoneFeatures,
       });
     } else if (allCoordinates.length > 0 && mapRef.current.getSource('trail-line')) {
       const coloredFeatures = buildSegmentLineFeatures({
@@ -160,47 +172,53 @@ export function useTrailLayerData({
       });
     }
 
-    if (allCoordinates.length > 0 && animationPhase === 'idle' && playbackProgress === 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
-
-      const fitBounds = () => {
-        if (!mapRef.current) return;
-        mapRef.current.fitBounds(bounds, {
-          padding: 80,
-          duration: 800,
-          maxZoom: 12,
-          pitch: 0,
-          bearing: 0,
-        });
-      };
-
-      if (!loadZoomDoneRef.current) {
-        loadZoomDoneRef.current = true;
-        timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
-        timeoutIds.push(window.setTimeout(() => {
-          if (!mapRef.current) return;
-          simulateInitialZoomOut(mapRef.current);
-        }, INITIAL_ZOOM_OUT_DELAY_MS));
-      } else {
-        timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
-      }
-    }
-
     return () => {
       timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
   }, [
     activeTrack,
     allCoordinates,
-    animationPhase,
     colorMode,
+    colorZones,
     computedJourney,
     isMapLoaded,
-    loadZoomDoneRef,
     mapRef,
-    playbackProgress,
     segmentTimings,
     trailColor,
   ]);
+
+  // Keep this initialization independent from playback state. In particular, the
+  // manual zoom-out must survive the transition from `idle` to `preloading` on
+  // the first Play click; otherwise its timeout is cancelled before MapLibre has
+  // received the interaction that makes the first cinematic zoom reliable.
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded || isExporting) return;
+    if (allCoordinates.length === 0 || loadZoomDoneRef.current) return;
+
+    const bounds = new maplibregl.LngLatBounds();
+    allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
+    const timeoutIds: number[] = [];
+
+    const fitBounds = () => {
+      if (!mapRef.current) return;
+      mapRef.current.fitBounds(bounds, {
+        padding: 80,
+        duration: 800,
+        maxZoom: 12,
+        pitch: 0,
+        bearing: 0,
+      });
+    };
+
+    loadZoomDoneRef.current = true;
+    timeoutIds.push(window.setTimeout(fitBounds, INITIAL_FIT_BOUNDS_DELAY_MS));
+    timeoutIds.push(window.setTimeout(() => {
+      if (!mapRef.current) return;
+      simulateInitialZoomOut(mapRef.current);
+    }, INITIAL_ZOOM_OUT_DELAY_MS));
+
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, [allCoordinates, isExporting, isMapLoaded, loadZoomDoneRef, mapRef]);
 }

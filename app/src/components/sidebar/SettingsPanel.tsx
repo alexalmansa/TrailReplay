@@ -16,6 +16,9 @@ const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
   { id: 'outdoor', nameKey: 'settings.mapStyles.outdoor', icon: '🌲' },
   { id: 'esri-clarity', nameKey: 'settings.mapStyles.esri', icon: '📡' },
   { id: 'wayback', nameKey: 'settings.mapStyles.wayback', icon: '🕰️' },
+  ...(import.meta.env.VITE_MAPBOX_TOKEN
+    ? [{ id: 'mapbox-streets' as MapStyle, nameKey: 'settings.mapStyles.mapboxStreets', icon: '🗺️' }]
+    : []),
 ];
 
 const MAP_OVERLAYS: { id: string; nameKey: string; icon: string; descriptionKey: string }[] = [

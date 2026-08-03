@@ -35,6 +35,8 @@ function isNarrowFrame(width: number, height: number) {
 function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statsDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
+  const [isDraggingStats, setIsDraggingStats] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -60,6 +62,7 @@ function App() {
   const textAnnotations = useAppStore((state) => state.textAnnotations);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
+  const setSettings = useAppStore((state) => state.setSettings);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const selectedPictureId = useAppStore((state) => state.selectedPictureId);
@@ -167,6 +170,16 @@ function App() {
     : isNarrowScreen;
 
   const statsOverlayStyle = (() => {
+    if (settings.statsPosition) {
+      const { x, y } = settings.statsPosition;
+      return {
+        top: `${y * 100}%`,
+        left: `${x * 100}%`,
+        width: 'auto',
+        maxWidth: isNarrowScreen ? 'min(calc(100% - 24px), 312px)' : 'min(calc(100% - 32px), 408px)',
+      } satisfies CSSProperties;
+    }
+
     if (activeExportCropMetrics) {
       const { frameLeft, frameTop, frameWidth, frameHeight } = activeExportCropMetrics;
       const narrowFrame = isNarrowFrame(frameWidth, frameHeight);
@@ -212,6 +225,34 @@ function App() {
     clearPendingQueuedPictureOpen();
     lastPlaybackProgressRef.current = useAppStore.getState().playback.progress;
   }, [clearPendingQueuedPictureOpen, pictures, textAnnotations, tracks]);
+
+  const handleStatsDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const pos = settings.statsPosition ?? { x: 0.02, y: 0.04 };
+    statsDragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, startX: pos.x, startY: pos.y };
+    setIsDraggingStats(true);
+  }, [settings.statsPosition]);
+
+  useEffect(() => {
+    if (!isDraggingStats) return;
+    const onMove = (e: MouseEvent) => {
+      const container = mapContainerRef.current;
+      if (!container || !statsDragStartRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const dx = (e.clientX - statsDragStartRef.current.mouseX) / rect.width;
+      const dy = (e.clientY - statsDragStartRef.current.mouseY) / rect.height;
+      setSettings({
+        statsPosition: {
+          x: Math.max(0, Math.min(0.92, statsDragStartRef.current.startX + dx)),
+          y: Math.max(0, Math.min(0.92, statsDragStartRef.current.startY + dy)),
+        },
+      });
+    };
+    const onUp = () => setIsDraggingStats(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [isDraggingStats, setSettings]);
 
   useEffect(() => {
     return () => {
@@ -368,8 +409,13 @@ function App() {
               {/* Stats Overlay */}
               {hasTracks && (
                 <div
-                  className="absolute z-10 pointer-events-none"
-                  style={statsOverlayStyle}
+                  className="absolute z-10"
+                  style={{
+                    ...statsOverlayStyle,
+                    cursor: isDraggingStats ? 'grabbing' : 'grab',
+                    userSelect: 'none',
+                  }}
+                  onMouseDown={handleStatsDragStart}
                 >
                   <StatsOverlay
                     layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}

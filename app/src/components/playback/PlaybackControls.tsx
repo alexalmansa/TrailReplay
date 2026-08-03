@@ -44,9 +44,9 @@ export function PlaybackControls() {
     <div className="h-full flex items-center gap-2 sm:gap-4 px-2 sm:px-4 min-w-0">
       {/* Time Display */}
       <div className={`flex-shrink-0 text-sm font-mono text-[var(--evergreen)] ${isMobile ? 'hidden' : ''}`}>
-        <span className="font-bold">{formatDuration(playback.currentTime / 1000)}</span>
+        <span className="font-bold">{formatDuration(playback.currentTime / 1000 / playback.speed)}</span>
         <span className="text-[var(--evergreen-60)] mx-1">/</span>
-        <span className="text-[var(--evergreen-60)]">{formatDuration(playback.totalDuration / 1000)}</span>
+        <span className="text-[var(--evergreen-60)]">{formatDuration(playback.totalDuration / 1000 / playback.speed)}</span>
       </div>
       
       {/* Progress Slider */}

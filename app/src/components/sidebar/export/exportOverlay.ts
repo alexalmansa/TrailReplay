@@ -48,10 +48,18 @@ export function getCapturedCanvasDrawSize(
 
 export function getStatsOverlayDrawRect(params: {
   captureCanvas: Size;
+  /** Scale used only for width/height computation (pass 1 when width is already pre-scaled). */
   scaleToRecording: number;
+  /** Scale used to convert screen-pixel position → recording-pixel position. */
+  positionScale?: number;
   recordW: number;
   recordH: number;
   margin: number;
+  /** When provided, the stats are drawn at the element's actual screen position. */
+  elementRect?: { left: number; top: number };
+  containerRect?: { left: number; top: number };
+  cropX?: number;
+  cropY?: number;
 }) {
   const rawWidth = params.captureCanvas.width * params.scaleToRecording;
   const isNarrowFrame = params.recordW <= params.recordH;
@@ -62,6 +70,19 @@ export function getStatsOverlayDrawRect(params: {
   );
   const drawWidth = Math.max(0, maxWidth);
   const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);
+
+  // Mirror the element's actual DOM position into video coordinates.
+  if (params.elementRect && params.containerRect && params.cropX !== undefined && params.cropY !== undefined) {
+    const posScale = params.positionScale ?? params.scaleToRecording;
+    const drawX = (params.elementRect.left - params.containerRect.left - params.cropX) * posScale;
+    const drawY = (params.elementRect.top - params.containerRect.top - params.cropY) * posScale;
+    return {
+      drawX: Math.max(0, drawX),
+      drawY: Math.max(0, drawY),
+      drawWidth,
+      drawHeight,
+    };
+  }
 
   return {
     drawX: isNarrowFrame ? (params.recordW - drawWidth) / 2 : params.margin,

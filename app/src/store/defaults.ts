@@ -39,17 +39,24 @@ export function createDefaultSettings(): AppSettings {
         { min: 161, max: 180, color: '#FF9800', label: 'Zone 4' },
         { min: 181, max: 220, color: '#F44336', label: 'Zone 5' },
       ],
-      markerColor: '#C1652F',
+      markerType: 'dot' as const,
+      markerColor: '#56C596',
       showMarker: true,
       markerSize: 1.0,
       currentIcon: DEFAULT_ACTIVITY_ICON,
       showCircle: true,
       showTrackLabels: false,
       trackLabel: 'Track 1',
+      ghostTrailOpacity: 0.5,
+      colorZones: [],
     },
     mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
     waybackRelease: null,
     waybackItemURL: null,
+    visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],
+    statsPosition: null,
+    paceMode: 'per-km' as const,
+    showElevationProfile: false,
   };
 }
 
@@ -72,7 +79,7 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
     resolution: { width: 1920, height: 1080 },
     aspectRatio: '16:9',
     includeStats: true,
-    includeElevation: true,
+    includeElevation: false,
     includeAudio: false,
   };
 }
