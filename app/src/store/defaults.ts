@@ -27,7 +27,7 @@ export function createDefaultSettings(): AppSettings {
     show3DTerrain: true,
     showHeartRate: false,
     showPictures: true,
-    cameraMode: 'overview',
+    cameraMode: 'follow-behind',
     defaultAnimationSpeed: 1,
     trailStyle: {
       trailColor: '#C1652F',
@@ -62,9 +62,9 @@ export function createDefaultSettings(): AppSettings {
 
 export function createDefaultCameraSettings(): CameraSettings {
   return {
-    mode: 'overview',
+    mode: 'follow-behind',
     zoom: 14,
-    pitch: 0,
+    pitch: 55,
     bearing: 0,
     followBehindPreset: DEFAULT_FOLLOW_BEHIND_PRESET,
     followBehindZoomLevel: getFollowBehindZoomLevelForPreset(DEFAULT_FOLLOW_BEHIND_PRESET),
