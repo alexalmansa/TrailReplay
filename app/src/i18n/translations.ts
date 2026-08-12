@@ -1,4 +1,5 @@
 import { ca } from './locales/ca';
+import { de } from './locales/de';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { fr } from './locales/fr';
@@ -7,6 +8,7 @@ export const translations = {
   en,
   es,
   ca,
+  de,
   fr,
 } as const;
 
@@ -17,6 +19,7 @@ export const languageLabels: Record<LanguageCode, string> = {
   en: 'English',
   es: 'Español',
   ca: 'Català',
+  de: 'Deutsch',
   fr: 'Français',
 };
 
