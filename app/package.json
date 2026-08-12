@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prebuild": "node scripts/generate-sitemap.mjs",
+    "build": "tsc -b && vite build && node scripts/validate-seo-output.mjs",
+    "seo:generate": "node scripts/generate-sitemap.mjs",
+    "seo:check": "node scripts/validate-seo-output.mjs",
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",

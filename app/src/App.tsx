@@ -18,6 +18,7 @@ import {
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
 import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
+import { trackEvent } from '@/utils/analytics';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -128,7 +129,7 @@ function App() {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (files && files.length > 0) {
-        await parseFiles(files);
+        await parseFiles(files, 'file_picker');
         setShowSidebar(true);
       }
       // Reset input to allow re-uploading same file
@@ -141,6 +142,7 @@ function App() {
 
   // Trigger file picker
   const openFilePicker = () => {
+    trackEvent('file_picker_opened', { picker_location: 'welcome_overlay' });
     fileInputRef.current?.click();
   };
 

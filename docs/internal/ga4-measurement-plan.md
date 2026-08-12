@@ -1,6 +1,20 @@
 # TrailReplay GA4 Measurement Plan
 
-Last updated: 2026-06-24
+Last updated: 2026-08-12
+
+## Implementation status
+
+The phase-one measurement foundation is implemented on `codex/seo-foundation-ga4`:
+
+- duplicate pageviews are prevented with `send_page_view: false`
+- app, tutorial, and GPX guide entrypoints initialize analytics with page context
+- localhost, `*.vercel.app`, and `*.pages.dev` are excluded by default
+- filenames and custom timestamps are no longer sent
+- route imports, video exports, feedback submissions, support clicks, help CTAs, and Web Vitals have reporting context
+- Google Signals and advertising-personalization signals are disabled
+- the privacy policy discloses GA4 collection
+
+GA4 Admin configuration and production DebugView verification remain manual. Follow `docs/internal/ga4-rollout-checklist.md` after deployment.
 
 ## Scope
 
