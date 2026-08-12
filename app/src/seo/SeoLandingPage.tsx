@@ -38,11 +38,11 @@ function HeroMedia({ page }: { page: SeoLandingPageConfig }) {
     <div
       role="img"
       aria-label={isRunning ? 'Trail runner on an alpine ridgeline' : 'Cyclist riding a mountain switchback'}
-      className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/10 bg-cover shadow-[0_28px_70px_rgba(9,14,11,0.38)] sm:aspect-video lg:aspect-[4/5]"
+      className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-no-repeat shadow-[0_28px_70px_rgba(9,14,11,0.38)]"
       style={{
         backgroundImage: 'url(/media/images/seo/outdoor-route-stories.webp)',
         backgroundPosition: isRunning ? 'left center' : 'right center',
-        backgroundSize: '200% 100%',
+        backgroundSize: 'auto 100%',
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
