@@ -1,6 +1,11 @@
 export const SEO_PAGES = [
-  { path: '/', lastmod: '2026-08-12' },
-  { path: '/tutorial', lastmod: '2026-08-12' },
-  { path: '/gpx-download-guide', lastmod: '2026-08-12' },
-  { path: '/acknowledgments', lastmod: '2026-02-18' },
+  { path: '/', file: 'index.html', lastmod: '2026-08-12' },
+  { path: '/tutorial', file: 'tutorial.html', lastmod: '2026-08-12' },
+  { path: '/gpx-download-guide', file: 'gpx-download-guide.html', lastmod: '2026-08-12' },
+  { path: '/strava-to-video', file: 'strava-to-video.html', lastmod: '2026-08-12' },
+  { path: '/garmin-to-video', file: 'garmin-to-video.html', lastmod: '2026-08-12' },
+  { path: '/gpx-animation', file: 'gpx-animation.html', lastmod: '2026-08-12' },
+  { path: '/cycling-route-animation', file: 'cycling-route-animation.html', lastmod: '2026-08-12' },
+  { path: '/running-route-animation', file: 'running-route-animation.html', lastmod: '2026-08-12' },
+  { path: '/acknowledgments', file: 'acknowledgments.html', lastmod: '2026-02-18' },
 ];

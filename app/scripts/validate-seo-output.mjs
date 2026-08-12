@@ -8,17 +8,20 @@ const appRoot = path.resolve(scriptDirectory, '..');
 const distRoot = path.join(appRoot, 'dist');
 const failures = [];
 
-const requiredDocuments = [
-  { file: 'index.html', canonical: 'https://trailreplay.com/' },
-  { file: 'tutorial.html', canonical: 'https://trailreplay.com/tutorial' },
-  { file: 'gpx-download-guide.html', canonical: 'https://trailreplay.com/gpx-download-guide' },
-];
+const requiredDocuments = SEO_PAGES
+  .filter(({ path: pagePath }) => pagePath !== '/acknowledgments')
+  .map(({ file, path: pagePath }) => ({ file, canonical: `https://trailreplay.com${pagePath}` }));
 
 for (const { file, canonical } of requiredDocuments) {
   const html = await readFile(path.join(distRoot, file), 'utf8');
   if (!html.includes('<title>')) failures.push(`${file} is missing a title`);
   if (!html.includes(`rel="canonical" href="${canonical}"`)) {
     failures.push(`${file} is missing canonical ${canonical}`);
+  }
+  if (file.includes('-to-video') || file.includes('route-animation') || file === 'gpx-animation.html') {
+    if (!html.includes('application/ld+json')) failures.push(`${file} is missing structured data`);
+    if (!html.includes('<h1>')) failures.push(`${file} is missing an initial HTML h1`);
+    if (!html.includes('href="/"')) failures.push(`${file} is missing a crawlable product link`);
   }
 }
 
