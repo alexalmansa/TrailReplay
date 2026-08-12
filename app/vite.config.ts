@@ -14,6 +14,11 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         tutorial: path.resolve(__dirname, 'tutorial.html'),
         gpxGuide: path.resolve(__dirname, 'gpx-download-guide.html'),
+        stravaToVideo: path.resolve(__dirname, 'strava-to-video.html'),
+        garminToVideo: path.resolve(__dirname, 'garmin-to-video.html'),
+        gpxAnimation: path.resolve(__dirname, 'gpx-animation.html'),
+        cyclingRouteAnimation: path.resolve(__dirname, 'cycling-route-animation.html'),
+        runningRouteAnimation: path.resolve(__dirname, 'running-route-animation.html'),
       },
       output: {
         manualChunks(id) {

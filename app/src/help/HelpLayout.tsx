@@ -101,6 +101,17 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
         </section>
 
         {children}
+
+        <section className="border-t border-[var(--evergreen)]/12 pt-8">
+          <h2 className="text-lg font-bold">Create your route video</h2>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm">
+            <a href="/gpx-animation" className="font-semibold text-[var(--trail-orange)] hover:underline">GPX animation</a>
+            <a href="/strava-to-video" className="font-semibold text-[var(--trail-orange)] hover:underline">Strava to video</a>
+            <a href="/garmin-to-video" className="font-semibold text-[var(--trail-orange)] hover:underline">Garmin to video</a>
+            <a href="/cycling-route-animation" className="font-semibold text-[var(--trail-orange)] hover:underline">Cycling animation</a>
+            <a href="/running-route-animation" className="font-semibold text-[var(--trail-orange)] hover:underline">Running animation</a>
+          </div>
+        </section>
       </main>
     </div>
   );

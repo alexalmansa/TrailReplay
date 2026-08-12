@@ -6,8 +6,16 @@ let pendingInitialization = false;
 type AnalyticsPrimitive = string | number | boolean;
 type AnalyticsParams = Record<string, AnalyticsPrimitive>;
 
-export type AnalyticsPageType = 'app' | 'tutorial' | 'gpx_guide';
-export type AnalyticsPageGroup = 'product' | 'help';
+export type AnalyticsPageType =
+  | 'app'
+  | 'tutorial'
+  | 'gpx_guide'
+  | 'strava_to_video'
+  | 'garmin_to_video'
+  | 'gpx_animation'
+  | 'cycling_route_animation'
+  | 'running_route_animation';
+export type AnalyticsPageGroup = 'product' | 'help' | 'seo';
 
 export interface AnalyticsPageContext {
   page_type: AnalyticsPageType;
