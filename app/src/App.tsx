@@ -79,6 +79,10 @@ function App() {
   const exportSubMode = useAppStore((state) => state.exportSubMode);
   const isExporting = useAppStore((state) => state.isExporting);
 
+  useEffect(() => {
+    document.documentElement.lang = settings.language;
+  }, [settings.language]);
+
   const openNextQueuedPlaybackPicture = useCallback(() => {
     const nextPictureId = queuedPlaybackPictureIdsRef.current.shift();
     if (!nextPictureId) {
