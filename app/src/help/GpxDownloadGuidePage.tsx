@@ -2,6 +2,7 @@ import { BookOpen, Download, FileCode2, Globe2, MapPinned } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { HelpLayout } from './HelpLayout';
 import { getGpxTips, getOtherProviders, getProviderGuides } from './helpContent';
+import { trackEvent } from '@/utils/analytics';
 
 export function GpxDownloadGuidePage() {
   const { t } = useI18n();
@@ -16,7 +17,7 @@ export function GpxDownloadGuidePage() {
       description={t('help.gpxGuide.description')}
       headerActions={[
         {
-          href: '/tutorial.html',
+          href: '/tutorial',
           icon: <BookOpen className="h-3.5 w-3.5" />,
           label: t('help.gpxGuide.headerAction'),
           tone: 'solid',
@@ -79,8 +80,17 @@ export function GpxDownloadGuidePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a href="/" className="tr-btn tr-btn-primary">{t('help.common.openApp')}</a>
-            <a href="/tutorial.html" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
+            <a
+              href="/"
+              onClick={() => trackEvent('help_cta_clicked', {
+                cta_location: 'gpx_guide',
+                target_page: 'app',
+              })}
+              className="tr-btn tr-btn-primary"
+            >
+              {t('help.common.openApp')}
+            </a>
+            <a href="/tutorial" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
               {t('help.gpxGuide.openTutorial')}
             </a>
@@ -164,8 +174,17 @@ export function GpxDownloadGuidePage() {
           {t('help.gpxGuide.nextStepBody')}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <a href="/" className="tr-btn tr-btn-primary">{t('help.common.openApp')}</a>
-          <a href="/tutorial.html" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
+          <a
+            href="/"
+            onClick={() => trackEvent('help_cta_clicked', {
+              cta_location: 'gpx_guide',
+              target_page: 'app',
+            })}
+            className="tr-btn tr-btn-primary"
+          >
+            {t('help.common.openApp')}
+          </a>
+          <a href="/tutorial" className="tr-btn tr-btn-secondary inline-flex items-center gap-2">
             <Download className="h-4 w-4" />
             {t('help.gpxGuide.openTutorial')}
           </a>

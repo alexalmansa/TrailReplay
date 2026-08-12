@@ -1,49 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://trailreplay.com/</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-08-12</lastmod>
   </url>
 
   <url>
-    <loc>https://trailreplay.com/tutorial.html</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://trailreplay.com/tutorial</loc>
+    <lastmod>2026-08-12</lastmod>
   </url>
 
   <url>
-    <loc>https://trailreplay.com/gpx-download-guide.html</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <loc>https://trailreplay.com/gpx-download-guide</loc>
+    <lastmod>2026-08-12</lastmod>
   </url>
 
   <url>
-    <loc>https://trailreplay.com/acknowledgments.html</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://trailreplay.com/acknowledgments</loc>
+    <lastmod>2026-02-18</lastmod>
   </url>
-
-  <url>
-    <loc>https://trailreplay.com/privacy.html</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.2</priority>
-  </url>
-
-  <url>
-    <loc>https://trailreplay.com/terms.html</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.2</priority>
-  </url>
-
 </urlset>

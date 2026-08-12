@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, type DropEvent } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { parseGPX } from '@/utils/gpxParser';
@@ -12,6 +12,7 @@ import { ComparisonTrackItem } from '@/components/sidebar/tracks/ComparisonTrack
 import { MapControlsNote } from '@/components/sidebar/tracks/LanguageSelectorCard';
 import { TrackItem } from '@/components/sidebar/tracks/TrackItem';
 import { COMPARISON_COLORS } from '@/components/sidebar/tracks/constants';
+import { trackEvent } from '@/utils/analytics';
 
 export function TracksPanel() {
   const { t } = useI18n();
@@ -54,6 +55,9 @@ export function TracksPanel() {
         visible: true,
         offset: 0,
       });
+      trackEvent('comparison_track_added', {
+        comparison_track_count: comparisonTracks.length + 1,
+      });
     } catch (err) {
       console.error('Failed to parse comparison GPX:', err);
     } finally {
@@ -62,17 +66,27 @@ export function TracksPanel() {
     }
   }, [addComparisonTrack, comparisonTracks.length]);
   
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (
+    acceptedFiles: File[],
+    _fileRejections: unknown[],
+    event: DropEvent,
+  ) => {
     const trailFiles = acceptedFiles.filter(
       (file) => file.name.endsWith('.gpx') || file.name.endsWith('.kml') || file.type === 'application/gpx+xml' || file.type === 'application/vnd.google-earth.kml+xml'
     );
     if (trailFiles.length > 0) {
-      await parseFiles(trailFiles as unknown as FileList);
+      await parseFiles(
+        trailFiles,
+        !Array.isArray(event) && event.type === 'drop' ? 'dropzone' : 'file_picker',
+      );
     }
   }, [parseFiles]);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onFileDialogOpen: () => {
+      trackEvent('file_picker_opened', { picker_location: 'tracks_panel' });
+    },
     accept: {
       'application/gpx+xml': ['.gpx'],
       'application/vnd.google-earth.kml+xml': ['.kml'],

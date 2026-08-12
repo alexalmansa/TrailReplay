@@ -1,6 +1,7 @@
 import { BookOpen, Info, Maximize2, Menu, Minimize2, X } from 'lucide-react';
 import { SupportButton } from '@/components/header/SupportButton';
 import { useI18n } from '@/i18n/useI18n';
+import { trackEvent } from '@/utils/analytics';
 
 interface AppHeaderProps {
   isFullscreen: boolean;
@@ -52,7 +53,11 @@ export function AppHeader({
       <div className="ml-2 flex shrink-0 items-center gap-1 sm:gap-2">
         <SupportButton />
         <a
-          href="/tutorial.html"
+          href="/tutorial"
+          onClick={() => trackEvent('help_cta_clicked', {
+            cta_location: 'app_header',
+            target_page: 'tutorial',
+          })}
           className="hidden items-center gap-1.5 rounded-lg border border-white/20 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[var(--evergreen)] shadow-sm transition-colors hover:bg-[var(--canvas)] lg:inline-flex"
         >
           <BookOpen className="h-3.5 w-3.5" />

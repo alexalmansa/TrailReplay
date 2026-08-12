@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Loader2 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
+import { trackEvent } from '@/utils/analytics';
 
 const STORAGE_KEY = 'trailreplay_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_activity';
@@ -108,7 +109,16 @@ export function FeedbackSolicitation() {
     }
 
     // Show popup after a short delay
-    setTimeout(() => setShowPopup(true), 2000);
+    setTimeout(() => {
+      setShowPopup(true);
+      trackEvent('feedback_prompt_shown', {
+        activity_count_bucket: activity.count <= 5
+          ? '3_5'
+          : activity.count <= 10
+            ? '6_10'
+            : '10_plus',
+      });
+    }, 2000);
   }, [isNarrowScreen]);
 
   // Track activity
@@ -148,16 +158,19 @@ export function FeedbackSolicitation() {
   }, [checkAndShowSolicitation, isNarrowScreen]);
 
   const handleYes = () => {
+    trackEvent('feedback_prompt_action', { feedback_prompt_action: 'open_form' });
     setShowPopup(false);
     setShowForm(true);
   };
 
   const handleMaybeLater = () => {
+    trackEvent('feedback_prompt_action', { feedback_prompt_action: 'maybe_later' });
     setShowPopup(false);
     safeStorageSet(MAYBE_LATER_KEY, Date.now().toString());
   };
 
   const handleDismiss = () => {
+    trackEvent('feedback_prompt_action', { feedback_prompt_action: 'dismiss' });
     setShowPopup(false);
     safeStorageSet(STORAGE_KEY, 'true');
   };
@@ -211,6 +224,10 @@ export function FeedbackSolicitation() {
       });
 
       if (res.ok) {
+        trackEvent('feedback_submitted', {
+          feedback_category: feedbackCategory,
+          has_email: email.trim().length > 0,
+        });
         safeStorageSet(STORAGE_KEY, 'true');
         setSubmitted(true);
         setTimeout(() => {
@@ -218,10 +235,16 @@ export function FeedbackSolicitation() {
           setSubmitted(false);
         }, 3000);
       } else {
+        trackEvent('feedback_submit_failed', {
+          feedback_category: feedbackCategory,
+        });
         const data = await res.json().catch(() => ({}));
         setError(data?.error || t('feedback.error'));
       }
     } catch {
+      trackEvent('feedback_submit_failed', {
+        feedback_category: feedbackCategory,
+      });
       setError(t('feedback.errorSend'));
     } finally {
       setIsSubmitting(false);

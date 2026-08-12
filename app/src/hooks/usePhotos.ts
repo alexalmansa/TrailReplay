@@ -97,12 +97,17 @@ export function usePhotos() {
       for (const file of imageFiles) {
         const result = await processPhoto(file);
         trackEvent('photo_import_file_processed', {
-          photo_file_name: file.name,
+          photo_has_gps: result.kind === 'picture'
+            ? result.picture.placementSource === 'gps'
+            : result.pendingPlacement.hasGpsMetadata ?? false,
+          photo_has_timestamp: result.kind === 'picture'
+            ? result.picture.timestamp !== undefined
+            : result.pendingPlacement.hasTimestampMetadata ?? false,
           photo_placement_result: result.kind === 'picture'
             ? (result.picture.placementSource ?? 'unknown')
             : 'pending',
           photo_manual_reason: result.kind === 'pending'
-            ? result.pendingPlacement.placementReason
+            ? result.pendingPlacement.placementReason.replaceAll('-', '_')
             : null,
         });
 

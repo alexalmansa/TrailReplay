@@ -5,7 +5,12 @@ import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
 import { getCropRegion } from '@/utils/crop';
-import { trackEvent } from '@/utils/analytics';
+import {
+  getBlobSizeBucket,
+  getDurationBucket,
+  getProgressBucket,
+  trackEvent,
+} from '@/utils/analytics';
 import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
 import {
   getSupportedMimeType,
@@ -85,6 +90,8 @@ export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
   const tracks = useAppStore((state) => state.tracks);
+  const pictures = useAppStore((state) => state.pictures);
+  const journeySegments = useAppStore((state) => state.journeySegments);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
@@ -526,8 +533,10 @@ export function useVideoExportRecorder() {
         setExportStage(t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
-          export_blob_size: blob.size,
+          export_blob_size_bucket: getBlobSizeBucket(blob.size),
           export_format: 'mp4',
+          export_encoder_path: 'webcodecs',
+          export_duration_bucket: getDurationBucket(playback.totalDuration),
         });
 
         const url = URL.createObjectURL(blob);
@@ -538,16 +547,24 @@ export function useVideoExportRecorder() {
         URL.revokeObjectURL(url);
       } else {
         setExportStage(t('export.stageFailedNoData'));
-        trackEvent('export_failed', { export_failure_scope: 'no_data' });
+        trackEvent('export_failed', {
+          export_failure_scope: 'no_data',
+          export_format: 'mp4',
+          export_encoder_path: 'webcodecs',
+        });
       }
     } catch (error) {
       console.error('WebCodecs export failed', error);
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
-      trackEvent('export_failed', { export_failure_scope: 'encoder_finalize' });
+      trackEvent('export_failed', {
+        export_failure_scope: 'encoder_finalize',
+        export_format: 'mp4',
+        export_encoder_path: 'webcodecs',
+      });
     } finally {
       setIsExporting(false);
     }
-  }, [setExportProgress, setExportStage, setIsExporting, t]);
+  }, [playback.totalDuration, setExportProgress, setExportStage, setIsExporting, t]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -655,8 +672,10 @@ export function useVideoExportRecorder() {
         setExportStage(t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
-          export_blob_size: blob.size,
+          export_blob_size_bucket: getBlobSizeBucket(blob.size),
           export_format: extension,
+          export_encoder_path: 'mediarecorder',
+          export_duration_bucket: getDurationBucket(playback.totalDuration),
         });
 
         const url = URL.createObjectURL(blob);
@@ -669,6 +688,8 @@ export function useVideoExportRecorder() {
         setExportStage(t('export.stageFailedNoData'));
         trackEvent('export_failed', {
           export_failure_scope: 'no_data',
+          export_format: extension,
+          export_encoder_path: 'mediarecorder',
         });
       }
       setIsExporting(false);
@@ -681,6 +702,8 @@ export function useVideoExportRecorder() {
       console.error('MediaRecorder error during export', event);
       trackEvent('export_failed', {
         export_failure_scope: 'recorder_error',
+        export_format: recordedFormat,
+        export_encoder_path: 'mediarecorder',
       });
       if (frameCleanupRef.current) {
         frameCleanupRef.current();
@@ -697,7 +720,7 @@ export function useVideoExportRecorder() {
     };
 
     recorder.start(100);
-  }, [setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
+  }, [playback.totalDuration, setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
 
   const handleStartExport = useCallback(async () => {
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
@@ -722,8 +745,13 @@ export function useVideoExportRecorder() {
       export_format: actualFormat,
       export_quality: videoExportSettings.quality,
       export_fps: videoExportSettings.fps,
+      export_aspect_ratio: videoExportSettings.aspectRatio,
       export_include_stats: videoExportSettings.includeStats,
       export_include_elevation: videoExportSettings.includeElevation,
+      export_duration_bucket: getDurationBucket(playback.totalDuration),
+      track_count: tracks.length,
+      picture_count: pictures.length,
+      journey_segment_count: journeySegments.length,
     });
 
     try {
@@ -800,6 +828,8 @@ export function useVideoExportRecorder() {
       console.error('Export failed:', error);
       trackEvent('export_failed', {
         export_failure_scope: 'setup',
+        export_format: actualFormat,
+        export_encoder_path: useWebCodecsRef.current ? 'webcodecs' : 'unknown',
       });
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
       setIsExporting(false);
@@ -810,9 +840,10 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, loadHtml2Canvas, play, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
+    const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';
     isRecordingRef.current = false;
     recordingCancelledRef.current = true;
     cachedOverlayRef.current = null;
@@ -836,14 +867,15 @@ export function useVideoExportRecorder() {
     useWebCodecsRef.current = false;
 
     trackEvent('export_cancelled', {
-      export_progress_percent: exportProgress,
-      export_stage: exportStage,
+      export_progress_bucket: getProgressBucket(exportProgress),
+      export_format: actualFormat,
+      export_encoder_path: exportEncoderPath,
     });
     setIsExporting(false);
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [exportProgress, exportStage, resetPlayback, setExportProgress, setExportStage, setIsExporting]);
+  }, [actualFormat, exportProgress, resetPlayback, setExportProgress, setExportStage, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
@@ -855,6 +887,7 @@ export function useVideoExportRecorder() {
     anchor.download = `trail-replay-${Date.now()}.${extension}`;
     anchor.click();
     URL.revokeObjectURL(url);
+    trackEvent('export_downloaded_again', { export_format: extension });
   }, [exportedBlob]);
 
   const resetExportResult = useCallback(() => {

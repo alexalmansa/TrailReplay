@@ -1,11 +1,11 @@
 import { Heart } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
+import { trackEvent } from '@/utils/analytics';
 
 export function SupportButton() {
   const { t } = useI18n();
   const handleClick = () => {
-    // Analytics tracking could be added here
-    console.log('Support button clicked');
+    trackEvent('support_clicked', { support_location: 'header' });
   };
 
   return (

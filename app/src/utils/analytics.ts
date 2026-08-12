@@ -1,9 +1,23 @@
-import { GA4_MEASUREMENT_ID, shouldEnableAnalytics } from '@/config/analytics';
+import { GA4_DEBUG_MODE, GA4_MEASUREMENT_ID, shouldEnableAnalytics } from '@/config/analytics';
 
 let isInitialized = false;
+let pendingInitialization = false;
 
 type AnalyticsPrimitive = string | number | boolean;
 type AnalyticsParams = Record<string, AnalyticsPrimitive>;
+
+export type AnalyticsPageType = 'app' | 'tutorial' | 'gpx_guide';
+export type AnalyticsPageGroup = 'product' | 'help';
+
+export interface AnalyticsPageContext {
+  page_type: AnalyticsPageType;
+  page_group: AnalyticsPageGroup;
+}
+
+const DEFAULT_PAGE_CONTEXT: AnalyticsPageContext = {
+  page_type: 'app',
+  page_group: 'product',
+};
 
 declare global {
   interface Window {
@@ -29,7 +43,7 @@ function sanitizeParamValue(value: unknown): AnalyticsPrimitive | null {
   return null;
 }
 
-function sanitizeParams(params: Record<string, unknown>): AnalyticsParams {
+export function sanitizeAnalyticsParams(params: Record<string, unknown>): AnalyticsParams {
   const safeParams: AnalyticsParams = {};
 
   Object.entries(params).forEach(([key, value]) => {
@@ -40,6 +54,35 @@ function sanitizeParams(params: Record<string, unknown>): AnalyticsParams {
   });
 
   return safeParams;
+}
+
+export function getDistanceBucket(distanceMeters: number) {
+  const distanceKm = distanceMeters / 1000;
+  if (distanceKm < 10) return 'short';
+  if (distanceKm < 42) return 'medium';
+  if (distanceKm < 80) return 'long';
+  return 'ultra';
+}
+
+export function getDurationBucket(durationSeconds: number) {
+  if (durationSeconds < 30) return 'short';
+  if (durationSeconds <= 90) return 'medium';
+  return 'long';
+}
+
+export function getBlobSizeBucket(sizeBytes: number) {
+  const sizeMb = sizeBytes / (1024 * 1024);
+  if (sizeMb < 25) return 'small';
+  if (sizeMb < 100) return 'medium';
+  if (sizeMb < 250) return 'large';
+  return 'xlarge';
+}
+
+export function getProgressBucket(progressPercent: number) {
+  if (progressPercent < 25) return '0_25';
+  if (progressPercent < 50) return '25_50';
+  if (progressPercent < 75) return '50_75';
+  return '75_100';
 }
 
 function installAnalyticsQueue() {
@@ -64,7 +107,7 @@ function loadAnalyticsScript(measurementId: string) {
   document.head.appendChild(script);
 }
 
-function bootAnalytics() {
+function bootAnalytics(pageContext: AnalyticsPageContext) {
   if (isInitialized) return true;
 
   installAnalyticsQueue();
@@ -72,8 +115,10 @@ function bootAnalytics() {
 
   window.gtag?.('js', new Date());
   window.gtag?.('config', GA4_MEASUREMENT_ID, {
-    anonymize_ip: true,
-    cookie_flags: 'SameSite=None;Secure',
+    allow_ad_personalization_signals: false,
+    allow_google_signals: false,
+    debug_mode: GA4_DEBUG_MODE,
+    send_page_view: false,
   });
 
   window.gtag?.('event', 'page_view', {
@@ -81,7 +126,7 @@ function bootAnalytics() {
     page_location: window.location.href,
     page_path: `${window.location.pathname}${window.location.search}`,
     app_name: 'TrailReplay',
-    timestamp: new Date().toISOString(),
+    ...pageContext,
   });
 
   window.__TRAILREPLAY_ANALYTICS_ENABLED__ = true;
@@ -89,18 +134,22 @@ function bootAnalytics() {
   return true;
 }
 
-export function initAnalytics() {
+export function initAnalytics(pageContext: AnalyticsPageContext = DEFAULT_PAGE_CONTEXT) {
   if (typeof window === 'undefined') return false;
   if (!shouldEnableAnalytics()) return false;
 
+  if (isInitialized || pendingInitialization) return true;
+
   if (document.readyState === 'loading') {
+    pendingInitialization = true;
     document.addEventListener('DOMContentLoaded', () => {
-      bootAnalytics();
+      pendingInitialization = false;
+      bootAnalytics(pageContext);
     }, { once: true });
     return true;
   }
 
-  return bootAnalytics();
+  return bootAnalytics(pageContext);
 }
 
 export function trackEvent(eventName: string, parameters: Record<string, unknown> = {}) {
@@ -108,8 +157,7 @@ export function trackEvent(eventName: string, parameters: Record<string, unknown
   if (!shouldEnableAnalytics() || typeof window.gtag !== 'function') return;
 
   window.gtag('event', eventName, {
-    ...sanitizeParams(parameters),
+    ...sanitizeAnalyticsParams(parameters),
     app_name: 'TrailReplay',
-    timestamp: new Date().toISOString(),
   });
 }
