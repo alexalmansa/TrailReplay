@@ -1,7 +1,6 @@
-import { ArrowRight, Check, Download, Film, Play, Upload } from 'lucide-react';
+import { ArrowRight, Check, Download, Film, Github, Play, Upload } from 'lucide-react';
 import { trackEvent } from '@/utils/analytics';
 import { SEO_LANDING_PAGES, type SeoLandingPageConfig } from './seoPages';
-import { SeoHeader } from './SeoHeader';
 
 function trackSeoCta(page: SeoLandingPageConfig, location: string) {
   trackEvent('seo_cta_clicked', {
@@ -58,12 +57,33 @@ export function SeoLandingPage({ page }: { page: SeoLandingPageConfig }) {
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--evergreen)]">
-      <SeoHeader page={page} />
+      <header className="border-b border-white/10 bg-[var(--evergreen)] text-[var(--canvas)]">
+        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <a href="/" className="flex items-center gap-3" aria-label="TrailReplay home">
+            <span className="rounded-md bg-white p-1"><img src="/media/images/simplelogo.png" alt="" className="h-6 w-6" /></span>
+            <span className="hidden text-sm font-bold tracking-[-0.04em] text-white sm:inline">TRAILREPLAY</span>
+          </a>
+          <div className="hidden items-center gap-6 text-xs font-semibold md:flex">
+            <a href="/tutorial" className="text-white/70 transition-colors hover:text-white">How it works</a>
+            <a href="/gpx-download-guide" className="text-white/70 transition-colors hover:text-white">Get a GPX</a>
+            <a href="https://github.com/alexalmansa/TrailReplay" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-white/70 transition-colors hover:text-white">
+              <Github className="h-4 w-4" /> Open source
+            </a>
+          </div>
+          <a
+            href="/"
+            onClick={() => trackSeoCta(page, 'header')}
+            className="tr-btn tr-btn-primary whitespace-nowrap text-xs sm:text-sm"
+          >
+            Open app
+          </a>
+        </nav>
+      </header>
 
       <main>
         <section className="relative overflow-hidden bg-[var(--evergreen)] text-[var(--canvas)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(193,101,47,0.23),transparent_34%),radial-gradient(circle_at_78%_65%,rgba(255,255,255,0.06),transparent_30%)]" />
-          <div className="relative mx-auto grid min-h-[calc(100dvh-3.75rem)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.75fr] lg:py-16">
+          <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.75fr] lg:py-16">
             <div className="max-w-3xl">
               <p className="mb-5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--trail-orange)]">{page.eyebrow}</p>
               <h1 className="text-4xl font-bold leading-[1.05] tracking-[-0.055em] sm:text-5xl lg:text-6xl">{page.title}</h1>
