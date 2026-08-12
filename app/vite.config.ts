@@ -24,6 +24,13 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
           if (id.includes('maplibre-gl')) return 'maplibre';
+          if (id.includes('mp4-muxer') || id.includes('fix-webm-duration')) return 'video-export';
+          if (
+            id.includes('exifr') ||
+            id.includes('exifreader') ||
+            id.includes('heic-to') ||
+            id.includes('@xmldom')
+          ) return 'media-processing';
           if (id.includes('recharts')) return 'charts';
           if (id.includes('@radix-ui')) return 'radix';
           return 'vendor';

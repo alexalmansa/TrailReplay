@@ -239,6 +239,7 @@ export const en = {
     cancel: 'Cancel',
     save: 'Save',
     done: 'Done',
+    close: 'Close',
     remove: 'Remove',
     clickRename: 'Click to rename',
     secondsShort: 's',

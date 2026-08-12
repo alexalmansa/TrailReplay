@@ -308,6 +308,7 @@ export function useTrailPlaybackCamera({
     });
   }, [
     activeTrack,
+    allCoordinates,
     animationPhase,
     cameraMode,
     completedCoordinates,

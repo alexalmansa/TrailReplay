@@ -279,19 +279,25 @@ export function TrailMap(_props: TrailMapProps) {
   }, [animationPhase, cameraMode, followBehindZoomLevel, isMapLoaded, setCameraSettings]);
 
   useEffect(() => {
-    if (isMobile || cameraMode !== 'follow-behind' || hasSeenZoomButtonsHint) return;
+    if (!isMobile || cameraMode !== 'follow-behind' || hasSeenZoomButtonsHint) return;
 
     const isAnimating = animationPhase === 'intro' || animationPhase === 'playing';
     if (!isAnimating) return;
 
-    setShowZoomButtonsHint(true);
-    setHasSeenZoomButtonsHint(true);
+    // Deferring this presentation update prevents a render cascade when playback
+    // enters its active phase, while still showing the hint before the next paint.
+    const timeoutId = window.setTimeout(() => {
+      setShowZoomButtonsHint(true);
+      setHasSeenZoomButtonsHint(true);
+    }, 0);
 
     try {
       window.localStorage.setItem(ZOOM_BUTTON_HINT_STORAGE_KEY, '1');
     } catch {
       // Ignore storage failures; the hint will just reappear on the next load.
     }
+
+    return () => window.clearTimeout(timeoutId);
   }, [animationPhase, cameraMode, hasSeenZoomButtonsHint, isMobile]);
 
   useEffect(() => {
@@ -328,7 +334,7 @@ export function TrailMap(_props: TrailMapProps) {
         </div>
       )}
 
-      {!isMobile && showZoomButtonsHint && isMapLoaded && allCoordinates.length > 0 && (
+      {isMobile && showZoomButtonsHint && isMapLoaded && allCoordinates.length > 0 && (
         <div className="absolute right-4 top-20 z-20 max-w-56 rounded-2xl border border-white/12 bg-[rgba(9,14,19,0.88)] px-3 py-2.5 text-xs leading-relaxed text-white shadow-[0_16px_36px_rgba(0,0,0,0.28)] backdrop-blur-sm">
           {t('map.zoomButtonsHint')}
         </div>

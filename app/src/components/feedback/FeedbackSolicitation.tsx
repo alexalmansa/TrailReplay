@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Loader2 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
@@ -57,6 +57,7 @@ export function FeedbackSolicitation() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const promptTimeoutRef = useRef<number | null>(null);
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     typeof window !== 'undefined' ? window.innerWidth < MIN_WIDTH_FOR_POPUP : false
   );
@@ -77,10 +78,22 @@ export function FeedbackSolicitation() {
 
   useEffect(() => {
     if (isNarrowScreen) {
+      if (promptTimeoutRef.current !== null) {
+        window.clearTimeout(promptTimeoutRef.current);
+        promptTimeoutRef.current = null;
+      }
       setShowPopup(false);
       setShowForm(false);
     }
   }, [isNarrowScreen]);
+
+  useEffect(() => {
+    return () => {
+      if (promptTimeoutRef.current !== null) {
+        window.clearTimeout(promptTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const checkAndShowSolicitation = useCallback((activity: ActivityData) => {
     if (isNarrowScreen) {
@@ -88,13 +101,16 @@ export function FeedbackSolicitation() {
     }
 
     // Don't show if already solicited
-    if (safeStorageGetAny(STORAGE_KEY, LEGACY_STORAGE_KEY) === 'true') {
+    if (
+      safeStorageGetAny(STORAGE_KEY, LEGACY_STORAGE_KEY) === 'true' ||
+      promptTimeoutRef.current !== null
+    ) {
       return;
     }
 
     // Check maybe later cooldown
     const maybeLater = safeStorageGetAny(MAYBE_LATER_KEY, LEGACY_MAYBE_LATER_KEY);
-    if (maybeLater && Date.now() - parseInt(maybeLater) < MAYBE_LATER_COOLDOWN) {
+    if (maybeLater && Date.now() - Number.parseInt(maybeLater, 10) < MAYBE_LATER_COOLDOWN) {
       return;
     }
 
@@ -109,7 +125,8 @@ export function FeedbackSolicitation() {
     }
 
     // Show popup after a short delay
-    setTimeout(() => {
+    promptTimeoutRef.current = window.setTimeout(() => {
+      promptTimeoutRef.current = null;
       setShowPopup(true);
       trackEvent('feedback_prompt_shown', {
         activity_count_bucket: activity.count <= 5

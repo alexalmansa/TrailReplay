@@ -113,14 +113,21 @@ function App() {
     }
   }, [error, setError]);
   
-  // Toggle fullscreen
+  useEffect(() => {
+    const syncFullscreenState = () => setIsFullscreen(document.fullscreenElement !== null);
+
+    syncFullscreenState();
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreenState);
+  }, []);
+
+  // Toggle fullscreen. The fullscreenchange event above remains the source of truth,
+  // because browsers can reject requests or exit fullscreen outside this component.
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      void document.documentElement.requestFullscreen().catch(() => undefined);
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      void document.exitFullscreen().catch(() => undefined);
     }
   };
 
@@ -128,13 +135,19 @@ function App() {
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (files && files.length > 0) {
-        await parseFiles(files, 'file_picker');
-        setShowSidebar(true);
-      }
-      // Reset input to allow re-uploading same file
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      try {
+        if (files && files.length > 0) {
+          await parseFiles(files, 'file_picker');
+          setShowSidebar(true);
+        }
+      } catch {
+        // `parseFiles` already reports a localized error through the app store.
+        // Handling it here keeps the DOM event free of unhandled rejections.
+      } finally {
+        // Always reset so the user can retry the same file after a failed import.
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     },
     [parseFiles, setShowSidebar]

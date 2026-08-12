@@ -239,6 +239,7 @@ export const ca = {
     cancel: 'Cancel·lar',
     save: 'Desar',
     done: 'Fet',
+    close: 'Tancar',
     remove: 'Elimina',
     clickRename: 'Clica per renomenar',
     secondsShort: 's',
