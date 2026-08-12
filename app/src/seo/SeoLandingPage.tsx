@@ -13,7 +13,7 @@ function trackSeoCta(page: SeoLandingPageConfig, location: string) {
 function HeroMedia({ page }: { page: SeoLandingPageConfig }) {
   if (page.heroMedia === 'product-video') {
     return (
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-white/10 bg-black shadow-[0_28px_70px_rgba(9,14,11,0.38)] sm:aspect-video lg:aspect-[4/5]">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl border-2 border-white/18 bg-[#101713] shadow-[10px_10px_0_rgba(193,101,47,0.28)] sm:aspect-video lg:aspect-[4/5]">
         <video
           className="h-full w-full object-cover"
           src="/media/video/path-export-with-stats.mp4"
@@ -37,7 +37,7 @@ function HeroMedia({ page }: { page: SeoLandingPageConfig }) {
     <div
       role="img"
       aria-label={isRunning ? 'Trail runner on an alpine ridgeline' : 'Cyclist riding a mountain switchback'}
-      className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-no-repeat shadow-[0_28px_70px_rgba(9,14,11,0.38)]"
+      className="relative aspect-[2/3] overflow-hidden rounded-2xl border-2 border-white/18 bg-no-repeat shadow-[10px_10px_0_rgba(193,101,47,0.28)]"
       style={{
         backgroundImage: 'url(/media/images/seo/outdoor-route-stories.webp)',
         backgroundPosition: isRunning ? 'left center' : 'right center',
@@ -81,13 +81,12 @@ export function SeoLandingPage({ page }: { page: SeoLandingPageConfig }) {
       </header>
 
       <main>
-        <section className="relative overflow-hidden bg-[var(--evergreen)] text-[var(--canvas)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(193,101,47,0.23),transparent_34%),radial-gradient(circle_at_78%_65%,rgba(255,255,255,0.06),transparent_30%)]" />
-          <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.75fr] lg:py-16">
-            <div className="max-w-3xl">
+        <section className="bg-[var(--evergreen)] text-[var(--canvas)]">
+          <div className="mx-auto grid min-h-[calc(100dvh-4rem)] max-w-7xl items-center gap-12 px-4 py-12 sm:px-6 lg:grid-cols-[1.08fr_0.72fr] lg:py-16">
+            <div className="max-w-3xl border-l-2 border-[var(--trail-orange)] pl-5 sm:pl-8">
               <p className="mb-5 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--trail-orange)]">{page.eyebrow}</p>
               <h1 className="text-4xl font-bold leading-[1.05] tracking-[-0.055em] sm:text-5xl lg:text-6xl">{page.title}</h1>
-              <p className="mt-6 max-w-[62ch] text-base leading-7 text-white/72 sm:text-lg">{page.description}</p>
+              <p className="mt-6 max-w-[62ch] text-base leading-7 text-white/80 sm:text-lg">{page.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="/" onClick={() => trackSeoCta(page, 'hero')} className="tr-btn tr-btn-primary inline-flex items-center gap-2 whitespace-nowrap">
                   Animate your GPX <ArrowRight className="h-4 w-4" />
@@ -96,21 +95,28 @@ export function SeoLandingPage({ page }: { page: SeoLandingPageConfig }) {
                   See the steps
                 </a>
               </div>
-              <p className="mt-8 flex items-start gap-2 text-sm leading-6 text-white/62">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" /> {page.proof}
-              </p>
             </div>
             <HeroMedia page={page} />
           </div>
         </section>
 
+        <aside className="border-b-2 border-[var(--evergreen)] bg-[var(--canvas)]">
+          <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-5 text-sm font-semibold leading-6 sm:px-6">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" />
+            <p>{page.proof}</p>
+          </div>
+        </aside>
+
         <section id="how-it-works" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:py-28">
           <h2 className="max-w-3xl text-3xl font-bold tracking-[-0.04em] sm:text-4xl">{page.stepsTitle}</h2>
           <p className="mt-4 max-w-[65ch] leading-7 text-[var(--evergreen-60)]">{page.stepsIntro}</p>
-          <ol className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-[var(--evergreen)]/12 bg-[var(--evergreen)]/12 md:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-12 grid overflow-hidden rounded-2xl border-2 border-[var(--evergreen)] md:grid-cols-2 lg:grid-cols-4">
             {page.steps.map((step, index) => (
-              <li key={step.title} className="bg-white p-6">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--trail-orange-15)] text-sm font-bold text-[var(--trail-orange)]">{index + 1}</span>
+              <li
+                key={step.title}
+                className={`border-[var(--evergreen)] p-6 ${index < 3 ? 'border-b-2' : ''} ${index < 2 ? 'md:border-b-2 lg:border-b-0' : 'md:border-b-0'} ${index % 2 === 0 ? 'md:border-r-2' : ''} ${index < 3 ? 'lg:border-r-2' : 'lg:border-r-0'} ${index === 0 ? 'bg-[var(--trail-orange-15)]' : 'bg-[var(--canvas)]'}`}
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--evergreen)] text-sm font-bold text-[var(--canvas)]">{index + 1}</span>
                 <h3 className="mt-6 font-bold">{step.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--evergreen-60)]">{step.body}</p>
               </li>
@@ -118,7 +124,7 @@ export function SeoLandingPage({ page }: { page: SeoLandingPageConfig }) {
           </ol>
         </section>
 
-        <section className="border-y border-[var(--evergreen)]/10 bg-white">
+        <section className="border-y-2 border-[var(--evergreen)] bg-[var(--canvas)]">
           <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:py-28">
             <div className="lg:sticky lg:top-24">
               <h2 className="text-3xl font-bold tracking-[-0.04em] sm:text-4xl">{page.featuresTitle}</h2>
@@ -183,8 +189,12 @@ export function SeoLandingPage({ page }: { page: SeoLandingPageConfig }) {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--evergreen)]/12 px-4 py-8 text-center text-xs text-[var(--evergreen-60)] sm:px-6">
-        <a href="/" className="font-bold text-[var(--evergreen)]">TrailReplay</a> · Free and open-source GPX storytelling · <a href="/privacy" className="hover:underline">Privacy</a>
+      <footer className="border-t border-[var(--evergreen)]/12 px-4 py-8 text-xs text-[var(--evergreen-60)] sm:px-6">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <a href="/" className="font-bold text-[var(--evergreen)]">TrailReplay</a>
+          <span>Free and open-source GPX storytelling</span>
+          <a href="/privacy" className="font-semibold hover:underline">Privacy</a>
+        </div>
       </footer>
     </div>
   );
