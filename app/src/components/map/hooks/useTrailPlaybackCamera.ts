@@ -14,6 +14,7 @@ import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraP
 interface UseTrailPlaybackCameraParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
+  cameraCoordinates: number[][];
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   completedCoordinates: number[][];
@@ -73,6 +74,7 @@ interface UseTrailPlaybackCameraParams {
 export function useTrailPlaybackCamera({
   activeTrack,
   allCoordinates,
+  cameraCoordinates,
   animationPhase,
   cameraMode,
   completedCoordinates,
@@ -248,7 +250,7 @@ export function useTrailPlaybackCamera({
     if (animationPhase === 'playing' && cameraMode !== 'overview') {
       const targetPose = getPlaybackCameraPose({
         cameraMode,
-        coordinates: allCoordinates,
+        coordinates: cameraCoordinates,
         elevationData,
         followBehindZoomLevel,
         progress: playbackProgress,
@@ -263,11 +265,12 @@ export function useTrailPlaybackCamera({
       if (cameraMode === 'follow') {
         mapRef.current.easeTo({
           ...targetPose,
+          center: [currentPosition.lon, currentPosition.lat],
           duration: 100,
         });
       } else {
         mapRef.current.easeTo({
-          center: targetPose.center,
+          center: [currentPosition.lon, currentPosition.lat],
           zoom: newZoom,
           pitch: targetPose.pitch,
           bearing: smoothBearingRef.current,
@@ -289,6 +292,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     cameraMode,
+    cameraCoordinates,
     completedCoordinates,
     computedJourney,
     currentBearing,
@@ -326,7 +330,7 @@ export function useTrailPlaybackCamera({
 
     const introPose = getIntroCameraPose({
       cameraMode,
-      coordinates: allCoordinates,
+      coordinates: cameraCoordinates,
       elevationData,
       followBehindZoomLevel,
       progress: 0,
@@ -360,6 +364,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     cameraMode,
+    cameraCoordinates,
     elevationData,
     followBehindZoomLevel,
     isExporting,

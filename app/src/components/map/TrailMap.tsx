@@ -85,6 +85,7 @@ export function TrailMap(_props: TrailMapProps) {
     currentSegment,
     completedCoordinates,
     allCoordinates,
+    cameraPathCoordinates,
     isInTransport,
     currentTrackColor,
     segmentTimings,
@@ -183,6 +184,7 @@ export function TrailMap(_props: TrailMapProps) {
   useTrailPlaybackCamera({
     activeTrack,
     allCoordinates,
+    cameraCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
     completedCoordinates,
@@ -220,7 +222,7 @@ export function TrailMap(_props: TrailMapProps) {
   });
 
   useTilePreload({
-    allCoordinates,
+    allCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
     elevationData,
@@ -241,7 +243,7 @@ export function TrailMap(_props: TrailMapProps) {
   });
 
   useReplayTileWarmup({
-    allCoordinates,
+    allCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
     diagnostics: tileDiagnostics,
@@ -251,6 +253,7 @@ export function TrailMap(_props: TrailMapProps) {
     isPlaying: playback.isPlaying,
     mapStyle: settings.mapStyle,
     playbackProgress: playback.progress,
+    playbackSpeed: playback.speed,
     totalDurationMs: playback.totalDuration,
   });
 

@@ -21,9 +21,9 @@ const WARMUP_VIEWPORT = { width: 1920, height: 1080 };
 const DISCOVERY_RENDER_WINDOW_MS = 100;
 const RESCHEDULE_INTERVAL_MS = 1500;
 const NORMAL_HORIZON_MS = 20000;
-const CLOSE_3D_HORIZON_MS = 30000;
+const CLOSE_3D_HORIZON_MS = 45000;
 const NORMAL_SAMPLE_COUNT = 12;
-const CLOSE_3D_SAMPLE_COUNT = 24;
+const CLOSE_3D_SAMPLE_COUNT = 36;
 
 interface UseReplayTileWarmupParams {
   allCoordinates: number[][];
@@ -35,6 +35,7 @@ interface UseReplayTileWarmupParams {
   isPlaying: boolean;
   mapStyle: string;
   playbackProgress: number;
+  playbackSpeed: number;
   totalDurationMs: number;
   diagnostics: TilePreloadObserver;
 }
@@ -63,6 +64,7 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
   const warmupMapRef = useRef<maplibregl.Map | null>(null);
   const latestParamsRef = useRef(params);
   const isWarmupPoseActiveRef = useRef(false);
+  const discoveryStepRef = useRef(0);
   latestParamsRef.current = params;
 
   useEffect(() => {
@@ -94,12 +96,26 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       const sourceId = (event as { sourceId?: string }).sourceId;
       if (!key || !sourceId) return;
 
+      const activeBaseSource: Record<string, string> = {
+        satellite: 'satellite',
+        street: 'osm',
+        topo: 'opentopomap',
+        outdoor: 'opentopomap',
+        'esri-clarity': 'esri-clarity',
+        'mapbox-streets': 'mapbox-streets',
+      };
+      const isEssentialSource = sourceId === 'terrain-dem'
+        || sourceId === activeBaseSource[latestParamsRef.current.mapStyle];
+      if (!isEssentialSource) return;
+
       params.diagnostics.predictTile(sourceId, key);
       const url = getTileRequestUrl(sourceId, key);
       if (url) {
         scheduler.enqueue({
           key,
-          priority: getTilePriority(sourceId),
+          // Time-to-use dominates source type: the next DEM tile must beat a
+          // base tile that is thirty seconds farther down the route.
+          priority: (discoveryStepRef.current * 10) + getTilePriority(sourceId),
           sourceId,
           url,
         });
@@ -184,7 +200,8 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       const isClose3D = current.cameraMode === 'follow-behind' && current.followBehindZoomLevel >= 66;
       const poses = deduplicatePoses(getPredictivePlaybackPoses({
         currentProgress: current.playbackProgress,
-        horizonMs: isClose3D ? CLOSE_3D_HORIZON_MS : NORMAL_HORIZON_MS,
+        horizonMs: (isClose3D ? CLOSE_3D_HORIZON_MS : NORMAL_HORIZON_MS)
+          * Math.max(0.25, current.playbackSpeed),
         options: {
           cameraMode: current.cameraMode,
           coordinates: current.allCoordinates,
@@ -196,8 +213,9 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       }));
 
       try {
-        for (const pose of poses) {
+        for (const [poseIndex, pose] of poses.entries()) {
           if (cancelled) return;
+          discoveryStepRef.current = poseIndex;
           await warmPose(map, pose);
         }
       } finally {
