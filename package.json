@@ -2,7 +2,6 @@
   "name": "trail-replay",
   "version": "1.0.0",
   "description": "Browser-based GPX storytelling studio for animated route replays and export-ready video",
-  "main": "index.js",
   "type": "module",
   "scripts": {
     "check:pages-assets": "node ./scripts/check-pages-asset-sizes.mjs ./app/dist",

@@ -58,7 +58,6 @@ https://github.com/user-attachments/assets/c42e5efd-6c08-4591-ab66-92cc16484f24
 From the repository root:
 
 ```bash
-npm install
 npm --prefix app install
 npm run dev
 ```
