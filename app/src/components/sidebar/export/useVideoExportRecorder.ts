@@ -22,32 +22,8 @@ import {
   isWebCodecsMp4Supported,
   type Mp4CanvasEncoder,
 } from './mp4CanvasEncoder';
-import {
-  getCapturedCanvasDrawSize,
-  getElevationOverlayDrawRect,
-  getExportOverlayMetrics,
-  getOverlayRefreshIntervalMs,
-  getPopupOverlayDrawRect,
-  getStatsOverlayDrawRect,
-  isDrawableRect,
-} from './exportOverlay';
-
-type Html2Canvas = (
-  element: HTMLElement,
-  options: {
-    backgroundColor: string | null;
-    scale: number;
-    logging: boolean;
-    useCORS: boolean;
-    allowTaint?: boolean;
-  }
-) => Promise<HTMLCanvasElement>;
-
-declare global {
-  interface Window {
-    html2canvas?: Html2Canvas;
-  }
-}
+import { getOverlayRefreshIntervalMs } from './exportOverlay';
+import { useExportOverlayCapture } from './useExportOverlayCapture';
 
 function extractCssUrl(value: string): string | null {
   const match = value.match(/url\((['"]?)(.*?)\1\)/);
@@ -118,6 +94,17 @@ export function useVideoExportRecorder() {
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
   const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
+  const {
+    cachedOverlayRef,
+    loadHtml2Canvas,
+    overlayBusyRef,
+    overlayLastUpdateRef,
+    resetOverlayCapture,
+    updateOverlayAsync,
+  } = useExportOverlayCapture({
+    includeElevation: videoExportSettings.includeElevation,
+    includeStats: videoExportSettings.includeStats,
+  });
 
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recordingContextRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -130,16 +117,9 @@ export function useVideoExportRecorder() {
   const useWebCodecsRef = useRef(false);
   const frameRequestRef = useRef<number | null>(null);
   const frameCleanupRef = useRef<(() => void) | null>(null);
-  const cachedOverlayRef = useRef<HTMLCanvasElement | null>(null);
-  const overlayBusyRef = useRef(false);
-  const overlayLastUpdateRef = useRef(0);
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
-  const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
-  const overlayRunIdRef = useRef(0);
   const svgMarkerImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const pendingSvgMarkerLoadsRef = useRef<Set<string>>(new Set());
-
-  const html2canvas = useCallback(() => window.html2canvas ?? null, []);
 
   const preloadSvgMarkerIcon = useCallback((url: string) => {
     if (!url || svgMarkerImageCacheRef.current.has(url) || pendingSvgMarkerLoadsRef.current.has(url)) {
@@ -172,191 +152,6 @@ export function useVideoExportRecorder() {
       }
     });
   }, [preloadSvgMarkerIcon, tracks, trailStyle.currentIcon]);
-
-  const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
-    if (html2canvas()) return true;
-    if (html2CanvasLoaderRef.current) {
-      return html2CanvasLoaderRef.current;
-    }
-
-    html2CanvasLoaderRef.current = new Promise((resolve) => {
-      const existingScript = document.querySelector('script[data-trailreplay-html2canvas="true"]') as HTMLScriptElement | null;
-      if (existingScript) {
-        existingScript.addEventListener('load', () => resolve(true), { once: true });
-        existingScript.addEventListener('error', () => resolve(false), { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      script.crossOrigin = 'anonymous';
-      script.dataset.trailreplayHtml2canvas = 'true';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.head.appendChild(script);
-    });
-
-    return html2CanvasLoaderRef.current;
-  }, [html2canvas]);
-
-  const updateOverlayAsync = useCallback(async (recordW: number, recordH: number) => {
-    const capture = html2canvas();
-    if (overlayBusyRef.current || !capture) return;
-    const runId = overlayRunIdRef.current;
-    overlayBusyRef.current = true;
-    overlayLastUpdateRef.current = Date.now();
-
-    try {
-      const container = document.getElementById('map-capture-container');
-      if (!container) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const { cropX, cropY, scaleToRecording, margin } = getExportOverlayMetrics(containerRect, recordW, recordH);
-
-      const overlay = document.createElement('canvas');
-      overlay.width = recordW;
-      overlay.height = recordH;
-      const overlayContext = overlay.getContext('2d');
-      if (!overlayContext) return;
-
-      if (videoExportSettings.includeStats) {
-        const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
-        if (statsElement) {
-          try {
-            const statsCaptureScale = 4;
-            const statsRect = statsElement.getBoundingClientRect();
-            const captureCanvas = await capture(statsElement, {
-              backgroundColor: null,
-              scale: statsCaptureScale,
-              logging: false,
-              useCORS: true,
-              allowTaint: true,
-            });
-            const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
-            const hasCustomPosition = useAppStore.getState().settings.statsPosition !== null;
-            const statsDrawRect = getStatsOverlayDrawRect({
-              captureCanvas: {
-                width: drawWidth,
-                height: drawHeight,
-              },
-              scaleToRecording: 1,
-              positionScale: scaleToRecording,
-              recordW,
-              recordH,
-              margin,
-              ...(hasCustomPosition && {
-                elementRect: statsRect,
-                containerRect: containerRect,
-                cropX,
-                cropY,
-              }),
-            });
-            overlayContext.drawImage(
-              captureCanvas,
-              0,
-              0,
-              captureCanvas.width,
-              captureCanvas.height,
-              statsDrawRect.drawX,
-              statsDrawRect.drawY,
-              statsDrawRect.drawWidth,
-              statsDrawRect.drawHeight,
-            );
-          } catch {
-            // Skip overlay when capture fails.
-          }
-        }
-      }
-
-      if (videoExportSettings.includeElevation) {
-        const elevationElement = document.getElementById('mapElevationProfile') as HTMLElement | null;
-        if (elevationElement) {
-          try {
-            const captureCanvas = await capture(elevationElement, {
-              backgroundColor: null,
-              scale: 1,
-              logging: false,
-              useCORS: true,
-            });
-            const { drawX, drawY, drawWidth, drawHeight } = getElevationOverlayDrawRect({
-              captureCanvas,
-              scaleToRecording,
-              recordW,
-              recordH,
-              margin,
-            });
-            overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, drawX, drawY, drawWidth, drawHeight);
-          } catch {
-            // Skip overlay when capture fails.
-          }
-        }
-      }
-
-      const picturePopupElement = document.querySelector('.tr-picture-popup') as HTMLElement | null;
-      if (picturePopupElement) {
-        try {
-          const popupRect = picturePopupElement.getBoundingClientRect();
-          const popupDrawRect = getPopupOverlayDrawRect({
-            popupRect,
-            containerRect,
-            cropX,
-            cropY,
-            scaleToRecording,
-          });
-
-          if (isDrawableRect(popupDrawRect)) {
-            const captureCanvas = await capture(picturePopupElement, {
-              backgroundColor: null,
-              scale: 1,
-              logging: false,
-              useCORS: true,
-              allowTaint: true,
-            });
-            overlayContext.drawImage(
-              captureCanvas,
-              0,
-              0,
-              captureCanvas.width,
-              captureCanvas.height,
-              popupDrawRect.drawX,
-              popupDrawRect.drawY,
-              popupDrawRect.drawWidth,
-              popupDrawRect.drawHeight
-            );
-
-            const popupImageElement = picturePopupElement.querySelector('img') as HTMLImageElement | null;
-            if (popupImageElement && popupImageElement.complete && popupImageElement.naturalWidth > 0) {
-              const imageRect = popupImageElement.getBoundingClientRect();
-              const imageDrawRect = getPopupOverlayDrawRect({
-                popupRect: imageRect,
-                containerRect,
-                cropX,
-                cropY,
-                scaleToRecording,
-              });
-              if (isDrawableRect(imageDrawRect)) {
-                overlayContext.drawImage(
-                  popupImageElement,
-                  imageDrawRect.drawX,
-                  imageDrawRect.drawY,
-                  imageDrawRect.drawWidth,
-                  imageDrawRect.drawHeight
-                );
-              }
-            }
-          }
-        } catch {
-          // Skip popup capture when unavailable.
-        }
-      }
-
-      if (runId === overlayRunIdRef.current) {
-        cachedOverlayRef.current = overlay;
-      }
-    } finally {
-      overlayBusyRef.current = false;
-    }
-  }, [html2canvas, videoExportSettings.includeElevation, videoExportSettings.includeStats]);
 
   const captureFrame = useCallback(() => {
     if (!recordingCanvasRef.current || !recordingContextRef.current) return;
@@ -463,7 +258,7 @@ export function useVideoExportRecorder() {
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
+  }, [cachedOverlayRef, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
   // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
   // No-op for the MediaRecorder path, which samples the canvas stream itself.
@@ -798,10 +593,7 @@ export function useVideoExportRecorder() {
     setIsDeterministicExport(false);
     useWebCodecsRef.current = false;
     mp4EncoderRef.current = null;
-    cachedOverlayRef.current = null;
-    overlayBusyRef.current = false;
-    overlayLastUpdateRef.current = 0;
-    overlayRunIdRef.current += 1;
+    resetOverlayCapture();
     trackEvent('export_started', {
       export_format: actualFormat,
       export_quality: videoExportSettings.quality,
@@ -909,15 +701,13 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, finishRecording, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, finishRecording, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';
     isRecordingRef.current = false;
     recordingCancelledRef.current = true;
-    cachedOverlayRef.current = null;
-    overlayBusyRef.current = false;
-    overlayRunIdRef.current += 1;
+    resetOverlayCapture();
 
     if (frameCleanupRef.current) {
       frameCleanupRef.current();
@@ -945,7 +735,7 @@ export function useVideoExportRecorder() {
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [actualFormat, exportProgress, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting]);
+  }, [actualFormat, exportProgress, resetOverlayCapture, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
