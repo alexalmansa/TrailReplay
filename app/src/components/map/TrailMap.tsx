@@ -44,8 +44,6 @@ export function TrailMap(_props: TrailMapProps) {
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const smoothBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
-  const introZoomTriggeredRef = useRef<boolean>(false);
-  const lastAnimationPhaseRef = useRef<string>('idle');
   const loadZoomDoneRef = useRef<boolean>(false);
 
   const tracks = useAppStore((state) => state.tracks);
@@ -195,11 +193,9 @@ export function TrailMap(_props: TrailMapProps) {
     currentTrackName: currentTrackName ?? null,
     elevationData,
     followBehindZoomLevel,
-    introZoomTriggeredRef,
     isExporting,
     isInTransport,
     isMapLoaded,
-    lastAnimationPhaseRef,
     mapRef: map,
     markerRef,
     playbackProgress: playback.progress,
@@ -224,6 +220,7 @@ export function TrailMap(_props: TrailMapProps) {
   useTilePreload({
     allCoordinates,
     animationPhase,
+    cameraMode,
     elevationData,
     followBehindZoomLevel,
     isMapLoaded,
@@ -232,6 +229,7 @@ export function TrailMap(_props: TrailMapProps) {
     setAnimationPhase,
     smoothBearingRef,
     targetBearingRef,
+    totalDurationMs: playback.totalDuration,
   });
 
   useEffect(() => {

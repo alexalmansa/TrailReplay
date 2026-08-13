@@ -1,20 +1,25 @@
 import { useEffect, useRef } from 'react';
 import type maplibregl from 'maplibre-gl';
-import { getFollowBehindCameraTarget } from '@/utils/followBehindCamera';
 import {
-  calculateTerrainAwareAdjustments,
-  TERRAIN_CAMERA_SETTINGS,
-} from '@/components/map/cameraUtils';
+  getIntroCameraPose,
+  getOpeningPreloadProgresses,
+  getPlaybackCameraPose,
+  type ReplayCameraMode,
+  type ReplayCameraPose,
+} from '@/utils/replayCameraPlan';
 
-// Safety net so a slow or offline tile server can never wedge the UI in the
-// preloading phase. If `idle` hasn't fired by now, advance to the intro anyway.
+// Never hold the replay behind the preparation screen indefinitely. The opening
+// sequence gets the whole budget; each camera sample may finish sooner on idle.
 const PRELOAD_TIMEOUT_MS = 6000;
+const OPENING_WINDOW_MS = 12000;
+const OPENING_SAMPLE_COUNT = 5;
 
 type AnimationPhase = 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
 
 interface UseTilePreloadParams {
   allCoordinates: number[][];
   animationPhase: AnimationPhase;
+  cameraMode: ReplayCameraMode;
   elevationData: Array<{ elevation: number; progress?: number }>;
   followBehindZoomLevel: number;
   isMapLoaded: boolean;
@@ -23,21 +28,37 @@ interface UseTilePreloadParams {
   setAnimationPhase: (phase: AnimationPhase) => void;
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
+  totalDurationMs: number;
+}
+
+function uniquePoses(poses: Array<ReplayCameraPose | null>): ReplayCameraPose[] {
+  const seen = new Set<string>();
+  return poses.filter((pose): pose is ReplayCameraPose => {
+    if (!pose) return false;
+    const key = [
+      pose.center[0].toFixed(5),
+      pose.center[1].toFixed(5),
+      pose.zoom.toFixed(2),
+      pose.pitch.toFixed(2),
+      pose.bearing.toFixed(1),
+    ].join(':');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
- * While `animationPhase === 'preloading'`, instantly jump the (overlay-covered)
- * camera to the intro's final target so MapLibre fetches exactly the tiles the
- * cinematic intro and playback will start with. Once those tiles are loaded
- * (`map.once('idle')`) — or a safety timeout elapses — snap the camera back to
- * the overview and advance to the `intro` phase. The intro flyTo then animates
- * from the overview against a warm tile cache, so no white tiles appear.
- *
- * Fixes issue #63 (3D missing map tiles, pre-load).
+ * Warms the exact intro pose and a short sequence of future playback poses.
+ * The map remains covered while it visits each viewport, so MapLibre retains
+ * decoded tiles in its primary-map cache instead of only warming the browser's
+ * HTTP cache. Playback then begins with both the opening shot and the first
+ * twelve seconds of its camera path ready or already in flight.
  */
 export function useTilePreload({
   allCoordinates,
   animationPhase,
+  cameraMode,
   elevationData,
   followBehindZoomLevel,
   isMapLoaded,
@@ -46,6 +67,7 @@ export function useTilePreload({
   setAnimationPhase,
   smoothBearingRef,
   targetBearingRef,
+  totalDurationMs,
 }: UseTilePreloadParams) {
   const hasAdvancedRef = useRef(false);
 
@@ -55,106 +77,91 @@ export function useTilePreload({
       return;
     }
 
-    // Paused while preloading: abort and return to idle (cleanup of the prior
-    // run restores the overview camera).
     if (!isPlaying) {
       setAnimationPhase('idle');
       return;
     }
 
     const map = mapRef.current;
-    if (!map || !isMapLoaded || allCoordinates.length === 0) {
-      // Nothing to warm up — go straight to the intro.
+    if (!map || !isMapLoaded || allCoordinates.length === 0 || cameraMode === 'overview') {
       setAnimationPhase('intro');
       return;
     }
 
     hasAdvancedRef.current = false;
-
-    // Compute the intro's final camera target the same way useTrailPlaybackCamera
-    // does, so we prime the exact tiles the intro flyTo lands on.
-    const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'intro');
-    const startPoint = allCoordinates[0];
-    const lookAheadPoint = allCoordinates[Math.min(10, allCoordinates.length - 1)];
-
-    if (!startPoint || !lookAheadPoint) {
-      setAnimationPhase('intro');
-      return;
-    }
-
-    const lat1 = (startPoint[1] * Math.PI) / 180;
-    const lat2 = (lookAheadPoint[1] * Math.PI) / 180;
-    const lon1 = (startPoint[0] * Math.PI) / 180;
-    const lon2 = (lookAheadPoint[0] * Math.PI) / 180;
-    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-    const x =
-      Math.cos(lat1) * Math.sin(lat2) -
-      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-    const initialBearing = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-
-    const startElevation = elevationData.length > 0 ? elevationData[0].elevation : 0;
-    const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(startElevation, elevationData, 0);
-
-    const targetZoom = Math.max(
-      TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-      Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
-    );
-    const targetPitch = Math.max(
-      TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-      Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
-    );
-
-    // Remember the overview the intro animates from, so we can restore it.
+    let cancelled = false;
+    let activeTimeout: ReturnType<typeof setTimeout> | null = null;
     const overview = {
       center: map.getCenter(),
       zoom: map.getZoom(),
       pitch: map.getPitch(),
       bearing: map.getBearing(),
     };
+    const introPose = getIntroCameraPose({
+      cameraMode,
+      coordinates: allCoordinates,
+      elevationData,
+      followBehindZoomLevel,
+      progress: 0,
+    });
+    const openingPoses = getOpeningPreloadProgresses(
+      totalDurationMs || 60000,
+      OPENING_WINDOW_MS,
+      OPENING_SAMPLE_COUNT,
+    ).map((progress) => getPlaybackCameraPose({
+      cameraMode,
+      coordinates: allCoordinates,
+      elevationData,
+      followBehindZoomLevel,
+      progress,
+    }));
+    const poses = uniquePoses([introPose, ...openingPoses]);
+    const deadline = Date.now() + PRELOAD_TIMEOUT_MS;
 
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const advance = () => {
-      if (hasAdvancedRef.current) return;
+    const restoreAndAdvance = () => {
+      if (hasAdvancedRef.current || cancelled) return;
       hasAdvancedRef.current = true;
-      map.off('idle', advance);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      // Snap back to the overview so the intro flyTo still plays the cinematic
-      // zoom-in — now against warm tiles.
+      if (activeTimeout) clearTimeout(activeTimeout);
       map.jumpTo(overview);
-      smoothBearingRef.current = initialBearing;
-      targetBearingRef.current = initialBearing;
+      if (introPose) {
+        smoothBearingRef.current = introPose.bearing;
+        targetBearingRef.current = introPose.bearing;
+      }
       setAnimationPhase('intro');
     };
 
-    // Prime the start tiles, then wait for them to finish loading.
-    map.jumpTo({
-      center: startPoint as [number, number],
-      zoom: targetZoom,
-      pitch: targetPitch,
-      bearing: initialBearing,
+    const warmPose = (pose: ReplayCameraPose) => new Promise<void>((resolve) => {
+      const finish = () => {
+        map.off('idle', finish);
+        if (activeTimeout) {
+          clearTimeout(activeTimeout);
+          activeTimeout = null;
+        }
+        resolve();
+      };
+
+      map.jumpTo(pose);
+      map.once('idle', finish);
+      activeTimeout = setTimeout(finish, Math.max(0, deadline - Date.now()));
     });
-    map.once('idle', advance);
-    timeoutId = setTimeout(advance, PRELOAD_TIMEOUT_MS);
+
+    void (async () => {
+      for (const pose of poses) {
+        if (cancelled || Date.now() >= deadline) break;
+        await warmPose(pose);
+      }
+      restoreAndAdvance();
+    })();
 
     return () => {
-      map.off('idle', advance);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      // If we leave preloading without having advanced (e.g. pause/unmount),
-      // restore the overview camera so we don't leave the map at the primed target.
-      if (!hasAdvancedRef.current) {
-        map.jumpTo(overview);
-      }
+      cancelled = true;
+      if (activeTimeout) clearTimeout(activeTimeout);
+      if (!hasAdvancedRef.current) map.jumpTo(overview);
     };
   }, [
     allCoordinates,
     animationPhase,
+    cameraMode,
     elevationData,
     followBehindZoomLevel,
     isMapLoaded,
@@ -163,5 +170,6 @@ export function useTilePreload({
     setAnimationPhase,
     smoothBearingRef,
     targetBearingRef,
+    totalDurationMs,
   ]);
 }
