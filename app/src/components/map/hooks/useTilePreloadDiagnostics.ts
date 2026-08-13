@@ -45,7 +45,17 @@ export function useTilePreloadDiagnostics({
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return;
     window.__trailReplayTileDiagnostics = () => diagnostics.snapshot();
-    return () => { delete window.__trailReplayTileDiagnostics; };
+    const publishSnapshot = () => {
+      document.documentElement.dataset.tilePreloadDiagnostics = JSON.stringify(diagnostics.snapshot().summary);
+    };
+    publishSnapshot();
+    const intervalId = window.setInterval(publishSnapshot, 500);
+
+    return () => {
+      window.clearInterval(intervalId);
+      delete window.__trailReplayTileDiagnostics;
+      delete document.documentElement.dataset.tilePreloadDiagnostics;
+    };
   }, [diagnostics]);
 
   return diagnostics;
