@@ -14,6 +14,7 @@ type SettingsSlice = Pick<
   | 'videoExportSettings'
   | 'socialShareSettings'
   | 'isExporting'
+  | 'isDeterministicExport'
   | 'exportProgress'
   | 'exportStage'
   | 'cameraPosition'
@@ -28,6 +29,7 @@ type SettingsSlice = Pick<
   | 'exportSubMode'
   | 'setExportSubMode'
   | 'setIsExporting'
+  | 'setIsDeterministicExport'
   | 'setExportProgress'
   | 'setExportStage'
   | 'setCameraPosition'
@@ -40,6 +42,7 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
   socialShareSettings: createDefaultSocialShareSettings(),
   exportSubMode: 'video',
   isExporting: false,
+  isDeterministicExport: false,
   exportProgress: 0,
   exportStage: '',
   cameraPosition: null,
@@ -97,9 +100,15 @@ export const createSettingsSlice: AppSliceCreator<SettingsSlice> = (set) => ({
         state.activePanel = 'export';
       }
       if (!isExporting) {
+        state.isDeterministicExport = false;
         state.exportProgress = 0;
         state.exportStage = '';
       }
+    }),
+
+  setIsDeterministicExport: (isDeterministicExport) =>
+    set((state) => {
+      state.isDeterministicExport = isDeterministicExport;
     }),
 
   setExportProgress: (progress) =>
