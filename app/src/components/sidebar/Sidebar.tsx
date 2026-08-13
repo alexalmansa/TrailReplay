@@ -123,7 +123,9 @@ export function Sidebar() {
               ${isLockedByExport ? 'cursor-not-allowed opacity-45 hover:bg-transparent' : ''}
             `}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon
+              className={tab.id === 'journey' ? 'h-5 w-5 shrink-0 stroke-[2.5]' : 'h-4 w-4 shrink-0'}
+            />
             <span>{tab.label}</span>
             {tab.count > 0 && (
               <span className={`

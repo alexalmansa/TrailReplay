@@ -4,6 +4,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Mountain,
   Navigation,
   Palette,
   Play,
@@ -77,19 +78,24 @@ export function TrackItem({
       }}
       onDrop={handleDrop}
       className={`
-        tr-journey-segment p-3 cursor-move transition-all
-        ${isActive ? 'active ring-2 ring-[var(--trail-orange)]' : ''}
+        cursor-move overflow-hidden rounded-xl border bg-white/70 shadow-[0_8px_20px_rgba(27,42,32,0.06)] transition-colors
+        ${isActive ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)] shadow-[0_10px_24px_rgba(193,101,47,0.13)]' : 'border-[var(--evergreen)]/16 hover:border-[var(--evergreen)]/30'}
         ${isDragging ? 'opacity-50' : ''}
       `}
     >
-      <div className="flex items-start gap-2">
-        <GripVertical className="mt-1 h-4 w-4 text-[var(--evergreen-40)]" />
+      <div className="flex items-stretch gap-3 p-3">
+        <div className="flex w-4 shrink-0 flex-col items-center gap-2 pt-0.5">
+          <GripVertical className="h-4 w-4 text-[var(--evergreen-40)]" />
+          <span className="min-h-8 w-1 flex-1 rounded-full" style={{ backgroundColor: track.color }} />
+        </div>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={onToggleVisibility}
-              className="text-[var(--evergreen-60)] hover:text-[var(--evergreen)]"
+              className="shrink-0 rounded-md p-1 text-[var(--evergreen-60)] transition-colors hover:bg-[var(--evergreen)]/8 hover:text-[var(--evergreen)]"
+              aria-label={track.visible ? 'Hide track' : 'Show track'}
+              title={track.visible ? 'Hide track' : 'Show track'}
             >
               {track.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
@@ -132,7 +138,9 @@ export function TrackItem({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowColorPicker(!showColorPicker)}
-                className="rounded p-1 hover:bg-[var(--evergreen)]/10"
+                className="rounded-md p-1 transition-colors hover:bg-[var(--evergreen)]/10"
+                aria-label="Change track color"
+                title="Change track color"
               >
                 <Palette className="h-4 w-4 text-[var(--evergreen-60)]" />
               </button>
@@ -140,80 +148,44 @@ export function TrackItem({
               <button
                 onClick={onActivate}
                 className={`
-                  rounded p-1
+                  rounded-md p-1 transition-colors
                   ${isActive
                     ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
                     : 'hover:bg-[var(--evergreen)]/10'}
                 `}
+                aria-label="Use this track"
+                title="Use this track"
               >
                 <Play className="h-4 w-4" />
               </button>
 
               <button
                 onClick={onRemove}
-                className="rounded p-1 text-red-500 hover:bg-red-100"
+                className="rounded-md p-1 text-red-500 transition-colors hover:bg-red-100"
+                aria-label="Remove track"
+                title="Remove track"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
-              <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
-                <Navigation className="h-3 w-3" />
-                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.distance')}</span>
-              </div>
-              <span className="text-sm font-semibold text-[var(--evergreen)]">
-                {formatDistance(track.totalDistance, settings.unitSystem)}
-              </span>
-            </div>
+          <dl className="mt-3 grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--evergreen)]/12 bg-[var(--evergreen)]/[0.035] text-xs">
+            <TrackMetric icon={<Navigation className="h-3.5 w-3.5" />} label={t('tracks.distance')} value={formatDistance(track.totalDistance, settings.unitSystem)} />
+            <TrackMetric icon={<Clock className="h-3.5 w-3.5" />} label={t('tracks.time')} value={formatDuration(track.movingTime || track.totalTime)} className="border-l border-[var(--evergreen)]/10" />
+            <TrackMetric icon={<TrendingUp className="h-3.5 w-3.5" />} label={t('tracks.speed')} value={formatSpeedFromKmh(track.avgMovingSpeed || track.avgSpeed, settings.unitSystem)} detail={pace > 0 ? `${Math.floor(pace)}:${String(Math.round((pace % 1) * 60)).padStart(2, '0')}/km` : undefined} className="border-t border-[var(--evergreen)]/10" />
+            <TrackMetric icon={<Mountain className="h-3.5 w-3.5" />} label={t('tracks.gain')} value={formatElevation(track.elevationGain, settings.unitSystem)} detail={`${formatElevation(track.elevationLoss, settings.unitSystem)} ${t('tracks.loss')}`} className="border-l border-t border-[var(--evergreen)]/10" />
+          </dl>
 
-            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
-              <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
-                <Clock className="h-3 w-3" />
-                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.time')}</span>
-              </div>
-              <span className="text-sm font-semibold text-[var(--evergreen)]">
-                {formatDuration(track.movingTime || track.totalTime)}
-              </span>
-            </div>
-
-            <div className="rounded-lg border border-[var(--evergreen)]/10 bg-[var(--evergreen)]/4 p-2.5">
-              <div className="mb-1 flex items-center gap-1 text-[var(--evergreen-60)]">
-                <TrendingUp className="h-3 w-3" />
-                <span className="text-[10px] font-medium uppercase tracking-[0.06em]">{t('tracks.speed')}</span>
-              </div>
-              <span className="text-sm font-semibold text-[var(--evergreen)]">
-                {formatSpeedFromKmh(track.avgMovingSpeed || track.avgSpeed, settings.unitSystem)}
-              </span>
-              {pace > 0 && (
-                <span className="mt-0.5 block text-[10px] text-[var(--evergreen-60)]">
-                  ({Math.floor(pace)}:{String(Math.round((pace % 1) * 60)).padStart(2, '0')}/km)
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-[var(--evergreen-60)]">
-            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
-              ↑ {formatElevation(track.elevationGain, settings.unitSystem)} {t('tracks.gain')}
-            </span>
-            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
-              ↓ {formatElevation(track.elevationLoss, settings.unitSystem)} {t('tracks.loss')}
-            </span>
-            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
-              ⚡ {formatSpeedFromKmh(track.maxSpeed, settings.unitSystem)} {t('tracks.max')}
-            </span>
-            <span className="rounded-full border border-[var(--evergreen)]/10 bg-white/70 px-2.5 py-1">
-              {track.points.length.toLocaleString()} {t('tracks.points')}
-            </span>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-[var(--evergreen-60)]">
+            <span>{t('tracks.max')} {formatSpeedFromKmh(track.maxSpeed, settings.unitSystem)}</span>
+            <span>{track.points.length.toLocaleString()} {t('tracks.points')}</span>
           </div>
         </div>
       </div>
 
       {showColorPicker && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5 border-t border-[var(--evergreen)]/10 bg-[var(--evergreen)]/[0.025] px-3 py-2.5 pl-10">
           {TRACK_COLORS.map((color) => (
             <button
               key={color}
@@ -230,6 +202,25 @@ export function TrackItem({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function TrackMetric({ icon, label, value, detail, className = '' }: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`min-w-0 px-2.5 py-2 ${className}`}>
+      <dt className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--evergreen-60)]">
+        {icon}
+        <span className="truncate">{label}</span>
+      </dt>
+      <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-[var(--evergreen)]">{value}</dd>
+      {detail && <p className="mt-0.5 truncate text-[10px] tabular-nums text-[var(--evergreen-60)]">{detail}</p>}
     </div>
   );
 }

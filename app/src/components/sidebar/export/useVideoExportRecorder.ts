@@ -65,6 +65,8 @@ function drawTintedSvgIcon(
 export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const visibleStats = useAppStore((state) => state.settings.visibleStats);
+  const showElevationProfile = useAppStore((state) => state.settings.showElevationProfile);
   const tracks = useAppStore((state) => state.tracks);
   const pictures = useAppStore((state) => state.pictures);
   const journeySegments = useAppStore((state) => state.journeySegments);
@@ -93,6 +95,8 @@ export function useVideoExportRecorder() {
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
+  const includeStats = visibleStats.length > 0;
+  const includeElevation = showElevationProfile;
   const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
   const {
     cachedOverlayRef,
@@ -102,8 +106,8 @@ export function useVideoExportRecorder() {
     resetOverlayCapture,
     updateOverlayAsync,
   } = useExportOverlayCapture({
-    includeElevation: videoExportSettings.includeElevation,
-    includeStats: videoExportSettings.includeStats,
+    includeElevation,
+    includeStats,
   });
 
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -599,8 +603,8 @@ export function useVideoExportRecorder() {
       export_quality: videoExportSettings.quality,
       export_fps: videoExportSettings.fps,
       export_aspect_ratio: videoExportSettings.aspectRatio,
-      export_include_stats: videoExportSettings.includeStats,
-      export_include_elevation: videoExportSettings.includeElevation,
+      export_include_stats: includeStats,
+      export_include_elevation: includeElevation,
       export_duration_bucket: getDurationBucket(playback.totalDuration),
       track_count: tracks.length,
       picture_count: pictures.length,
@@ -701,7 +705,7 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, finishRecording, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, finishRecording, includeElevation, includeStats, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';

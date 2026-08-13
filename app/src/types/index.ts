@@ -186,8 +186,6 @@ export interface VideoExportSettings {
   fps: number;
   resolution: { width: number; height: number };
   aspectRatio: AspectRatio;
-  includeStats: boolean;
-  includeElevation: boolean;
   includeAudio: boolean;
 }
 
