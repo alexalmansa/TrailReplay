@@ -22,6 +22,7 @@ import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
 import { useTilePreload } from './hooks/useTilePreload';
 import { useReplayTileWarmup } from './hooks/useReplayTileWarmup';
+import { useTilePreloadDiagnostics } from './hooks/useTilePreloadDiagnostics';
 import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
 import type { CropPreviewMetrics } from '@/utils/crop';
 
@@ -233,10 +234,17 @@ export function TrailMap(_props: TrailMapProps) {
     totalDurationMs: playback.totalDuration,
   });
 
+  const tileDiagnostics = useTilePreloadDiagnostics({
+    isMapLoaded,
+    isPlaying: playback.isPlaying,
+    mapRef: map,
+  });
+
   useReplayTileWarmup({
     allCoordinates,
     animationPhase,
     cameraMode,
+    diagnostics: tileDiagnostics,
     elevationData,
     followBehindZoomLevel,
     isMapLoaded,
