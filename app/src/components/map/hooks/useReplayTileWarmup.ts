@@ -15,12 +15,15 @@ import {
 } from '@/utils/tileRequestScheduler';
 
 const WARMUP_VIEWPORT = { width: 1920, height: 1080 };
-const WARMUP_TIMEOUT_MS = 800;
+// Discovery only needs MapLibre to submit its tile requests. Waiting for idle
+// serializes the entire horizon behind slow imagery; the scheduler owns the
+// completion lifecycle, so each predicted pose gets a short render window.
+const DISCOVERY_RENDER_WINDOW_MS = 100;
 const RESCHEDULE_INTERVAL_MS = 1500;
 const NORMAL_HORIZON_MS = 20000;
 const CLOSE_3D_HORIZON_MS = 30000;
-const NORMAL_SAMPLE_COUNT = 8;
-const CLOSE_3D_SAMPLE_COUNT = 12;
+const NORMAL_SAMPLE_COUNT = 12;
+const CLOSE_3D_SAMPLE_COUNT = 24;
 
 interface UseReplayTileWarmupParams {
   allCoordinates: number[][];
@@ -158,7 +161,6 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
 
     const warmPose = (map: maplibregl.Map, pose: ReplayCameraPose) => new Promise<void>((resolve) => {
       const finish = () => {
-        map.off('idle', finish);
         if (timeoutId) {
           clearTimeout(timeoutId);
           timeoutId = null;
@@ -168,8 +170,7 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       };
       isWarmupPoseActiveRef.current = true;
       map.jumpTo(pose);
-      map.once('idle', finish);
-      timeoutId = setTimeout(finish, WARMUP_TIMEOUT_MS);
+      timeoutId = setTimeout(finish, DISCOVERY_RENDER_WINDOW_MS);
     });
 
     const warmFuture = async () => {
@@ -204,8 +205,8 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       }
     };
 
-    // Begin immediately during the preparation/intro phases, then replenish the
-    // rolling horizon while the marker moves.
+    // Scan the whole horizon quickly; request completion is deliberately owned
+    // by the independent queue rather than by the offscreen map's idle state.
     void warmFuture();
     intervalId = setInterval(() => { void warmFuture(); }, RESCHEDULE_INTERVAL_MS);
 
