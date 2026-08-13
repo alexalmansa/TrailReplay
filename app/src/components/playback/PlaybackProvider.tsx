@@ -22,6 +22,7 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
   const journeySegments = useAppStore((state) => state.journeySegments);
   const cinematicPlayed = useAppStore((state) => state.cinematicPlayed);
   const animationPhase = useAppStore((state) => state.animationPhase);
+  const isDeterministicExport = useAppStore((state) => state.isDeterministicExport);
   const setPlayback = useAppStore((state) => state.setPlayback);
   const pause = useAppStore((state) => state.pause);
   const setCinematicPlayed = useAppStore((state) => state.setCinematicPlayed);
@@ -107,7 +108,9 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
 
   // Animation loop - only run when in 'playing' phase
   useEffect(() => {
-    if (!playback.isPlaying || animationPhase !== 'playing') {
+    // Video export owns playback time itself. It advances exactly one route
+    // interval per encoded frame, so this wall-clock rAF loop must stay idle.
+    if (!playback.isPlaying || animationPhase !== 'playing' || isDeterministicExport) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
@@ -165,7 +168,7 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [playback.isPlaying, animationPhase, calculateTotalDuration, pause, setPlayback, setAnimationPhase, resetPlayback]);
+  }, [playback.isPlaying, animationPhase, calculateTotalDuration, isDeterministicExport, pause, setPlayback, setAnimationPhase, resetPlayback]);
 
   // Update total duration when track or journey changes
   useEffect(() => {

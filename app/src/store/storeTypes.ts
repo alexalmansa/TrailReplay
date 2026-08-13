@@ -40,6 +40,7 @@ export interface AppState {
   socialShareSettings: SocialShareSettings;
   exportSubMode: 'video' | 'image';
   isExporting: boolean;
+  isDeterministicExport: boolean;
   exportProgress: number;
   exportStage: string;
   isSidebarOpen: boolean;
@@ -107,6 +108,7 @@ export interface AppState {
   setSocialShareSettings: (settings: Partial<SocialShareSettings>) => void;
   setExportSubMode: (mode: 'video' | 'image') => void;
   setIsExporting: (isExporting: boolean) => void;
+  setIsDeterministicExport: (isDeterministic: boolean) => void;
   setExportProgress: (progress: number) => void;
   setExportStage: (stage: string) => void;
   setCameraPosition: (position: { lat: number; lon: number; zoom: number; pitch: number; bearing: number }) => void;

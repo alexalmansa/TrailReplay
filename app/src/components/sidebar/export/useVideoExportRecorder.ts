@@ -99,6 +99,7 @@ export function useVideoExportRecorder() {
   const exportProgress = useAppStore((state) => state.exportProgress);
   const exportStage = useAppStore((state) => state.exportStage);
   const setIsExporting = useAppStore((state) => state.setIsExporting);
+  const setIsDeterministicExport = useAppStore((state) => state.setIsDeterministicExport);
   const setExportProgress = useAppStore((state) => state.setExportProgress);
   const setExportStage = useAppStore((state) => state.setExportStage);
   const resetPlayback = useAppStore((state) => state.resetPlayback);
@@ -466,10 +467,10 @@ export function useVideoExportRecorder() {
 
   // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
   // No-op for the MediaRecorder path, which samples the canvas stream itself.
-  const encodeWebCodecsFrame = useCallback(() => {
+  const encodeWebCodecsFrame = useCallback(async (timestampMicros?: number) => {
     if (!useWebCodecsRef.current || !mp4EncoderRef.current || !recordingCanvasRef.current) return;
-    const elapsedMicros = (performance.now() - recordingStartTimeRef.current) * 1000;
-    mp4EncoderRef.current.encodeCanvas(recordingCanvasRef.current, elapsedMicros);
+    const elapsedMicros = timestampMicros ?? (performance.now() - recordingStartTimeRef.current) * 1000;
+    await mp4EncoderRef.current.encodeCanvas(recordingCanvasRef.current, elapsedMicros);
   }, []);
 
   const startFrameCapture = useCallback(() => {
@@ -483,7 +484,7 @@ export function useVideoExportRecorder() {
         const now = performance.now();
         if (now - lastCaptureTime >= targetFrameInterval) {
           captureFrame();
-          encodeWebCodecsFrame();
+          void encodeWebCodecsFrame();
           lastCaptureTime = now;
         }
         frameRequestRef.current = requestAnimationFrame(captureLoop);
@@ -497,7 +498,7 @@ export function useVideoExportRecorder() {
       const now = performance.now();
       if (now - lastCaptureTime >= targetFrameInterval) {
         captureFrame();
-        encodeWebCodecsFrame();
+        void encodeWebCodecsFrame();
         lastCaptureTime = now;
       }
     };
@@ -512,6 +513,27 @@ export function useVideoExportRecorder() {
     };
     frameRequestRef.current = requestAnimationFrame(keepRendering);
   }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps]);
+
+  const waitForMapFrame = useCallback(async () => {
+    // Let React commit the new replay state, then wait for MapLibre to draw it.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const map = mapGlobalRef.current;
+    if (!map) return;
+
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      map.once('render', finish);
+      map.triggerRepaint();
+      // A render event is normally immediate. Keep export cancellable if a map
+      // implementation declines to render while its style is changing.
+      requestAnimationFrame(() => requestAnimationFrame(finish));
+    });
+  }, []);
 
   // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
   const finalizeWebCodecsExport = useCallback(async () => {
@@ -562,9 +584,10 @@ export function useVideoExportRecorder() {
         export_encoder_path: 'webcodecs',
       });
     } finally {
+      setIsDeterministicExport(false);
       setIsExporting(false);
     }
-  }, [playback.totalDuration, setExportProgress, setExportStage, setIsExporting, t]);
+  }, [playback.totalDuration, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -601,6 +624,43 @@ export function useVideoExportRecorder() {
       recorder.stop();
     }
   }, [finalizeWebCodecsExport, setExportStage, t]);
+
+  const runDeterministicExport = useCallback(async () => {
+    if (!mp4EncoderRef.current) return;
+
+    const { fps } = videoExportSettings;
+    const frameDurationMs = 1000 / fps;
+    const store = useAppStore.getState();
+    const routeDurationMs = store.playback.totalDuration;
+    const speed = store.playback.speed;
+    const frameCount = Math.ceil(routeDurationMs / (frameDurationMs * speed));
+    const progressUpdateInterval = Math.max(1, Math.round(fps / 5));
+
+    setIsDeterministicExport(true);
+    store.setCinematicPlayed(true);
+    store.setPlayback({ isPlaying: true, currentTime: 0, progress: 0 });
+    store.setAnimationPhase('playing');
+
+    for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+
+      const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs * speed);
+      const progress = routeDurationMs > 0 ? currentTime / routeDurationMs : 1;
+      useAppStore.getState().setPlayback({ currentTime, progress });
+      await waitForMapFrame();
+
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      captureFrame();
+      await encodeWebCodecsFrame(frameIndex * frameDurationMs * 1000);
+
+      if (frameIndex % progressUpdateInterval === 0 || frameIndex === frameCount) {
+        setExportProgress(progress * 100);
+        setExportStage(t('export.recording'));
+      }
+    }
+
+    if (!recordingCancelledRef.current) finishRecording();
+  }, [captureFrame, encodeWebCodecsFrame, finishRecording, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
 
   useEffect(() => {
     if (!isRecordingRef.current) return;
@@ -735,6 +795,7 @@ export function useVideoExportRecorder() {
     setExportedBlob(null);
     recordedChunksRef.current = [];
     recordingCancelledRef.current = false;
+    setIsDeterministicExport(false);
     useWebCodecsRef.current = false;
     mp4EncoderRef.current = null;
     cachedOverlayRef.current = null;
@@ -819,11 +880,18 @@ export function useVideoExportRecorder() {
       recordingStartTimeRef.current = performance.now();
       isRecordingRef.current = true;
 
-      startFrameCapture();
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
       setExportStage(t('export.stageRecordingAnimation'));
-      play();
+      if (useWebCodecsRef.current) {
+        void runDeterministicExport().catch((error) => {
+          console.error('Deterministic export failed', error);
+          setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
+          finishRecording();
+        });
+      } else {
+        startFrameCapture();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        play();
+      }
     } catch (error) {
       console.error('Export failed:', error);
       trackEvent('export_failed', {
@@ -833,6 +901,7 @@ export function useVideoExportRecorder() {
       });
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
       setIsExporting(false);
+      setIsDeterministicExport(false);
       isRecordingRef.current = false;
       if (mp4EncoderRef.current) {
         mp4EncoderRef.current.close();
@@ -840,7 +909,7 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetPlayback, setCinematicPlayed, setExportProgress, setExportStage, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, finishRecording, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';
@@ -865,6 +934,7 @@ export function useVideoExportRecorder() {
       mp4EncoderRef.current = null;
     }
     useWebCodecsRef.current = false;
+    setIsDeterministicExport(false);
 
     trackEvent('export_cancelled', {
       export_progress_bucket: getProgressBucket(exportProgress),
@@ -875,7 +945,7 @@ export function useVideoExportRecorder() {
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [actualFormat, exportProgress, resetPlayback, setExportProgress, setExportStage, setIsExporting]);
+  }, [actualFormat, exportProgress, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;

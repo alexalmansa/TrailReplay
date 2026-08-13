@@ -10,11 +10,10 @@ export interface Mp4CanvasEncoderOptions {
 export interface Mp4CanvasEncoder {
   /**
    * Encode the current contents of the canvas at the given presentation time
-   * (microseconds since recording start). Using real elapsed time — rather than
-   * a frame index — keeps the output duration equal to the wall-clock recording
-   * time even if frame capture can't keep up with the target fps.
+   * (microseconds on the output timeline). Deterministic exports pass the fixed
+   * frame timestamp, while the legacy recorder path uses elapsed wall time.
    */
-  encodeCanvas(canvas: HTMLCanvasElement, timestampMicros: number): void;
+  encodeCanvas(canvas: HTMLCanvasElement, timestampMicros: number): Promise<void>;
   /** Number of frames still queued in the encoder (for backpressure decisions). */
   pendingFrames(): number;
   /** Flush, mux and return the finished MP4 as a Blob. */
@@ -54,7 +53,9 @@ async function resolveSupportedConfig(
       bitrate: options.bitrate,
       framerate: options.fps,
       avc: { format: 'avc' },
-      latencyMode: 'realtime',
+      // Export is allowed to take longer than playback. Prefer preserving every
+      // submitted frame over the low-latency behaviour useful for live video.
+      latencyMode: 'quality',
     };
     try {
       const support = await VideoEncoder.isConfigSupported(config);
@@ -105,12 +106,8 @@ export async function createMp4CanvasEncoder(
   let finalized = false;
 
   return {
-    encodeCanvas(canvas, timestampMicros) {
+    async encodeCanvas(canvas, timestampMicros) {
       if (finalized || encoderError || encoder.state !== 'configured') return;
-      // If the encoder falls badly behind on a heavy resolution, drop this frame
-      // rather than exhausting memory. The previous frame simply shows a little
-      // longer; timestamps stay correct so playback never desyncs.
-      if (encoder.encodeQueueSize > 30) return;
 
       // Timestamps must be strictly increasing; skip any non-advancing frame.
       const timestamp = Math.max(0, Math.round(timestampMicros));
@@ -128,6 +125,13 @@ export async function createMp4CanvasEncoder(
         encoder.encode(frame, { keyFrame });
       } finally {
         frame.close();
+      }
+
+      // A fixed-frame export must never turn encoder pressure into a missing
+      // output frame. Apply backpressure here and let export take longer.
+      if (encoder.encodeQueueSize >= 8) {
+        await encoder.flush();
+        if (encoderError) throw encoderError;
       }
     },
     pendingFrames() {

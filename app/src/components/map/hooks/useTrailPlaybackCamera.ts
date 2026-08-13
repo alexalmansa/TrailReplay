@@ -57,6 +57,7 @@ interface UseTrailPlaybackCameraParams {
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
   isExporting: boolean;
+  isDeterministicExport: boolean;
   trailStyle: {
     colorMode: 'fixed' | 'heartRate' | 'zones';
     colorZones: readonly TrailColorZone[];
@@ -87,6 +88,7 @@ export function useTrailPlaybackCamera({
   currentTrackName,
   elevationData,
   followBehindZoomLevel,
+  isDeterministicExport,
   isExporting,
   isInTransport,
   isMapLoaded,
@@ -262,7 +264,17 @@ export function useTrailPlaybackCamera({
         ? Math.min(currentZoom + 0.1, targetPose.zoom)
         : Math.max(currentZoom - 0.1, targetPose.zoom);
 
-      if (cameraMode === 'follow') {
+      // During deterministic export, camera interpolation must not run on its
+      // own clock. The exporter advances playback one frame at a time and waits
+      // for this exact pose to render before encoding it.
+      if (isDeterministicExport) {
+        mapRef.current.jumpTo({
+          ...targetPose,
+          center: [currentPosition.lon, currentPosition.lat],
+          zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
+          bearing: cameraMode === 'follow' ? targetPose.bearing : smoothBearingRef.current,
+        });
+      } else if (cameraMode === 'follow') {
         mapRef.current.easeTo({
           ...targetPose,
           center: [currentPosition.lon, currentPosition.lat],
@@ -303,6 +315,7 @@ export function useTrailPlaybackCamera({
     currentTrackName,
     elevationData,
     followBehindZoomLevel,
+    isDeterministicExport,
     isInTransport,
     isMapLoaded,
     mapRef,
