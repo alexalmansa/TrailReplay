@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { MAP_STYLE } from '@/components/map/mapStyle';
 import {
@@ -6,7 +6,13 @@ import {
   type ReplayCameraMode,
   type ReplayCameraPose,
 } from '@/utils/replayCameraPlan';
-import { getMapLibreTileKey, type TilePreloadDiagnostics } from '@/utils/tilePreloadDiagnostics';
+import { getMapLibreTileKey, type TilePreloadObserver } from '@/utils/tilePreloadDiagnostics';
+import {
+  getTilePriority,
+  getTileRequestUrl,
+  preloadTileImage,
+  TileRequestScheduler,
+} from '@/utils/tileRequestScheduler';
 
 const WARMUP_VIEWPORT = { width: 1920, height: 1080 };
 const WARMUP_TIMEOUT_MS = 800;
@@ -27,7 +33,7 @@ interface UseReplayTileWarmupParams {
   mapStyle: string;
   playbackProgress: number;
   totalDurationMs: number;
-  diagnostics: TilePreloadDiagnostics;
+  diagnostics: TilePreloadObserver;
 }
 
 function deduplicatePoses(poses: ReplayCameraPose[]): ReplayCameraPose[] {
@@ -46,6 +52,11 @@ function deduplicatePoses(poses: ReplayCameraPose[]): ReplayCameraPose[] {
  * close follow-behind shots receive a wider horizon and more samples at turns.
  */
 export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
+  const [scheduler] = useState(() => new TileRequestScheduler({
+    concurrency: 6,
+    load: preloadTileImage,
+    onComplete: (request) => params.diagnostics.markTileReady(request.sourceId, request.key),
+  }));
   const warmupMapRef = useRef<maplibregl.Map | null>(null);
   const latestParamsRef = useRef(params);
   const isWarmupPoseActiveRef = useRef(false);
@@ -70,7 +81,7 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       attributionControl: false,
       container,
       interactive: false,
-      maxTileCacheSize: 600,
+      maxTileCacheSize: 1_200,
       style: MAP_STYLE as unknown as maplibregl.StyleSpecification,
     });
     warmupMapRef.current = warmupMap;
@@ -78,7 +89,18 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       if (!isWarmupPoseActiveRef.current) return;
       const key = getMapLibreTileKey(event);
       const sourceId = (event as { sourceId?: string }).sourceId;
-      if (key && sourceId) params.diagnostics.predictTile(sourceId, key);
+      if (!key || !sourceId) return;
+
+      params.diagnostics.predictTile(sourceId, key);
+      const url = getTileRequestUrl(sourceId, key);
+      if (url) {
+        scheduler.enqueue({
+          key,
+          priority: getTilePriority(sourceId),
+          sourceId,
+          url,
+        });
+      }
     };
     const onData = (event: unknown) => {
       const key = getMapLibreTileKey(event);
@@ -95,7 +117,7 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       container.remove();
       warmupMapRef.current = null;
     };
-  }, [params.diagnostics, params.isMapLoaded]);
+  }, [params.diagnostics, params.isMapLoaded, scheduler]);
 
   useEffect(() => {
     const map = warmupMapRef.current;
@@ -189,9 +211,10 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
 
     return () => {
       cancelled = true;
+      scheduler.clear();
       isWarmupPoseActiveRef.current = false;
       if (timeoutId) clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [params.isMapLoaded]);
+  }, [params.isMapLoaded, scheduler]);
 }

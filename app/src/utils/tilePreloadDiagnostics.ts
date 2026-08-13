@@ -18,6 +18,12 @@ export interface TilePreloadSummary {
   unplanned: number;
 }
 
+export interface TilePreloadObserver {
+  markTileReady(sourceId: string, key: string, loadedAt?: number): void;
+  predictTile(sourceId: string, key: string, predictedAt?: number): void;
+  requestVisibleTile(sourceId: string, key: string, neededAt?: number): void;
+}
+
 const MAX_RECORDS = 4_000;
 
 /**
@@ -26,7 +32,7 @@ const MAX_RECORDS = 4_000;
  * by the visible camera before it became ready; this avoids conflating cache
  * churn, prediction misses, and provider failures.
  */
-export class TilePreloadDiagnostics {
+export class TilePreloadDiagnostics implements TilePreloadObserver {
   private readonly records = new Map<string, TileDiagnosticRecord>();
 
   predictTile(sourceId: string, key: string, predictedAt = performance.now()): void {
@@ -96,6 +102,13 @@ export class TilePreloadDiagnostics {
     return record;
   }
 }
+
+/** Production observer: intentionally performs no allocation or bookkeeping. */
+export const NOOP_TILE_PRELOAD_OBSERVER: TilePreloadObserver = {
+  markTileReady: () => undefined,
+  predictTile: () => undefined,
+  requestVisibleTile: () => undefined,
+};
 
 /** Extracts a stable z/x/y key from MapLibre source-data events. */
 export function getMapLibreTileKey(event: unknown): string | null {

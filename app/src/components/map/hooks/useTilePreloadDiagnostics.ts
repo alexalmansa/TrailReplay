@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type maplibregl from 'maplibre-gl';
-import { getMapLibreTileKey, TilePreloadDiagnostics } from '@/utils/tilePreloadDiagnostics';
+import {
+  getMapLibreTileKey,
+  NOOP_TILE_PRELOAD_OBSERVER,
+  TilePreloadDiagnostics,
+  type TilePreloadObserver,
+} from '@/utils/tilePreloadDiagnostics';
 
 export function useTilePreloadDiagnostics({
   isMapLoaded,
@@ -11,7 +16,9 @@ export function useTilePreloadDiagnostics({
   isPlaying: boolean;
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
 }) {
-  const [diagnostics] = useState(() => new TilePreloadDiagnostics());
+  const [diagnostics] = useState<TilePreloadObserver>(() => (
+    import.meta.env.DEV ? new TilePreloadDiagnostics() : NOOP_TILE_PRELOAD_OBSERVER
+  ));
   const isPlayingRef = useRef(isPlaying);
 
   useEffect(() => {
@@ -19,6 +26,7 @@ export function useTilePreloadDiagnostics({
   }, [isPlaying]);
 
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
     const sourceId = (event: unknown) => (event as { sourceId?: string }).sourceId;
@@ -44,6 +52,7 @@ export function useTilePreloadDiagnostics({
 
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return;
+    if (!(diagnostics instanceof TilePreloadDiagnostics)) return;
     window.__trailReplayTileDiagnostics = () => diagnostics.snapshot();
     const publishSnapshot = () => {
       document.documentElement.dataset.tilePreloadDiagnostics = JSON.stringify(diagnostics.snapshot().summary);
