@@ -84,7 +84,6 @@ export function TrailMap(_props: TrailMapProps) {
   // Use the computed journey hook for multi-track support
   const {
     currentPosition,
-    currentBearing,
     currentIcon,
     currentSegment,
     completedCoordinates,
@@ -195,7 +194,6 @@ export function TrailMap(_props: TrailMapProps) {
     cameraMode,
     completedCoordinates,
     computedJourney,
-    currentBearing,
     currentIcon,
     currentPosition,
     currentSegment,

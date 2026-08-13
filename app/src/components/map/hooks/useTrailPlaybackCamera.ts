@@ -19,7 +19,6 @@ interface UseTrailPlaybackCameraParams {
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
-  currentBearing: number;
   currentIcon: string;
   currentPosition: { lat: number; lon: number } | null;
   currentSegment?: {
@@ -80,7 +79,6 @@ export function useTrailPlaybackCamera({
   cameraMode,
   completedCoordinates,
   computedJourney,
-  currentBearing,
   currentIcon,
   currentPosition,
   currentSegment,
@@ -103,9 +101,6 @@ export function useTrailPlaybackCamera({
 }: UseTrailPlaybackCameraParams) {
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
-
-    targetBearingRef.current = currentBearing;
-    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, currentBearing, 0.02);
 
     const shouldShowMarker = trailStyle.showMarker &&
       (animationPhase === 'playing' || (animationPhase === 'idle' && playbackProgress > 0));
@@ -259,6 +254,11 @@ export function useTrailPlaybackCamera({
       });
       if (!targetPose) return;
 
+      // Follow the replay plan's evenly sampled forward heading. Raw GPX
+      // bearings can jump at uneven samples and make tight turns feel abrupt.
+      targetBearingRef.current = targetPose.bearing;
+      smoothBearingRef.current = smoothBearing(smoothBearingRef.current, targetPose.bearing);
+
       const currentZoom = mapRef.current.getZoom();
       const newZoom = currentZoom < targetPose.zoom
         ? Math.min(currentZoom + 0.1, targetPose.zoom)
@@ -307,7 +307,6 @@ export function useTrailPlaybackCamera({
     cameraCoordinates,
     completedCoordinates,
     computedJourney,
-    currentBearing,
     currentIcon,
     currentPosition,
     currentSegment,

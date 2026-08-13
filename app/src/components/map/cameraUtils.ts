@@ -1,7 +1,7 @@
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
-  smoothingFactor: number = 0.015,
+  smoothingFactor: number = 0.03,
   stabilityDeadbandDegrees: number = 4,
 ): number {
   let diff = targetBearing - currentBearing;
@@ -17,7 +17,8 @@ export function smoothBearing(
     return (currentBearing + 360) % 360;
   }
 
-  const maxChange = 2;
+  // Keep sharp switchbacks cinematic rather than snapping the view sideways.
+  const maxChange = 1.25;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
 
   return (currentBearing + change + 360) % 360;
