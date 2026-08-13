@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateTerrainAwareAdjustments, smoothBearing } from './cameraUtils';
+import { calculateTerrainAwareAdjustments, smoothBearing, smoothZoom } from './cameraUtils';
 
 describe('camera utilities', () => {
   it('holds the heading for small route wiggles', () => {
@@ -13,6 +13,15 @@ describe('camera utilities', () => {
 
   it('caps a sharp camera turn so it enters the frame progressively', () => {
     expect(smoothBearing(0, 150)).toBe(1.25);
+  });
+
+  it('holds zoom steady for tiny terrain-estimation changes', () => {
+    expect(smoothZoom(15, 15.02)).toBe(15);
+  });
+
+  it('zooms in gradually but opens the frame faster when terrain requires it', () => {
+    expect(smoothZoom(15, 16)).toBeCloseTo(15.035);
+    expect(smoothZoom(15, 10)).toBeCloseTo(14.88);
   });
 
   it('uses climb above the route low point rather than absolute altitude', () => {

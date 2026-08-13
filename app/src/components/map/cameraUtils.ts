@@ -24,6 +24,30 @@ export function smoothBearing(
   return (currentBearing + change + 360) % 360;
 }
 
+/**
+ * Smooths the terrain-aware follow-camera zoom without letting minor elevation
+ * estimate changes make the view pulse. Zooming in is deliberately slower than
+ * zooming out: opening the frame quickly preserves a safe view of the marker
+ * when the route enters steeper terrain.
+ */
+export function smoothZoom(
+  currentZoom: number,
+  targetZoom: number,
+  smoothingFactor: number = 0.12,
+  stabilityDeadband: number = 0.035,
+): number {
+  const diff = targetZoom - currentZoom;
+
+  if (Math.abs(diff) < stabilityDeadband) {
+    return currentZoom;
+  }
+
+  const maxChange = diff < 0 ? 0.12 : 0.035;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+
+  return currentZoom + change;
+}
+
 export const TERRAIN_CAMERA_SETTINGS = {
   ELEVATION_RISK_METERS: 1200,
   STEEPNESS_RISK_FACTOR: 18,

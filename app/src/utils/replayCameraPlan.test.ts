@@ -23,6 +23,9 @@ describe('replay camera plan', () => {
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
       center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
     });
+    expect(getIntroCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
+      center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
+    });
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'overview' })).toBeNull();
   });
 

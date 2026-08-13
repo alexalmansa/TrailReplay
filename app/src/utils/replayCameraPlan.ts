@@ -70,7 +70,10 @@ export function getIntroCameraPose(options: CameraPlanOptions): ReplayCameraPose
     return { center, zoom: FOLLOW_CAMERA_ZOOM, pitch: 0, bearing: 0 };
   }
 
-  const preset = getFollowBehindCameraTarget(options.followBehindZoomLevel, 'intro');
+  // The fly-in must finish on the same pose used by the first playback frame.
+  // A separate, more distant intro target created a visible second zoom after
+  // the fly-in before the marker could begin moving along the route.
+  const preset = getFollowBehindCameraTarget(options.followBehindZoomLevel, 'playback');
   const elevationIndex = Math.round(clamp(options.progress, 0, 1) * Math.max(0, options.elevationData.length - 1));
   const elevation = options.elevationData[elevationIndex]?.elevation ?? 0;
   const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
@@ -81,16 +84,8 @@ export function getIntroCameraPose(options: CameraPlanOptions): ReplayCameraPose
 
   return {
     center,
-    zoom: clamp(
-      preset.zoom - zoomAdjust,
-      TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-      TERRAIN_CAMERA_SETTINGS.MAX_ZOOM,
-    ),
-    pitch: clamp(
-      preset.pitch - pitchAdjust,
-      TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-      TERRAIN_CAMERA_SETTINGS.MAX_PITCH,
-    ),
+    zoom: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_ZOOM, preset.zoom - zoomAdjust),
+    pitch: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_PITCH, preset.pitch - pitchAdjust),
     bearing: getRouteBearingAtProgress(options.coordinates, options.progress),
   };
 }
