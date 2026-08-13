@@ -15,6 +15,8 @@ import {
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
 import { useTextAnnotationsLayer } from './hooks/useTextAnnotationsLayer';
+import { useRouteLandmarksLayer } from './hooks/useRouteLandmarksLayer';
+import { useRouteLandmarks } from '@/hooks/useRouteLandmarks';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
@@ -66,6 +68,7 @@ export function TrailMap(_props: TrailMapProps) {
   const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
+  const landmarks = useRouteLandmarks();
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [showZoomButtonsHint, setShowZoomButtonsHint] = useState(false);
@@ -144,6 +147,8 @@ export function TrailMap(_props: TrailMapProps) {
     mapRef: map,
     unitSystem: settings.unitSystem,
   });
+
+  useRouteLandmarksLayer({ isMapLoaded, landmarks, mapRef: map });
 
   useComparisonTrackLayers({
     comparisonTracks,

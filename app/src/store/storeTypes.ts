@@ -19,6 +19,7 @@ import type {
   TransportMode,
   TrailStyleSettings,
 } from '@/types';
+import type { LandmarkType, RouteLandmark } from '@/types/landmarks';
 
 export interface AppState {
   tracks: GPXTrack[];
@@ -31,6 +32,13 @@ export interface AppState {
   videos: VideoAnnotation[];
   iconChanges: IconChange[];
   textAnnotations: TextAnnotation[];
+  userLandmarks: RouteLandmark[];
+  enrichedLandmarks: RouteLandmark[];
+  showAutomaticLandmarks: boolean;
+  enabledLandmarkGroups: LandmarkType[];
+  nearbyPlacesEnabled: boolean;
+  nearbyPlacesLoading: boolean;
+  nearbyPlacesError: string | null;
   playback: PlaybackState;
   cinematicPlayed: boolean;
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
@@ -87,6 +95,14 @@ export interface AppState {
   addTextAnnotation: (annotation: TextAnnotation) => void;
   updateTextAnnotation: (annotationId: string, updates: Partial<TextAnnotation>) => void;
   removeTextAnnotation: (annotationId: string) => void;
+  addLandmark: (landmark: RouteLandmark) => void;
+  updateLandmark: (landmarkId: string, updates: Partial<RouteLandmark>) => void;
+  removeLandmark: (landmarkId: string) => void;
+  setShowAutomaticLandmarks: (show: boolean) => void;
+  setEnabledLandmarkGroups: (groups: LandmarkType[]) => void;
+  setNearbyPlacesEnabled: (enabled: boolean) => void;
+  setEnrichedLandmarks: (landmarks: RouteLandmark[]) => void;
+  setNearbyPlacesStatus: (loading: boolean, error?: string | null) => void;
   setPlayback: (playback: Partial<PlaybackState>) => void;
   play: () => void;
   pause: () => void;

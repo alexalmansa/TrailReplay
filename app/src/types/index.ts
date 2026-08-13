@@ -134,6 +134,8 @@ export interface TextAnnotation {
   displayDuration: number;
 }
 
+export * from './landmarks';
+
 export interface PlaybackState {
   isPlaying: boolean;
   currentTime: number;
