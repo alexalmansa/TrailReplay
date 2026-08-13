@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getIntroCameraPose,
   getOpeningPreloadProgresses,
+  getPredictivePlaybackPoses,
   getPlaybackCameraPose,
   getRouteBearingAtProgress,
 } from './replayCameraPlan';
@@ -36,5 +37,23 @@ describe('replay camera plan', () => {
 
   it('calculates a forward route bearing', () => {
     expect(getRouteBearingAtProgress(coordinates, 0)).toBeCloseTo(90, 5);
+  });
+
+  it('adds an incoming-bearing warmup pose around a turn', () => {
+    const poses = getPredictivePlaybackPoses({
+      currentProgress: 0,
+      horizonMs: 60_000,
+      options: {
+        cameraMode: 'follow-behind',
+        coordinates: [[0, 0], [0.01, 0], [0.01, 0.01]],
+        elevationData: [],
+        followBehindZoomLevel: 100,
+      },
+      sampleCount: 3,
+      totalDurationMs: 60_000,
+    });
+
+    expect(poses.length).toBeGreaterThan(2);
+    expect(new Set(poses.map((pose) => Math.round(pose.bearing))).size).toBeGreaterThan(1);
   });
 });

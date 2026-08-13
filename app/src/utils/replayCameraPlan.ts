@@ -126,3 +126,40 @@ export function getOpeningPreloadProgresses(
     count === 1 ? 0 : (endProgress * index) / (count - 1)
   ));
 }
+
+/**
+ * Produces a denser set of poses around future turns. Each route sample has an
+ * additional forward-bearing pose so a pitched camera turning into a new view
+ * warms both the outgoing and incoming edges of its frustum.
+ */
+export function getPredictivePlaybackPoses({
+  currentProgress,
+  horizonMs,
+  options,
+  sampleCount,
+  totalDurationMs,
+}: {
+  currentProgress: number;
+  horizonMs: number;
+  options: Omit<CameraPlanOptions, 'progress'>;
+  sampleCount: number;
+  totalDurationMs: number;
+}): ReplayCameraPose[] {
+  const progresses = getOpeningPreloadProgresses(totalDurationMs, horizonMs, sampleCount)
+    .map((offset) => clamp(currentProgress + offset, 0, 1));
+  const poses: ReplayCameraPose[] = [];
+
+  for (const [index, progress] of progresses.entries()) {
+    const pose = getPlaybackCameraPose({ ...options, progress });
+    if (!pose) continue;
+    poses.push(pose);
+
+    const nextProgress = progresses[Math.min(index + 1, progresses.length - 1)] ?? progress;
+    const incomingBearing = getRouteBearingAtProgress(options.coordinates, nextProgress);
+    if (Math.abs((((incomingBearing - pose.bearing) + 540) % 360) - 180) >= 12) {
+      poses.push({ ...pose, bearing: incomingBearing });
+    }
+  }
+
+  return poses;
+}

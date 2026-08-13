@@ -1,0 +1,176 @@
+import { useEffect, useRef } from 'react';
+import maplibregl from 'maplibre-gl';
+import { MAP_STYLE } from '@/components/map/mapStyle';
+import {
+  getPredictivePlaybackPoses,
+  type ReplayCameraMode,
+  type ReplayCameraPose,
+} from '@/utils/replayCameraPlan';
+
+const WARMUP_VIEWPORT = { width: 1920, height: 1080 };
+const WARMUP_TIMEOUT_MS = 800;
+const RESCHEDULE_INTERVAL_MS = 1500;
+const NORMAL_HORIZON_MS = 20000;
+const CLOSE_3D_HORIZON_MS = 30000;
+const NORMAL_SAMPLE_COUNT = 8;
+const CLOSE_3D_SAMPLE_COUNT = 12;
+
+interface UseReplayTileWarmupParams {
+  allCoordinates: number[][];
+  animationPhase: 'preloading' | 'intro' | 'playing' | 'idle' | 'outro' | 'ended';
+  cameraMode: ReplayCameraMode;
+  elevationData: Array<{ elevation: number; progress?: number }>;
+  followBehindZoomLevel: number;
+  isMapLoaded: boolean;
+  isPlaying: boolean;
+  mapStyle: string;
+  playbackProgress: number;
+  totalDurationMs: number;
+}
+
+function deduplicatePoses(poses: ReplayCameraPose[]): ReplayCameraPose[] {
+  const seen = new Set<string>();
+  return poses.filter((pose) => {
+    const key = `${pose.center[0].toFixed(5)}:${pose.center[1].toFixed(5)}:${pose.zoom.toFixed(1)}:${pose.pitch.toFixed(0)}:${pose.bearing.toFixed(0)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Uses an offscreen MapLibre instance to keep the browser's tile cache ahead of
+ * the visible replay. It never mutates the customer-facing camera. High-pitch,
+ * close follow-behind shots receive a wider horizon and more samples at turns.
+ */
+export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
+  const warmupMapRef = useRef<maplibregl.Map | null>(null);
+  const latestParamsRef = useRef(params);
+  latestParamsRef.current = params;
+
+  useEffect(() => {
+    if (!params.isMapLoaded || warmupMapRef.current || typeof document === 'undefined') return;
+
+    const container = document.createElement('div');
+    container.setAttribute('aria-hidden', 'true');
+    Object.assign(container.style, {
+      height: `${WARMUP_VIEWPORT.height}px`,
+      left: '-10000px',
+      pointerEvents: 'none',
+      position: 'fixed',
+      top: '0',
+      width: `${WARMUP_VIEWPORT.width}px`,
+    });
+    document.body.appendChild(container);
+
+    const warmupMap = new maplibregl.Map({
+      attributionControl: false,
+      container,
+      interactive: false,
+      maxTileCacheSize: 600,
+      style: MAP_STYLE as unknown as maplibregl.StyleSpecification,
+    });
+    warmupMapRef.current = warmupMap;
+
+    return () => {
+      warmupMap.remove();
+      container.remove();
+      warmupMapRef.current = null;
+    };
+  }, [params.isMapLoaded]);
+
+  useEffect(() => {
+    const map = warmupMapRef.current;
+    if (!map) return;
+
+    const syncActiveBaseMap = () => {
+      const layerMap: Record<string, string> = {
+        satellite: 'background',
+        street: 'street',
+        topo: 'opentopomap',
+        outdoor: 'opentopomap',
+        'esri-clarity': 'esri-clarity',
+        'mapbox-streets': 'mapbox-streets',
+      };
+      const activeLayer = layerMap[latestParamsRef.current.mapStyle] || 'background';
+      ['background', 'street', 'opentopomap', 'esri-clarity', 'mapbox-streets'].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', layerId === activeLayer ? 'visible' : 'none');
+        }
+      });
+    };
+
+    if (map.isStyleLoaded()) syncActiveBaseMap();
+    else map.once('load', syncActiveBaseMap);
+
+    return () => {
+      map.off('load', syncActiveBaseMap);
+    };
+  }, [params.mapStyle]);
+
+  useEffect(() => {
+    if (!params.isMapLoaded) return;
+
+    let cancelled = false;
+    let isWarming = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const warmPose = (map: maplibregl.Map, pose: ReplayCameraPose) => new Promise<void>((resolve) => {
+      const finish = () => {
+        map.off('idle', finish);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        resolve();
+      };
+      map.jumpTo(pose);
+      map.once('idle', finish);
+      timeoutId = setTimeout(finish, WARMUP_TIMEOUT_MS);
+    });
+
+    const warmFuture = async () => {
+      if (isWarming) return;
+      const map = warmupMapRef.current;
+      const current = latestParamsRef.current;
+      if (!map || !map.loaded() || !current.isPlaying || current.cameraMode === 'overview') return;
+
+      isWarming = true;
+
+      const isClose3D = current.cameraMode === 'follow-behind' && current.followBehindZoomLevel >= 66;
+      const poses = deduplicatePoses(getPredictivePlaybackPoses({
+        currentProgress: current.playbackProgress,
+        horizonMs: isClose3D ? CLOSE_3D_HORIZON_MS : NORMAL_HORIZON_MS,
+        options: {
+          cameraMode: current.cameraMode,
+          coordinates: current.allCoordinates,
+          elevationData: current.elevationData,
+          followBehindZoomLevel: current.followBehindZoomLevel,
+        },
+        sampleCount: isClose3D ? CLOSE_3D_SAMPLE_COUNT : NORMAL_SAMPLE_COUNT,
+        totalDurationMs: current.totalDurationMs || 60000,
+      }));
+
+      try {
+        for (const pose of poses) {
+          if (cancelled) return;
+          await warmPose(map, pose);
+        }
+      } finally {
+        isWarming = false;
+      }
+    };
+
+    // Begin immediately during the preparation/intro phases, then replenish the
+    // rolling horizon while the marker moves.
+    void warmFuture();
+    intervalId = setInterval(() => { void warmFuture(); }, RESCHEDULE_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [params.isMapLoaded]);
+}
