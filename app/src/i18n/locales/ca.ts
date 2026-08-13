@@ -520,6 +520,11 @@ export const ca = {
           description: 'Dos fitxers GPX reproduïts alhora per comparar ritme, decisions de ruta i temps.',
           downloadLabel: 'Descarregar demo de comparació',
         },
+        aranLandmarks: {
+          title: 'Ruta d’Aran by UTMB amb anotacions',
+          description: 'Un replay quadrat amb pobles, llocs amb nom i anotacions de ruta al recorregut d’Aran by UTMB.',
+          downloadLabel: 'Descarregar demo d’Aran by UTMB',
+        },
       },
       sampleTracks: {
         camins: {

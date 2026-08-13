@@ -520,8 +520,9 @@ export function useVideoExportRecorder() {
     const frameDurationMs = 1000 / fps;
     const store = useAppStore.getState();
     const routeDurationMs = store.playback.totalDuration;
-    const speed = store.playback.speed;
-    const frameCount = Math.ceil(routeDurationMs / (frameDurationMs * speed));
+    // Preview speed only affects interactive playback. Export always preserves
+    // the configured journey duration on the encoded timeline.
+    const frameCount = Math.ceil(routeDurationMs / frameDurationMs);
     const progressUpdateInterval = Math.max(1, Math.round(fps / 5));
 
     setIsDeterministicExport(true);
@@ -545,7 +546,7 @@ export function useVideoExportRecorder() {
     for (let frameIndex = 1; frameIndex <= frameCount; frameIndex += 1) {
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
 
-      const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs * speed);
+      const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs);
       const progress = routeDurationMs > 0 ? currentTime / routeDurationMs : 1;
       useAppStore.getState().setPlayback({ currentTime, progress });
       await waitForMapFrame();

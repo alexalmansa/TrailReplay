@@ -520,6 +520,11 @@ export const en = {
           description: 'Two GPX files replayed together to compare pace, route choices, and timing.',
           downloadLabel: 'Download comparison mode demo',
         },
+        aranLandmarks: {
+          title: "Aran by UTMB route with landmarks",
+          description: 'A square route replay showing named places and route annotations across the Aran by UTMB course.',
+          downloadLabel: 'Download Aran by UTMB demo',
+        },
       },
       sampleTracks: {
         camins: {

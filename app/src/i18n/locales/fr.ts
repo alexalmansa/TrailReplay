@@ -520,6 +520,11 @@ help: {
         description: 'Deux fichiers GPX rejoués simultanément afin de comparer allure, itinéraire et chronologie.',
         downloadLabel: 'Télécharger l\'exemple du mode comparaison',
       },
+      aranLandmarks: {
+        title: 'Parcours Aran by UTMB avec annotations',
+        description: 'Un replay carré avec villages, lieux nommés et annotations le long du parcours Aran by UTMB.',
+        downloadLabel: 'Télécharger la démo Aran by UTMB',
+      },
     },
     sampleTracks: {
       camins: {
