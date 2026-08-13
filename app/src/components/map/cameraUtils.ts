@@ -1,11 +1,21 @@
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
-  smoothingFactor: number = 0.015
+  smoothingFactor: number = 0.015,
+  stabilityDeadbandDegrees: number = 4,
 ): number {
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
+
+  // GPS traces frequently oscillate by a few degrees on an otherwise straight
+  // section. At a close, pitched camera angle those tiny corrections read as
+  // distracting side-to-side camera movement. Keep the current heading until
+  // the route has made a meaningful turn; larger turns still take the normal
+  // smooth, shortest-path transition below.
+  if (Math.abs(diff) < stabilityDeadbandDegrees) {
+    return (currentBearing + 360) % 360;
+  }
 
   const maxChange = 2;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
@@ -30,7 +40,22 @@ export function calculateTerrainAwareAdjustments(
   elevationData: Array<{ elevation: number; progress?: number }>,
   currentProgress: number
 ): { zoomAdjust: number; pitchAdjust: number } {
-  const elevationRisk = Math.min(Math.max(0, elevation) / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS, 1);
+  // Absolute altitude is not what makes a replay camera lose its subject. The
+  // problem is the climb relative to this route's lowest section: a track that
+  // starts at sea level and climbs 1,500 m needs more room, while a flat route
+  // entirely at 1,500 m does not. This also keeps the selected close framing at
+  // the start of an alpine route and expands it progressively on the climb.
+  const finiteElevations = elevationData
+    .map((sample) => sample.elevation)
+    .filter(Number.isFinite);
+  const routeBaseElevation = finiteElevations.length > 0
+    ? Math.min(...finiteElevations)
+    : elevation;
+  const relativeElevation = Math.max(0, elevation - routeBaseElevation);
+  const elevationRisk = Math.min(
+    relativeElevation / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS,
+    1,
+  );
 
   let steepnessRisk = 0;
   if (elevationData.length > 2) {
