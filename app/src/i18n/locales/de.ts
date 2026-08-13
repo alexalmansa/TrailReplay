@@ -520,6 +520,11 @@ export const de = {
           description: 'Zwei GPX-Dateien werden zusammen wiedergegeben, um Tempo, Routenauswahl und Timing zu vergleichen.',
           downloadLabel: 'Laden Sie die Demo zum Vergleichsmodus herunter',
         },
+        aranLandmarks: {
+          title: 'Aran by UTMB Route mit Markierungen',
+          description: 'Eine quadratische Routenwiedergabe mit Orten, benannten Plätzen und Anmerkungen entlang der Aran by UTMB Strecke.',
+          downloadLabel: 'Aran by UTMB Demo herunterladen',
+        },
       },
       sampleTracks: {
         camins: {

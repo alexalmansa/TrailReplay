@@ -78,8 +78,6 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
     fps: 30,
     resolution: { width: 1920, height: 1080 },
     aspectRatio: '16:9',
-    includeStats: true,
-    includeElevation: false,
     includeAudio: false,
   };
 }

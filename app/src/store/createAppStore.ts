@@ -14,6 +14,7 @@ import { createPlaybackSlice } from '@/store/slices/playbackSlice';
 import { createSettingsSlice } from '@/store/slices/settingsSlice';
 import { createTracksSlice } from '@/store/slices/tracksSlice';
 import { createUiSlice } from '@/store/slices/uiSlice';
+import { createLandmarksSlice } from '@/store/slices/landmarksSlice';
 
 export function createAppStore() {
   return create<AppState>()(
@@ -24,6 +25,7 @@ export function createAppStore() {
       ...createPlaybackSlice(set, get, store),
       ...createSettingsSlice(set, get, store),
       ...createUiSlice(set, get, store),
+      ...createLandmarksSlice(set, get, store),
 
       reset: () =>
         set((state) => {
@@ -37,6 +39,13 @@ export function createAppStore() {
           state.videos = [];
           state.iconChanges = [];
           state.textAnnotations = [];
+          state.userLandmarks = [];
+          state.enrichedLandmarks = [];
+          state.showAutomaticLandmarks = false;
+          state.enabledLandmarkGroups = [];
+          state.nearbyPlacesEnabled = false;
+          state.nearbyPlacesLoading = false;
+          state.nearbyPlacesError = null;
           state.playback = createDefaultPlayback();
           state.cinematicPlayed = false;
           state.animationPhase = 'idle';

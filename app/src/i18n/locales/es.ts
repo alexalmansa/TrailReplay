@@ -520,6 +520,11 @@ export const es = {
           description: 'Dos archivos GPX reproducidos a la vez para comparar ritmo, decisiones de ruta y tiempos.',
           downloadLabel: 'Descargar demo de comparación',
         },
+        aranLandmarks: {
+          title: 'Ruta de Aran by UTMB con anotaciones',
+          description: 'Un replay cuadrado con pueblos, lugares con nombre y anotaciones de ruta en el recorrido de Aran by UTMB.',
+          downloadLabel: 'Descargar demo de Aran by UTMB',
+        },
       },
       sampleTracks: {
         camins: {

@@ -8,7 +8,7 @@ import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
-import { smoothBearing } from '@/components/map/cameraUtils';
+import { smoothBearing, smoothZoom } from '@/components/map/cameraUtils';
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
@@ -19,7 +19,6 @@ interface UseTrailPlaybackCameraParams {
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
-  currentBearing: number;
   currentIcon: string;
   currentPosition: { lat: number; lon: number } | null;
   currentSegment?: {
@@ -80,7 +79,6 @@ export function useTrailPlaybackCamera({
   cameraMode,
   completedCoordinates,
   computedJourney,
-  currentBearing,
   currentIcon,
   currentPosition,
   currentSegment,
@@ -103,9 +101,6 @@ export function useTrailPlaybackCamera({
 }: UseTrailPlaybackCameraParams) {
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
-
-    targetBearingRef.current = currentBearing;
-    smoothBearingRef.current = smoothBearing(smoothBearingRef.current, currentBearing, 0.02);
 
     const shouldShowMarker = trailStyle.showMarker &&
       (animationPhase === 'playing' || (animationPhase === 'idle' && playbackProgress > 0));
@@ -259,10 +254,13 @@ export function useTrailPlaybackCamera({
       });
       if (!targetPose) return;
 
+      // Follow the replay plan's evenly sampled forward heading. Raw GPX
+      // bearings can jump at uneven samples and make tight turns feel abrupt.
+      targetBearingRef.current = targetPose.bearing;
+      smoothBearingRef.current = smoothBearing(smoothBearingRef.current, targetPose.bearing);
+
       const currentZoom = mapRef.current.getZoom();
-      const newZoom = currentZoom < targetPose.zoom
-        ? Math.min(currentZoom + 0.1, targetPose.zoom)
-        : Math.max(currentZoom - 0.1, targetPose.zoom);
+      const newZoom = smoothZoom(currentZoom, targetPose.zoom);
 
       // During deterministic export, camera interpolation must not run on its
       // own clock. The exporter advances playback one frame at a time and waits
@@ -307,7 +305,6 @@ export function useTrailPlaybackCamera({
     cameraCoordinates,
     completedCoordinates,
     computedJourney,
-    currentBearing,
     currentIcon,
     currentPosition,
     currentSegment,
@@ -353,7 +350,10 @@ export function useTrailPlaybackCamera({
       mapRef.current.flyTo({
         ...introPose,
         duration: INTRO_DURATION,
-        easing: (value) => 1 - Math.pow(1 - value, 3),
+        // A linear fly-in reaches the playback pose exactly at the end. The
+        // old strong ease-out arrived visually early, which read as a pause
+        // before the marker started moving.
+        easing: (value) => value,
       });
 
       smoothBearingRef.current = introPose.bearing;

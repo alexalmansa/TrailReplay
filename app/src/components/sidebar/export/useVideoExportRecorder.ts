@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import fixWebmDuration from 'fix-webm-duration';
 import { useAppStore } from '@/store/useAppStore';
+import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
 import { useI18n } from '@/i18n/useI18n';
@@ -24,6 +25,18 @@ import {
 } from './mp4CanvasEncoder';
 import { getOverlayRefreshIntervalMs } from './exportOverlay';
 import { useExportOverlayCapture } from './useExportOverlayCapture';
+import { INTRO_DURATION, OUTRO_DELAY, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
+import {
+  getIntroCameraPose,
+  getOpeningPreloadProgresses,
+  getPlaybackCameraPose,
+  type ReplayCameraPose,
+} from '@/utils/replayCameraPlan';
+
+const EXPORT_MAP_SETTLE_MS = 150;
+const EXPORT_TILE_PRELOAD_TIMEOUT_MS = 6000;
+const EXPORT_OPENING_WINDOW_MS = 20000;
+const EXPORT_OPENING_SAMPLE_COUNT = 8;
 
 function extractCssUrl(value: string): string | null {
   const match = value.match(/url\((['"]?)(.*?)\1\)/);
@@ -65,10 +78,13 @@ function drawTintedSvgIcon(
 export function useVideoExportRecorder() {
   const { t } = useI18n();
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
+  const visibleStats = useAppStore((state) => state.settings.visibleStats);
+  const showElevationProfile = useAppStore((state) => state.settings.showElevationProfile);
   const tracks = useAppStore((state) => state.tracks);
   const pictures = useAppStore((state) => state.pictures);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
+  const cameraSettings = useAppStore((state) => state.cameraSettings);
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const isExporting = useAppStore((state) => state.isExporting);
@@ -82,6 +98,7 @@ export function useVideoExportRecorder() {
   const setSpeed = useAppStore((state) => state.setSpeed);
   const play = useAppStore((state) => state.play);
   const setCinematicPlayed = useAppStore((state) => state.setCinematicPlayed);
+  const { cameraPathCoordinates, elevationData } = useComputedJourney();
 
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
 
@@ -93,6 +110,8 @@ export function useVideoExportRecorder() {
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
+  const includeStats = visibleStats.length > 0;
+  const includeElevation = showElevationProfile;
   const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
   const {
     cachedOverlayRef,
@@ -102,8 +121,8 @@ export function useVideoExportRecorder() {
     resetOverlayCapture,
     updateOverlayAsync,
   } = useExportOverlayCapture({
-    includeElevation: videoExportSettings.includeElevation,
-    includeStats: videoExportSettings.includeStats,
+    includeElevation,
+    includeStats,
   });
 
   const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -330,6 +349,80 @@ export function useVideoExportRecorder() {
     });
   }, []);
 
+  const preloadExportOpeningTiles = useCallback(async () => {
+    const map = mapGlobalRef.current;
+    if (!map || cameraSettings.mode === 'overview' || cameraPathCoordinates.length === 0) return;
+
+    const routeDurationMs = useAppStore.getState().playback.totalDuration || 60_000;
+    const introPose = getIntroCameraPose({
+      cameraMode: cameraSettings.mode,
+      coordinates: cameraPathCoordinates,
+      elevationData,
+      followBehindZoomLevel: cameraSettings.followBehindZoomLevel,
+      progress: 0,
+    });
+    const poses = [
+      introPose,
+      ...getOpeningPreloadProgresses(
+        routeDurationMs,
+        EXPORT_OPENING_WINDOW_MS,
+        EXPORT_OPENING_SAMPLE_COUNT,
+      ).map((progress) => getPlaybackCameraPose({
+        cameraMode: cameraSettings.mode,
+        coordinates: cameraPathCoordinates,
+        elevationData,
+        followBehindZoomLevel: cameraSettings.followBehindZoomLevel,
+        progress,
+      })),
+    ].filter((pose): pose is ReplayCameraPose => pose !== null);
+
+    const overview = {
+      center: map.getCenter(),
+      zoom: map.getZoom(),
+      pitch: map.getPitch(),
+      bearing: map.getBearing(),
+    };
+    const deadline = Date.now() + EXPORT_TILE_PRELOAD_TIMEOUT_MS;
+
+    for (const pose of poses) {
+      if (recordingCancelledRef.current || Date.now() >= deadline) break;
+      map.jumpTo(pose);
+      await new Promise<void>((resolve) => {
+        let complete = false;
+        const finish = () => {
+          if (complete) return;
+          complete = true;
+          map.off('idle', finish);
+          resolve();
+        };
+        map.once('idle', finish);
+        window.setTimeout(finish, Math.max(0, deadline - Date.now()));
+      });
+    }
+
+    map.jumpTo(overview);
+    await waitForMapFrame();
+  }, [cameraPathCoordinates, cameraSettings.followBehindZoomLevel, cameraSettings.mode, elevationData, waitForMapFrame]);
+
+  const captureDeterministicPhase = useCallback(async (
+    durationMs: number,
+    timestampOffsetMs: number,
+  ) => {
+    const frameDurationMs = 1000 / videoExportSettings.fps;
+    const frameCount = Math.max(1, Math.ceil(durationMs / frameDurationMs));
+
+    for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      await waitForMapFrame();
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      captureFrame();
+      await encodeWebCodecsFrame((timestampOffsetMs + (frameIndex * frameDurationMs)) * 1000);
+      if (frameIndex < frameCount) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, frameDurationMs));
+      }
+    }
+  }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps, waitForMapFrame]);
+
   // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
   const finalizeWebCodecsExport = useCallback(async () => {
     const encoder = mp4EncoderRef.current;
@@ -427,26 +520,40 @@ export function useVideoExportRecorder() {
     const frameDurationMs = 1000 / fps;
     const store = useAppStore.getState();
     const routeDurationMs = store.playback.totalDuration;
-    const speed = store.playback.speed;
-    const frameCount = Math.ceil(routeDurationMs / (frameDurationMs * speed));
+    // Preview speed only affects interactive playback. Export always preserves
+    // the configured journey duration on the encoded timeline.
+    const frameCount = Math.ceil(routeDurationMs / frameDurationMs);
     const progressUpdateInterval = Math.max(1, Math.round(fps / 5));
 
     setIsDeterministicExport(true);
-    store.setCinematicPlayed(true);
     store.setPlayback({ isPlaying: true, currentTime: 0, progress: 0 });
-    store.setAnimationPhase('playing');
+    // Start the cinematic movement first and wait for its first rendered frame.
+    // This ensures the video begins from the actual introductory camera pose,
+    // rather than catching the map halfway through a state transition.
+    store.setCinematicPlayed(false);
+    store.setAnimationPhase('intro');
+    await waitForMapFrame();
+    await captureDeterministicPhase(INTRO_DURATION, 0);
 
-    for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
+    if (!isRecordingRef.current || recordingCancelledRef.current) return;
+
+    store.setCinematicPlayed(true);
+    store.setAnimationPhase('playing');
+    let encodedDurationMs = INTRO_DURATION;
+
+    // The intro already contains the progress-zero pose. Begin at the first
+    // advancing route frame so the cut into the route has no duplicate hold.
+    for (let frameIndex = 1; frameIndex <= frameCount; frameIndex += 1) {
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
 
-      const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs * speed);
+      const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs);
       const progress = routeDurationMs > 0 ? currentTime / routeDurationMs : 1;
       useAppStore.getState().setPlayback({ currentTime, progress });
       await waitForMapFrame();
 
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
       captureFrame();
-      await encodeWebCodecsFrame(frameIndex * frameDurationMs * 1000);
+      await encodeWebCodecsFrame((encodedDurationMs + (frameIndex * frameDurationMs)) * 1000);
 
       if (frameIndex % progressUpdateInterval === 0 || frameIndex === frameCount) {
         setExportProgress(progress * 100);
@@ -454,8 +561,24 @@ export function useVideoExportRecorder() {
       }
     }
 
+    encodedDurationMs += frameCount * frameDurationMs;
+    if (!recordingCancelledRef.current && isRecordingRef.current) {
+      // Mirror the on-screen finale: a short hold at the finish, then the
+      // outward camera move. Both are encoded before the file is finalized.
+      store.setPlayback({ isPlaying: false, currentTime: routeDurationMs, progress: 1 });
+      if (OUTRO_DELAY > 0) {
+        store.setAnimationPhase('playing');
+        await captureDeterministicPhase(OUTRO_DELAY, encodedDurationMs);
+        encodedDurationMs += OUTRO_DELAY;
+      }
+
+      if (!isRecordingRef.current || recordingCancelledRef.current) return;
+      store.setAnimationPhase('outro');
+      await captureDeterministicPhase(OUTRO_DURATION, encodedDurationMs);
+    }
+
     if (!recordingCancelledRef.current) finishRecording();
-  }, [captureFrame, encodeWebCodecsFrame, finishRecording, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
+  }, [captureDeterministicPhase, captureFrame, encodeWebCodecsFrame, finishRecording, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
 
   useEffect(() => {
     if (!isRecordingRef.current) return;
@@ -599,8 +722,8 @@ export function useVideoExportRecorder() {
       export_quality: videoExportSettings.quality,
       export_fps: videoExportSettings.fps,
       export_aspect_ratio: videoExportSettings.aspectRatio,
-      export_include_stats: videoExportSettings.includeStats,
-      export_include_elevation: videoExportSettings.includeElevation,
+      export_include_stats: includeStats,
+      export_include_elevation: includeElevation,
       export_duration_bucket: getDurationBucket(playback.totalDuration),
       track_count: tracks.length,
       picture_count: pictures.length,
@@ -641,7 +764,12 @@ export function useVideoExportRecorder() {
       setSpeed(exportSpeed);
       setCinematicPlayed(false);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      setExportStage(t('export.stagePreparing'));
+      await preloadExportOpeningTiles();
+
+      // Let MapLibre complete its reset pose before starting the intro and its
+      // first encoded frame. This avoids a recording that begins mid-reframe.
+      await new Promise((resolve) => setTimeout(resolve, EXPORT_MAP_SETTLE_MS));
 
       setExportStage(t('export.stageSetupRecorder'));
 
@@ -701,7 +829,7 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, finishRecording, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, finishRecording, includeElevation, includeStats, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, preloadExportOpeningTiles, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
 
   const handleCancelExport = useCallback(() => {
     const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';

@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
 import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
+import { RouteLandmarksEditor } from './RouteLandmarksEditor';
 import {
   Map as MapIcon,
   Video,
@@ -204,6 +205,8 @@ export function SettingsPanel() {
         )}
 
       </div>
+
+      <RouteLandmarksEditor />
 
       {/* Map Overlays */}
       <div>

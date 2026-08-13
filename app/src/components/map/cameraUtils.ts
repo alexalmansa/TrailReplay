@@ -1,16 +1,51 @@
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
-  smoothingFactor: number = 0.015
+  smoothingFactor: number = 0.03,
+  stabilityDeadbandDegrees: number = 4,
 ): number {
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
 
-  const maxChange = 2;
+  // GPS traces frequently oscillate by a few degrees on an otherwise straight
+  // section. At a close, pitched camera angle those tiny corrections read as
+  // distracting side-to-side camera movement. Keep the current heading until
+  // the route has made a meaningful turn; larger turns still take the normal
+  // smooth, shortest-path transition below.
+  if (Math.abs(diff) < stabilityDeadbandDegrees) {
+    return (currentBearing + 360) % 360;
+  }
+
+  // Keep sharp switchbacks cinematic rather than snapping the view sideways.
+  const maxChange = 1.25;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
 
   return (currentBearing + change + 360) % 360;
+}
+
+/**
+ * Smooths the terrain-aware follow-camera zoom without letting minor elevation
+ * estimate changes make the view pulse. Zooming in is deliberately slower than
+ * zooming out: opening the frame quickly preserves a safe view of the marker
+ * when the route enters steeper terrain.
+ */
+export function smoothZoom(
+  currentZoom: number,
+  targetZoom: number,
+  smoothingFactor: number = 0.12,
+  stabilityDeadband: number = 0.035,
+): number {
+  const diff = targetZoom - currentZoom;
+
+  if (Math.abs(diff) < stabilityDeadband) {
+    return currentZoom;
+  }
+
+  const maxChange = diff < 0 ? 0.12 : 0.035;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+
+  return currentZoom + change;
 }
 
 export const TERRAIN_CAMERA_SETTINGS = {
@@ -30,7 +65,22 @@ export function calculateTerrainAwareAdjustments(
   elevationData: Array<{ elevation: number; progress?: number }>,
   currentProgress: number
 ): { zoomAdjust: number; pitchAdjust: number } {
-  const elevationRisk = Math.min(Math.max(0, elevation) / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS, 1);
+  // Absolute altitude is not what makes a replay camera lose its subject. The
+  // problem is the climb relative to this route's lowest section: a track that
+  // starts at sea level and climbs 1,500 m needs more room, while a flat route
+  // entirely at 1,500 m does not. This also keeps the selected close framing at
+  // the start of an alpine route and expands it progressively on the climb.
+  const finiteElevations = elevationData
+    .map((sample) => sample.elevation)
+    .filter(Number.isFinite);
+  const routeBaseElevation = finiteElevations.length > 0
+    ? Math.min(...finiteElevations)
+    : elevation;
+  const relativeElevation = Math.max(0, elevation - routeBaseElevation);
+  const elevationRisk = Math.min(
+    relativeElevation / TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_METERS,
+    1,
+  );
 
   let steepnessRisk = 0;
   if (elevationData.length > 2) {

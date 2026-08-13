@@ -134,6 +134,8 @@ export interface TextAnnotation {
   displayDuration: number;
 }
 
+export * from './landmarks';
+
 export interface PlaybackState {
   isPlaying: boolean;
   currentTime: number;
@@ -184,8 +186,6 @@ export interface VideoExportSettings {
   fps: number;
   resolution: { width: number; height: number };
   aspectRatio: AspectRatio;
-  includeStats: boolean;
-  includeElevation: boolean;
   includeAudio: boolean;
 }
 

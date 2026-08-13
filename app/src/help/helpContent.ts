@@ -22,6 +22,12 @@ export function getTutorialVideos(t: Translate) {
       src: '/media/video/comparison-mode-demo.mp4',
       downloadLabel: t('help.tutorial.videos.comparison.downloadLabel'),
     },
+    {
+      title: t('help.tutorial.videos.aranLandmarks.title'),
+      description: t('help.tutorial.videos.aranLandmarks.description'),
+      src: '/media/video/aran-by-utmb-landmarks-demo.mp4',
+      downloadLabel: t('help.tutorial.videos.aranLandmarks.downloadLabel'),
+    },
   ];
 }
 

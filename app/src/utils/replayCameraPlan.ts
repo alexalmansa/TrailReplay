@@ -70,7 +70,10 @@ export function getIntroCameraPose(options: CameraPlanOptions): ReplayCameraPose
     return { center, zoom: FOLLOW_CAMERA_ZOOM, pitch: 0, bearing: 0 };
   }
 
-  const preset = getFollowBehindCameraTarget(options.followBehindZoomLevel, 'intro');
+  // The fly-in must finish on the same pose used by the first playback frame.
+  // A separate, more distant intro target created a visible second zoom after
+  // the fly-in before the marker could begin moving along the route.
+  const preset = getFollowBehindCameraTarget(options.followBehindZoomLevel, 'playback');
   const elevationIndex = Math.round(clamp(options.progress, 0, 1) * Math.max(0, options.elevationData.length - 1));
   const elevation = options.elevationData[elevationIndex]?.elevation ?? 0;
   const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
@@ -81,16 +84,8 @@ export function getIntroCameraPose(options: CameraPlanOptions): ReplayCameraPose
 
   return {
     center,
-    zoom: clamp(
-      preset.zoom - zoomAdjust,
-      TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-      TERRAIN_CAMERA_SETTINGS.MAX_ZOOM,
-    ),
-    pitch: clamp(
-      preset.pitch - pitchAdjust,
-      TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-      TERRAIN_CAMERA_SETTINGS.MAX_PITCH,
-    ),
+    zoom: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_ZOOM, preset.zoom - zoomAdjust),
+    pitch: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_PITCH, preset.pitch - pitchAdjust),
     bearing: getRouteBearingAtProgress(options.coordinates, options.progress),
   };
 }
@@ -105,10 +100,24 @@ export function getPlaybackCameraPose(options: CameraPlanOptions): ReplayCameraP
   }
 
   const preset = getFollowBehindCameraTarget(options.followBehindZoomLevel, 'playback');
+  const elevationIndex = Math.round(clamp(options.progress, 0, 1) * Math.max(0, options.elevationData.length - 1));
+  const elevation = options.elevationData[elevationIndex]?.elevation ?? 0;
+  const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(
+    elevation,
+    options.elevationData,
+    options.progress,
+  );
   return {
     center,
-    zoom: preset.zoom,
-    pitch: preset.pitch,
+    // The old code applied terrain protection only to the intro fly-in, then
+    // restored the close preset for every playback frame. On long climbs that
+    // made the marker leave the close, pitched viewport. Keep this correction
+    // active for the full replay so the camera opens as elevation increases.
+    // Do not cap to the intro's conservative maximums here: at low altitude a
+    // user-selected close preset must remain genuinely close. The adjustments
+    // only ever widen/flatten the view and cannot overshoot the safe minima.
+    zoom: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_ZOOM, preset.zoom - zoomAdjust),
+    pitch: Math.max(TERRAIN_CAMERA_SETTINGS.MIN_PITCH, preset.pitch - pitchAdjust),
     bearing: getRouteBearingAtProgress(options.coordinates, options.progress),
   };
 }

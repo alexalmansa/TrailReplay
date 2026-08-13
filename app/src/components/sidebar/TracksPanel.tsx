@@ -147,16 +147,16 @@ export function TracksPanel() {
       
       {/* Track List */}
       {tracks.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
+        <section className="border-t border-[var(--evergreen)]/15 pt-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--evergreen)]">
               {t('tracks.loadedTracks', { count: tracks.length })}
             </h3>
-            <span className="text-xs text-[var(--evergreen-60)]">
+            <span className="whitespace-nowrap text-[11px] text-[var(--evergreen-60)]">
               {t('tracks.dragReorder')}
             </span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {tracks.map((track, index) => (
               <TrackItem
                 key={track.id}
@@ -173,7 +173,7 @@ export function TracksPanel() {
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
       
       {/* Comparison Mode */}

@@ -247,15 +247,15 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     <div
       className={`tr-stats-overlay ${
         isExportVariant
-          ? 'tr-stats-overlay--compact tr-stats-overlay--export max-w-[15.5rem]'
+          ? 'tr-stats-overlay--compact tr-stats-overlay--export'
           : isNarrowLayout
-            ? 'tr-stats-overlay--compact tr-stats-overlay--narrow max-w-[19.5rem]'
-            : 'max-w-[25.5rem]'
+            ? 'tr-stats-overlay--compact tr-stats-overlay--narrow'
+            : ''
       }`}
     >
       <div
-        className={`grid ${isExportVariant || isNarrowLayout ? 'gap-x-1.5 gap-y-1.5 mb-0' : 'gap-2 mb-0'}`}
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        className={`grid w-max ${isExportVariant || isNarrowLayout ? 'gap-x-1.5 gap-y-1.5 mb-0' : 'gap-2 mb-0'}`}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(max-content, 1fr))` }}
       >
         {visibleStats.map((stat) => (
           <StatItem
@@ -291,7 +291,7 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
   return (
-    <div className={`min-w-0 text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
+    <div className={`min-w-max text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
       <div className={`flex items-center justify-center min-w-0 ${
         exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
       }`}>
@@ -300,14 +300,14 @@ function StatItem({ icon, label, value, compact = false, exportCompact = false }
         }`}>
           {icon}
         </span>
-        <span className={`block min-w-0 ${
+        <span className={`block min-w-0 whitespace-nowrap ${
           exportCompact ? 'text-[7px] text-white' : compact ? 'text-[9px] text-white' : 'text-[10px] text-white'
         } font-semibold uppercase tracking-[0.08em] leading-[1.1]`}>
           {label}
         </span>
       </div>
       <div
-        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
+        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center whitespace-nowrap px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
           exportCompact ? 'text-[9px] leading-[1.05] text-white' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
         }`}
         title={value}

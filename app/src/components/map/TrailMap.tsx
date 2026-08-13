@@ -15,6 +15,8 @@ import {
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
 import { useTextAnnotationsLayer } from './hooks/useTextAnnotationsLayer';
+import { useRouteLandmarksLayer } from './hooks/useRouteLandmarksLayer';
+import { useRouteLandmarks } from '@/hooks/useRouteLandmarks';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
@@ -47,6 +49,7 @@ export function TrailMap(_props: TrailMapProps) {
   const smoothBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
   const loadZoomDoneRef = useRef<boolean>(false);
+  const handledZoomButtonPressRef = useRef(false);
 
   const tracks = useAppStore((state) => state.tracks);
   const settings = useAppStore((state) => state.settings);
@@ -66,6 +69,7 @@ export function TrailMap(_props: TrailMapProps) {
   const addPicture = useAppStore((state) => state.addPicture);
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
+  const landmarks = useRouteLandmarks();
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [showZoomButtonsHint, setShowZoomButtonsHint] = useState(false);
@@ -81,7 +85,6 @@ export function TrailMap(_props: TrailMapProps) {
   // Use the computed journey hook for multi-track support
   const {
     currentPosition,
-    currentBearing,
     currentIcon,
     currentSegment,
     completedCoordinates,
@@ -145,6 +148,8 @@ export function TrailMap(_props: TrailMapProps) {
     unitSystem: settings.unitSystem,
   });
 
+  useRouteLandmarksLayer({ isMapLoaded, landmarks, mapRef: map });
+
   useComparisonTrackLayers({
     comparisonTracks,
     isMapLoaded,
@@ -190,7 +195,6 @@ export function TrailMap(_props: TrailMapProps) {
     cameraMode,
     completedCoordinates,
     computedJourney,
-    currentBearing,
     currentIcon,
     currentPosition,
     currentSegment,
@@ -270,16 +274,18 @@ export function TrailMap(_props: TrailMapProps) {
       return;
     }
 
-    const interceptZoomButton = (event: Event, direction: 1 | -1) => {
+    const changeFollowBehindDistance = (event: Event, direction: 1 | -1) => {
       const isAnimating = animationPhase === 'intro' || animationPhase === 'playing';
-      if (cameraMode !== 'follow-behind' || !isAnimating) return;
+      if (cameraMode !== 'follow-behind' || !isAnimating) return false;
 
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation?.();
 
-      const currentZoom = map.current?.getZoom()
-        ?? getFollowBehindCameraTarget(followBehindZoomLevel, 'playback').zoom;
+      // Use the saved distance preset, not the map's live zoom. Terrain safety
+      // can temporarily zoom the camera out, and deriving from that value made
+      // a button press appear to do nothing or jump to the wrong distance.
+      const currentZoom = getFollowBehindCameraTarget(followBehindZoomLevel, 'playback').zoom;
       const nextLevel = getFollowBehindZoomLevelFromZoom(
         currentZoom + (direction * ZOOM_BUTTON_STEP),
         'playback',
@@ -289,15 +295,40 @@ export function TrailMap(_props: TrailMapProps) {
         followBehindPreset: getNearestFollowBehindPreset(nextLevel),
         followBehindZoomLevel: nextLevel,
       });
+      return true;
     };
 
-    const handleZoomInClick = (event: Event) => interceptZoomButton(event, 1);
-    const handleZoomOutClick = (event: Event) => interceptZoomButton(event, -1);
+    const handleZoomButtonPress = (event: Event, direction: 1 | -1) => {
+      handledZoomButtonPressRef.current = changeFollowBehindDistance(event, direction);
+    };
+    const handleZoomButtonClick = (event: Event, direction: 1 | -1) => {
+      if (handledZoomButtonPressRef.current) {
+        handledZoomButtonPressRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        return;
+      }
+      changeFollowBehindDistance(event, direction);
+    };
 
+    const handleZoomInPress = (event: Event) => handleZoomButtonPress(event, 1);
+    const handleZoomOutPress = (event: Event) => handleZoomButtonPress(event, -1);
+    const handleZoomInClick = (event: Event) => handleZoomButtonClick(event, 1);
+    const handleZoomOutClick = (event: Event) => handleZoomButtonClick(event, -1);
+
+    zoomInButton.addEventListener('mousedown', handleZoomInPress, true);
+    zoomOutButton.addEventListener('mousedown', handleZoomOutPress, true);
+    zoomInButton.addEventListener('touchstart', handleZoomInPress, true);
+    zoomOutButton.addEventListener('touchstart', handleZoomOutPress, true);
     zoomInButton.addEventListener('click', handleZoomInClick, true);
     zoomOutButton.addEventListener('click', handleZoomOutClick, true);
 
     return () => {
+      zoomInButton.removeEventListener('mousedown', handleZoomInPress, true);
+      zoomOutButton.removeEventListener('mousedown', handleZoomOutPress, true);
+      zoomInButton.removeEventListener('touchstart', handleZoomInPress, true);
+      zoomOutButton.removeEventListener('touchstart', handleZoomOutPress, true);
       zoomInButton.removeEventListener('click', handleZoomInClick, true);
       zoomOutButton.removeEventListener('click', handleZoomOutClick, true);
     };

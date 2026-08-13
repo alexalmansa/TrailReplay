@@ -93,7 +93,7 @@ export function ExportPanel() {
               </div>
               <div>
                 <span className="opacity-70">{t('export.duration')}:</span>
-                <span className="ml-2 font-bold">{Math.round(playback.totalDuration / 1000 / playback.speed)}s</span>
+                <span className="ml-2 font-bold">{Math.round(playback.totalDuration / 1000)}s</span>
               </div>
             </div>
           </div>

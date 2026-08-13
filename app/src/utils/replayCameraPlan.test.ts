@@ -23,6 +23,9 @@ describe('replay camera plan', () => {
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
       center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
     });
+    expect(getIntroCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
+      center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
+    });
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'overview' })).toBeNull();
   });
 
@@ -37,6 +40,28 @@ describe('replay camera plan', () => {
 
   it('calculates a forward route bearing', () => {
     expect(getRouteBearingAtProgress(coordinates, 0)).toBeCloseTo(90, 5);
+  });
+
+  it('widens the close camera progressively as a route climbs', () => {
+    const elevationData = [
+      { elevation: 600 },
+      { elevation: 1800 },
+      { elevation: 2400 },
+    ];
+
+    expect(getPlaybackCameraPose({
+      ...options,
+      cameraMode: 'follow-behind',
+      elevationData,
+      progress: 0,
+    })).toMatchObject({ zoom: 16, pitch: 55 });
+
+    expect(getPlaybackCameraPose({
+      ...options,
+      cameraMode: 'follow-behind',
+      elevationData,
+      progress: 1,
+    })).toMatchObject({ zoom: 14, pitch: 40 });
   });
 
   it('adds an incoming-bearing warmup pose around a turn', () => {

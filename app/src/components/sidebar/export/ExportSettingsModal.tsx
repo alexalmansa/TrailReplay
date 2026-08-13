@@ -152,41 +152,6 @@ export function ExportSettingsModal({
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-            {t('export.overlays')}
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => setVideoExportSettings({ includeStats: !videoExportSettings.includeStats })}
-                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                  videoExportSettings.includeStats ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                }`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  videoExportSettings.includeStats ? 'translate-x-5' : 'translate-x-0.5'
-                }`} />
-              </div>
-              <span className="text-sm text-[var(--evergreen)]">{t('export.statsOverlay')}</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => setVideoExportSettings({ includeElevation: !videoExportSettings.includeElevation })}
-                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${
-                  videoExportSettings.includeElevation ? 'bg-[var(--trail-orange)]' : 'bg-[var(--evergreen)]/20'
-                }`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  videoExportSettings.includeElevation ? 'translate-x-5' : 'translate-x-0.5'
-                }`} />
-              </div>
-              <span className="text-sm text-[var(--evergreen)]">{t('export.elevationProfile')}</span>
-            </label>
-            <p className="text-xs text-[var(--evergreen-60)] pl-13">{t('export.logoNote')}</p>
-          </div>
-        </div>
-
         <div className="bg-[var(--evergreen)]/10 rounded-lg p-3 flex items-center gap-2 mb-4">
           <Monitor className="w-4 h-4 text-[var(--evergreen-60)]" />
           <span className="text-sm text-[var(--evergreen)]">
