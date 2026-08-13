@@ -11,14 +11,18 @@ export function parseKmlDocument(kmlContent: string, fileName: string) {
     throw new Error('Invalid KML file format');
   }
 
-  const name = document.querySelector('Placemark > name')?.textContent || fileName.replace('.kml', '');
+  const name = document.querySelector('Placemark > name')?.textContent || getFileStem(fileName);
   const rawPoints = extractKmlTrackPoints(document);
 
-  if (rawPoints.length === 0) {
-    throw new Error('No coordinates found in KML file');
+  if (rawPoints.length < 2) {
+    throw new Error('A KML route needs at least two valid coordinates');
   }
 
   return { name, rawPoints };
+}
+
+function getFileStem(fileName: string): string {
+  return fileName.replace(/\.kml$/i, '');
 }
 
 function extractKmlTrackPoints(document: Document) {

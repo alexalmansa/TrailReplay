@@ -239,6 +239,7 @@ export const fr = {
     cancel: 'Annuler',
     save: 'Enregistrer',
     done: 'Terminé',
+    close: 'Fermer',
     remove: 'Supprimer',
     clickRename: 'Cliquer pour renommer',
     secondsShort: 's',

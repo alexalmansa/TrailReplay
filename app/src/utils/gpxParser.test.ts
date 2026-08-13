@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPointAtDistance, parseGPX, parseKML } from './gpxParser';
+import { getPointAtDistance, parseGPX, parseGPXFiles, parseKML } from './gpxParser';
 
 const sampleGpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="TrailReplay">
@@ -58,5 +58,32 @@ describe('gpxParser', () => {
     expect(midpoint!.lat).toBeGreaterThan(track.points[0].lat);
     expect(midpoint!.lat).toBeLessThan(track.points[1].lat);
     expect(midpoint!.distance).toBeCloseTo(track.totalDistance / 2, 5);
+  });
+
+  it('skips invalid coordinates and invalid timestamps without poisoning track stats', () => {
+    const track = parseGPX(`<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="invalid" lon="1.0"><time>not-a-date</time></trkpt>
+        <trkpt lat="42.0" lon="1.0"><ele>100</ele><time>not-a-date</time></trkpt>
+        <trkpt lat="42.001" lon="1.001"><ele>110</ele><time>2025-01-01T10:01:00Z</time></trkpt>
+      </trkseg></trk></gpx>`, 'validation.gpx');
+
+    expect(track.points).toHaveLength(2);
+    expect(track.points[0].time).toBeNull();
+    expect(track.totalDistance).toBeGreaterThan(0);
+    expect(track.totalTime).toBe(0);
+    expect(track.bounds.minLat).toBe(42);
+  });
+
+  it('requires two valid points to build a replayable route', () => {
+    expect(() => parseGPX(`<?xml version="1.0"?>
+      <gpx><trk><trkseg><trkpt lat="42" lon="1" /></trkseg></trk></gpx>`, 'single-point.gpx'))
+      .toThrow('at least two valid track points');
+  });
+
+  it('accepts uppercase GPX extensions from file pickers', async () => {
+    const file = new File([sampleGpx], 'SAMPLE.GPX', { type: 'application/gpx+xml' });
+
+    await expect(parseGPXFiles([file])).resolves.toHaveLength(1);
   });
 });

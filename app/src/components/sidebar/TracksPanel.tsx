@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useDropzone, type DropEvent } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
-import { parseGPX } from '@/utils/gpxParser';
+import { parseGPX, parseKML } from '@/utils/gpxParser';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Upload,
@@ -28,6 +28,7 @@ export function TracksPanel() {
   const settings = useAppStore((state) => state.settings);
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
   const setExploreMode = useAppStore((state) => state.setExploreMode);
+  const setError = useAppStore((state) => state.setError);
 
   // Comparison track state
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
@@ -40,12 +41,21 @@ export function TracksPanel() {
 
   const handleComparisonFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith('.gpx')) return;
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'gpx' && extension !== 'kml') {
+      setError(t('errors.noValidGpx'));
+      e.target.value = '';
+      return;
+    }
 
     setIsParsingComparison(true);
     try {
       const content = await file.text();
-      const track = parseGPX(content, file.name);
+      const track = extension === 'gpx'
+        ? parseGPX(content, file.name)
+        : parseKML(content, file.name);
       const colorIndex = comparisonTracks.length % COMPARISON_COLORS.length;
       addComparisonTrack({
         id: `comparison-${Date.now()}`,
@@ -60,11 +70,12 @@ export function TracksPanel() {
       });
     } catch (err) {
       console.error('Failed to parse comparison GPX:', err);
+      setError(t('errors.parseGpxFailed'));
     } finally {
       setIsParsingComparison(false);
       if (comparisonFileRef.current) comparisonFileRef.current.value = '';
     }
-  }, [addComparisonTrack, comparisonTracks.length]);
+  }, [addComparisonTrack, comparisonTracks.length, setError, t]);
   
   const onDrop = useCallback(async (
     acceptedFiles: File[],
@@ -72,13 +83,22 @@ export function TracksPanel() {
     event: DropEvent,
   ) => {
     const trailFiles = acceptedFiles.filter(
-      (file) => file.name.endsWith('.gpx') || file.name.endsWith('.kml') || file.type === 'application/gpx+xml' || file.type === 'application/vnd.google-earth.kml+xml'
+      (file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        return extension === 'gpx' || extension === 'kml' ||
+          file.type === 'application/gpx+xml' ||
+          file.type === 'application/vnd.google-earth.kml+xml';
+      }
     );
     if (trailFiles.length > 0) {
-      await parseFiles(
-        trailFiles,
-        !Array.isArray(event) && event.type === 'drop' ? 'dropzone' : 'file_picker',
-      );
+      try {
+        await parseFiles(
+          trailFiles,
+          !Array.isArray(event) && event.type === 'drop' ? 'dropzone' : 'file_picker',
+        );
+      } catch {
+        // `parseFiles` already reports the failure through the app store.
+      }
     }
   }, [parseFiles]);
   

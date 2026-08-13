@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PictureAnnotation } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
 import {
@@ -18,51 +18,63 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
   const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<number | null>(null);
+  const exitTimeoutRef = useRef<number | null>(null);
+  const fallbackImageUrlRef = useRef<string | null>(null);
   
   const displayDuration = picture.displayDuration || 5000;
   const { imageWidth, imageHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
   
+  const clearProgressInterval = useCallback(() => {
+    if (progressIntervalRef.current !== null) {
+      window.clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }, []);
+
+  const startExit = useCallback(() => {
+    if (exitTimeoutRef.current !== null) return;
+
+    clearProgressInterval();
+    setAnimationState('exiting');
+    exitTimeoutRef.current = window.setTimeout(() => {
+      exitTimeoutRef.current = null;
+      onClose?.();
+    }, 300);
+  }, [clearProgressInterval, onClose]);
+
   useEffect(() => {
     // After entering animation, show the picture
-    const enterTimer = setTimeout(() => {
+    const enterTimer = window.setTimeout(() => {
       setAnimationState('visible');
       
       // Start progress bar
       const startTime = Date.now();
-      progressIntervalRef.current = setInterval(() => {
+      progressIntervalRef.current = window.setInterval(() => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min((elapsed / displayDuration) * 100, 100);
         setDisplayProgress(progress);
         
         if (progress >= 100) {
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-          }
-          setAnimationState('exiting');
-          setTimeout(() => {
-            onClose?.();
-          }, 300); // Wait for exit animation
+          startExit();
         }
       }, 50);
     }, 300); // Enter animation duration
     
     return () => {
-      clearTimeout(enterTimer);
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+      window.clearTimeout(enterTimer);
+      clearProgressInterval();
+      if (exitTimeoutRef.current !== null) {
+        window.clearTimeout(exitTimeoutRef.current);
+      }
+      if (fallbackImageUrlRef.current !== null) {
+        URL.revokeObjectURL(fallbackImageUrlRef.current);
       }
     };
-  }, [displayDuration, onClose]);
+  }, [clearProgressInterval, displayDuration, startExit]);
   
   const handleClose = () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-    setAnimationState('exiting');
-    setTimeout(() => {
-      onClose?.();
-    }, 300);
+    startExit();
   };
   
   // Animation classes based on state
@@ -106,7 +118,8 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
               style={{ width: imageWidth, height: imageHeight }}
               onError={() => {
                 if (picture.displayFile && imageSrc === picture.url) {
-                  setImageSrc(URL.createObjectURL(picture.displayFile));
+                  fallbackImageUrlRef.current = URL.createObjectURL(picture.displayFile);
+                  setImageSrc(fallbackImageUrlRef.current);
                   return;
                 }
                 setImageSrc('');
@@ -125,6 +138,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
           <button
             onClick={handleClose}
             className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+            aria-label={t('common.close')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,7 +163,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
         
         {/* Metadata */}
         <div className={`bg-[var(--canvas)] border-t border-[var(--evergreen)]/20 flex items-center gap-3 text-[var(--evergreen-60)] ${isExportSafe ? 'px-2.5 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'}`}>
-          {picture.lat && picture.lon && (
+          {picture.lat !== undefined && picture.lon !== undefined && (
             <span className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
               {picture.lat.toFixed(4)}, {picture.lon.toFixed(4)}

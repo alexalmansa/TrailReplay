@@ -176,7 +176,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
       altitude: currentPosition.elevation ?? null,
       heartRate: currentPosition.heartRate,
     };
-  }, [currentPosition, playback, totalDistance, computeRealElapsedAtProgress, segmentTimings, activeTrack, tracks, computedJourney]);
+  }, [currentPosition, playback, totalDistance, computeRealElapsedAtProgress, segmentTimings, activeTrack, computedJourney]);
 
   if (!currentStats || journeySegments.length === 0) return null;
 

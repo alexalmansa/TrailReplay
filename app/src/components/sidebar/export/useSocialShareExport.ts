@@ -222,7 +222,6 @@ export function useSocialShareExport() {
 
   useEffect(() => {
     void generatePreview();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     settings.template,
     settings.aspectRatio,
