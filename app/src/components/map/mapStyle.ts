@@ -1,26 +1,75 @@
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
+export const BASEMAP_FALLBACK_MAX_ZOOM = 12;
+
+export const BASEMAP_PRESENTATIONS: Record<string, {
+  fallbackLayerId: string;
+  fallbackSourceId: string;
+  layerId: string;
+  sourceId: string;
+}> = {
+  satellite: { layerId: 'background', sourceId: 'satellite', fallbackLayerId: 'fallback-satellite', fallbackSourceId: 'fallback-satellite' },
+  street: { layerId: 'street', sourceId: 'osm', fallbackLayerId: 'fallback-osm', fallbackSourceId: 'fallback-osm' },
+  topo: { layerId: 'opentopomap', sourceId: 'opentopomap', fallbackLayerId: 'fallback-opentopomap', fallbackSourceId: 'fallback-opentopomap' },
+  outdoor: { layerId: 'opentopomap', sourceId: 'opentopomap', fallbackLayerId: 'fallback-opentopomap', fallbackSourceId: 'fallback-opentopomap' },
+  'esri-clarity': { layerId: 'esri-clarity', sourceId: 'esri-clarity', fallbackLayerId: 'fallback-esri-clarity', fallbackSourceId: 'fallback-esri-clarity' },
+  wayback: { layerId: 'wayback', sourceId: 'wayback', fallbackLayerId: 'fallback-wayback', fallbackSourceId: 'fallback-wayback' },
+  'mapbox-streets': { layerId: 'mapbox-streets', sourceId: 'mapbox-streets', fallbackLayerId: 'fallback-mapbox-streets', fallbackSourceId: 'fallback-mapbox-streets' },
+};
+
+export const STATIC_BASEMAP_LAYER_IDS = [
+  'background',
+  'street',
+  'opentopomap',
+  'esri-clarity',
+  'mapbox-streets',
+] as const;
+
+export const STATIC_FALLBACK_LAYER_IDS = [
+  'fallback-satellite',
+  'fallback-osm',
+  'fallback-opentopomap',
+  'fallback-esri-clarity',
+  'fallback-mapbox-streets',
+] as const;
+
+const rasterSource = (tiles: readonly string[], attribution: string, tileSize = 256) => ({
+  type: 'raster' as const,
+  tiles: [...tiles],
+  tileSize,
+  attribution,
+});
+
+const fallbackRasterSource = (tiles: readonly string[], attribution: string, tileSize = 256) => ({
+  ...rasterSource(tiles, attribution, tileSize),
+  maxzoom: BASEMAP_FALLBACK_MAX_ZOOM,
+});
+
+const OSM_TILES = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'] as const;
+const OSM_ATTRIBUTION = '© OpenStreetMap contributors';
+const TOPO_TILES = ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png'] as const;
+const TOPO_ATTRIBUTION = '© OpenTopoMap (CC-BY-SA)';
+const SATELLITE_TILES = ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] as const;
+const SATELLITE_ATTRIBUTION = '© Esri';
+const CLARITY_TILES = ['https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] as const;
+const CLARITY_ATTRIBUTION = 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community';
+const MAPBOX_STREET_TILES = MAPBOX_TOKEN
+  ? [`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`]
+  : [];
+const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 export const MAP_STYLE = {
   version: 8,
   glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
   sources: {
     osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
+      ...rasterSource(OSM_TILES, OSM_ATTRIBUTION),
     },
     opentopomap: {
-      type: 'raster',
-      tiles: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenTopoMap (CC-BY-SA)',
+      ...rasterSource(TOPO_TILES, TOPO_ATTRIBUTION),
     },
     satellite: {
-      type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: '© Esri',
+      ...rasterSource(SATELLITE_TILES, SATELLITE_ATTRIBUTION),
     },
     'carto-labels': {
       type: 'raster',
@@ -41,10 +90,7 @@ export const MAP_STYLE = {
       attribution: 'Data © OpenStreetMap contributors ODbL, OpenSnowMap.org CC-BY-SA',
     },
     'esri-clarity': {
-      type: 'raster',
-      tiles: ['https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+      ...rasterSource(CLARITY_TILES, CLARITY_ATTRIBUTION),
     },
     slope: {
       type: 'raster',
@@ -61,13 +107,16 @@ export const MAP_STYLE = {
       attribution: 'Aspect derived from AWS Terrain Tiles',
     },
     'mapbox-streets': {
-      type: 'raster',
-      tiles: MAPBOX_TOKEN
-        ? [`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`]
-        : [],
-      tileSize: 512,
-      attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      ...rasterSource(MAPBOX_STREET_TILES, MAPBOX_ATTRIBUTION, 512),
     },
+    // A bounded parent-tile pyramid remains renderable beneath the detail
+    // basemap. At close zoom MapLibre overscales these z12 tiles, so a late
+    // detail request degrades to softer imagery instead of the base fill.
+    'fallback-osm': fallbackRasterSource(OSM_TILES, OSM_ATTRIBUTION),
+    'fallback-opentopomap': fallbackRasterSource(TOPO_TILES, TOPO_ATTRIBUTION),
+    'fallback-satellite': fallbackRasterSource(SATELLITE_TILES, SATELLITE_ATTRIBUTION),
+    'fallback-esri-clarity': fallbackRasterSource(CLARITY_TILES, CLARITY_ATTRIBUTION),
+    'fallback-mapbox-streets': fallbackRasterSource(MAPBOX_STREET_TILES, MAPBOX_ATTRIBUTION, 512),
     'terrain-dem': {
       type: 'raster-dem',
       tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
@@ -82,7 +131,12 @@ export const MAP_STYLE = {
     // offline), the gap shows this muted color instead of glaring white. See
     // issue #63.
     { id: 'base-fill', type: 'background', paint: { 'background-color': '#141b22' } },
-    { id: 'background', type: 'raster', source: 'satellite' },
+    { id: 'fallback-satellite', type: 'raster', source: 'fallback-satellite', paint: { 'raster-fade-duration': 0 } },
+    { id: 'fallback-esri-clarity', type: 'raster', source: 'fallback-esri-clarity', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+    { id: 'fallback-opentopomap', type: 'raster', source: 'fallback-opentopomap', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+    { id: 'fallback-osm', type: 'raster', source: 'fallback-osm', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+    { id: 'fallback-mapbox-streets', type: 'raster', source: 'fallback-mapbox-streets', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
+    { id: 'background', type: 'raster', source: 'satellite', paint: { 'raster-fade-duration': 250 } },
     { id: 'esri-clarity', type: 'raster', source: 'esri-clarity', layout: { visibility: 'none' } },
     { id: 'carto-labels', type: 'raster', source: 'carto-labels', layout: { visibility: 'none' } },
     { id: 'opentopomap', type: 'raster', source: 'opentopomap', layout: { visibility: 'none' } },

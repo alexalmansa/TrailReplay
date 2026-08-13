@@ -6,18 +6,15 @@ import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { getActivityIconMarkerHtml, isSvgActivityIcon } from '@/utils/activityIcons';
 import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
-import { getFollowBehindCameraTarget } from '@/utils/followBehindCamera';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
-import {
-  calculateTerrainAwareAdjustments,
-  smoothBearing,
-  TERRAIN_CAMERA_SETTINGS,
-} from '@/components/map/cameraUtils';
+import { smoothBearing } from '@/components/map/cameraUtils';
+import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
   activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
+  cameraCoordinates: number[][];
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   completedCoordinates: number[][];
@@ -59,9 +56,7 @@ interface UseTrailPlaybackCameraParams {
   }) => void;
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
-  introZoomTriggeredRef: React.MutableRefObject<boolean>;
   isExporting: boolean;
-  lastAnimationPhaseRef: React.MutableRefObject<string>;
   trailStyle: {
     colorMode: 'fixed' | 'heartRate' | 'zones';
     colorZones: readonly TrailColorZone[];
@@ -79,6 +74,7 @@ interface UseTrailPlaybackCameraParams {
 export function useTrailPlaybackCamera({
   activeTrack,
   allCoordinates,
+  cameraCoordinates,
   animationPhase,
   cameraMode,
   completedCoordinates,
@@ -91,11 +87,9 @@ export function useTrailPlaybackCamera({
   currentTrackName,
   elevationData,
   followBehindZoomLevel,
-  introZoomTriggeredRef,
   isExporting,
   isInTransport,
   isMapLoaded,
-  lastAnimationPhaseRef,
   mapRef,
   markerRef,
   playbackProgress,
@@ -253,45 +247,32 @@ export function useTrailPlaybackCamera({
       });
     }
 
-    const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'playback');
-
-    if (animationPhase === 'idle' && lastAnimationPhaseRef.current !== 'idle') {
-      introZoomTriggeredRef.current = false;
-    }
-    lastAnimationPhaseRef.current = animationPhase;
-
-    if (animationPhase === 'intro' && cameraMode !== 'overview' && !introZoomTriggeredRef.current) {
-      introZoomTriggeredRef.current = true;
-      const currentZoom = mapRef.current.getZoom();
-      const targetZoom = Math.min(preset.zoom, currentZoom + 3);
-
-      mapRef.current.easeTo({
-        center: [currentPosition.lon, currentPosition.lat],
-        zoom: targetZoom,
-        pitch: cameraMode === 'follow-behind' ? preset.pitch : 0,
-        bearing: cameraMode === 'follow-behind' ? currentBearing || 0 : 0,
-        duration: 2000,
-        easing: (value: number) => 1 - Math.pow(1 - value, 3),
+    if (animationPhase === 'playing' && cameraMode !== 'overview') {
+      const targetPose = getPlaybackCameraPose({
+        cameraMode,
+        coordinates: cameraCoordinates,
+        elevationData,
+        followBehindZoomLevel,
+        progress: playbackProgress,
       });
-    } else if (animationPhase === 'playing' && cameraMode !== 'overview') {
+      if (!targetPose) return;
+
       const currentZoom = mapRef.current.getZoom();
-      const newZoom = currentZoom < preset.zoom
-        ? Math.min(currentZoom + 0.1, preset.zoom)
-        : Math.max(currentZoom - 0.1, preset.zoom);
+      const newZoom = currentZoom < targetPose.zoom
+        ? Math.min(currentZoom + 0.1, targetPose.zoom)
+        : Math.max(currentZoom - 0.1, targetPose.zoom);
 
       if (cameraMode === 'follow') {
         mapRef.current.easeTo({
+          ...targetPose,
           center: [currentPosition.lon, currentPosition.lat],
-          zoom: 14,
-          pitch: 0,
-          bearing: 0,
           duration: 100,
         });
       } else {
         mapRef.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
           zoom: newZoom,
-          pitch: preset.pitch,
+          pitch: targetPose.pitch,
           bearing: smoothBearingRef.current,
           duration: 100,
           easing: (value: number) => value * (2 - value),
@@ -311,6 +292,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     cameraMode,
+    cameraCoordinates,
     completedCoordinates,
     computedJourney,
     currentBearing,
@@ -319,11 +301,10 @@ export function useTrailPlaybackCamera({
     currentSegment,
     currentTrackColor,
     currentTrackName,
+    elevationData,
     followBehindZoomLevel,
-    introZoomTriggeredRef,
     isInTransport,
     isMapLoaded,
-    lastAnimationPhaseRef,
     mapRef,
     markerRef,
     playbackProgress,
@@ -347,42 +328,23 @@ export function useTrailPlaybackCamera({
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
 
-    const preset = getFollowBehindCameraTarget(followBehindZoomLevel, 'intro');
+    const introPose = getIntroCameraPose({
+      cameraMode,
+      coordinates: cameraCoordinates,
+      elevationData,
+      followBehindZoomLevel,
+      progress: 0,
+    });
 
-    if (animationPhase === 'intro' && cameraMode !== 'overview' && allCoordinates.length > 0) {
-      const startPoint = allCoordinates[0];
-      const lookAheadPoint = allCoordinates[Math.min(10, allCoordinates.length - 1)];
-      if (!startPoint || !lookAheadPoint) return;
-
-      const lat1 = (startPoint[1] * Math.PI) / 180;
-      const lat2 = (lookAheadPoint[1] * Math.PI) / 180;
-      const lon1 = (startPoint[0] * Math.PI) / 180;
-      const lon2 = (lookAheadPoint[0] * Math.PI) / 180;
-      const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-      const x =
-        Math.cos(lat1) * Math.sin(lat2) -
-        Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-      const initialBearing = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-      const startElevation = elevationData.length > 0 ? elevationData[0].elevation : 0;
-      const { zoomAdjust, pitchAdjust } = calculateTerrainAwareAdjustments(startElevation, elevationData, 0);
-
+    if (animationPhase === 'intro' && introPose) {
       mapRef.current.flyTo({
-        center: startPoint as [number, number],
-        zoom: Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_ZOOM,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM, preset.zoom - zoomAdjust)
-        ),
-        pitch: Math.max(
-          TERRAIN_CAMERA_SETTINGS.MIN_PITCH,
-          Math.min(TERRAIN_CAMERA_SETTINGS.MAX_PITCH, preset.pitch - pitchAdjust)
-        ),
-        bearing: initialBearing,
+        ...introPose,
         duration: INTRO_DURATION,
         easing: (value) => 1 - Math.pow(1 - value, 3),
       });
 
-      smoothBearingRef.current = initialBearing;
-      targetBearingRef.current = initialBearing;
+      smoothBearingRef.current = introPose.bearing;
+      targetBearingRef.current = introPose.bearing;
     } else if (animationPhase === 'outro' && cameraMode !== 'overview' && allCoordinates.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
@@ -402,6 +364,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     cameraMode,
+    cameraCoordinates,
     elevationData,
     followBehindZoomLevel,
     isExporting,

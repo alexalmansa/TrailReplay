@@ -1,6 +1,12 @@
 import { useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { AppSettings, TrailStyleSettings } from '@/types';
+import {
+  BASEMAP_FALLBACK_MAX_ZOOM,
+  BASEMAP_PRESENTATIONS,
+  STATIC_BASEMAP_LAYER_IDS,
+  STATIC_FALLBACK_LAYER_IDS,
+} from '@/components/map/mapStyle';
 
 interface UseBaseMapPresentationOptions {
   currentTrackColor: string | null;
@@ -23,26 +29,19 @@ export function useBaseMapPresentation({
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
-    const layerMap: Record<string, string> = {
-      satellite: 'background',
-      street: 'street',
-      topo: 'opentopomap',
-      outdoor: 'opentopomap',
-      'esri-clarity': 'esri-clarity',
-      wayback: 'wayback',
-      'mapbox-streets': 'mapbox-streets',
-    };
+    const presentation = BASEMAP_PRESENTATIONS[settings.mapStyle]
+      ?? BASEMAP_PRESENTATIONS.satellite;
 
-    const targetLayer = layerMap[settings.mapStyle] || 'background';
-
-    ['background', 'street', 'opentopomap', 'enhanced-hillshade', 'esri-clarity', 'wayback', 'mapbox-streets'].forEach((layerId) => {
+    [...STATIC_BASEMAP_LAYER_IDS, ...STATIC_FALLBACK_LAYER_IDS, 'enhanced-hillshade', 'wayback', 'fallback-wayback'].forEach((layerId) => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', 'none');
       }
     });
 
-    if (map.getLayer(targetLayer)) {
-      map.setLayoutProperty(targetLayer, 'visibility', 'visible');
+    for (const layerId of [presentation.fallbackLayerId, presentation.layerId]) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', 'visible');
+      }
     }
 
     if (map.getLayer('ski-pistes')) {
@@ -83,8 +82,17 @@ export function useBaseMapPresentation({
     const isWaybackActive = settings.mapStyle === 'wayback';
 
     if (map.getLayer('wayback')) map.removeLayer('wayback');
+    if (map.getLayer('fallback-wayback')) map.removeLayer('fallback-wayback');
     if (map.getSource('wayback')) map.removeSource('wayback');
+    if (map.getSource('fallback-wayback')) map.removeSource('fallback-wayback');
 
+    map.addSource('fallback-wayback', {
+      type: 'raster',
+      tiles: [tileUrl],
+      tileSize: 256,
+      maxzoom: BASEMAP_FALLBACK_MAX_ZOOM,
+      attribution: '© Esri',
+    });
     map.addSource('wayback', {
       type: 'raster',
       tiles: [tileUrl],
@@ -92,7 +100,23 @@ export function useBaseMapPresentation({
       attribution: '© Esri — Source: Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
     });
     map.addLayer(
-      { id: 'wayback', type: 'raster', source: 'wayback', layout: { visibility: isWaybackActive ? 'visible' : 'none' } },
+      {
+        id: 'fallback-wayback',
+        type: 'raster',
+        source: 'fallback-wayback',
+        layout: { visibility: isWaybackActive ? 'visible' : 'none' },
+        paint: { 'raster-fade-duration': 0 },
+      },
+      'carto-labels',
+    );
+    map.addLayer(
+      {
+        id: 'wayback',
+        type: 'raster',
+        source: 'wayback',
+        layout: { visibility: isWaybackActive ? 'visible' : 'none' },
+        paint: { 'raster-fade-duration': 250 },
+      },
       'carto-labels'
     );
   }, [isMapLoaded, mapRef, settings.mapStyle, settings.waybackItemURL]);

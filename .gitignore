@@ -31,6 +31,9 @@ Thumbs.db
 *.sublime-workspace
 *.sublime-project
 
+# Local AI assistant state
+.claude/
+
 # Dependency directories
 .bower_components/
 jspm_packages/

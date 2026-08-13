@@ -21,6 +21,8 @@ import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
 import { useTilePreload } from './hooks/useTilePreload';
+import { useReplayTileWarmup } from './hooks/useReplayTileWarmup';
+import { useTilePreloadDiagnostics } from './hooks/useTilePreloadDiagnostics';
 import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
 import type { CropPreviewMetrics } from '@/utils/crop';
 
@@ -44,8 +46,6 @@ export function TrailMap(_props: TrailMapProps) {
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const smoothBearingRef = useRef<number>(0);
   const targetBearingRef = useRef<number>(0);
-  const introZoomTriggeredRef = useRef<boolean>(false);
-  const lastAnimationPhaseRef = useRef<string>('idle');
   const loadZoomDoneRef = useRef<boolean>(false);
 
   const tracks = useAppStore((state) => state.tracks);
@@ -85,6 +85,7 @@ export function TrailMap(_props: TrailMapProps) {
     currentSegment,
     completedCoordinates,
     allCoordinates,
+    cameraPathCoordinates,
     isInTransport,
     currentTrackColor,
     segmentTimings,
@@ -183,6 +184,7 @@ export function TrailMap(_props: TrailMapProps) {
   useTrailPlaybackCamera({
     activeTrack,
     allCoordinates,
+    cameraCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
     completedCoordinates,
@@ -195,11 +197,9 @@ export function TrailMap(_props: TrailMapProps) {
     currentTrackName: currentTrackName ?? null,
     elevationData,
     followBehindZoomLevel,
-    introZoomTriggeredRef,
     isExporting,
     isInTransport,
     isMapLoaded,
-    lastAnimationPhaseRef,
     mapRef: map,
     markerRef,
     playbackProgress: playback.progress,
@@ -222,8 +222,9 @@ export function TrailMap(_props: TrailMapProps) {
   });
 
   useTilePreload({
-    allCoordinates,
+    allCoordinates: cameraPathCoordinates,
     animationPhase,
+    cameraMode,
     elevationData,
     followBehindZoomLevel,
     isMapLoaded,
@@ -232,6 +233,28 @@ export function TrailMap(_props: TrailMapProps) {
     setAnimationPhase,
     smoothBearingRef,
     targetBearingRef,
+    totalDurationMs: playback.totalDuration,
+  });
+
+  const tileDiagnostics = useTilePreloadDiagnostics({
+    isMapLoaded,
+    isPlaying: playback.isPlaying,
+    mapRef: map,
+  });
+
+  useReplayTileWarmup({
+    allCoordinates: cameraPathCoordinates,
+    animationPhase,
+    cameraMode,
+    diagnostics: tileDiagnostics,
+    elevationData,
+    followBehindZoomLevel,
+    isMapLoaded,
+    isPlaying: playback.isPlaying,
+    mapStyle: settings.mapStyle,
+    playbackProgress: playback.progress,
+    playbackSpeed: playback.speed,
+    totalDurationMs: playback.totalDuration,
   });
 
   useEffect(() => {
