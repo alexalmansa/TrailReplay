@@ -83,13 +83,17 @@ const TILE_TEMPLATES: Record<string, string> = {
 };
 
 export function getTileRequestUrl(sourceId: string, key: string): string | null {
-  const template = TILE_TEMPLATES[sourceId];
+  const canonicalSourceId = sourceId.startsWith('fallback-')
+    ? sourceId.slice('fallback-'.length)
+    : sourceId;
+  const template = TILE_TEMPLATES[canonicalSourceId];
   const [z, x, y] = key.split('/');
   if (!template || !z || !x || !y) return null;
   return template.replace('{z}', z).replace('{x}', x).replace('{y}', y);
 }
 
 export function getTilePriority(sourceId: string): number {
+  if (sourceId.startsWith('fallback-')) return -1;
   if (sourceId === 'terrain-dem') return 1;
   if (sourceId === 'carto-labels') return 2;
   if (sourceId === 'opensnowmap' || sourceId === 'slope' || sourceId === 'aspect') return 3;

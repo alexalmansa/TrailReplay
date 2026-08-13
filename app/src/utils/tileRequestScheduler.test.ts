@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getTileRequestUrl, TileRequestScheduler } from './tileRequestScheduler';
+import { getTilePriority, getTileRequestUrl, TileRequestScheduler } from './tileRequestScheduler';
 
 describe('TileRequestScheduler', () => {
   it('prioritizes essential tiles and does not duplicate a completed tile', async () => {
@@ -22,6 +22,12 @@ describe('TileRequestScheduler', () => {
   it('builds provider URLs using their required coordinate ordering', () => {
     expect(getTileRequestUrl('esri-clarity', '16/12/34')).toContain('/16/34/12');
     expect(getTileRequestUrl('terrain-dem', '16/12/34')).toContain('/16/12/34.png');
+    expect(getTileRequestUrl('fallback-esri-clarity', '12/12/34')).toContain('/12/34/12');
     expect(getTileRequestUrl('slope', '16/12/34')).toBeNull();
+  });
+
+  it('prioritizes fallback imagery before detail and terrain tiles', () => {
+    expect(getTilePriority('fallback-esri-clarity')).toBeLessThan(getTilePriority('esri-clarity'));
+    expect(getTilePriority('esri-clarity')).toBeLessThan(getTilePriority('terrain-dem'));
   });
 });

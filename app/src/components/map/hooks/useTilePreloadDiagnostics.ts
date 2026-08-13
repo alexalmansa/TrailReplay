@@ -3,9 +3,22 @@ import type maplibregl from 'maplibre-gl';
 import {
   getMapLibreTileKey,
   NOOP_TILE_PRELOAD_OBSERVER,
-  TilePreloadDiagnostics,
   type TilePreloadObserver,
+} from '@/utils/tilePreloadObserver';
+import type {
+  TileDiagnosticRecord,
+  TilePreloadSummary,
 } from '@/utils/tilePreloadDiagnostics';
+
+type DevelopmentTilePreloadObserver = TilePreloadObserver & {
+  snapshot(): { records: TileDiagnosticRecord[]; summary: TilePreloadSummary };
+};
+
+function isDevelopmentDiagnostics(
+  observer: TilePreloadObserver,
+): observer is DevelopmentTilePreloadObserver {
+  return 'snapshot' in observer && typeof observer.snapshot === 'function';
+}
 
 export function useTilePreloadDiagnostics({
   isMapLoaded,
@@ -16,14 +29,26 @@ export function useTilePreloadDiagnostics({
   isPlaying: boolean;
   mapRef: React.MutableRefObject<maplibregl.Map | null>;
 }) {
-  const [diagnostics] = useState<TilePreloadObserver>(() => (
-    import.meta.env.DEV ? new TilePreloadDiagnostics() : NOOP_TILE_PRELOAD_OBSERVER
-  ));
-  const isPlayingRef = useRef(isPlaying);
+  const [diagnostics, setDiagnostics] = useState<TilePreloadObserver>(NOOP_TILE_PRELOAD_OBSERVER);
+  const isPlayingRef = useRef(false);
 
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    let disposed = false;
+    void import('@/utils/tilePreloadDiagnostics').then(({ TilePreloadDiagnostics }) => {
+      if (!disposed) setDiagnostics(new TilePreloadDiagnostics());
+    });
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPlaying && !isPlayingRef.current) diagnostics.reset();
     isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
+  }, [diagnostics, isPlaying]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -41,18 +66,32 @@ export function useTilePreloadDiagnostics({
       const source = sourceId(event);
       if (key && source) diagnostics.markTileReady(source, key);
     };
+    const onAbort = (event: unknown) => {
+      const key = getMapLibreTileKey(event);
+      const source = sourceId(event);
+      if (key && source) diagnostics.markTileAborted(source, key);
+    };
+    const onError = (event: unknown) => {
+      const key = getMapLibreTileKey(event);
+      const source = sourceId(event);
+      if (key && source) diagnostics.markTileFailed(source, key);
+    };
 
     map.on('sourcedataloading', onLoading);
     map.on('sourcedata', onData);
+    map.on('sourcedataabort', onAbort);
+    map.on('error', onError);
     return () => {
       map.off('sourcedataloading', onLoading);
       map.off('sourcedata', onData);
+      map.off('sourcedataabort', onAbort);
+      map.off('error', onError);
     };
   }, [diagnostics, isMapLoaded, mapRef]);
 
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return;
-    if (!(diagnostics instanceof TilePreloadDiagnostics)) return;
+    if (!isDevelopmentDiagnostics(diagnostics)) return;
     window.__trailReplayTileDiagnostics = () => diagnostics.snapshot();
     const publishSnapshot = () => {
       document.documentElement.dataset.tilePreloadDiagnostics = JSON.stringify(diagnostics.snapshot().summary);

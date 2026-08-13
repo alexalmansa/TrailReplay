@@ -1,4 +1,7 @@
-export type TileOutcome = 'on-time' | 'late' | 'unplanned' | 'pending';
+import type { TilePreloadObserver } from './tilePreloadObserver';
+
+export type TileOutcome = 'on-time' | 'late' | 'unplanned' | 'pending' | 'aborted' | 'failed';
+export type TileSourceCategory = 'basemap-detail' | 'basemap-fallback' | 'terrain' | 'overlay' | 'other';
 
 export interface TileDiagnosticRecord {
   firstPredictedAt: number | null;
@@ -10,7 +13,9 @@ export interface TileDiagnosticRecord {
   sourceId: string;
 }
 
-export interface TilePreloadSummary {
+export interface TilePreloadCounters {
+  aborted: number;
+  failed: number;
   late: number;
   onTime: number;
   pending: number;
@@ -18,10 +23,9 @@ export interface TilePreloadSummary {
   unplanned: number;
 }
 
-export interface TilePreloadObserver {
-  markTileReady(sourceId: string, key: string, loadedAt?: number): void;
-  predictTile(sourceId: string, key: string, predictedAt?: number): void;
-  requestVisibleTile(sourceId: string, key: string, neededAt?: number): void;
+export interface TilePreloadSummary extends TilePreloadCounters {
+  byCategory: Partial<Record<TileSourceCategory, TilePreloadCounters>>;
+  bySource: Record<string, TilePreloadCounters>;
 }
 
 const MAX_RECORDS = 4_000;
@@ -49,6 +53,9 @@ export class TilePreloadDiagnostics implements TilePreloadObserver {
       record.outcome = 'on-time';
     } else if (record.firstPredictedAt === null) {
       record.outcome = 'unplanned';
+    } else {
+      // A source may retry a tile after MapLibre aborted an obsolete request.
+      record.outcome = 'pending';
     }
   }
 
@@ -64,17 +71,38 @@ export class TilePreloadDiagnostics implements TilePreloadObserver {
     record.outcome = loadedAt <= record.neededAt ? 'on-time' : 'late';
   }
 
+  markTileAborted(sourceId: string, key: string): void {
+    const record = this.records.get(`${sourceId}:${key}`);
+    if (record?.neededAt !== null && record?.loadedAt === null) record.outcome = 'aborted';
+  }
+
+  markTileFailed(sourceId: string, key: string): void {
+    const record = this.records.get(`${sourceId}:${key}`);
+    if (record?.neededAt !== null && record?.loadedAt === null) record.outcome = 'failed';
+  }
+
+  reset(): void {
+    this.records.clear();
+  }
+
   snapshot(): { records: TileDiagnosticRecord[]; summary: TilePreloadSummary } {
     const records = [...this.records.values()];
-    const summary = records.reduce<TilePreloadSummary>((result, record) => {
-      if (record.neededAt === null) return result;
-      result.totalVisibleRequests += 1;
-      if (record.outcome === 'on-time') result.onTime += 1;
-      else if (record.outcome === 'late') result.late += 1;
-      else if (record.outcome === 'unplanned') result.unplanned += 1;
-      else result.pending += 1;
-      return result;
-    }, { late: 0, onTime: 0, pending: 0, totalVisibleRequests: 0, unplanned: 0 });
+    const summary: TilePreloadSummary = {
+      ...createCounters(),
+      byCategory: {},
+      bySource: {},
+    };
+    for (const record of records) {
+      if (record.neededAt === null) continue;
+      incrementCounters(summary, record.outcome);
+
+      const sourceCounters = summary.bySource[record.sourceId] ??= createCounters();
+      incrementCounters(sourceCounters, record.outcome);
+
+      const category = getTileSourceCategory(record.sourceId);
+      const categoryCounters = summary.byCategory[category] ??= createCounters();
+      incrementCounters(categoryCounters, record.outcome);
+    }
 
     return { records, summary };
   }
@@ -103,18 +131,49 @@ export class TilePreloadDiagnostics implements TilePreloadObserver {
   }
 }
 
-/** Production observer: intentionally performs no allocation or bookkeeping. */
-export const NOOP_TILE_PRELOAD_OBSERVER: TilePreloadObserver = {
-  markTileReady: () => undefined,
-  predictTile: () => undefined,
-  requestVisibleTile: () => undefined,
-};
+const DETAIL_BASEMAP_SOURCES = new Set([
+  'satellite',
+  'esri-clarity',
+  'osm',
+  'opentopomap',
+  'mapbox-streets',
+  'wayback',
+]);
 
-/** Extracts a stable z/x/y key from MapLibre source-data events. */
-export function getMapLibreTileKey(event: unknown): string | null {
-  const coord = (event as { coord?: { canonical?: { x?: number; y?: number; z?: number } } })?.coord?.canonical;
-  if (!coord || !Number.isInteger(coord.z) || !Number.isInteger(coord.x) || !Number.isInteger(coord.y)) {
-    return null;
-  }
-  return `${coord.z}/${coord.x}/${coord.y}`;
+const OVERLAY_SOURCES = new Set([
+  'carto-labels',
+  'enhanced-hillshade',
+  'opensnowmap',
+  'slope',
+  'aspect',
+]);
+
+export function getTileSourceCategory(sourceId: string): TileSourceCategory {
+  if (sourceId.startsWith('fallback-')) return 'basemap-fallback';
+  if (DETAIL_BASEMAP_SOURCES.has(sourceId)) return 'basemap-detail';
+  if (sourceId === 'terrain-dem') return 'terrain';
+  if (OVERLAY_SOURCES.has(sourceId)) return 'overlay';
+  return 'other';
+}
+
+function createCounters(): TilePreloadCounters {
+  return {
+    aborted: 0,
+    failed: 0,
+    late: 0,
+    onTime: 0,
+    pending: 0,
+    totalVisibleRequests: 0,
+    unplanned: 0,
+  };
+}
+
+function incrementCounters(counters: TilePreloadCounters, outcome: TileOutcome): void {
+  counters.totalVisibleRequests += 1;
+  if (outcome === 'on-time') counters.onTime += 1;
+  else if (outcome === 'late') counters.late += 1;
+  else if (outcome === 'unplanned') counters.unplanned += 1;
+  else if (outcome === 'aborted') counters.aborted += 1;
+  else if (outcome === 'failed') counters.failed += 1;
+  else counters.pending += 1;
 }

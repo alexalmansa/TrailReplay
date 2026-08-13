@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
-import { MAP_STYLE } from '@/components/map/mapStyle';
+import {
+  BASEMAP_PRESENTATIONS,
+  MAP_STYLE,
+  STATIC_BASEMAP_LAYER_IDS,
+  STATIC_FALLBACK_LAYER_IDS,
+} from '@/components/map/mapStyle';
 import {
   getPredictivePlaybackPoses,
   type ReplayCameraMode,
   type ReplayCameraPose,
 } from '@/utils/replayCameraPlan';
-import { getMapLibreTileKey, type TilePreloadObserver } from '@/utils/tilePreloadDiagnostics';
+import { getMapLibreTileKey, type TilePreloadObserver } from '@/utils/tilePreloadObserver';
 import {
   getTilePriority,
   getTileRequestUrl,
@@ -96,16 +101,11 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
       const sourceId = (event as { sourceId?: string }).sourceId;
       if (!key || !sourceId) return;
 
-      const activeBaseSource: Record<string, string> = {
-        satellite: 'satellite',
-        street: 'osm',
-        topo: 'opentopomap',
-        outdoor: 'opentopomap',
-        'esri-clarity': 'esri-clarity',
-        'mapbox-streets': 'mapbox-streets',
-      };
+      const presentation = BASEMAP_PRESENTATIONS[latestParamsRef.current.mapStyle]
+        ?? BASEMAP_PRESENTATIONS.satellite;
       const isEssentialSource = sourceId === 'terrain-dem'
-        || sourceId === activeBaseSource[latestParamsRef.current.mapStyle];
+        || sourceId === presentation.sourceId
+        || sourceId === presentation.fallbackSourceId;
       if (!isEssentialSource) return;
 
       params.diagnostics.predictTile(sourceId, key);
@@ -143,18 +143,12 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
     if (!map) return;
 
     const syncActiveBaseMap = () => {
-      const layerMap: Record<string, string> = {
-        satellite: 'background',
-        street: 'street',
-        topo: 'opentopomap',
-        outdoor: 'opentopomap',
-        'esri-clarity': 'esri-clarity',
-        'mapbox-streets': 'mapbox-streets',
-      };
-      const activeLayer = layerMap[latestParamsRef.current.mapStyle] || 'background';
-      ['background', 'street', 'opentopomap', 'esri-clarity', 'mapbox-streets'].forEach((layerId) => {
+      const presentation = BASEMAP_PRESENTATIONS[latestParamsRef.current.mapStyle]
+        ?? BASEMAP_PRESENTATIONS.satellite;
+      const activeLayers = new Set([presentation.layerId, presentation.fallbackLayerId]);
+      [...STATIC_BASEMAP_LAYER_IDS, ...STATIC_FALLBACK_LAYER_IDS].forEach((layerId) => {
         if (map.getLayer(layerId)) {
-          map.setLayoutProperty(layerId, 'visibility', layerId === activeLayer ? 'visible' : 'none');
+          map.setLayoutProperty(layerId, 'visibility', activeLayers.has(layerId) ? 'visible' : 'none');
         }
       });
     };
