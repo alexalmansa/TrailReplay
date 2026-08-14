@@ -8,7 +8,7 @@ import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
-import { smoothBearing, smoothZoom } from '@/components/map/cameraUtils';
+import { smoothBearing, smoothPitch, smoothZoom } from '@/components/map/cameraUtils';
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
@@ -261,6 +261,7 @@ export function useTrailPlaybackCamera({
 
       const currentZoom = mapRef.current.getZoom();
       const newZoom = smoothZoom(currentZoom, targetPose.zoom);
+      const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch);
 
       // During deterministic export, camera interpolation must not run on its
       // own clock. The exporter advances playback one frame at a time and waits
@@ -270,6 +271,7 @@ export function useTrailPlaybackCamera({
           ...targetPose,
           center: [currentPosition.lon, currentPosition.lat],
           zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
+          pitch: cameraMode === 'follow' ? targetPose.pitch : newPitch,
           bearing: cameraMode === 'follow' ? targetPose.bearing : smoothBearingRef.current,
         });
       } else if (cameraMode === 'follow') {
@@ -282,10 +284,10 @@ export function useTrailPlaybackCamera({
         mapRef.current.easeTo({
           center: [currentPosition.lon, currentPosition.lat],
           zoom: newZoom,
-          pitch: targetPose.pitch,
+          pitch: newPitch,
           bearing: smoothBearingRef.current,
           duration: 100,
-          easing: (value: number) => value * (2 - value),
+          easing: (value: number) => value,
         });
       }
     }

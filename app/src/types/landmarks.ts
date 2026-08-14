@@ -8,6 +8,14 @@ export type LandmarkType =
 export type LandmarkSource = 'automatic' | 'user' | 'enriched' | 'media';
 export type LandmarkDisplay = 'subtle' | 'highlight';
 
+export interface NearbyPlacesCoverage {
+  complete: boolean;
+  source: 'landmark-database' | 'shared-cache' | 'shared-cache-and-overpass' | 'overpass' | 'route-cache';
+  tiles: number;
+  cacheHits: number;
+  fetchedTiles: number;
+}
+
 export interface RouteLandmark {
   id: string;
   type: LandmarkType;

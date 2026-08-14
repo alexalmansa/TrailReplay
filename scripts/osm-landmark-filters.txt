@@ -1,0 +1,8 @@
+# Keep this list aligned with functions/api/landmarks.js.
+nwr/natural=peak
+nwr/natural=saddle
+nwr/tourism=viewpoint
+nwr/tourism=alpine_hut
+nwr/waterway=waterfall
+nwr/water=lake
+nwr/place=city,town,village,hamlet

@@ -19,7 +19,7 @@ import type {
   TransportMode,
   TrailStyleSettings,
 } from '@/types';
-import type { LandmarkType, RouteLandmark } from '@/types/landmarks';
+import type { LandmarkType, NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
 
 export interface AppState {
   tracks: GPXTrack[];
@@ -39,6 +39,7 @@ export interface AppState {
   nearbyPlacesEnabled: boolean;
   nearbyPlacesLoading: boolean;
   nearbyPlacesError: string | null;
+  nearbyPlacesCoverage: NearbyPlacesCoverage | null;
   playback: PlaybackState;
   cinematicPlayed: boolean;
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
@@ -102,7 +103,7 @@ export interface AppState {
   setEnabledLandmarkGroups: (groups: LandmarkType[]) => void;
   setNearbyPlacesEnabled: (enabled: boolean) => void;
   setEnrichedLandmarks: (landmarks: RouteLandmark[]) => void;
-  setNearbyPlacesStatus: (loading: boolean, error?: string | null) => void;
+  setNearbyPlacesStatus: (loading: boolean, error?: string | null, coverage?: NearbyPlacesCoverage | null) => void;
   setPlayback: (playback: Partial<PlaybackState>) => void;
   play: () => void;
   pause: () => void;

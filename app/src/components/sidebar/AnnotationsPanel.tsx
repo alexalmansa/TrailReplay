@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ACTIVITY_ICONS, isSvgActivityIcon, renderActivityIcon } from '@/utils/activityIcons';
 import { createId } from '@/utils/id';
+import { RouteAnnotationsEditor } from './RouteAnnotationsEditor';
 import { Trash2 } from 'lucide-react';
 
 function parsePercent(raw: string): number | null {
@@ -698,14 +699,12 @@ export function AnnotationsPanel() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
+      <section className="space-y-3 border-t border-[var(--evergreen)]/15 pt-5">
         <h3 className="text-sm font-bold text-[var(--evergreen)] uppercase tracking-wide">
           {t('annotations.routeAnnotationsTitle')}
         </h3>
-        <p className="mt-2 text-xs text-[var(--evergreen-60)]">
-          {t('annotations.routeAnnotationsMovedHint')}
-        </p>
-      </div>
+        <RouteAnnotationsEditor />
+      </section>
 
       {/* Icon Picker Modal */}
       {showIconPicker && (

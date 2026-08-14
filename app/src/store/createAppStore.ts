@@ -43,9 +43,10 @@ export function createAppStore() {
           state.enrichedLandmarks = [];
           state.showAutomaticLandmarks = false;
           state.enabledLandmarkGroups = [];
-          state.nearbyPlacesEnabled = false;
+          state.nearbyPlacesEnabled = true;
           state.nearbyPlacesLoading = false;
           state.nearbyPlacesError = null;
+          state.nearbyPlacesCoverage = null;
           state.playback = createDefaultPlayback();
           state.cinematicPlayed = false;
           state.animationPhase = 'idle';
