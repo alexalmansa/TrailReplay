@@ -50,7 +50,7 @@ export function createDefaultSettings(): AppSettings {
       ghostTrailOpacity: 0.5,
       colorZones: [],
     },
-    mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: true, aspectOverlay: false },
+    mapOverlays: { skiPistes: false, slopeOverlay: false, placeLabels: false, aspectOverlay: false },
     waybackRelease: null,
     waybackItemURL: null,
     visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],

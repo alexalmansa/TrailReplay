@@ -4,6 +4,7 @@ import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types'
 import { useI18n } from '@/i18n/useI18n';
 import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
 import { RouteLandmarksEditor } from './RouteLandmarksEditor';
+import { MapNavigationGuide } from './MapNavigationGuide';
 import {
   Map as MapIcon,
   Video,
@@ -138,6 +139,8 @@ export function SettingsPanel() {
 
   return (
     <div className="space-y-6">
+      <MapNavigationGuide />
+
       {/* Map Style */}
       <div>
         <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">

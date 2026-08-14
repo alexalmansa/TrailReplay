@@ -5,7 +5,7 @@ import { useComputedJourney } from '@/hooks/useComputedJourney';
 import type { LandmarkType } from '@/types/landmarks';
 
 const TYPES: LandmarkType[] = ['custom', 'summit', 'viewpoint', 'hut', 'waterfall', 'camp', 'challenge', 'note'];
-const COLORS = ['#f3b133', '#ff7a59', '#53c16d', '#3b82f6', '#8b5cf6'];
+const COLORS = ['#E86F51', '#B85E3C', '#3E9DB0', '#496DAB', '#A86CC1'];
 
 export function RouteLandmarksEditor() {
   const playback = useAppStore((state) => state.playback);
@@ -14,6 +14,7 @@ export function RouteLandmarksEditor() {
   const nearbyPlacesEnabled = useAppStore((state) => state.nearbyPlacesEnabled);
   const nearbyPlacesLoading = useAppStore((state) => state.nearbyPlacesLoading);
   const nearbyPlacesError = useAppStore((state) => state.nearbyPlacesError);
+  const nearbyPlacesCoverage = useAppStore((state) => state.nearbyPlacesCoverage);
   const enrichedLandmarks = useAppStore((state) => state.enrichedLandmarks);
   const addLandmark = useAppStore((state) => state.addLandmark);
   const removeLandmark = useAppStore((state) => state.removeLandmark);
@@ -34,7 +35,8 @@ export function RouteLandmarksEditor() {
     <label className="flex items-start justify-between gap-3 rounded-lg bg-[var(--canvas)]/60 px-2.5 py-2"><span><span className="block text-xs font-medium text-[var(--evergreen)]">Nearby named places</span><span className="block pt-0.5 text-[11px] text-[var(--evergreen-60)]">Finds named peaks, passes, lakes, huts and towns near this route using OpenStreetMap.</span></span><input type="checkbox" checked={nearbyPlacesEnabled} onChange={(event) => setNearbyPlacesEnabled(event.target.checked)} /></label>
     {nearbyPlacesLoading && <p className="text-xs text-[var(--evergreen-60)]">Finding named peaks, lakes and towns near this route…</p>}
     {nearbyPlacesError && <p className="text-xs text-red-600">{nearbyPlacesError}</p>}
-    {nearbyPlacesEnabled && !nearbyPlacesLoading && !nearbyPlacesError && <p className="text-xs text-[var(--evergreen-60)]">{enrichedLandmarks.length > 0 ? `${enrichedLandmarks.length} named places loaded from OpenStreetMap.` : 'Nearby places load after replay pauses or reaches the end.'}</p>}
+    {nearbyPlacesEnabled && !nearbyPlacesLoading && !nearbyPlacesError && <p className="text-xs text-[var(--evergreen-60)]">{enrichedLandmarks.length > 0 ? `${enrichedLandmarks.length} named places loaded from OpenStreetMap.` : 'Nearby places load when you open a route.'}</p>}
+    {nearbyPlacesCoverage?.complete && <p className="text-[11px] text-[var(--evergreen-60)]">Complete coverage around this route · {nearbyPlacesCoverage.source === 'landmark-database' ? 'TrailReplay landmark database' : nearbyPlacesCoverage.cacheHits === nearbyPlacesCoverage.tiles ? 'shared cache' : `${nearbyPlacesCoverage.fetchedTiles} area${nearbyPlacesCoverage.fetchedTiles === 1 ? '' : 's'} added to shared cache`}</p>}
     {nearbyPlacesEnabled && <p className="text-[11px] text-[var(--evergreen-60)]">Nearby-place data © <a className="underline hover:text-[var(--trail-orange)]" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, available under ODbL.</p>}
     <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={48} placeholder="Landmark title" className="w-full rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-3 py-2 text-sm text-[var(--evergreen)] outline-none focus:border-[var(--trail-orange)]" />
     <div className="flex gap-2"><select value={type} onChange={(event) => setType(event.target.value as LandmarkType)} className="min-w-0 flex-1 rounded-lg border border-[var(--evergreen)]/20 bg-[var(--canvas)] px-2 py-2 text-sm text-[var(--evergreen)]">{TYPES.map((entry) => <option key={entry} value={entry}>{entry.replace('-', ' ')}</option>)}</select><div className="flex items-center gap-1">{COLORS.map((entry) => <button key={entry} type="button" onClick={() => setColor(entry)} className={`h-5 w-5 rounded-full ${color === entry ? 'ring-2 ring-[var(--evergreen)] ring-offset-1' : ''}`} style={{ backgroundColor: entry }} />)}</div></div>

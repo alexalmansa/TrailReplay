@@ -165,6 +165,41 @@ export function JourneyPanel() {
         </div>
       )}
 
+      {/* Playback pace belongs with journey setup, rather than buried in the timeline. */}
+      <section className="rounded-xl border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
+        <div className="flex items-start gap-2">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" />
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
+              {t('journey.routeTiming')}
+            </h3>
+            <p className="mt-1 text-[11px] leading-4 text-[var(--evergreen-60)]">
+              {t('journey.routeTimingHint')}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {(['recorded', 'uniform'] as const).map((mode) => {
+            const active = routeTimingMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setRouteTimingMode(mode)}
+                aria-pressed={active}
+                className={`min-w-0 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
+                  active
+                    ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                    : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60 hover:bg-[var(--trail-orange-15)]'
+                }`}
+              >
+                {mode === 'recorded' ? t('journey.routeTimingRecorded') : t('journey.routeTimingUniform')}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Quick Start */}
       {tracks.length > 0 && (
         <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)]/30 rounded-lg p-3">
@@ -243,37 +278,6 @@ export function JourneyPanel() {
           )}
         </div>
 
-        <div className="mb-3 rounded-lg border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
-                {t('journey.routeTiming')}
-              </p>
-              <p className="mt-1 text-[10px] text-[var(--evergreen-60)]">
-                {t('journey.routeTimingHint')}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-1">
-            {(['recorded', 'uniform'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setRouteTimingMode(mode)}
-                className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                  routeTimingMode === mode
-                    ? 'bg-[var(--evergreen)] text-[var(--canvas)]'
-                    : 'bg-[var(--canvas)] text-[var(--evergreen)] border border-[var(--evergreen)]/20 hover:bg-[var(--evergreen)]/5'
-                }`}
-              >
-                {mode === 'recorded'
-                  ? t('journey.routeTimingRecorded')
-                  : t('journey.routeTimingUniform')}
-              </button>
-            ))}
-          </div>
-        </div>
-        
         {journeySegments.length === 0 ? (
           <div className="text-center py-8 text-[var(--evergreen-60)] border-2 border-dashed border-[var(--evergreen)]/20 rounded-lg">
             <p className="text-sm">{t('journey.emptyTitle')}</p>

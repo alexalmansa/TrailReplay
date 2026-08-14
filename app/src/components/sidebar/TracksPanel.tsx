@@ -9,7 +9,6 @@ import {
   GitCompareArrows,
 } from 'lucide-react';
 import { ComparisonTrackItem } from '@/components/sidebar/tracks/ComparisonTrackItem';
-import { MapControlsNote } from '@/components/sidebar/tracks/LanguageSelectorCard';
 import { TrackItem } from '@/components/sidebar/tracks/TrackItem';
 import { COMPARISON_COLORS } from '@/components/sidebar/tracks/constants';
 import { trackEvent } from '@/utils/analytics';
@@ -247,10 +246,6 @@ export function TracksPanel() {
           </button>
         </div>
       )}
-
-      <div className="space-y-3 pt-1">
-        <MapControlsNote />
-      </div>
     </div>
   );
 }

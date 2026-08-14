@@ -37,14 +37,17 @@ function data(landmarks: RouteLandmark[]): FeatureCollection<Point> {
 }
 
 function colorFor(landmark: RouteLandmark) {
-  if (landmark.source === 'user') return '#f3b133';
-  if (['summit', 'high-point', 'highest-point'].includes(landmark.type)) return '#ffd166';
-  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#f6d9a8';
-  if (['town', 'trailhead', 'aid-station'].includes(landmark.type)) return '#ff9f6e';
-  if (['lake', 'water', 'waterfall', 'river-crossing'].includes(landmark.type)) return '#69d2ff';
-  if (['hut', 'shelter', 'camp'].includes(landmark.type)) return '#80d6a0';
-  if (landmark.type === 'viewpoint') return '#c9a8ff';
-  return '#f3b133';
+  // A restrained alpine palette: category hues remain clear over satellite
+  // imagery without competing with the route's orange accent.
+  if (landmark.source === 'user') return '#E86F51';
+  if (['summit', 'high-point', 'highest-point'].includes(landmark.type)) return '#E86F51';
+  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#A86CC1';
+  if (['town', 'trailhead', 'aid-station'].includes(landmark.type)) return '#F7F2E8';
+  if (landmark.type === 'waterfall') return '#63C5D9';
+  if (['lake', 'water', 'river-crossing'].includes(landmark.type)) return '#3C9DCC';
+  if (['hut', 'shelter', 'camp'].includes(landmark.type)) return '#B85E3C';
+  if (landmark.type === 'viewpoint') return '#3E9DB0';
+  return '#536B65';
 }
 
 function iconFor(type: RouteLandmark['type']) {
@@ -77,7 +80,7 @@ export function useRouteLandmarksLayer({ landmarks, isMapLoaded, mapRef }: { lan
     });
     if (!map.getSource(SOURCE)) map.addSource(SOURCE, { type: 'geojson', data: data([]) });
     if (!map.getLayer(HALO)) map.addLayer({ id: HALO, type: 'circle', source: SOURCE, paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 9, 15, 15], 'circle-color': '#060a0c', 'circle-opacity': ['*', ['get', 'opacity'], 0.96], 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2.5, 'circle-pitch-alignment': 'viewport',
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 9, 15, 15], 'circle-color': '#10231c', 'circle-opacity': ['*', ['get', 'opacity'], 0.96], 'circle-stroke-color': '#F7F2E8', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'viewport',
     } });
     if (!map.getLayer(ICON)) map.addLayer({ id: ICON, type: 'symbol', source: SOURCE, layout: {
       'icon-image': ['concat', IMAGE_PREFIX, ['get', 'icon']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.62, 15, 0.92], 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'symbol-sort-key': ['get', 'importance'],

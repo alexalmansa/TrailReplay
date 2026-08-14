@@ -18,7 +18,7 @@ export function smoothBearing(
   }
 
   // Keep sharp switchbacks cinematic rather than snapping the view sideways.
-  const maxChange = 1.25;
+  const maxChange = 0.85;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
 
   return (currentBearing + change + 360) % 360;
@@ -46,6 +46,29 @@ export function smoothZoom(
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
 
   return currentZoom + change;
+}
+
+/**
+ * Keeps terrain protection from visibly tilting the horizon in steps. Reducing
+ * pitch opens the view, so that safety adjustment is allowed to happen faster
+ * than pitching back down into a close cinematic angle.
+ */
+export function smoothPitch(
+  currentPitch: number,
+  targetPitch: number,
+  smoothingFactor: number = 0.12,
+  stabilityDeadband: number = 0.35,
+): number {
+  const diff = targetPitch - currentPitch;
+
+  if (Math.abs(diff) < stabilityDeadband) {
+    return currentPitch;
+  }
+
+  const maxChange = diff < 0 ? 0.6 : 0.22;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+
+  return currentPitch + change;
 }
 
 export const TERRAIN_CAMERA_SETTINGS = {

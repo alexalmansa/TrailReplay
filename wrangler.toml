@@ -1,6 +1,13 @@
 "$schema" = "./node_modules/wrangler/config-schema.json"
 
 name = "trailreplay"
+account_id = "d6661214b1568252ad7874c9849b6c93"
 pages_build_output_dir = "./app/dist"
 compatibility_date = "2026-04-28"
 upload_source_maps = true
+
+[[d1_databases]]
+binding = "LANDMARKS_DB"
+database_name = "trailreplay-landmarks"
+database_id = "c17bcd72-6d09-4b9c-a354-5603285564af"
+migrations_dir = "migrations"

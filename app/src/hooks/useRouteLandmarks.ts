@@ -4,7 +4,7 @@ import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { analyzeRouteLandmarks } from '@/utils/routeLandmarks';
 import { resolveRouteLandmarks } from '@/utils/resolveRouteLandmarks';
 import { selectVisibleLandmarks } from '@/utils/landmarkVisibility';
-import type { RouteLandmark } from '@/types/landmarks';
+import type { NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
 import { projectCoordinateToJourney, projectCoordinateToTrack } from '@/utils/routeProjection';
 
 export function useRouteLandmarks(): RouteLandmark[] {
@@ -21,9 +21,10 @@ export function useRouteLandmarks(): RouteLandmark[] {
   const isExporting = useAppStore((state) => state.isExporting);
   const routePoints = useMemo(() => computedJourney?.coordinates ?? activeTrack?.points ?? [], [activeTrack?.points, computedJourney?.coordinates]);
   useEffect(() => {
-    // A completed replay can retain its playing flag briefly while the outro
-    // settles. It is safe to enrich then, but never during an active frame.
-    if (!nearbyPlacesEnabled || isExporting || (playback.isPlaying && playback.progress < 1) || routePoints.length < 2) return;
+    // Start as soon as a GPX route is available. The layer itself reveals each
+    // marker along the journey, so fetching while playback starts never makes
+    // the whole route suddenly appear or delays the first replay.
+    if (!nearbyPlacesEnabled || isExporting || routePoints.length < 2) return;
     const controller = new AbortController();
     const points = routePoints.filter((_, index) => index === 0 || index === routePoints.length - 1 || index % Math.ceil(routePoints.length / 160) === 0)
       .map((point) => [Number(point.lon.toFixed(5)), Number(point.lat.toFixed(5))]);
@@ -45,7 +46,7 @@ export function useRouteLandmarks(): RouteLandmark[] {
           .sort((a, b) => b.importance - a.importance)
           .slice(0, 24);
         setEnrichedLandmarks(landmarks);
-        setNearbyPlacesStatus(false);
+        setNearbyPlacesStatus(false, null, payload.coverage as NearbyPlacesCoverage | undefined);
       })
       .catch((error: unknown) => { if (!controller.signal.aborted) setNearbyPlacesStatus(false, error instanceof Error ? error.message : 'Could not find nearby places'); });
     return () => controller.abort();
