@@ -39,7 +39,9 @@ export function useGPX() {
       });
 
       trackEvent('route_import_completed', {
+        route_file_count: fileArray.length,
         route_imported_track_count: tracks.length,
+        route_import_is_multi_file: fileArray.length > 1,
         route_input_method: routeInputMethod,
         route_total_distance_bucket: getDistanceBucket(
           tracks.reduce((total, track) => total + track.totalDistance, 0),

@@ -7,6 +7,7 @@ import { createId } from '@/utils/id';
 import { TrackSegmentItem, TransportSegmentItem } from './journey/JourneySegmentItems';
 import { TRANSPORT_MODES } from './journey/journeyTransport';
 import { createTransportSegment } from './journey/createTransportSegment';
+import { trackEvent } from '@/utils/analytics';
 import {
   Plus,
   Clock,
@@ -130,6 +131,11 @@ export function JourneyPanel() {
     const newSegments = [...journeySegments];
     newSegments.splice(selectedTransportIndex + 1, 0, newTransportSegment);
     reorderJourneySegments(newSegments);
+    trackEvent('transport_added', {
+      transport_mode: mode,
+      journey_segment_count: newSegments.length,
+      journey_track_count: newSegments.filter((segment) => segment.type === 'track').length,
+    });
 
     setShowTransportMenu(false);
     setSelectedTransportIndex(null);
