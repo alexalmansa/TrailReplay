@@ -261,7 +261,7 @@ export function FeedbackSolicitation() {
   const handleSaveProject = async () => {
     setIsSavingProject(true);
     try {
-      await downloadReplayArchive(useAppStore.getState());
+      await downloadReplayArchive(useAppStore.getState(), 'feedback_popup_blocked');
     } catch (e) {
       console.error('Failed to save project:', e);
     } finally {

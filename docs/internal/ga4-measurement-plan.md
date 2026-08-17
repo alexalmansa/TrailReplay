@@ -1,6 +1,6 @@
 # TrailReplay GA4 Measurement Plan
 
-Last updated: 2026-08-12
+Last updated: 2026-08-17
 
 ## Implementation status
 
@@ -48,6 +48,13 @@ The current repository already sends GA4 events from the web app for:
 - `export_failed`
 - `export_cancelled`
 - `web_vital`
+- `project_save_started`
+- `project_save_completed`
+- `project_save_failed`
+- `project_open_started`
+- `project_open_completed`
+- `project_open_failed`
+- `project_open_cancelled`
 
 Current issues to fix before expanding coverage:
 
@@ -248,6 +255,35 @@ Parameter definitions:
 
 Current coverage is already present. Add `page_type` to make the metrics usable across the app and help pages.
 
+### 9. Project File (Save / Open)
+
+Tracks usage of the `.replay` project save/open feature (issue #79), which lets a user
+persist the current project (routes, journey, annotations, settings — never photo/video
+bytes) to a downloadable archive and later reopen it instead of re-importing GPX/KML.
+
+| Event | Trigger | Parameters | Key Event |
+| --- | --- | --- | --- |
+| `project_save_started` | User clicks Save Project (sidebar) or the popup-blocked feedback fallback | `save_source` | No |
+| `project_save_completed` | The `.replay` archive was built and the download triggered | `save_source`, `track_count`, `picture_count`, `video_count` | Yes |
+| `project_save_failed` | Archive build or download failed | `save_source` | No |
+| `project_open_started` | User selects a `.replay` file to open | — | No |
+| `project_open_completed` | The archive was parsed and the project state restored | `format_version`, `track_count`, `picture_count`, `video_count` | Yes |
+| `project_open_failed` | The archive was corrupt, oversized, an unsupported version, or missing an asset | `error_code` | No |
+| `project_open_cancelled` | User declined the "this will replace your current work" confirmation | `reason` | No |
+
+Parameter definitions:
+
+- `save_source`: `sidebar`, `feedback_popup_blocked`
+- `track_count`, `picture_count`, `video_count`: integers
+- `format_version`: integer, the `.replay` archive's `formatVersion`
+- `error_code`: `corrupt`, `unsupported-version`, `missing-asset`, `too-large`, `unknown`
+- `reason`: `confirm_replace_declined`
+
+Compare `project_open_completed` against `route_import_completed` to see what share of
+route-loading sessions come from reopening a saved project rather than importing a fresh
+GPX/KML file, and compare `project_save_completed` counts against `export_completed` to
+gauge Save-Project adoption relative to video export.
+
 ## GA4 Custom Dimensions to Register
 
 Register only the dimensions needed for reporting. Suggested event-scoped dimensions:
@@ -285,6 +321,8 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `terrain_3d_enabled` | `terrain_3d_enabled` |
 | `link_location` | `link_location` |
 | `link_type` | `link_type` |
+| `save_source` | `save_source` |
+| `error_code` | `error_code` |
 
 Do not register dimensions for:
 
@@ -304,6 +342,8 @@ Mark these as key events after rollout:
 | `export_completed` | Primary product success event |
 | `feedback_submitted` | Strong engagement / user intent signal |
 | `support_clicked` | Optional, only if support behavior matters commercially |
+| `project_save_completed` | Direct answer to "how many users download a `.replay` file" |
+| `project_open_completed` | Direct answer to "how many users reopen a project instead of importing a fresh GPX" |
 
 Do not mark low-intent events like `page_view`, `playback_started`, or `help_cta_clicked` as key events.
 

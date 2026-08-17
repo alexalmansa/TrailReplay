@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Save, FolderOpen, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
+import { trackEvent } from '@/utils/analytics';
 import { parseReplayArchive } from '@/utils/projectFile/parseReplayArchive';
 import { hydrateProject } from '@/utils/projectFile/hydrateProject';
 import { hasUnsavedProjectContent } from '@/utils/projectFile/hasUnsavedWork';
@@ -33,7 +34,7 @@ export function ProjectActions() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await downloadReplayArchive(useAppStore.getState());
+      await downloadReplayArchive(useAppStore.getState(), 'sidebar');
     } catch (error) {
       console.error('Failed to save project:', error);
       setError(t('projectFile.errors.corrupt'));
@@ -48,18 +49,29 @@ export function ProjectActions() {
     if (!file) return;
 
     if (hasContent && !window.confirm(t('projectFile.confirmReplace'))) {
+      trackEvent('project_open_cancelled', { reason: 'confirm_replace_declined' });
       return;
     }
 
     setIsOpening(true);
+    trackEvent('project_open_started', {});
     try {
       const parsed = await parseReplayArchive(file);
       hydrateProject(parsed, useAppStore.getState());
+      trackEvent('project_open_completed', {
+        format_version: parsed.manifest.formatVersion,
+        track_count: parsed.tracks.length,
+        picture_count: parsed.project.pictures.length,
+        video_count: parsed.project.videos.length,
+      });
     } catch (error) {
       console.error('Failed to open project:', error);
       const key = error instanceof ReplayArchiveError
         ? errorCodeToTranslationKey(error.code)
         : 'projectFile.errors.corrupt';
+      trackEvent('project_open_failed', {
+        error_code: error instanceof ReplayArchiveError ? error.code : 'unknown',
+      });
       setError(t(key));
     } finally {
       setIsOpening(false);
