@@ -45,6 +45,11 @@ function centerOf(geometry) {
 }
 
 function osmIdentity(feature, tags) {
+  const explicitType = String(tags['@type'] || tags.type || '').toLowerCase();
+  const explicitId = Number(tags['@id'] || tags.id);
+  if (['node', 'way', 'relation'].includes(explicitType) && Number.isSafeInteger(explicitId) && explicitId > 0) {
+    return { type: explicitType, id: explicitId };
+  }
   const value = String(feature.id || tags.id || tags['@id'] || '');
   const match = value.match(/^([nwr])\/?(\d+)$/i) || value.match(/^(node|way|relation)\/?(\d+)$/i);
   if (!match) return null;

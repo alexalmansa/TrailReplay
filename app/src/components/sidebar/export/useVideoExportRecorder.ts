@@ -410,6 +410,7 @@ export function useVideoExportRecorder() {
   ) => {
     const frameDurationMs = 1000 / videoExportSettings.fps;
     const frameCount = Math.max(1, Math.ceil(durationMs / frameDurationMs));
+    const phaseStartTime = performance.now();
 
     for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
@@ -418,7 +419,15 @@ export function useVideoExportRecorder() {
       captureFrame();
       await encodeWebCodecsFrame((timestampOffsetMs + (frameIndex * frameDurationMs)) * 1000);
       if (frameIndex < frameCount) {
-        await new Promise<void>((resolve) => window.setTimeout(resolve, frameDurationMs));
+        // Map rendering already consumes part of this frame's budget. Waiting a
+        // full additional frame interval made the intro/outro take roughly twice
+        // as long to export, while the encoded timestamps and pixels stayed the
+        // same. Only wait for the remainder needed to preserve their timeline.
+        const nextFrameDueAt = phaseStartTime + ((frameIndex + 1) * frameDurationMs);
+        const remainingDelayMs = Math.max(0, nextFrameDueAt - performance.now());
+        if (remainingDelayMs > 0) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, remainingDelayMs));
+        }
       }
     }
   }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps, waitForMapFrame]);
@@ -433,6 +442,7 @@ export function useVideoExportRecorder() {
     if (recordingCancelledRef.current) {
       encoder.close();
       setIsExporting(false);
+      resetPlayback();
       return;
     }
 
@@ -474,8 +484,11 @@ export function useVideoExportRecorder() {
     } finally {
       setIsDeterministicExport(false);
       setIsExporting(false);
+      // Deterministic export drives the animation directly through its outro.
+      // Restore an idle, replayable timeline once the file has been finalized.
+      resetPlayback();
     }
-  }, [playback.totalDuration, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t]);
+  }, [playback.totalDuration, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -625,6 +638,7 @@ export function useVideoExportRecorder() {
       // A cancelled export still fires onstop; don't save or download it.
       if (recordingCancelledRef.current) {
         setIsExporting(false);
+        resetPlayback();
         return;
       }
       let blob = new Blob(recordedChunksRef.current, { type: mimeType });
@@ -671,6 +685,9 @@ export function useVideoExportRecorder() {
         });
       }
       setIsExporting(false);
+      // The screen-recording fallback completes after the normal animation has
+      // reached its finale. Reset so the next Play starts a fresh replay.
+      resetPlayback();
     };
 
     recorder.onerror = (event) => {
@@ -698,7 +715,7 @@ export function useVideoExportRecorder() {
     };
 
     recorder.start(100);
-  }, [playback.totalDuration, setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
+  }, [playback.totalDuration, resetPlayback, setExportProgress, setExportStage, setIsExporting, t, videoExportSettings]);
 
   const handleStartExport = useCallback(async () => {
     const mapCanvas = document.querySelector('.maplibregl-canvas') as HTMLCanvasElement | null;
@@ -822,6 +839,7 @@ export function useVideoExportRecorder() {
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
       setIsExporting(false);
       setIsDeterministicExport(false);
+      resetPlayback();
       isRecordingRef.current = false;
       if (mp4EncoderRef.current) {
         mp4EncoderRef.current.close();

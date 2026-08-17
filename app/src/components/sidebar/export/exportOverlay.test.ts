@@ -10,11 +10,11 @@ import {
 } from './exportOverlay';
 
 describe('exportOverlay', () => {
-  it('caps overlay refresh cadence to a smoother but safe interval', () => {
-    expect(getOverlayRefreshIntervalMs(30)).toBe(21);
-    expect(getOverlayRefreshIntervalMs(24)).toBe(21);
-    expect(getOverlayRefreshIntervalMs(12)).toBe(42);
-    expect(getOverlayRefreshIntervalMs(6)).toBe(83);
+  it('caps overlay refresh cadence below the video frame rate', () => {
+    expect(getOverlayRefreshIntervalMs(30)).toBe(83);
+    expect(getOverlayRefreshIntervalMs(24)).toBe(83);
+    expect(getOverlayRefreshIntervalMs(12)).toBe(83);
+    expect(getOverlayRefreshIntervalMs(6)).toBe(167);
   });
 
   it('derives crop metrics and overlay scaling from the exported frame', () => {

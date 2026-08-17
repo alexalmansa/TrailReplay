@@ -15,7 +15,10 @@ type Rect = {
 export type ExportOverlayMetrics = ReturnType<typeof getExportOverlayMetrics>;
 
 export function getOverlayRefreshIntervalMs(fps: number) {
-  return Math.max(21, Math.round(1000 / Math.min(fps * 2, 48)));
+  // Re-capturing the DOM overlay is considerably more expensive than drawing
+  // the map frame. A 12 fps cadence keeps the elevation marker readable while
+  // avoiding a distracting per-frame redraw in the exported video.
+  return Math.max(83, Math.round(1000 / Math.min(fps, 12)));
 }
 
 export function getExportOverlayMetrics(
