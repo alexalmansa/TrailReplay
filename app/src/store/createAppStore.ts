@@ -43,6 +43,7 @@ export function createAppStore() {
           state.enrichedLandmarks = [];
           state.showAutomaticLandmarks = false;
           state.enabledLandmarkGroups = [];
+          state.nearbyPlaceTypes = null;
           state.nearbyPlacesEnabled = true;
           state.nearbyPlacesLoading = false;
           state.nearbyPlacesError = null;

@@ -36,6 +36,7 @@ export interface AppState {
   enrichedLandmarks: RouteLandmark[];
   showAutomaticLandmarks: boolean;
   enabledLandmarkGroups: LandmarkType[];
+  nearbyPlaceTypes: LandmarkType[] | null;
   nearbyPlacesEnabled: boolean;
   nearbyPlacesLoading: boolean;
   nearbyPlacesError: string | null;
@@ -101,6 +102,7 @@ export interface AppState {
   removeLandmark: (landmarkId: string) => void;
   setShowAutomaticLandmarks: (show: boolean) => void;
   setEnabledLandmarkGroups: (groups: LandmarkType[]) => void;
+  setNearbyPlaceTypes: (types: LandmarkType[] | null) => void;
   setNearbyPlacesEnabled: (enabled: boolean) => void;
   setEnrichedLandmarks: (landmarks: RouteLandmark[]) => void;
   setNearbyPlacesStatus: (loading: boolean, error?: string | null, coverage?: NearbyPlacesCoverage | null) => void;

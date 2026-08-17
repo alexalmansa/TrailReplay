@@ -5,7 +5,7 @@ import { ExportSettingsModal } from './export/ExportSettingsModal';
 import { QUALITY_OPTIONS } from './export/exportConfig';
 import { useVideoExportRecorder } from './export/useVideoExportRecorder';
 import { SocialSharePanel } from './export/SocialSharePanel';
-import { Check, Download, Film, ImageIcon, Settings, X } from 'lucide-react';
+import { Check, Download, Film, ImageIcon, Instagram, Settings, X } from 'lucide-react';
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -153,6 +153,34 @@ export function ExportPanel() {
                 <Check className="w-5 h-5" />
                 <span className="font-medium">{t('export.complete')}</span>
               </div>
+
+              <aside className="rounded-lg border border-[var(--trail-orange)]/35 bg-[var(--trail-orange-15)] p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--trail-orange)] text-white shadow-sm">
+                    <Instagram className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold text-[var(--evergreen)]">
+                      {t('export.shareTitle')}
+                    </h4>
+                    <p className="mt-1 text-xs leading-5 text-[var(--evergreen-80)]">
+                      {t('export.shareBodyBefore')}{' '}
+                      <a
+                        href="https://www.instagram.com/trailreplay/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-[var(--evergreen)] underline decoration-[var(--trail-orange)] underline-offset-2 hover:text-[var(--trail-orange)]"
+                      >
+                        @trailreplay
+                      </a>{' '}
+                      {t('export.shareBodyAfter')}
+                    </p>
+                    <p className="mt-2 text-xs font-medium leading-5 text-[var(--evergreen)]">
+                      {t('export.shareFeature')}
+                    </p>
+                  </div>
+                </div>
+              </aside>
 
               <button
                 onClick={handleDownload}

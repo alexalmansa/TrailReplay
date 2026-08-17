@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { analyzeRouteLandmarks } from '@/utils/routeLandmarks';
@@ -14,20 +14,23 @@ export function useRouteLandmarks(): RouteLandmark[] {
   const nearbyPlacesEnabled = useAppStore((state) => state.nearbyPlacesEnabled);
   const setEnrichedLandmarks = useAppStore((state) => state.setEnrichedLandmarks);
   const setNearbyPlacesStatus = useAppStore((state) => state.setNearbyPlacesStatus);
-  const groups = useAppStore((state) => state.enabledLandmarkGroups);
+  const nearbyPlaceTypes = useAppStore((state) => state.nearbyPlaceTypes);
   const playback = useAppStore((state) => state.playback);
   const cameraSettings = useAppStore((state) => state.cameraSettings);
   const { computedJourney, activeTrack, totalDistance } = useComputedJourney();
-  const isExporting = useAppStore((state) => state.isExporting);
   const routePoints = useMemo(() => computedJourney?.coordinates ?? activeTrack?.points ?? [], [activeTrack?.points, computedJourney?.coordinates]);
+  const loadedRouteKeyRef = useRef<string | null>(null);
   useEffect(() => {
     // Start as soon as a GPX route is available. The layer itself reveals each
     // marker along the journey, so fetching while playback starts never makes
     // the whole route suddenly appear or delays the first replay.
-    if (!nearbyPlacesEnabled || isExporting || routePoints.length < 2) return;
+    if (!nearbyPlacesEnabled || routePoints.length < 2) return;
     const controller = new AbortController();
     const points = routePoints.filter((_, index) => index === 0 || index === routePoints.length - 1 || index % Math.ceil(routePoints.length / 160) === 0)
       .map((point) => [Number(point.lon.toFixed(5)), Number(point.lat.toFixed(5))]);
+    const routeKey = JSON.stringify(points);
+    if (loadedRouteKeyRef.current === routeKey) return;
+    loadedRouteKeyRef.current = routeKey;
     setNearbyPlacesStatus(true);
     fetch('/api/landmarks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points }), signal: controller.signal })
       .then(async (response) => {
@@ -48,20 +51,27 @@ export function useRouteLandmarks(): RouteLandmark[] {
         setEnrichedLandmarks(landmarks);
         setNearbyPlacesStatus(false, null, payload.coverage as NearbyPlacesCoverage | undefined);
       })
-      .catch((error: unknown) => { if (!controller.signal.aborted) setNearbyPlacesStatus(false, error instanceof Error ? error.message : 'Could not find nearby places'); });
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          loadedRouteKeyRef.current = null;
+          setNearbyPlacesStatus(false, error instanceof Error ? error.message : 'Could not find nearby places');
+        }
+      });
     return () => controller.abort();
-  }, [activeTrack, computedJourney, isExporting, nearbyPlacesEnabled, playback.isPlaying, playback.progress, routePoints, setEnrichedLandmarks, setNearbyPlacesStatus, totalDistance]);
+  }, [activeTrack, computedJourney, nearbyPlacesEnabled, routePoints, setEnrichedLandmarks, setNearbyPlacesStatus, totalDistance]);
   const automatic = useMemo(() => analyzeRouteLandmarks(
     computedJourney?.coordinates ?? activeTrack?.points ?? [],
   ), [activeTrack?.points, computedJourney?.coordinates]);
   return useMemo(() => {
-    const merged = resolveRouteLandmarks([...(showAutomaticLandmarks ? automatic : []), ...enrichedLandmarks, ...userLandmarks]);
-    const enabled = groups.length ? merged.filter((landmark) => groups.includes(landmark.type) || landmark.source === 'user') : merged;
-    return selectVisibleLandmarks(enabled, {
+    const visibleNearbyPlaces = nearbyPlaceTypes === null
+      ? enrichedLandmarks
+      : enrichedLandmarks.filter((landmark) => nearbyPlaceTypes.includes(landmark.type));
+    const merged = resolveRouteLandmarks([...(showAutomaticLandmarks ? automatic : []), ...visibleNearbyPlaces, ...userLandmarks]);
+    return selectVisibleLandmarks(merged, {
       mode: cameraSettings.mode,
       preset: cameraSettings.followBehindPreset,
       progress: playback.progress,
       totalDistanceMeters: totalDistance,
     });
-  }, [automatic, cameraSettings.followBehindPreset, cameraSettings.mode, enrichedLandmarks, groups, playback.progress, showAutomaticLandmarks, totalDistance, userLandmarks]);
+  }, [automatic, cameraSettings.followBehindPreset, cameraSettings.mode, enrichedLandmarks, nearbyPlaceTypes, playback.progress, showAutomaticLandmarks, totalDistance, userLandmarks]);
 }

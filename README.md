@@ -87,7 +87,7 @@ The root scripts delegate to the active frontend in `app/`.
 - MapLibre GL for the interactive map and route playback surfaces.
 - Zustand for app state and editor workflows.
 - Vitest and Testing Library for test coverage.
-- A Cloudflare Pages Function in [`functions/api/contact.js`](./functions/api/contact.js) for feedback submissions.
+- GitHub Discussions for community feedback and feature requests.
 
 ## Repository Layout
 
@@ -101,4 +101,4 @@ The root scripts delegate to the active frontend in `app/`.
 
 - The active runtime is the browser app inside `app/`.
 - Help, tutorial, and GPX guide pages ship alongside the main app.
-- GPX processing stays local in the browser by default; feedback submissions are the main server-side flow in this repo.
+- GPX processing stays local in the browser by default; community feedback is posted through GitHub Discussions.
