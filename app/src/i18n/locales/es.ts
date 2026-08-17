@@ -433,6 +433,10 @@ export const es = {
     needsJourney: 'Carga una ruta y añádela al recorrido primero',
     recordingInProgress: 'Grabación en curso...',
     complete: '¡Exportación completa!',
+    shareTitle: 'Comparte tu replay',
+    shareBodyBefore: 'TrailReplay es completamente gratuito y de código abierto. Etiqueta a',
+    shareBodyAfter: 'o invítanos como colaborador en Instagram; así ayudas mucho a que el proyecto crezca.',
+    shareFeature: 'Nos encantará destacar tu vídeo en nuestras historias de la comunidad.',
     downloadAgain: 'Descargar de nuevo',
     newExport: 'Nueva exportación',
     mp4Unsupported:
