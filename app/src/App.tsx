@@ -207,7 +207,10 @@ function App() {
         return {
           top: frameTop + 14,
           left: frameLeft + (frameWidth / 2),
-          width: Math.max(frameWidth - 24, 0),
+          // Match the auto-sized wrapper used after a drag. Giving the wrapper
+          // the whole frame width makes the overlay background appear too wide
+          // until the first drag updates statsPosition.
+          width: 'fit-content',
           maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
           transform: 'translateX(-50%)',
         } satisfies CSSProperties;
@@ -216,7 +219,7 @@ function App() {
       return {
         top: frameTop + 16,
         left: frameLeft + 16,
-        width: Math.max(frameWidth - 32, 0),
+        width: 'fit-content',
         maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
       } satisfies CSSProperties;
     }
