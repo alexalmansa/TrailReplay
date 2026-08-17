@@ -455,6 +455,8 @@ export const ca = {
   export: {
     saveProjectTitle: 'Desa el teu projecte',
     saveProjectBody: 'Descarrega un fitxer .replay amb les teves rutes, itinerari i ajustos per poder continuar més tard on ho vas deixar.',
+    projectNameLabel: 'Nom del projecte',
+    projectNamePlaceholder: 'El meu viatge',
     generateVideo: 'Generar vídeo',
     title: 'Ajustos d\'exportació',
     format: 'Format',

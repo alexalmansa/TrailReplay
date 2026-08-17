@@ -75,6 +75,7 @@ export interface AppState {
   updateComparisonTrackName: (trackId: string, name: string) => void;
   updateComparisonColor: (trackId: string, color: string) => void;
   createJourney: (name: string) => void;
+  updateJourneyName: (name: string) => void;
   addJourneySegment: (segment: JourneySegment) => void;
   removeJourneySegment: (segmentId: string) => void;
   reorderJourneySegments: (segments: JourneySegment[]) => void;

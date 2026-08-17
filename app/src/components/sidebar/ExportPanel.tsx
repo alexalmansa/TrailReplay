@@ -17,6 +17,8 @@ export function ExportPanel() {
   const setExportMode = useAppStore((state) => state.setExportSubMode);
   const tracks = useAppStore((state) => state.tracks);
   const isAppExporting = useAppStore((state) => state.isExporting);
+  const journeyName = useAppStore((state) => state.journey?.name);
+  const updateJourneyName = useAppStore((state) => state.updateJourneyName);
   const [showSettings, setShowSettings] = useState(false);
   const { saveProject, isSaving } = useProjectFile();
 
@@ -40,6 +42,17 @@ export function ExportPanel() {
       <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
         <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('export.saveProjectTitle')}</h3>
         <p className="mt-0.5 text-xs text-[var(--evergreen-60)]">{t('export.saveProjectBody')}</p>
+        <label className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+          {t('export.projectNameLabel')}
+        </label>
+        <input
+          type="text"
+          value={journeyName ?? ''}
+          onChange={(event) => updateJourneyName(event.target.value)}
+          disabled={!journeyName}
+          placeholder={t('export.projectNamePlaceholder')}
+          className="mt-1 w-full rounded-lg border border-[var(--evergreen)]/20 bg-white/90 px-3 py-2 text-sm text-[var(--evergreen)] focus:outline-none focus:border-[var(--trail-orange)] disabled:opacity-50"
+        />
         <button
           type="button"
           onClick={() => saveProject('sidebar')}

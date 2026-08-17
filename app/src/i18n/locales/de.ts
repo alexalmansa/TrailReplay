@@ -455,6 +455,8 @@ export const de = {
   export: {
     saveProjectTitle: 'Projekt speichern',
     saveProjectBody: 'Lade eine .replay-Datei mit deinen Routen, deinem Reiseverlauf und deinen Einstellungen herunter, um später dort weiterzumachen, wo du aufgehört hast.',
+    projectNameLabel: 'Projektname',
+    projectNamePlaceholder: 'Meine Reise',
     generateVideo: 'Video erstellen',
     title: 'Exporteinstellungen',
     format: 'Format',

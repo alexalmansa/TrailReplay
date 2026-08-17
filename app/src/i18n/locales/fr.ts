@@ -455,6 +455,8 @@ export const fr = {
   export: {
     saveProjectTitle: 'Enregistrez votre projet',
     saveProjectBody: 'Téléchargez un fichier .replay avec vos itinéraires, votre parcours et vos réglages pour reprendre plus tard là où vous en étiez.',
+    projectNameLabel: 'Nom du projet',
+    projectNamePlaceholder: 'Mon voyage',
     generateVideo: 'Générer la vidéo',
     title: 'Paramètres d\'exportation',
     format: 'Format',

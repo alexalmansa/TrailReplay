@@ -50,6 +50,7 @@ The current repository already sends GA4 events from the web app for:
 - `web_vital`
 - `project_save_started`
 - `project_save_completed`
+- `project_save_cancelled`
 - `project_save_failed`
 - `project_open_started`
 - `project_open_completed`
@@ -261,11 +262,20 @@ Tracks usage of the `.replay` project save/open feature (issue #79), which lets 
 persist the current project (routes, journey, annotations, settings — never photo/video
 bytes) to a downloadable archive and later reopen it instead of re-importing GPX/KML.
 
+The project has an editable name (`journey.name`, edited in the Generate tab's Save
+Project card) that drives the saved file name. On Chromium browsers, saving uses the
+File System Access API (`showSaveFilePicker`) so the user can overwrite an existing file
+in place instead of the browser auto-suffixing a new download; the chosen file handle is
+remembered for the rest of the page session so repeat saves silently overwrite the same
+file. Firefox/Safari (no File System Access API support) fall back to a plain anchor
+download, same as before.
+
 | Event | Trigger | Parameters | Key Event |
 | --- | --- | --- | --- |
 | `project_save_started` | User clicks Save Project (sidebar) or the popup-blocked feedback fallback | `save_source` | No |
-| `project_save_completed` | The `.replay` archive was built and the download triggered | `save_source`, `track_count`, `picture_count`, `video_count` | Yes |
-| `project_save_failed` | Archive build or download failed | `save_source` | No |
+| `project_save_completed` | The `.replay` archive was written (overwritten via File System Access, or downloaded) | `save_source`, `save_method`, `track_count`, `picture_count`, `video_count` | Yes |
+| `project_save_cancelled` | User dismissed the native save-file picker without choosing a location | `save_source` | No |
+| `project_save_failed` | Archive build or write/download failed | `save_source` | No |
 | `project_open_started` | User selects a `.replay` file to open | — | No |
 | `project_open_completed` | The archive was parsed and the project state restored | `format_version`, `track_count`, `picture_count`, `video_count` | Yes |
 | `project_open_failed` | The archive was corrupt, oversized, an unsupported version, or missing an asset | `error_code` | No |
@@ -274,10 +284,15 @@ bytes) to a downloadable archive and later reopen it instead of re-importing GPX
 Parameter definitions:
 
 - `save_source`: `sidebar`, `feedback_popup_blocked`
+- `save_method`: `file_system_access`, `download`
 - `track_count`, `picture_count`, `video_count`: integers
 - `format_version`: integer, the `.replay` archive's `formatVersion`
 - `error_code`: `corrupt`, `unsupported-version`, `missing-asset`, `too-large`, `unknown`
 - `reason`: `confirm_replace_declined`
+
+Break down `project_save_completed` by `save_method` to see what share of saves land as
+a true in-place overwrite (`file_system_access`) versus a plain download that the browser
+may auto-suffix (`download`).
 
 Compare `project_open_completed` against `route_import_completed` to see what share of
 route-loading sessions come from reopening a saved project rather than importing a fresh
@@ -322,6 +337,7 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `link_location` | `link_location` |
 | `link_type` | `link_type` |
 | `save_source` | `save_source` |
+| `save_method` | `save_method` |
 | `error_code` | `error_code` |
 
 Do not register dimensions for:
