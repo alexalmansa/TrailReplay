@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_TRACK_SEGMENT_DURATION_MS = 30_000;
+const MAX_SEGMENT_DURATION_SECONDS = 120;
 
 export function JourneyPanel() {
   const { t } = useI18n();
@@ -119,7 +120,8 @@ export function JourneyPanel() {
   };
   
   const updateSegmentDuration = (segmentId: string, duration: number) => {
-    updateJourneySegmentDuration(segmentId, duration * 1000);
+    const boundedDuration = Math.min(MAX_SEGMENT_DURATION_SECONDS, Math.max(1, duration));
+    updateJourneySegmentDuration(segmentId, boundedDuration * 1000);
     setEditingSegment(null);
   };
   
@@ -303,7 +305,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration((segment.duration || 30000) / 1000);
+                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 30000) / 1000));
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -314,7 +316,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration((segment.duration || 5000) / 1000);
+                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 5000) / 1000));
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -436,9 +438,13 @@ export function JourneyPanel() {
                   <input
                     type="number"
                     value={customDuration}
-                    onChange={(e) => setCustomDuration(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setCustomDuration(Math.min(
+                      MAX_SEGMENT_DURATION_SECONDS,
+                      Math.max(1, parseInt(e.target.value) || 1)
+                    ))}
                     className="flex-1 px-3 py-2 border-2 border-[var(--evergreen)]/30 rounded-lg bg-[var(--canvas)] text-[var(--evergreen)]"
                     min="1"
+                    max={MAX_SEGMENT_DURATION_SECONDS}
                     autoFocus
                   />
                   <span className="text-sm text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>
