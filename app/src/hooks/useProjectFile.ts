@@ -1,13 +1,17 @@
-import { useRef, useState } from 'react';
-import { Save, FolderOpen, Loader2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
 import { parseReplayArchive } from '@/utils/projectFile/parseReplayArchive';
 import { hydrateProject } from '@/utils/projectFile/hydrateProject';
 import { hasUnsavedProjectContent } from '@/utils/projectFile/hasUnsavedWork';
-import { downloadReplayArchive } from '@/utils/projectFile/downloadReplayArchive';
+import { downloadReplayArchive, type SaveProjectSource } from '@/utils/projectFile/downloadReplayArchive';
 import { ReplayArchiveError, type ReplayArchiveErrorCode } from '@/utils/projectFile/validation';
+
+export function isReplayFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.replay');
+}
 
 function errorCodeToTranslationKey(code: ReplayArchiveErrorCode): string {
   switch (code) {
@@ -18,37 +22,27 @@ function errorCodeToTranslationKey(code: ReplayArchiveErrorCode): string {
   }
 }
 
-export function ProjectActions() {
+export function useProjectFile() {
   const { t } = useI18n();
-  const tracks = useAppStore((state) => state.tracks);
-  const pictures = useAppStore((state) => state.pictures);
-  const journey = useAppStore((state) => state.journey);
-  const isExporting = useAppStore((state) => state.isExporting);
   const setError = useAppStore((state) => state.setError);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
 
-  const hasContent = hasUnsavedProjectContent({ tracks, pictures, journey });
-
-  const handleSave = async () => {
+  const saveProject = useCallback(async (source: SaveProjectSource) => {
     setIsSaving(true);
     try {
-      await downloadReplayArchive(useAppStore.getState(), 'sidebar');
+      await downloadReplayArchive(useAppStore.getState(), source);
     } catch (error) {
       console.error('Failed to save project:', error);
       setError(t('projectFile.errors.corrupt'));
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [setError, t]);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    if (hasContent && !window.confirm(t('projectFile.confirmReplace'))) {
+  const openProjectFile = useCallback(async (file: File) => {
+    const currentState = useAppStore.getState();
+    if (hasUnsavedProjectContent(currentState) && !window.confirm(t('projectFile.confirmReplace'))) {
       trackEvent('project_open_cancelled', { reason: 'confirm_replace_declined' });
       return;
     }
@@ -64,6 +58,7 @@ export function ProjectActions() {
         picture_count: parsed.project.pictures.length,
         video_count: parsed.project.videos.length,
       });
+      toast.success(t('projectFile.opened'));
     } catch (error) {
       console.error('Failed to open project:', error);
       const key = error instanceof ReplayArchiveError
@@ -76,35 +71,7 @@ export function ProjectActions() {
     } finally {
       setIsOpening(false);
     }
-  };
+  }, [setError, t]);
 
-  return (
-    <div className="mb-3 grid grid-cols-2 gap-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".replay"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={isExporting || isSaving || tracks.length === 0}
-        className="tr-btn tr-btn-secondary flex items-center justify-center gap-1.5 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
-      >
-        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        {t('sidebar.saveProject')}
-      </button>
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isExporting || isOpening}
-        className="tr-btn tr-btn-secondary flex items-center justify-center gap-1.5 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
-      >
-        {isOpening ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}
-        {t('sidebar.openProject')}
-      </button>
-    </div>
-  );
+  return { saveProject, openProjectFile, isSaving, isOpening };
 }

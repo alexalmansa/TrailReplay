@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
+import { useProjectFile } from '@/hooks/useProjectFile';
 import { ExportSettingsModal } from './export/ExportSettingsModal';
 import { QUALITY_OPTIONS } from './export/exportConfig';
 import { useVideoExportRecorder } from './export/useVideoExportRecorder';
 import { SocialSharePanel } from './export/SocialSharePanel';
-import { Check, Download, Film, ImageIcon, Instagram, Settings, X } from 'lucide-react';
+import { Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, X } from 'lucide-react';
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -14,7 +15,10 @@ export function ExportPanel() {
   const playback = useAppStore((state) => state.playback);
   const exportMode = useAppStore((state) => state.exportSubMode);
   const setExportMode = useAppStore((state) => state.setExportSubMode);
+  const tracks = useAppStore((state) => state.tracks);
+  const isAppExporting = useAppStore((state) => state.isExporting);
   const [showSettings, setShowSettings] = useState(false);
+  const { saveProject, isSaving } = useProjectFile();
 
   const {
     actualFormat,
@@ -32,6 +36,21 @@ export function ExportPanel() {
 
   return (
     <div className="space-y-4">
+      {/* Save Project */}
+      <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('export.saveProjectTitle')}</h3>
+        <p className="mt-0.5 text-xs text-[var(--evergreen-60)]">{t('export.saveProjectBody')}</p>
+        <button
+          type="button"
+          onClick={() => saveProject('sidebar')}
+          disabled={isAppExporting || isSaving || tracks.length === 0}
+          className="tr-btn tr-btn-secondary mt-3 flex w-full items-center justify-center gap-1.5 py-2 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
+        >
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {t('sidebar.saveProject')}
+        </button>
+      </div>
+
       {/* Mode switch */}
       <div className="grid grid-cols-2 gap-1">
         <button

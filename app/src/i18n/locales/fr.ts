@@ -28,12 +28,12 @@ export const fr = {
     footerSubtitle: 'Visualisation GPX & KML',
     footerGithub: 'Voir sur GitHub',
     saveProject: 'Enregistrer le projet',
-    openProject: 'Ouvrir le projet',
   },
   projectFile: {
     confirmReplace: 'Ouvrir un projet remplacera votre travail actuel. Continuer ?',
     saving: 'Enregistrement...',
     opening: 'Ouverture...',
+    opened: 'Projet chargé.',
     errors: {
       corrupt: 'Ce fichier ne semble pas être un projet .replay valide.',
       unsupportedVersionNewer: 'Ce projet a été enregistré avec une version plus récente de TrailReplay. Mettez à jour l’application pour l’ouvrir.',
@@ -453,6 +453,8 @@ export const fr = {
     manualPlacementNoRoute: 'Aucun parcours n\'est disponible pour positionner cette image.',
   },
   export: {
+    saveProjectTitle: 'Enregistrez votre projet',
+    saveProjectBody: 'Téléchargez un fichier .replay avec vos itinéraires, votre parcours et vos réglages pour reprendre plus tard là où vous en étiez.',
     generateVideo: 'Générer la vidéo',
     title: 'Paramètres d\'exportation',
     format: 'Format',

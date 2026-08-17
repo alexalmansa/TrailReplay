@@ -3,6 +3,7 @@ import { parseGPXFiles } from '@/utils/gpxParser';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { getDistanceBucket, trackEvent } from '@/utils/analytics';
+import { isReplayFile, useProjectFile } from '@/hooks/useProjectFile';
 
 export type RouteInputMethod = 'file_picker' | 'dropzone';
 
@@ -12,6 +13,7 @@ export function useGPX() {
   const [parseError, setParseError] = useState<string | null>(null);
   const addTrack = useAppStore((state) => state.addTrack);
   const setError = useAppStore((state) => state.setError);
+  const { openProjectFile } = useProjectFile();
 
   const parseFiles = useCallback(async (
     files: FileList | File[] | null,
@@ -19,7 +21,14 @@ export function useGPX() {
   ) => {
     if (!files || files.length === 0) return;
     const fileArray = Array.from(files);
-    
+
+    // A .replay file is a saved project, not a route — open it instead of parsing GPX/KML.
+    const replayFile = fileArray.find(isReplayFile);
+    if (replayFile) {
+      await openProjectFile(replayFile);
+      return undefined;
+    }
+
     setIsParsing(true);
     setParseError(null);
     trackEvent('route_import_started', {
@@ -67,7 +76,7 @@ export function useGPX() {
     } finally {
       setIsParsing(false);
     }
-  }, [addTrack, setError, t]);
+  }, [addTrack, openProjectFile, setError, t]);
 
   return {
     parseFiles,

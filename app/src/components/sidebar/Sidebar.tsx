@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { SidebarPanelContent } from './SidebarPanelContent';
-import { ProjectActions } from './ProjectActions';
 import { useI18n } from '@/i18n/useI18n';
 import { languageLabels } from '@/i18n/translations';
 import type { UnitSystem } from '@/types';
@@ -148,7 +147,6 @@ export function Sidebar() {
           <SidebarPanelContent />
         </div>
         <div className="pt-6 pb-2 border-t-2 border-[var(--evergreen)]/20">
-          <ProjectActions />
           {activeTab === 'tracks' && <SidebarPreferences />}
           <div className="text-center">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2">

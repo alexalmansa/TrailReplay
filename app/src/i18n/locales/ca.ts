@@ -28,12 +28,12 @@ export const ca = {
     footerSubtitle: 'Visualització GPX & KML',
     footerGithub: 'Veure a GitHub',
     saveProject: 'Desa el projecte',
-    openProject: 'Obre el projecte',
   },
   projectFile: {
     confirmReplace: 'Obrir un projecte substituirà la teva feina actual. Vols continuar?',
     saving: 'Desant...',
     opening: 'Obrint...',
+    opened: 'Projecte carregat.',
     errors: {
       corrupt: 'Aquest fitxer no sembla un projecte .replay vàlid.',
       unsupportedVersionNewer: 'Aquest projecte es va desar amb una versió més recent de TrailReplay. Actualitza l’app per obrir-lo.',
@@ -453,6 +453,8 @@ export const ca = {
     manualPlacementNoRoute: 'Encara no hi ha cap ruta disponible per col·locar aquesta imatge.',
   },
   export: {
+    saveProjectTitle: 'Desa el teu projecte',
+    saveProjectBody: 'Descarrega un fitxer .replay amb les teves rutes, itinerari i ajustos per poder continuar més tard on ho vas deixar.',
     generateVideo: 'Generar vídeo',
     title: 'Ajustos d\'exportació',
     format: 'Format',
