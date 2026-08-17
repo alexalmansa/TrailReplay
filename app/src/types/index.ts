@@ -67,9 +67,11 @@ export interface Journey {
 
 export interface PictureAnnotation {
   id: string;
-  file: File;
+  file: File | null;
   displayFile?: File;
   url: string;
+  isPlaceholder: boolean;
+  originalFileName?: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;
@@ -105,8 +107,10 @@ export interface PendingPicturePlacement {
 
 export interface VideoAnnotation {
   id: string;
-  file: File;
+  file: File | null;
   url: string;
+  isPlaceholder: boolean;
+  originalFileName?: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;

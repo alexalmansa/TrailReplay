@@ -470,6 +470,7 @@ function App() {
                           file: activePendingPicturePlacement.file,
                           displayFile: activePendingPicturePlacement.displayFile,
                           url: activePendingPicturePlacement.url,
+                          isPlaceholder: false,
                           lat: timestampPlacement.lat,
                           lon: timestampPlacement.lon,
                           timestamp: activePendingPicturePlacement.timestamp,

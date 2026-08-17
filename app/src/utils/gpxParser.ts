@@ -3,6 +3,9 @@ import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
 import { parseGpxDocument } from '@/utils/gpx/parseGpxDocument';
 import { parseKmlDocument } from '@/utils/gpx/parseKmlDocument';
 import { buildTrackFromRawPoints } from '@/utils/gpx/trackStats';
+import { serializeTrackToGpx } from '@/utils/gpx/serializeTrackToGpx';
+
+export { serializeTrackToGpx };
 
 // Parse GPX XML content
 export function parseGPX(gpxContent: string, fileName: string): GPXTrack {

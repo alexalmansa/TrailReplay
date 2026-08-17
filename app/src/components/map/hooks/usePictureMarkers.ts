@@ -29,11 +29,11 @@ export function usePictureMarkers({
       if (!picture.lat || !picture.lon) return;
 
       const element = document.createElement('div');
-      element.className = 'tr-picture-marker';
+      element.className = picture.isPlaceholder ? 'tr-picture-marker tr-picture-marker--placeholder' : 'tr-picture-marker';
       element.style.cssText = `
         width: 32px;
         height: 32px;
-        background: var(--trail-orange);
+        background: ${picture.isPlaceholder ? 'var(--evergreen-60)' : 'var(--trail-orange)'};
         border: 3px solid var(--canvas);
         border-radius: 50%;
         display: flex;
@@ -41,8 +41,9 @@ export function usePictureMarkers({
         justify-content: center;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        opacity: ${picture.isPlaceholder ? '0.7' : '1'};
       `;
-      element.innerHTML = '📷';
+      element.innerHTML = picture.isPlaceholder ? '🖼️' : '📷';
       element.addEventListener('click', (event) => {
         event.stopPropagation();
         setSelectedPictureId(picture.id);
