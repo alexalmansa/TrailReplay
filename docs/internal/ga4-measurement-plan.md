@@ -11,6 +11,7 @@ The phase-one measurement foundation is implemented on `codex/seo-foundation-ga4
 - localhost, `*.vercel.app`, and `*.pages.dev` are excluded by default
 - filenames and custom timestamps are no longer sent
 - route imports, video exports, feedback submissions, support clicks, help CTAs, and Web Vitals have reporting context
+- map styles, overlays, 3D terrain, camera modes, follow-behind presets, and replay controls are measured
 - Google Signals and advertising-personalization signals are disabled
 - the privacy policy discloses GA4 collection
 
@@ -108,7 +109,7 @@ Parameter definitions:
 | `welcome_action_clicked` | User clicks upload or explore from the empty-state overlay | `welcome_action` | No |
 | `file_picker_opened` | User opens the route file picker | `picker_location` | No |
 | `route_import_started` | Import begins | `route_file_count`, `route_input_method` | No |
-| `route_import_completed` | At least one route was parsed and added | `route_imported_track_count`, `route_total_distance_bucket`, `route_has_timestamps` | Yes |
+| `route_import_completed` | At least one route was parsed and added | `route_file_count`, `route_imported_track_count`, `route_import_is_multi_file`, `route_total_distance_bucket`, `route_has_timestamps` | Yes |
 | `route_import_failed` | Route import throws | `route_file_count`, `route_error_type` | No |
 
 Parameter definitions:
@@ -116,6 +117,7 @@ Parameter definitions:
 - `welcome_action`: `upload`, `explore`
 - `picker_location`: `welcome_overlay`, `tracks_panel`
 - `route_input_method`: `file_picker`, `dropzone`
+- `route_import_is_multi_file`: whether the user selected more than one file in the import action
 - `route_total_distance_bucket`: `short`, `medium`, `long`, `ultra`
 - `route_has_timestamps`: `true`, `false`
 - `route_error_type`: `parse_error`, `empty_result`, `unsupported_format`, `unknown`
@@ -134,13 +136,18 @@ Recommended bucket thresholds:
 | `comparison_track_added` | User adds a comparison route | `comparison_track_count` | No |
 | `track_visibility_changed` | User toggles route visibility | `visible`, `track_count_visible` | No |
 | `journey_segment_changed` | User edits journey structure | `journey_action`, `journey_segment_count` | No |
+| `transport_added` | User inserts a transfer between route segments | `transport_mode`, `journey_segment_count`, `journey_track_count` | No |
 | `settings_changed` | User changes reporting-relevant settings | `setting_name`, `setting_value` | No |
+| `feature_enabled` | User turns a toggleable map feature on or off | `feature_name`, `feature_state`, `feature_context` | No |
 
 Parameter definitions:
 
 - `journey_action`: `added`, `removed`, `reordered`, `updated`
+- `transport_mode`: `car`, `bus`, `train`, `plane`, `bike`, `walk`, or `ferry`
 - `setting_name`: `language`, `unit_system`, `map_style`, `camera_mode`, `show_pictures`
 - `setting_value`: bounded enum only
+
+For `feature_enabled`, use only product-owned bounded names such as `terrain_3d` and `map_overlay_skiPistes`; `feature_state` is `enabled` or `disabled`, and `feature_context` is currently `settings`.
 
 Only send `settings_changed` for settings that materially affect usage analysis. Do not send every transient slider update.
 
@@ -148,7 +155,7 @@ Only send `settings_changed` for settings that materially affect usage analysis.
 
 | Event | Trigger | Parameters | Key Event |
 | --- | --- | --- | --- |
-| `playback_started` | User starts playback from a stopped state | `playback_source`, `has_pictures`, `has_annotations` | No |
+| `playback_started` | User starts playback from a stopped state | `playback_source`, `has_pictures`, `has_annotations`, `track_count`, `camera_mode`, `camera_preset`, `map_style`, `terrain_3d_enabled` | No |
 | `playback_paused` | User pauses playback | `playback_progress_bucket` | No |
 | `playback_seeked` | User scrubs or skips the timeline | `seek_method`, `playback_progress_bucket` | No |
 | `playback_speed_changed` | User changes speed | `playback_speed` | No |
@@ -252,6 +259,7 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `cta_location` | `cta_location` |
 | `target_page` | `target_page` |
 | `route_input_method` | `route_input_method` |
+| `route_import_is_multi_file` | `route_import_is_multi_file` |
 | `route_total_distance_bucket` | `route_total_distance_bucket` |
 | `route_error_type` | `route_error_type` |
 | `photo_placement_result` | `photo_placement_result` |
@@ -265,6 +273,16 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `export_blob_size_bucket` | `export_blob_size_bucket` |
 | `feedback_category` | `feedback_category` |
 | `support_location` | `support_location` |
+| `feature_name` | `feature_name` |
+| `feature_state` | `feature_state` |
+| `feature_context` | `feature_context` |
+| `setting_name` | `setting_name` |
+| `setting_value` | `setting_value` |
+| `transport_mode` | `transport_mode` |
+| `camera_mode` | `camera_mode` |
+| `camera_preset` | `camera_preset` |
+| `map_style` | `map_style` |
+| `terrain_3d_enabled` | `terrain_3d_enabled` |
 | `link_location` | `link_location` |
 | `link_type` | `link_type` |
 

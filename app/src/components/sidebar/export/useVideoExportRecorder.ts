@@ -80,6 +80,8 @@ export function useVideoExportRecorder() {
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
   const visibleStats = useAppStore((state) => state.settings.visibleStats);
   const showElevationProfile = useAppStore((state) => state.settings.showElevationProfile);
+  const mapStyle = useAppStore((state) => state.settings.mapStyle);
+  const show3DTerrain = useAppStore((state) => state.settings.show3DTerrain);
   const tracks = useAppStore((state) => state.tracks);
   const pictures = useAppStore((state) => state.pictures);
   const journeySegments = useAppStore((state) => state.journeySegments);
@@ -745,6 +747,11 @@ export function useVideoExportRecorder() {
       track_count: tracks.length,
       picture_count: pictures.length,
       journey_segment_count: journeySegments.length,
+      camera_mode: cameraSettings.mode,
+      camera_preset: cameraSettings.mode === 'follow-behind' ? cameraSettings.followBehindPreset : 'not_applicable',
+      transport_segment_count: journeySegments.filter((segment) => segment.type === 'transport').length,
+      map_style: mapStyle,
+      terrain_3d_enabled: show3DTerrain,
     });
 
     try {

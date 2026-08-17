@@ -5,6 +5,7 @@ import { usePhotos } from '@/hooks/usePhotos';
 import { isImageFile } from '@/utils/files';
 import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
+import { trackEvent } from '@/utils/analytics';
 import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2 } from 'lucide-react';
 
 const DEFAULT_DISPLAY_DURATION = 5000; // 5 seconds
@@ -77,7 +78,14 @@ export function PicturesPanel() {
           </div>
           <Switch
             checked={showPictures}
-            onCheckedChange={(checked) => setSettings({ showPictures: checked })}
+            onCheckedChange={(checked) => {
+              setSettings({ showPictures: checked });
+              trackEvent('feature_enabled', {
+                feature_name: 'pictures',
+                feature_state: checked ? 'enabled' : 'disabled',
+                feature_context: 'media_panel',
+              });
+            }}
           />
         </div>
       </div>

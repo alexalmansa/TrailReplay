@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ACTIVITY_ICONS, isSvgActivityIcon, renderActivityIcon } from '@/utils/activityIcons';
 import { createId } from '@/utils/id';
+import { trackEvent } from '@/utils/analytics';
 import { RouteAnnotationsEditor } from './RouteAnnotationsEditor';
 import { Trash2 } from 'lucide-react';
 
@@ -557,7 +558,14 @@ export function AnnotationsPanel() {
           <Label className="text-sm text-[var(--evergreen)]">{t('annotations.showElevationProfile')}</Label>
           <Switch
             checked={settings.showElevationProfile}
-            onCheckedChange={(checked) => setSettings({ showElevationProfile: checked })}
+            onCheckedChange={(checked) => {
+              setSettings({ showElevationProfile: checked });
+              trackEvent('feature_enabled', {
+                feature_name: 'elevation_profile',
+                feature_state: checked ? 'enabled' : 'disabled',
+                feature_context: 'annotations_panel',
+              });
+            }}
           />
         </div>
         <p className="text-xs text-[var(--evergreen-60)]">{t('annotations.statsHint')}</p>
