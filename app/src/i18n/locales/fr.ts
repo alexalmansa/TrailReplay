@@ -17,11 +17,11 @@ export const fr = {
   sidebar: {
     tabs: {
       tracks: 'Parcours',
-      journey: 'Trajet',
+      journey: 'Chronologie',
       annotations: 'Style',
       pictures: 'Médias',
-      export: 'Exportation',
-      settings: 'Carte',
+      export: 'Générer',
+      settings: 'Carte et caméra',
     },
     preferencesTitle: 'Préférences',
     footerTitle: 'Trail Replay',
@@ -59,6 +59,8 @@ export const fr = {
     points: 'points',
   },
   settings: {
+    mapCameraTitle: 'Choisir la carte et la caméra',
+    mapCameraHint: 'La carte est le paysage de votre vidéo. Choisissez son style, le terrain et le point de vue qui suit votre itinéraire.',
     title: 'Paramètres de la carte',
     overlaysTitle: 'Couches',
     cameraTitle: 'Contrôle de la caméra',
@@ -282,6 +284,8 @@ export const fr = {
     train: 'Train',
   },
   annotations: {
+    styleYourRouteTitle: 'Styliser votre itinéraire',
+    styleYourRouteHint: 'Choisissez le tracé, le marqueur, les statistiques et les annotations du rendu final.',
     tracksTitle: 'Parcours',
     trailTitle: 'Parcours',
     noTracks: 'Chargez un parcours GPX afin de définir son nom et sa couleur.',
@@ -341,7 +345,11 @@ export const fr = {
     annotationLeadTimeShort: 'Avant',
     removeRouteAnnotation: 'Supprimer l\'annotation',
   },
-    journey: {
+  journey: {
+    videoTimingTitle: 'Définir le rythme de la vidéo',
+    videoTimingHint: 'Choisissez la durée de la vidéo finale et le mouvement du marqueur sur l’itinéraire.',
+    durationPreset: '{seconds} s',
+    durationPresetHint: 'Durée de la vidéo',
     defaultSettings: 'Paramètres par défaut',
     defaultTrackTime: 'Durée par défaut du parcours',
     defaultTrackTimeHint: 'Chaque parcours prendra cette durée dans l\'animation',
@@ -377,6 +385,8 @@ export const fr = {
     transportSegment: 'Transport en {mode}',
   },
   media: {
+    videoMomentsTitle: 'Ajouter des moments à votre vidéo',
+    videoMomentsHint: 'Les photos et clips sont placés automatiquement sur l’itinéraire lorsque leur position ou heure de prise de vue est disponible.',
     picturesTab: 'Photos ({count})',
     videosTab: 'Vidéos ({count})',
     annotationsTab: 'Annotations ({count})',
@@ -424,6 +434,7 @@ export const fr = {
     manualPlacementNoRoute: 'Aucun parcours n\'est disponible pour positionner cette image.',
   },
   export: {
+    generateVideo: 'Générer la vidéo',
     title: 'Paramètres d\'exportation',
     format: 'Format',
     ratio: 'Ratio',
@@ -472,7 +483,20 @@ export const fr = {
     stageRecordingAnimation: 'Enregistrement de l\'animation...',
     stageFailedWithError: 'Échec de l\'exportation : {error}',
   },
-help: {
+  workflow: {
+    routeImported: 'Itinéraire importé. Définissez maintenant le rythme de votre vidéo.',
+    step: 'Étape {current} sur {total}',
+    progressLabel: 'Progression de création de la vidéo',
+    next: 'Suivant : {step}',
+    videoDurationStatus: 'Vidéo de {seconds} s',
+    routesDescription: 'Ajoutez et gérez les fichiers GPX ou KML utilisés dans cette vidéo.',
+    timelineDescription: 'Définissez la durée, le rythme et l’ordre des segments.',
+    styleDescription: 'Choisissez le style du tracé, du marqueur, des statistiques et des annotations.',
+    mapDescription: 'Choisissez le paysage, le terrain et le mouvement de caméra.',
+    mediaDescription: 'Ajoutez des photos et clips aux moments de votre itinéraire.',
+    generateDescription: 'Choisissez une sortie et créez la vidéo finale.',
+  },
+  help: {
   common: {
     backToApp: 'Retour à l\'application',
     openApp: 'Ouvrir TrailReplay',

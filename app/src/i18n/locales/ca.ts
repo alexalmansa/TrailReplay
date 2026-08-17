@@ -17,11 +17,11 @@ export const ca = {
   sidebar: {
     tabs: {
       tracks: 'Rutes',
-      journey: 'Viatge',
+      journey: 'Cronologia',
       annotations: 'Estil',
       pictures: 'Mèdia',
-      export: 'Exportar',
-      settings: 'Mapa',
+      export: 'Generar',
+      settings: 'Mapa i càmera',
     },
     preferencesTitle: 'Preferències',
     footerTitle: 'Trail Replay',
@@ -59,6 +59,8 @@ export const ca = {
     points: 'punts',
   },
   settings: {
+    mapCameraTitle: 'Tria el mapa i la càmera',
+    mapCameraHint: 'El mapa és el paisatge del teu vídeo. Tria l’aspecte, el terreny i el punt de vista que segueix la ruta.',
     title: 'Ajustos del mapa',
     overlaysTitle: 'Superposicions',
     cameraTitle: 'Controls de càmera',
@@ -282,6 +284,8 @@ export const ca = {
     train: 'Tren',
   },
   annotations: {
+    styleYourRouteTitle: 'Dona estil a la ruta',
+    styleYourRouteHint: 'Tria la ruta, el marcador, les estadístiques i les crides que apareixen al vídeo final.',
     tracksTitle: 'Rutes',
     trailTitle: 'Ruta',
     noTracks: 'Carrega un track GPX per ajustar-ne el color i el nom.',
@@ -342,6 +346,10 @@ export const ca = {
     removeRouteAnnotation: 'Elimina anotació',
   },
   journey: {
+    videoTimingTitle: 'Defineix el temps del vídeo',
+    videoTimingHint: 'Tria la durada del vídeo final i com es mou el marcador per la ruta.',
+    durationPreset: '{seconds} s',
+    durationPresetHint: 'Durada del vídeo',
     defaultSettings: 'Ajustos predeterminats',
     defaultTrackTime: 'Temps per defecte de la ruta',
     defaultTrackTimeHint: 'Cada ruta trigarà aquest temps a completar-se a l\'animació',
@@ -377,6 +385,8 @@ export const ca = {
     transportSegment: 'Transport {mode}',
   },
   media: {
+    videoMomentsTitle: 'Afegeix moments al vídeo',
+    videoMomentsHint: 'Les fotos i els clips se situen automàticament a la ruta quan tenen ubicació o hora de captura.',
     picturesTab: 'Fotos ({count})',
     videosTab: 'Vídeos ({count})',
     annotationsTab: 'Anotacions ({count})',
@@ -424,6 +434,7 @@ export const ca = {
     manualPlacementNoRoute: 'Encara no hi ha cap ruta disponible per col·locar aquesta imatge.',
   },
   export: {
+    generateVideo: 'Generar vídeo',
     title: 'Ajustos d\'exportació',
     format: 'Format',
     ratio: 'Relació',
@@ -471,6 +482,19 @@ export const ca = {
     stageStartingRecording: 'Iniciant gravació...',
     stageRecordingAnimation: 'Gravant animació...',
     stageFailedWithError: 'L\'exportació ha fallat: {error}',
+  },
+  workflow: {
+    routeImported: 'Ruta importada. Defineix ara el temps del teu vídeo.',
+    step: 'Pas {current} de {total}',
+    progressLabel: 'Progrés de creació del vídeo',
+    next: 'Següent: {step}',
+    videoDurationStatus: 'Vídeo de {seconds} s',
+    routesDescription: 'Afegeix i administra els fitxers GPX o KML usats en aquest vídeo.',
+    timelineDescription: 'Defineix la durada, el ritme i l’ordre dels segments de ruta.',
+    styleDescription: 'Tria l’aspecte de la ruta, el marcador, les estadístiques i les crides.',
+    mapDescription: 'Tria el paisatge, el terreny i el moviment de càmera.',
+    mediaDescription: 'Afegeix fotos i clips a moments de la ruta.',
+    generateDescription: 'Tria una sortida i crea el vídeo final.',
   },
   help: {
     common: {

@@ -19,6 +19,7 @@ import {
 } from '@/utils/playbackPictures';
 import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
 import { trackEvent } from '@/utils/analytics';
+import { useI18n } from '@/i18n/useI18n';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -34,6 +35,7 @@ function isNarrowFrame(width: number, height: number) {
 }
 
 function App() {
+  const { t } = useI18n();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statsDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
@@ -141,8 +143,11 @@ function App() {
       const files = e.target.files;
       try {
         if (files && files.length > 0) {
-          await parseFiles(files, 'file_picker');
+          const importedTracks = await parseFiles(files, 'file_picker');
           setShowSidebar(true);
+          if (importedTracks?.length) {
+            toast.success(t('workflow.routeImported'));
+          }
         }
       } catch {
         // `parseFiles` already reports a localized error through the app store.
@@ -154,7 +159,7 @@ function App() {
         }
       }
     },
-    [parseFiles, setShowSidebar]
+    [parseFiles, setShowSidebar, t]
   );
 
   // Trigger file picker

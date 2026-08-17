@@ -283,9 +283,10 @@ export function useComputedJourney() {
 
     return getJourneyElevationData(
       computedJourney.coordinates,
-      computedJourney.segmentTimings
+      computedJourney.segmentTimings,
+      routeTimingMode
     );
-  }, [computedJourney, activeTrack]);
+  }, [computedJourney, activeTrack, routeTimingMode]);
 
   // Get the current icon based on segment type
   const currentIcon = useMemo<string>(() => {
