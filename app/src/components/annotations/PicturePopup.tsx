@@ -11,9 +11,10 @@ interface PicturePopupProps {
   picture: PictureAnnotation;
   onClose?: () => void;
   exportFrame?: PicturePopupExportFrame | null;
+  playbackCurrentTime?: number;
 }
 
-export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProps) {
+export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTime }: PicturePopupProps) {
   const { t } = useI18n();
   const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
   const [displayProgress, setDisplayProgress] = useState(0);
@@ -21,6 +22,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
   const progressIntervalRef = useRef<number | null>(null);
   const exitTimeoutRef = useRef<number | null>(null);
   const fallbackImageUrlRef = useRef<string | null>(null);
+  const playbackPopupStartTimeRef = useRef<number | null>(null);
   
   const displayDuration = picture.displayDuration || 5000;
   const { imageWidth, imageHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
@@ -32,10 +34,15 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
     }
   }, []);
 
-  const startExit = useCallback(() => {
+  const startExit = useCallback((immediately = false) => {
     if (exitTimeoutRef.current !== null) return;
 
     clearProgressInterval();
+    if (immediately) {
+      onClose?.();
+      return;
+    }
+
     setAnimationState('exiting');
     exitTimeoutRef.current = window.setTimeout(() => {
       exitTimeoutRef.current = null;
@@ -44,6 +51,13 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
   }, [clearProgressInterval, onClose]);
 
   useEffect(() => {
+    // Deterministic exports advance the replay clock frame-by-frame rather than
+    // in wall-clock time. Show the popup immediately and let the effect below
+    // control its lifetime from that same clock.
+    if (playbackCurrentTime !== undefined) {
+      return;
+    }
+
     // After entering animation, show the picture
     const enterTimer = window.setTimeout(() => {
       setAnimationState('visible');
@@ -71,7 +85,23 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
         URL.revokeObjectURL(fallbackImageUrlRef.current);
       }
     };
-  }, [clearProgressInterval, displayDuration, startExit]);
+  }, [clearProgressInterval, displayDuration, playbackCurrentTime, startExit]);
+
+  useEffect(() => {
+    if (playbackCurrentTime === undefined) return;
+
+    if (playbackPopupStartTimeRef.current === null) {
+      playbackPopupStartTimeRef.current = playbackCurrentTime;
+    }
+
+    const elapsed = Math.max(0, playbackCurrentTime - playbackPopupStartTimeRef.current);
+    const progress = Math.min((elapsed / displayDuration) * 100, 100);
+    setDisplayProgress(progress);
+
+    if (progress >= 100) {
+      startExit(true);
+    }
+  }, [displayDuration, playbackCurrentTime, startExit]);
   
   const handleClose = () => {
     startExit();
@@ -79,7 +109,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
   
   // Animation classes based on state
   const getAnimationClasses = () => {
-    switch (animationState) {
+    switch (playbackCurrentTime === undefined ? animationState : 'visible') {
       case 'entering':
         return 'opacity-0 scale-90 translate-y-4';
       case 'visible':
@@ -114,7 +144,7 @@ export function PicturePopup({ picture, onClose, exportFrame }: PicturePopupProp
             <img
               src={imageSrc}
               alt={picture.title || t('media.trailPictureAlt')}
-              className="object-cover"
+              className="object-contain bg-[var(--evergreen)]/10"
               style={{ width: imageWidth, height: imageHeight }}
               onError={() => {
                 if (picture.displayFile && imageSrc === picture.url) {

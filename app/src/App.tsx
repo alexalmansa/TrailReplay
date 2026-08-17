@@ -80,6 +80,7 @@ function App() {
   const socialShareAspectRatio = useAppStore((state) => state.socialShareSettings.aspectRatio);
   const exportSubMode = useAppStore((state) => state.exportSubMode);
   const isExporting = useAppStore((state) => state.isExporting);
+  const isDeterministicExport = useAppStore((state) => state.isDeterministicExport);
 
   useEffect(() => {
     document.documentElement.lang = settings.language;
@@ -492,6 +493,7 @@ function App() {
                   picture={activePicture} 
                   onClose={closeActivePicture}
                   exportFrame={activeExportCropMetrics}
+                  playbackCurrentTime={isDeterministicExport ? playback.currentTime : undefined}
                 />
               )}
               
