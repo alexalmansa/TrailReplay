@@ -4,15 +4,17 @@ import type { AppSliceCreator } from './types';
 
 type LandmarksSlice = Pick<AppState,
   'userLandmarks' | 'enabledLandmarkGroups' |
+  'nearbyPlaceTypes' |
   'showAutomaticLandmarks' |
   'enrichedLandmarks' | 'nearbyPlacesEnabled' | 'nearbyPlacesLoading' | 'nearbyPlacesError' | 'nearbyPlacesCoverage' |
-  'addLandmark' | 'updateLandmark' | 'removeLandmark' | 'setEnabledLandmarkGroups' |
+  'addLandmark' | 'updateLandmark' | 'removeLandmark' | 'setEnabledLandmarkGroups' | 'setNearbyPlaceTypes' |
   'setNearbyPlacesEnabled' | 'setEnrichedLandmarks' | 'setNearbyPlacesStatus' | 'setShowAutomaticLandmarks'>;
 
 export const createLandmarksSlice: AppSliceCreator<LandmarksSlice> = (set) => ({
   userLandmarks: [],
   showAutomaticLandmarks: false,
   enabledLandmarkGroups: [],
+  nearbyPlaceTypes: null,
   enrichedLandmarks: [],
   nearbyPlacesEnabled: true,
   nearbyPlacesLoading: false,
@@ -28,6 +30,7 @@ export const createLandmarksSlice: AppSliceCreator<LandmarksSlice> = (set) => ({
   }),
   setShowAutomaticLandmarks: (showAutomaticLandmarks) => set((state) => { state.showAutomaticLandmarks = showAutomaticLandmarks; }),
   setEnabledLandmarkGroups: (groups: LandmarkType[]) => set((state) => { state.enabledLandmarkGroups = groups; }),
+  setNearbyPlaceTypes: (types) => set((state) => { state.nearbyPlaceTypes = types; }),
   setNearbyPlacesEnabled: (enabled) => set((state) => { state.nearbyPlacesEnabled = enabled; if (!enabled) { state.enrichedLandmarks = []; state.nearbyPlacesCoverage = null; } }),
   setEnrichedLandmarks: (landmarks) => set((state) => { state.enrichedLandmarks = landmarks; }),
   setNearbyPlacesStatus: (loading, error = null, coverage: NearbyPlacesCoverage | null = null) => set((state) => { state.nearbyPlacesLoading = loading; state.nearbyPlacesError = error; state.nearbyPlacesCoverage = coverage; }),

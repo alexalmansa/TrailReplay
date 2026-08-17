@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Loader2 } from 'lucide-react';
+import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
 
@@ -13,6 +13,11 @@ const MIN_ACTIVITY = 3;
 const MAYBE_LATER_COOLDOWN = 86400000; // 24 hours
 const MIN_WIDTH_FOR_POPUP = 900;
 const MIN_FEEDBACK_LENGTH = 15;
+const DISCUSSION_URLS = {
+  loveIt: 'https://github.com/alexalmansa/TrailReplay/discussions/new?category=show-and-tell',
+  needsWork: 'https://github.com/alexalmansa/TrailReplay/discussions/new?category=general',
+  featureRequest: 'https://github.com/alexalmansa/TrailReplay/discussions/new?category=ideas',
+} as const;
 
 interface ActivityData {
   count: number;
@@ -53,9 +58,8 @@ export function FeedbackSolicitation() {
   const [showForm, setShowForm] = useState(false);
   const [feedbackCategory, setFeedbackCategory] = useState<'loveIt' | 'needsWork' | 'featureRequest' | null>(null);
   const [feedback, setFeedback] = useState('');
-  const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [messageCopied, setMessageCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const promptTimeoutRef = useRef<number | null>(null);
   const [isNarrowScreen, setIsNarrowScreen] = useState(
@@ -192,14 +196,13 @@ export function FeedbackSolicitation() {
     safeStorageSet(STORAGE_KEY, 'true');
   };
 
-  const handleSubmitFeedback = async () => {
+  const handleSubmitFeedback = () => {
     const trimmedFeedback = feedback.trim();
     if (!feedbackCategory || trimmedFeedback.length < MIN_FEEDBACK_LENGTH) {
       setError(t('feedback.minimumLengthError', { count: MIN_FEEDBACK_LENGTH }));
       return;
     }
 
-    setIsSubmitting(true);
     setError(null);
 
     // Build the feedback message
@@ -222,50 +225,22 @@ export function FeedbackSolicitation() {
       trimmedFeedback,
     ].join('\n');
 
-    try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'V2 Feedback User',
-          email: email || '',
-          message,
-          website: '', // honeypot field
-          meta: {
-            path: location.pathname,
-            ua: navigator.userAgent,
-            source: 'feedback-solicitation',
-            feedbackCategory,
-          },
-        }),
-      });
+    const discussionUrl = DISCUSSION_URLS[feedbackCategory];
+    const discussionWindow = window.open(discussionUrl, '_blank', 'noopener,noreferrer');
+    if (!discussionWindow) window.location.assign(discussionUrl);
 
-      if (res.ok) {
-        trackEvent('feedback_submitted', {
-          feedback_category: feedbackCategory,
-          has_email: email.trim().length > 0,
-        });
-        safeStorageSet(STORAGE_KEY, 'true');
-        setSubmitted(true);
-        setTimeout(() => {
-          setShowForm(false);
-          setSubmitted(false);
-        }, 3000);
-      } else {
-        trackEvent('feedback_submit_failed', {
-          feedback_category: feedbackCategory,
-        });
-        const data = await res.json().catch(() => ({}));
-        setError(data?.error || t('feedback.error'));
-      }
-    } catch {
-      trackEvent('feedback_submit_failed', {
-        feedback_category: feedbackCategory,
-      });
-      setError(t('feedback.errorSend'));
-    } finally {
-      setIsSubmitting(false);
-    }
+    void navigator.clipboard?.writeText(message)
+      .then(() => setMessageCopied(true))
+      .catch(() => setMessageCopied(false));
+
+    trackEvent('feedback_discussion_opened', { feedback_category: feedbackCategory });
+    safeStorageSet(STORAGE_KEY, 'true');
+    setSubmitted(true);
+    setTimeout(() => {
+      setShowForm(false);
+      setSubmitted(false);
+      setMessageCopied(false);
+    }, 4000);
   };
 
   const handleCloseForm = () => {
@@ -274,7 +249,7 @@ export function FeedbackSolicitation() {
   };
 
   const trimmedFeedbackLength = feedback.trim().length;
-  const canSubmit = Boolean(feedbackCategory) && trimmedFeedbackLength >= MIN_FEEDBACK_LENGTH && !isSubmitting;
+  const canSubmit = Boolean(feedbackCategory) && trimmedFeedbackLength >= MIN_FEEDBACK_LENGTH;
 
   const questionLabel = feedbackCategory
     ? t(`feedback.${feedbackCategory}Question`)
@@ -355,7 +330,7 @@ export function FeedbackSolicitation() {
                   {t('feedback.thanksTitle')}
                 </h3>
                 <p className="text-[var(--evergreen-60)]">
-                  {t('feedback.thanksBody')}
+                  {t(messageCopied ? 'feedback.discussionOpenedCopied' : 'feedback.discussionOpened')}
                 </p>
               </div>
             ) : (
@@ -415,23 +390,13 @@ export function FeedbackSolicitation() {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
-                    {t('feedback.emailLabel')}
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('feedback.emailPlaceholder')}
-                    className="w-full p-3 border-2 border-[var(--evergreen-40)] rounded-lg text-sm focus:border-[var(--trail-orange)] focus:outline-none"
-                  />
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
                     {questionLabel}
                   </label>
                   <p className="mb-2 text-xs text-[var(--evergreen-60)]">
                     {t('feedback.answerHelper')}
+                  </p>
+                  <p className="mb-2 text-xs text-[var(--evergreen-60)]">
+                    {t('feedback.discussionHint')}
                   </p>
                   <textarea
                     value={feedback}
@@ -458,7 +423,6 @@ export function FeedbackSolicitation() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleCloseForm}
-                    disabled={isSubmitting}
                     className="flex-1 py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors disabled:opacity-50"
                   >
                     {t('feedback.skip')}
@@ -468,14 +432,7 @@ export function FeedbackSolicitation() {
                     disabled={!canSubmit}
                     className="flex-1 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {t('feedback.submitting')}
-                      </>
-                    ) : (
-                      t('feedback.submit')
-                    )}
+                    {t('feedback.openDiscussion')}
                   </button>
                 </div>
               </>
