@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench } from 'lucide-react';
+import { MessageCircle, X, ThumbsUp, Lightbulb, Wrench, Save, ExternalLink } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
+import { useAppStore } from '@/store/useAppStore';
+import { downloadReplayArchive } from '@/utils/projectFile/downloadReplayArchive';
+import { hasUnsavedProjectContent } from '@/utils/projectFile/hasUnsavedWork';
 
 const STORAGE_KEY = 'trailreplay_feedback_solicited';
 const ACTIVITY_KEY = 'trailreplay_activity';
@@ -61,6 +64,11 @@ export function FeedbackSolicitation() {
   const [submitted, setSubmitted] = useState(false);
   const [messageCopied, setMessageCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [popupBlockedUrl, setPopupBlockedUrl] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const hasUnsavedWork = useAppStore((state) =>
+    hasUnsavedProjectContent({ tracks: state.tracks, pictures: state.pictures, journey: state.journey })
+  );
   const promptTimeoutRef = useRef<number | null>(null);
   const [isNarrowScreen, setIsNarrowScreen] = useState(
     typeof window !== 'undefined' ? window.innerWidth < MIN_WIDTH_FOR_POPUP : false
@@ -226,8 +234,9 @@ export function FeedbackSolicitation() {
     ].join('\n');
 
     const discussionUrl = DISCUSSION_URLS[feedbackCategory];
+    // Never fall back to navigating the current tab — that would leave the app
+    // (and any unsaved project work, since there's no autosave) if the popup is blocked.
     const discussionWindow = window.open(discussionUrl, '_blank', 'noopener,noreferrer');
-    if (!discussionWindow) window.location.assign(discussionUrl);
 
     void navigator.clipboard?.writeText(message)
       .then(() => setMessageCopied(true))
@@ -235,6 +244,12 @@ export function FeedbackSolicitation() {
 
     trackEvent('feedback_discussion_opened', { feedback_category: feedbackCategory });
     safeStorageSet(STORAGE_KEY, 'true');
+
+    if (!discussionWindow) {
+      setPopupBlockedUrl(discussionUrl);
+      return;
+    }
+
     setSubmitted(true);
     setTimeout(() => {
       setShowForm(false);
@@ -243,8 +258,20 @@ export function FeedbackSolicitation() {
     }, 4000);
   };
 
+  const handleSaveProject = async () => {
+    setIsSavingProject(true);
+    try {
+      await downloadReplayArchive(useAppStore.getState());
+    } catch (e) {
+      console.error('Failed to save project:', e);
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
+    setPopupBlockedUrl(null);
     safeStorageSet(STORAGE_KEY, 'true');
   };
 
@@ -332,6 +359,40 @@ export function FeedbackSolicitation() {
                 <p className="text-[var(--evergreen-60)]">
                   {t(messageCopied ? 'feedback.discussionOpenedCopied' : 'feedback.discussionOpened')}
                 </p>
+              </div>
+            ) : popupBlockedUrl ? (
+              <div className="py-2">
+                <h3 className="text-lg font-bold text-[var(--evergreen)] mb-2">
+                  {t('feedback.popupBlockedTitle')}
+                </h3>
+                <p className="text-sm text-[var(--evergreen-60)] mb-4">
+                  {messageCopied ? t('feedback.popupBlockedBodyCopied') : t('feedback.popupBlockedBody')}
+                </p>
+                {hasUnsavedWork && (
+                  <button
+                    onClick={handleSaveProject}
+                    disabled={isSavingProject}
+                    className="w-full mb-2 py-2 px-4 bg-[var(--trail-orange)] text-[var(--canvas)] rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {isSavingProject ? t('projectFile.saving') : t('sidebar.saveProject')}
+                  </button>
+                )}
+                <a
+                  href={popupBlockedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-4 border-2 border-[var(--evergreen)] text-[var(--evergreen)] rounded-lg font-medium hover:bg-[var(--evergreen)] hover:text-[var(--canvas)] transition-colors flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  {t('feedback.openDiscussion')}
+                </a>
+                <button
+                  onClick={handleCloseForm}
+                  className="w-full mt-2 py-2 px-4 text-sm text-[var(--evergreen-60)] hover:text-[var(--evergreen)]"
+                >
+                  {t('common.close')}
+                </button>
               </div>
             ) : (
               <>

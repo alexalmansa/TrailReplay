@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
+import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
@@ -55,6 +56,7 @@ function App() {
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
+  useUnsavedWorkGuard();
   const tracks = useAppStore((state) => state.tracks);
   const showSidebar = useAppStore((state) => state.isSidebarOpen);
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);

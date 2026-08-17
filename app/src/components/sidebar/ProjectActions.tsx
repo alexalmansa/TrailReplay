@@ -2,14 +2,11 @@ import { useRef, useState } from 'react';
 import { Save, FolderOpen, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
-import { buildReplayArchive } from '@/utils/projectFile/buildReplayArchive';
 import { parseReplayArchive } from '@/utils/projectFile/parseReplayArchive';
 import { hydrateProject } from '@/utils/projectFile/hydrateProject';
+import { hasUnsavedProjectContent } from '@/utils/projectFile/hasUnsavedWork';
+import { downloadReplayArchive } from '@/utils/projectFile/downloadReplayArchive';
 import { ReplayArchiveError, type ReplayArchiveErrorCode } from '@/utils/projectFile/validation';
-
-function slugifyProjectFileName(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project';
-}
 
 function errorCodeToTranslationKey(code: ReplayArchiveErrorCode): string {
   switch (code) {
@@ -31,19 +28,12 @@ export function ProjectActions() {
   const [isSaving, setIsSaving] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
 
-  const hasContent = tracks.length > 0 || pictures.length > 0 || journey !== null;
+  const hasContent = hasUnsavedProjectContent({ tracks, pictures, journey });
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const blob = await buildReplayArchive(useAppStore.getState());
-      const fileName = `${slugifyProjectFileName(journey?.name ?? 'trailreplay-project')}.replay`;
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName;
-      anchor.click();
-      URL.revokeObjectURL(url);
+      await downloadReplayArchive(useAppStore.getState());
     } catch (error) {
       console.error('Failed to save project:', error);
       setError(t('projectFile.errors.corrupt'));
