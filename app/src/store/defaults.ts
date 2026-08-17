@@ -56,7 +56,7 @@ export function createDefaultSettings(): AppSettings {
     visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],
     statsPosition: null,
     paceMode: 'per-km' as const,
-    showElevationProfile: false,
+    showElevationProfile: true,
   };
 }
 

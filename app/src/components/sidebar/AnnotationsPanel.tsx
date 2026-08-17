@@ -229,6 +229,10 @@ export function AnnotationsPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('annotations.styleYourRouteTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('annotations.styleYourRouteHint')}</p>
+      </div>
 
       {/* ── Track colour & name sections ─────────────────────────── */}
       <div className="space-y-3">

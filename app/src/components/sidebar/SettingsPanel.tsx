@@ -139,6 +139,10 @@ export function SettingsPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('settings.mapCameraTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('settings.mapCameraHint')}</p>
+      </div>
       <MapNavigationGuide />
 
       {/* Map Style */}

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useI18n } from '@/i18n/useI18n';
 import { useAppStore } from '@/store/useAppStore';
 import type { AppState } from '@/store/storeTypes';
+import { WorkflowGuide } from './WorkflowGuide';
 
 const TracksPanel = lazy(() => import('./TracksPanel').then((module) => ({ default: module.TracksPanel })));
 const JourneyPanel = lazy(() => import('./JourneyPanel').then((module) => ({ default: module.JourneyPanel })));
@@ -38,7 +39,13 @@ const panelRegistry: Record<
 
 export function SidebarPanelContent() {
   const activePanel = useAppStore((state) => state.activePanel);
+  const hasTracks = useAppStore((state) => state.tracks.length > 0);
   const renderPanel = panelRegistry[activePanel];
 
-  return <Suspense fallback={<PanelFallback />}>{renderPanel()}</Suspense>;
+  return (
+    <>
+      {hasTracks && <WorkflowGuide />}
+      <Suspense fallback={<PanelFallback />}>{renderPanel()}</Suspense>
+    </>
+  );
 }

@@ -17,11 +17,11 @@ export const es = {
   sidebar: {
     tabs: {
       tracks: 'Rutas',
-      journey: 'Recorrido',
+      journey: 'Cronología',
       annotations: 'Estilo',
       pictures: 'Medios',
-      export: 'Exportar',
-      settings: 'Mapa',
+      export: 'Generar',
+      settings: 'Mapa y cámara',
     },
     preferencesTitle: 'Preferencias',
     footerTitle: 'Trail Replay',
@@ -59,6 +59,8 @@ export const es = {
     points: 'puntos',
   },
   settings: {
+    mapCameraTitle: 'Elige el mapa y la cámara',
+    mapCameraHint: 'El mapa es el paisaje de tu vídeo. Elige su aspecto, el terreno y el punto de vista que sigue tu ruta.',
     title: 'Ajustes del mapa',
     overlaysTitle: 'Superposiciones',
     cameraTitle: 'Controles de cámara',
@@ -282,6 +284,8 @@ export const es = {
     train: 'Tren',
   },
   annotations: {
+    styleYourRouteTitle: 'Da estilo a tu ruta',
+    styleYourRouteHint: 'Elige la ruta, el marcador, las estadísticas y las llamadas que aparecen en el vídeo final.',
     tracksTitle: 'Rutas',
     trailTitle: 'Ruta',
     noTracks: 'Carga un track GPX para ajustar su color y nombre.',
@@ -342,6 +346,10 @@ export const es = {
     removeRouteAnnotation: 'Eliminar anotación',
   },
   journey: {
+    videoTimingTitle: 'Define el tiempo del vídeo',
+    videoTimingHint: 'Elige cuánto dura el vídeo final y cómo se mueve el marcador por la ruta.',
+    durationPreset: '{seconds} s',
+    durationPresetHint: 'Duración del vídeo',
     defaultSettings: 'Ajustes predeterminados',
     defaultTrackTime: 'Tiempo por defecto de la ruta',
     defaultTrackTimeHint: 'Cada ruta tardará este tiempo en completarse en la animación',
@@ -377,6 +385,8 @@ export const es = {
     transportSegment: 'Transporte {mode}',
   },
   media: {
+    videoMomentsTitle: 'Añade momentos al vídeo',
+    videoMomentsHint: 'Las fotos y los clips se sitúan automáticamente en la ruta cuando tienen ubicación o hora de captura.',
     picturesTab: 'Fotos ({count})',
     videosTab: 'Vídeos ({count})',
     annotationsTab: 'Anotaciones ({count})',
@@ -424,6 +434,7 @@ export const es = {
     manualPlacementNoRoute: 'Todavía no hay ninguna ruta disponible para colocar esta imagen.',
   },
   export: {
+    generateVideo: 'Generar vídeo',
     title: 'Ajustes de exportación',
     format: 'Formato',
     ratio: 'Relación',
@@ -471,6 +482,19 @@ export const es = {
     stageStartingRecording: 'Iniciando grabación...',
     stageRecordingAnimation: 'Grabando animación...',
     stageFailedWithError: 'La exportación falló: {error}',
+  },
+  workflow: {
+    routeImported: 'Ruta importada. Define ahora el tiempo de tu vídeo.',
+    step: 'Paso {current} de {total}',
+    progressLabel: 'Progreso de creación del vídeo',
+    next: 'Siguiente: {step}',
+    videoDurationStatus: 'Vídeo de {seconds} s',
+    routesDescription: 'Añade y administra los archivos GPX o KML usados en este vídeo.',
+    timelineDescription: 'Define la duración, el ritmo y el orden de los segmentos de ruta.',
+    styleDescription: 'Elige el aspecto de la ruta, el marcador, las estadísticas y las llamadas.',
+    mapDescription: 'Elige el paisaje, el terreno y el movimiento de cámara.',
+    mediaDescription: 'Añade fotos y clips a momentos de la ruta.',
+    generateDescription: 'Elige una salida y crea el vídeo final.',
   },
   help: {
     common: {

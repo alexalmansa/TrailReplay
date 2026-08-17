@@ -65,6 +65,10 @@ export function PicturesPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('media.videoMomentsTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('media.videoMomentsHint')}</p>
+      </div>
       <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>

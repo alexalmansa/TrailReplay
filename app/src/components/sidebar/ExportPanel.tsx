@@ -111,7 +111,7 @@ export function ExportPanel() {
               className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Film className="w-5 h-5" />
-              {t('export.startRecording')}
+              {t('export.generateVideo')}
             </button>
           )}
 

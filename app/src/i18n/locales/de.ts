@@ -17,11 +17,11 @@ export const de = {
   sidebar: {
     tabs: {
       tracks: 'Routen',
-      journey: 'Tour',
+      journey: 'Zeitleiste',
       annotations: 'Stil',
       pictures: 'Medien',
-      export: 'Export',
-      settings: 'Karte',
+      export: 'Erstellen',
+      settings: 'Karte & Kamera',
     },
     preferencesTitle: 'Präferenzen',
     footerTitle: 'TrailReplay',
@@ -59,6 +59,8 @@ export const de = {
     points: 'Punkte',
   },
   settings: {
+    mapCameraTitle: 'Karte und Kamera wählen',
+    mapCameraHint: 'Die Karte ist die Landschaft deines Videos. Wähle Aussehen, Gelände und die Kameraperspektive entlang deiner Route.',
     title: 'Karteneinstellungen',
     overlaysTitle: 'Überlagerungen',
     cameraTitle: 'Kamerasteuerung',
@@ -282,6 +284,8 @@ export const de = {
     train: 'Zug',
   },
   annotations: {
+    styleYourRouteTitle: 'Route gestalten',
+    styleYourRouteHint: 'Wähle Route, Marker, Statistiken und Hinweise für das fertige Video.',
     tracksTitle: 'Spuren',
     trailTitle: 'Pfad',
     noTracks: 'Laden Sie einen GPX-Track, um dessen Farbe und Namen festzulegen.',
@@ -342,6 +346,10 @@ export const de = {
     removeRouteAnnotation: 'Anmerkung entfernen',
   },
   journey: {
+    videoTimingTitle: 'Videolänge festlegen',
+    videoTimingHint: 'Wähle die Länge des fertigen Videos und wie sich der Marker entlang der Route bewegt.',
+    durationPreset: '{seconds} Sek.',
+    durationPresetHint: 'Videolänge',
     defaultSettings: 'Standardeinstellungen',
     defaultTrackTime: 'Standard-Trackzeit',
     defaultTrackTimeHint: 'Die Fertigstellung jedes Tracks in der Animation dauert diese Zeit',
@@ -377,6 +385,8 @@ export const de = {
     transportSegment: '{mode} Transport',
   },
   media: {
+    videoMomentsTitle: 'Momente zum Video hinzufügen',
+    videoMomentsHint: 'Fotos und Clips werden automatisch auf der Route platziert, wenn Standort oder Aufnahmezeit vorhanden sind.',
     picturesTab: 'Bilder ({count})',
     videosTab: 'Videos ({count})',
     annotationsTab: 'Anmerkungen ({count})',
@@ -424,6 +434,7 @@ export const de = {
     manualPlacementNoRoute: 'Für die Platzierung dieses Bildes ist noch keine Route verfügbar.',
   },
   export: {
+    generateVideo: 'Video erstellen',
     title: 'Exporteinstellungen',
     format: 'Format',
     ratio: 'Verhältnis',
@@ -471,6 +482,19 @@ export const de = {
     stageStartingRecording: 'Aufnahme wird gestartet...',
     stageRecordingAnimation: 'Animation aufnehmen...',
     stageFailedWithError: 'Export fehlgeschlagen: {error}',
+  },
+  workflow: {
+    routeImported: 'Route importiert. Lege als Nächstes das Video-Timing fest.',
+    step: 'Schritt {current} von {total}',
+    progressLabel: 'Fortschritt bei der Videoerstellung',
+    next: 'Weiter: {step}',
+    videoDurationStatus: '{seconds}-Sek.-Video',
+    routesDescription: 'GPX- oder KML-Dateien für dieses Video hinzufügen und verwalten.',
+    timelineDescription: 'Videolänge, Timing und Reihenfolge der Routensegmente festlegen.',
+    styleDescription: 'Aussehen von Route, Marker, Statistiken und Hinweisen wählen.',
+    mapDescription: 'Landschaft, Gelände und Kamerabewegung wählen.',
+    mediaDescription: 'Fotos und Clips an Momenten entlang der Route hinzufügen.',
+    generateDescription: 'Ausgabe wählen und das fertige Video erstellen.',
   },
   help: {
     common: {

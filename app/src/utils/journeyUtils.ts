@@ -3,7 +3,7 @@
  * Handles coordinate flattening, segment timing, and transport interpolation
  */
 
-import type { GPXTrack, GPXPoint, JourneySegment, TrackSegment, TransportSegment } from '@/types';
+import type { GPXTrack, GPXPoint, JourneySegment, RouteTimingMode, TrackSegment, TransportSegment } from '@/types';
 
 // Transport mode speeds (km/h) for estimating transport duration
 const TRANSPORT_SPEEDS: Record<string, number> = {
@@ -687,7 +687,8 @@ export function getSegmentAtDistance(
  */
 export function getJourneyElevationData(
   coordinates: JourneyPoint[],
-  segmentTimings: SegmentTiming[]
+  segmentTimings: SegmentTiming[],
+  routeTimingMode: RouteTimingMode = 'recorded'
 ): Array<{
   distance: number;
   elevation: number;
@@ -695,7 +696,6 @@ export function getJourneyElevationData(
   segmentIndex: number;
   segmentType: 'track' | 'transport';
 }> {
-  void segmentTimings;
   if (coordinates.length === 0) return [];
 
   const data: Array<{
@@ -706,23 +706,33 @@ export function getJourneyElevationData(
     segmentType: 'track' | 'transport';
   }> = [];
 
-  let totalDistance = 0;
-  const totalCoords = coordinates.length;
+  const timingBySegment = new Map(segmentTimings.map((timing) => [timing.segmentIndex, timing]));
 
   coordinates.forEach((point, i) => {
-    if (i > 0) {
-      totalDistance += calculateDistance(
-        coordinates[i - 1].lat,
-        coordinates[i - 1].lon,
-        point.lat,
-        point.lon
-      );
-    }
+    const timing = timingBySegment.get(point.segmentIndex);
+    const segmentPointCount = timing
+      ? timing.endCoordIndex - timing.startCoordIndex + 1
+      : 1;
+    const segmentPointOffset = timing ? i - timing.startCoordIndex : 0;
+    const segmentProgress = segmentPointCount > 1
+      ? Math.max(0, Math.min(1, segmentPointOffset / (segmentPointCount - 1)))
+      : 0;
+    const progressStart = routeTimingMode === 'uniform'
+      ? timing?.distanceStartRatio ?? 0
+      : timing?.progressStartRatio ?? 0;
+    const progressEnd = routeTimingMode === 'uniform'
+      ? timing?.distanceEndRatio ?? 1
+      : timing?.progressEndRatio ?? 1;
+    const distanceStart = timing?.startDistance ?? 0;
+    const distanceEnd = timing?.endDistance ?? distanceStart;
 
     data.push({
-      distance: totalDistance,
+      // Never use raw coordinate count here: separate GPX files commonly have
+      // very different sampling rates. The elevation chart must share the
+      // same horizontal scale as replay progress.
+      distance: distanceStart + (distanceEnd - distanceStart) * segmentProgress,
       elevation: point.elevation,
-      progress: i / (totalCoords - 1),
+      progress: progressStart + (progressEnd - progressStart) * segmentProgress,
       segmentIndex: point.segmentIndex,
       segmentType: point.segmentType,
     });
