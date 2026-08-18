@@ -5,9 +5,16 @@ import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: '/',
-  plugins: [inspectAttr(), react()],
+  // The inspector stamps `code-path` source locations onto every element, so it
+  // is dev-only: in production it leaks source structure and bloats both the
+  // bundles and the prerendered HTML. The prerender script runs a Vite server
+  // (command === 'serve') purely to render, so it opts out explicitly.
+  plugins: [
+    ...(command === 'serve' && !process.env.TRAILREPLAY_PRERENDER ? [inspectAttr()] : []),
+    react(),
+  ],
   build: {
     rollupOptions: {
       input: {
@@ -47,4 +54,4 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
   },
-});
+}));
