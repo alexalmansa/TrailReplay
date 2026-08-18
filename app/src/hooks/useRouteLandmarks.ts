@@ -45,7 +45,14 @@ export function useRouteLandmarks(): RouteLandmark[] {
     // Start as soon as a GPX route is available. The layer itself reveals each
     // marker along the journey, so fetching while playback starts never makes
     // the whole route suddenly appear or delays the first replay.
-    if (!nearbyPlacesEnabled) return;
+    if (!nearbyPlacesEnabled) {
+      // Disabling clears `enrichedLandmarks` (landmarksSlice), but this ref
+      // would otherwise still remember the route as "already loaded" — so a
+      // later re-enable for the same route would skip fetching and leave
+      // the just-cleared list empty forever.
+      loadedRouteKeyRef.current = null;
+      return;
+    }
     const controller = new AbortController();
     // Query each imported GPX independently. Joining distant tracks into one
     // corridor would either omit their new area or exceed the API's bounds.
