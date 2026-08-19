@@ -5,7 +5,7 @@ import {
   getPicturePopupLayout,
   type PicturePopupExportFrame,
 } from '@/utils/picturePopup';
-import { X, MapPin, Calendar } from 'lucide-react';
+import { MapPin, Calendar } from 'lucide-react';
 
 interface PicturePopupProps {
   picture: PictureAnnotation;
@@ -33,7 +33,6 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
   const progressIntervalRef = useRef<number | null>(null);
-  const exitTimeoutRef = useRef<number | null>(null);
   const fallbackImageUrlRef = useRef<string | null>(null);
   const playbackPopupStartTimeRef = useRef<number | null>(null);
   const hasClosedRef = useRef(false);
@@ -55,16 +54,6 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
     onClose?.();
   }, [clearProgressInterval, onClose]);
 
-  const handleManualClose = useCallback(() => {
-    if (exitTimeoutRef.current !== null || hasClosedRef.current) return;
-    clearProgressInterval();
-    setAnimationPhase('exiting');
-    exitTimeoutRef.current = window.setTimeout(() => {
-      exitTimeoutRef.current = null;
-      requestClose();
-    }, ZOOM_EXIT_MS);
-  }, [clearProgressInterval, requestClose]);
-
   // Wall-clock path: drives the live preview when playback isn't a
   // deterministic export. Ticks on an interval instead of currentTime.
   useEffect(() => {
@@ -84,9 +73,6 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
 
     return () => {
       clearProgressInterval();
-      if (exitTimeoutRef.current !== null) {
-        window.clearTimeout(exitTimeoutRef.current);
-      }
       if (fallbackImageUrlRef.current !== null) {
         URL.revokeObjectURL(fallbackImageUrlRef.current);
       }
@@ -175,20 +161,6 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
             className="h-full bg-[var(--trail-orange)] transition-all duration-50"
             style={{ width: `${displayProgress}%` }}
           />
-        </div>
-
-        {/* Close Button */}
-        <button
-          onClick={handleManualClose}
-          className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-          aria-label={t('common.close')}
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        {/* Duration Indicator */}
-        <div className="absolute top-3 left-3 px-2 py-1 bg-black/50 text-white text-xs rounded-full">
-          {(displayDuration / 1000).toFixed(0)}s
         </div>
 
         {/* Caption + metadata overlay */}
