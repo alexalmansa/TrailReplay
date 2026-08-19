@@ -143,7 +143,12 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
           treats percentage-width children as 0, which collapsed the photo
           to nothing. */}
       <div
-        className="tr-picture-popup relative w-full h-full overflow-hidden rounded-xl shadow-2xl origin-bottom"
+        // No box-shadow here: html2canvas approximates box-shadow by
+        // painting a filled shape behind the element, and since this box
+        // has no background of its own (transparent, letterboxed), that
+        // shadow fill was bleeding through as a solid black patch in the
+        // exported video's letterbox gaps.
+        className="tr-picture-popup relative w-full h-full overflow-hidden rounded-xl origin-bottom"
         style={{ opacity, transform: `scale(${scale})` }}
       >
         {imageSrc ? (
