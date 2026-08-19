@@ -4,6 +4,7 @@ import {
   getCapturedCanvasDrawSize,
   getElevationOverlayDrawRect,
   getExportOverlayMetrics,
+  getObjectContainRect,
   getPopupOverlayDrawRect,
   getStatsOverlayDrawRect,
   isDrawableRect,
@@ -123,7 +124,16 @@ export function useExportOverlayCapture({
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, popupDrawRect.drawX, popupDrawRect.drawY, popupDrawRect.drawWidth, popupDrawRect.drawHeight);
             const popupImageElement = picturePopupElement.querySelector('img') as HTMLImageElement | null;
             if (popupImageElement?.complete && popupImageElement.naturalWidth > 0) {
-              const imageRect = getPopupOverlayDrawRect({ popupRect: popupImageElement.getBoundingClientRect(), containerRect, cropX, cropY, scaleToRecording });
+              // The <img> is styled object-fit: contain, so its own bounding
+              // box is the *full* popup box, not the letterboxed photo
+              // within it — draw into the contain-fitted sub-rect instead,
+              // or the natural image gets stretched to fill the whole box.
+              const containRect = getObjectContainRect(
+                popupImageElement.getBoundingClientRect(),
+                popupImageElement.naturalWidth,
+                popupImageElement.naturalHeight,
+              );
+              const imageRect = getPopupOverlayDrawRect({ popupRect: containRect, containerRect, cropX, cropY, scaleToRecording });
               if (isDrawableRect(imageRect)) overlayContext.drawImage(popupImageElement, imageRect.drawX, imageRect.drawY, imageRect.drawWidth, imageRect.drawHeight);
             }
           }

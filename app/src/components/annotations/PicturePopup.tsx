@@ -14,22 +14,48 @@ interface PicturePopupProps {
   playbackCurrentTime?: number;
 }
 
-type AnimationPhase = 'entering' | 'visible' | 'exiting';
-
 // How long the "fake zoom" grows in / shrinks out. Kept shorter than
-// `displayDuration` so there's always a visible "visible" hold in between.
+// `displayDuration` so there's always a visible held-still window in between.
 const ZOOM_ENTER_MS = 450;
 const ZOOM_EXIT_MS = 350;
+const ZOOM_ENTER_SCALE = 0.15;
+const ZOOM_EXIT_SCALE = 0.85;
 
-function getAnimationPhase(elapsed: number, displayDuration: number): AnimationPhase {
-  if (elapsed < ZOOM_ENTER_MS) return 'entering';
-  if (elapsed > displayDuration - ZOOM_EXIT_MS) return 'exiting';
-  return 'visible';
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3;
+}
+
+function easeInCubic(t: number) {
+  return t ** 3;
+}
+
+// Computes scale/opacity directly from elapsed time instead of toggling CSS
+// classes through a `transition` and letting the browser interpolate in real
+// wall-clock time. That worked fine for the live preview, but during video
+// export each encoded frame can take far longer than its nominal slot to
+// capture (DOM-overlay rasterization isn't free) — the CSS transition would
+// often finish before more than one or two frames had even been captured,
+// making the zoom look like an abrupt jump-cut instead of a smooth animation
+// in the output. Deriving the values from `elapsed` directly makes the
+// animation a pure function of the (possibly synthetic, export-driven) clock
+// passed in, independent of how long each frame actually took to render.
+function getZoomStyle(elapsed: number, displayDuration: number): { opacity: number; scale: number } {
+  const clamped = Math.max(0, elapsed);
+  if (clamped < ZOOM_ENTER_MS) {
+    const t = easeOutCubic(Math.min(1, clamped / ZOOM_ENTER_MS));
+    return { opacity: t, scale: ZOOM_ENTER_SCALE + (1 - ZOOM_ENTER_SCALE) * t };
+  }
+  const exitStart = displayDuration - ZOOM_EXIT_MS;
+  if (clamped > exitStart) {
+    const t = easeInCubic(Math.min(1, (clamped - exitStart) / ZOOM_EXIT_MS));
+    return { opacity: 1 - t, scale: 1 - (1 - ZOOM_EXIT_SCALE) * t };
+  }
+  return { opacity: 1, scale: 1 };
 }
 
 export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTime }: PicturePopupProps) {
   const { t } = useI18n();
-  const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('entering');
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
   const progressIntervalRef = useRef<number | null>(null);
@@ -64,12 +90,12 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / displayDuration) * 100, 100);
       setDisplayProgress(progress);
-      setAnimationPhase(getAnimationPhase(elapsed, displayDuration));
+      setElapsedMs(elapsed);
 
       if (elapsed >= displayDuration) {
         requestClose();
       }
-    }, 50);
+    }, 30);
 
     return () => {
       clearProgressInterval();
@@ -92,25 +118,14 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
     const elapsed = Math.max(0, playbackCurrentTime - playbackPopupStartTimeRef.current);
     const progress = Math.min((elapsed / displayDuration) * 100, 100);
     setDisplayProgress(progress);
-    setAnimationPhase(getAnimationPhase(elapsed, displayDuration));
+    setElapsedMs(elapsed);
 
     if (elapsed >= displayDuration) {
       requestClose();
     }
   }, [displayDuration, playbackCurrentTime, requestClose]);
 
-  const getAnimationClasses = () => {
-    switch (animationPhase) {
-      case 'entering':
-        return 'opacity-0 scale-[0.15]';
-      case 'visible':
-        return 'opacity-100 scale-100';
-      case 'exiting':
-        return 'opacity-0 scale-[0.85]';
-      default:
-        return '';
-    }
-  };
+  const { opacity, scale } = getZoomStyle(elapsedMs, displayDuration);
 
   return (
     <div className="absolute z-[200]" style={{ ...popupStyle, width: imageBoxWidth, height: imageBoxHeight }}>
@@ -119,7 +134,8 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
           (never cropped) regardless of its aspect ratio vs. the box's — any
           letterbox gap is transparent, showing the map behind it, rather
           than a solid fill. This box also carries the "fake zoom"
-          scale/opacity transition.
+          scale/opacity, driven directly from elapsed time (see
+          `getZoomStyle`) rather than a CSS transition.
           Note: the size lives on the *outer* wrapper (whose percentage
           values resolve against the map container, a definite-size
           ancestor) rather than here — an absolutely-positioned box with no
@@ -127,13 +143,8 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
           treats percentage-width children as 0, which collapsed the photo
           to nothing. */}
       <div
-        className={`
-          tr-picture-popup
-          relative w-full h-full overflow-hidden rounded-xl shadow-2xl
-          origin-bottom
-          transition-all duration-500 ease-out
-          ${getAnimationClasses()}
-        `}
+        className="tr-picture-popup relative w-full h-full overflow-hidden rounded-xl shadow-2xl origin-bottom"
+        style={{ opacity, transform: `scale(${scale})` }}
       >
         {imageSrc ? (
           <img
