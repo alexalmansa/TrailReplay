@@ -44,6 +44,10 @@ export interface AppState {
   playback: PlaybackState;
   cinematicPlayed: boolean;
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
+  // Drives PicturePopup's progress bar / zoom timing during a deterministic
+  // export hold, decoupled from `playback.currentTime` so the route position
+  // (and everything derived from it) stays frozen while the photo is shown.
+  exportPictureHoldElapsedMs: number | null;
   settings: AppSettings;
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;
@@ -116,6 +120,7 @@ export interface AppState {
   setCurrentSegment: (index: number, progress: number) => void;
   setCinematicPlayed: (played: boolean) => void;
   setAnimationPhase: (phase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended') => void;
+  setExportPictureHoldElapsedMs: (elapsedMs: number | null) => void;
   resetPlayback: () => void;
   setSettings: (settings: Partial<AppSettings>) => void;
   setCameraSettings: (settings: Partial<CameraSettings>) => void;

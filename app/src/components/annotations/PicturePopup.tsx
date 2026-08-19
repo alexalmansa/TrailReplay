@@ -5,7 +5,7 @@ import {
   getPicturePopupLayout,
   type PicturePopupExportFrame,
 } from '@/utils/picturePopup';
-import { X, MapPin, Calendar } from 'lucide-react';
+import { MapPin, Calendar } from 'lucide-react';
 
 interface PicturePopupProps {
   picture: PictureAnnotation;
@@ -14,19 +14,58 @@ interface PicturePopupProps {
   playbackCurrentTime?: number;
 }
 
+// How long the "fake zoom" grows in / shrinks out. Kept shorter than
+// `displayDuration` so there's always a visible held-still window in between.
+const ZOOM_ENTER_MS = 450;
+const ZOOM_EXIT_MS = 350;
+const ZOOM_ENTER_SCALE = 0.15;
+const ZOOM_EXIT_SCALE = 0.85;
+
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3;
+}
+
+function easeInCubic(t: number) {
+  return t ** 3;
+}
+
+// Computes scale/opacity directly from elapsed time instead of toggling CSS
+// classes through a `transition` and letting the browser interpolate in real
+// wall-clock time. That worked fine for the live preview, but during video
+// export each encoded frame can take far longer than its nominal slot to
+// capture (DOM-overlay rasterization isn't free) — the CSS transition would
+// often finish before more than one or two frames had even been captured,
+// making the zoom look like an abrupt jump-cut instead of a smooth animation
+// in the output. Deriving the values from `elapsed` directly makes the
+// animation a pure function of the (possibly synthetic, export-driven) clock
+// passed in, independent of how long each frame actually took to render.
+function getZoomStyle(elapsed: number, displayDuration: number): { opacity: number; scale: number } {
+  const clamped = Math.max(0, elapsed);
+  if (clamped < ZOOM_ENTER_MS) {
+    const t = easeOutCubic(Math.min(1, clamped / ZOOM_ENTER_MS));
+    return { opacity: t, scale: ZOOM_ENTER_SCALE + (1 - ZOOM_ENTER_SCALE) * t };
+  }
+  const exitStart = displayDuration - ZOOM_EXIT_MS;
+  if (clamped > exitStart) {
+    const t = easeInCubic(Math.min(1, (clamped - exitStart) / ZOOM_EXIT_MS));
+    return { opacity: 1 - t, scale: 1 - (1 - ZOOM_EXIT_SCALE) * t };
+  }
+  return { opacity: 1, scale: 1 };
+}
+
 export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTime }: PicturePopupProps) {
   const { t } = useI18n();
-  const [animationState, setAnimationState] = useState<'entering' | 'visible' | 'exiting'>('entering');
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
   const progressIntervalRef = useRef<number | null>(null);
-  const exitTimeoutRef = useRef<number | null>(null);
   const fallbackImageUrlRef = useRef<string | null>(null);
   const playbackPopupStartTimeRef = useRef<number | null>(null);
-  
+  const hasClosedRef = useRef(false);
+
   const displayDuration = picture.displayDuration || 5000;
-  const { imageWidth, imageHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
-  
+  const { imageBoxWidth, imageBoxHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
+
   const clearProgressInterval = useCallback(() => {
     if (progressIntervalRef.current !== null) {
       window.clearInterval(progressIntervalRef.current);
@@ -34,59 +73,41 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
     }
   }, []);
 
-  const startExit = useCallback((immediately = false) => {
-    if (exitTimeoutRef.current !== null) return;
-
+  const requestClose = useCallback(() => {
+    if (hasClosedRef.current) return;
+    hasClosedRef.current = true;
     clearProgressInterval();
-    if (immediately) {
-      onClose?.();
-      return;
-    }
-
-    setAnimationState('exiting');
-    exitTimeoutRef.current = window.setTimeout(() => {
-      exitTimeoutRef.current = null;
-      onClose?.();
-    }, 300);
+    onClose?.();
   }, [clearProgressInterval, onClose]);
 
+  // Wall-clock path: drives the live preview when playback isn't a
+  // deterministic export. Ticks on an interval instead of currentTime.
   useEffect(() => {
-    // Deterministic exports advance the replay clock frame-by-frame rather than
-    // in wall-clock time. Show the popup immediately and let the effect below
-    // control its lifetime from that same clock.
-    if (playbackCurrentTime !== undefined) {
-      return;
-    }
+    if (playbackCurrentTime !== undefined) return;
 
-    // After entering animation, show the picture
-    const enterTimer = window.setTimeout(() => {
-      setAnimationState('visible');
-      
-      // Start progress bar
-      const startTime = Date.now();
-      progressIntervalRef.current = window.setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min((elapsed / displayDuration) * 100, 100);
-        setDisplayProgress(progress);
-        
-        if (progress >= 100) {
-          startExit();
-        }
-      }, 50);
-    }, 300); // Enter animation duration
-    
-    return () => {
-      window.clearTimeout(enterTimer);
-      clearProgressInterval();
-      if (exitTimeoutRef.current !== null) {
-        window.clearTimeout(exitTimeoutRef.current);
+    const startTime = Date.now();
+    progressIntervalRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / displayDuration) * 100, 100);
+      setDisplayProgress(progress);
+      setElapsedMs(elapsed);
+
+      if (elapsed >= displayDuration) {
+        requestClose();
       }
+    }, 30);
+
+    return () => {
+      clearProgressInterval();
       if (fallbackImageUrlRef.current !== null) {
         URL.revokeObjectURL(fallbackImageUrlRef.current);
       }
     };
-  }, [clearProgressInterval, displayDuration, playbackCurrentTime, startExit]);
+  }, [clearProgressInterval, displayDuration, playbackCurrentTime, requestClose]);
 
+  // Deterministic-export path: driven off the replay clock so the zoom
+  // animation bakes into exported frames instead of jumping straight to
+  // "visible" the way the previous implementation did.
   useEffect(() => {
     if (playbackCurrentTime === undefined) return;
 
@@ -97,115 +118,94 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
     const elapsed = Math.max(0, playbackCurrentTime - playbackPopupStartTimeRef.current);
     const progress = Math.min((elapsed / displayDuration) * 100, 100);
     setDisplayProgress(progress);
+    setElapsedMs(elapsed);
 
-    if (progress >= 100) {
-      startExit(true);
+    if (elapsed >= displayDuration) {
+      requestClose();
     }
-  }, [displayDuration, playbackCurrentTime, startExit]);
-  
-  const handleClose = () => {
-    startExit();
-  };
-  
-  // Animation classes based on state
-  const getAnimationClasses = () => {
-    switch (playbackCurrentTime === undefined ? animationState : 'visible') {
-      case 'entering':
-        return 'opacity-0 scale-90 translate-y-4';
-      case 'visible':
-        return 'opacity-100 scale-100 translate-y-0';
-      case 'exiting':
-        return 'opacity-0 scale-95 translate-y-2';
-      default:
-        return '';
-    }
-  };
+  }, [displayDuration, playbackCurrentTime, requestClose]);
+
+  const { opacity, scale } = getZoomStyle(elapsedMs, displayDuration);
 
   return (
-    <div className="absolute z-20" style={popupStyle}>
-      <div 
-        className={`
-          tr-picture-popup
-          transition-all duration-300 ease-out
-          ${getAnimationClasses()}
-        `}
+    <div className="absolute z-[200]" style={{ ...popupStyle, width: imageBoxWidth, height: imageBoxHeight }}>
+      {/* Near-fullscreen box: fills the sized wrapper above, rounded,
+          overflow-hidden. object-contain keeps the whole photo visible
+          (never cropped) regardless of its aspect ratio vs. the box's — any
+          letterbox gap is transparent, showing the map behind it, rather
+          than a solid fill. This box also carries the "fake zoom"
+          scale/opacity, driven directly from elapsed time (see
+          `getZoomStyle`) rather than a CSS transition.
+          Note: the size lives on the *outer* wrapper (whose percentage
+          values resolve against the map container, a definite-size
+          ancestor) rather than here — an absolutely-positioned box with no
+          explicit size shrink-wraps its content, and shrink-to-fit sizing
+          treats percentage-width children as 0, which collapsed the photo
+          to nothing. */}
+      <div
+        // No box-shadow here: html2canvas approximates box-shadow by
+        // painting a filled shape behind the element, and since this box
+        // has no background of its own (transparent, letterboxed), that
+        // shadow fill was bleeding through as a solid black patch in the
+        // exported video's letterbox gaps.
+        className="tr-picture-popup relative w-full h-full overflow-hidden rounded-xl origin-bottom"
+        style={{ opacity, transform: `scale(${scale})` }}
       >
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={picture.title || t('media.trailPictureAlt')}
+            className="absolute inset-0 w-full h-full object-contain"
+            onError={() => {
+              if (picture.displayFile && imageSrc === picture.url) {
+                fallbackImageUrlRef.current = URL.createObjectURL(picture.displayFile);
+                setImageSrc(fallbackImageUrlRef.current);
+                return;
+              }
+              setImageSrc('');
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm">
+            {t('media.imageUnavailable')}
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-black/20 z-10">
-          <div 
+          <div
             className="h-full bg-[var(--trail-orange)] transition-all duration-50"
             style={{ width: `${displayProgress}%` }}
           />
         </div>
-        
-        {/* Image */}
-        <div className="relative">
-          {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={picture.title || t('media.trailPictureAlt')}
-              className="object-contain bg-[var(--evergreen)]/10"
-              style={{ width: imageWidth, height: imageHeight }}
-              onError={() => {
-                if (picture.displayFile && imageSrc === picture.url) {
-                  fallbackImageUrlRef.current = URL.createObjectURL(picture.displayFile);
-                  setImageSrc(fallbackImageUrlRef.current);
-                  return;
-                }
-                setImageSrc('');
-              }}
-            />
-          ) : (
-            <div
-              className="flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm"
-              style={{ width: imageWidth, height: imageHeight }}
-            >
-              {t('media.imageUnavailable')}
-            </div>
-          )}
-          
-          {/* Close Button */}
-          <button
-            onClick={handleClose}
-            className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-            aria-label={t('common.close')}
-          >
-            <X className="w-4 h-4" />
-          </button>
-          
-          {/* Duration Indicator */}
-          <div className="absolute top-3 left-3 px-2 py-1 bg-black/50 text-white text-xs rounded-full">
-            {(displayDuration / 1000).toFixed(0)}s
-          </div>
-        </div>
-        
-        {/* Caption */}
-        {(picture.title || picture.description) && (
-          <div className={`caption ${isExportSafe ? 'px-3 py-2' : ''}`}>
+
+        {/* Caption + metadata overlay */}
+        {(picture.title || picture.description || (picture.lat !== undefined && picture.lon !== undefined) || picture.timestamp) && (
+          <div className="absolute bottom-0 left-0 right-0 px-4 pt-10 pb-3 bg-gradient-to-t from-black/75 to-transparent">
             {picture.title && (
-              <p className={`font-medium ${isExportSafe ? 'text-xs' : 'text-sm'}`}>{picture.title}</p>
+              <p className={`font-medium text-white ${isExportSafe ? 'text-xs' : 'text-base'}`}>{picture.title}</p>
             )}
             {picture.description && (
-              <p className={`${isExportSafe ? 'text-[11px]' : 'text-xs'} opacity-80 mt-0.5`}>{picture.description}</p>
+              <p className={`text-white/85 mt-0.5 ${isExportSafe ? 'text-[11px]' : 'text-sm'}`}>{picture.description}</p>
+            )}
+            {(picture.lat !== undefined && picture.lon !== undefined || picture.timestamp) && (
+              <div className={`flex items-center gap-3 text-white/70 mt-1.5 ${isExportSafe ? 'text-[10px]' : 'text-xs'}`}>
+                {picture.lat !== undefined && picture.lon !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {picture.lat.toFixed(4)}, {picture.lon.toFixed(4)}
+                  </span>
+                )}
+                {picture.timestamp && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {picture.timestamp.toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}
-        
-        {/* Metadata */}
-        <div className={`bg-[var(--canvas)] border-t border-[var(--evergreen)]/20 flex items-center gap-3 text-[var(--evergreen-60)] ${isExportSafe ? 'px-2.5 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'}`}>
-          {picture.lat !== undefined && picture.lon !== undefined && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {picture.lat.toFixed(4)}, {picture.lon.toFixed(4)}
-            </span>
-          )}
-          {picture.timestamp && (
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {picture.timestamp.toLocaleDateString()}
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );

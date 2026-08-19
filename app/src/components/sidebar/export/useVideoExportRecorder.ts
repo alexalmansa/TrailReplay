@@ -13,6 +13,7 @@ import {
   trackEvent,
 } from '@/utils/analytics';
 import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
+import { getTriggeredPlaybackPictures } from '@/utils/playbackPictures';
 import {
   getSupportedMimeType,
   getVideoBitrate,
@@ -209,11 +210,51 @@ export function useVideoExportRecorder() {
       context.drawImage(cachedOverlayRef.current, 0, 0, recordW, recordH);
     }
 
-    const markerContainer = document.querySelector('.tr-marker') as HTMLElement | null;
+    const scaleX = recordW / cropW;
+    const scaleY = recordH / cropH;
+
+    // The photo popup should read as fully in front of everything else
+    // (matching the live view's z-index stacking): neither the route
+    // position marker nor the small photo-pin markers should paint over it.
+    const pictureHoldActive = Boolean(document.querySelector('.tr-picture-popup'));
+
+    // Photo pin markers along the route (`usePictureMarkers.ts`) live as
+    // MapLibre DOM markers outside the WebGL canvas, so — like the position
+    // marker below — they need to be manually recreated here or they never
+    // appear in the exported video at all.
+    if (!pictureHoldActive) document.querySelectorAll('.tr-picture-marker').forEach((markerEl) => {
+      const rect = (markerEl as HTMLElement).getBoundingClientRect();
+      const centerX = (rect.left + rect.width / 2 - containerRect.left - cropX) * scaleX;
+      const centerY = (rect.top + rect.height / 2 - containerRect.top - cropY) * scaleY;
+      const radius = (rect.width / 2) * scaleX;
+      if (radius <= 0) return;
+      if (centerX < -radius || centerX > recordW + radius || centerY < -radius || centerY > recordH + radius) return;
+
+      const computed = getComputedStyle(markerEl as HTMLElement);
+      context.save();
+      context.beginPath();
+      context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      context.closePath();
+      context.fillStyle = computed.backgroundColor || 'rgba(255, 152, 0, 0.9)';
+      context.fill();
+
+      const thumb = markerEl.querySelector('img') as HTMLImageElement | null;
+      if (thumb && thumb.complete && thumb.naturalWidth > 0) {
+        context.clip();
+        context.drawImage(thumb, centerX - radius, centerY - radius, radius * 2, radius * 2);
+      }
+      context.restore();
+
+      context.beginPath();
+      context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      context.lineWidth = (parseFloat(computed.borderWidth) || 3) * scaleX;
+      context.strokeStyle = computed.borderColor || '#ffffff';
+      context.stroke();
+    });
+
+    const markerContainer = pictureHoldActive ? null : document.querySelector('.tr-marker') as HTMLElement | null;
     if (markerContainer) {
       const markerRect = markerContainer.getBoundingClientRect();
-      const scaleX = recordW / cropW;
-      const scaleY = recordH / cropH;
       const markerX = (markerRect.left + markerRect.width / 2 - containerRect.left - cropX) * scaleX;
       const markerY = (markerRect.top + markerRect.height / 2 - containerRect.top - cropY) * scaleY;
 
@@ -434,6 +475,45 @@ export function useVideoExportRecorder() {
     }
   }, [captureFrame, encodeWebCodecsFrame, videoExportSettings.fps, waitForMapFrame]);
 
+  // Holds on a picture popup for `durationMs`, forcing a fresh DOM-overlay
+  // capture every single encoded frame instead of the ~12fps throttle
+  // `captureFrame` otherwise applies (see `getOverlayRefreshIntervalMs`) —
+  // that throttle is fine for slow-moving stats/elevation overlays, but made
+  // the popup's zoom/opacity transition look stepped and laggy since it was
+  // only being re-rasterized a handful of times over its whole animation.
+  // The route position/camera stay frozen throughout (only
+  // `exportPictureHoldElapsedMs` advances), so there's no need for the map
+  // to actually repaint each frame the way `captureDeterministicPhase` waits
+  // for — that lets this run faster too.
+  const capturePictureHold = useCallback(async (
+    durationMs: number,
+    timestampOffsetMs: number,
+  ) => {
+    const frameDurationMs = 1000 / videoExportSettings.fps;
+    const frameCount = Math.max(1, Math.ceil(durationMs / frameDurationMs));
+    const { width: recordW, height: recordH } = videoExportSettings.resolution;
+    const phaseStartTime = performance.now();
+
+    for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      useAppStore.getState().setExportPictureHoldElapsedMs(frameIndex * frameDurationMs);
+      // Let React commit the new elapsed value (and the popup's CSS
+      // transition tick forward in the DOM) before rasterizing it.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      await updateOverlayAsync(recordW, recordH);
+      captureFrame();
+      await encodeWebCodecsFrame((timestampOffsetMs + (frameIndex * frameDurationMs)) * 1000);
+      if (frameIndex < frameCount) {
+        const nextFrameDueAt = phaseStartTime + ((frameIndex + 1) * frameDurationMs);
+        const remainingDelayMs = Math.max(0, nextFrameDueAt - performance.now());
+        if (remainingDelayMs > 0) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, remainingDelayMs));
+        }
+      }
+    }
+  }, [captureFrame, encodeWebCodecsFrame, updateOverlayAsync, videoExportSettings.fps, videoExportSettings.resolution]);
+
   // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
   const finalizeWebCodecsExport = useCallback(async () => {
     const encoder = mp4EncoderRef.current;
@@ -555,6 +635,12 @@ export function useVideoExportRecorder() {
     store.setCinematicPlayed(true);
     store.setAnimationPhase('playing');
     let encodedDurationMs = INTRO_DURATION;
+    // Mirrors App.tsx's live-playback picture trigger (`getTriggeredPlaybackPictures`),
+    // but drives its own hold here so the export can freeze the route
+    // position for the picture's full `displayDuration` instead of just
+    // showing the popup over an already-advancing timeline.
+    const shownPictureIds = new Set<string>();
+    let previousProgress = 0;
 
     // The intro already contains the progress-zero pose. Begin at the first
     // advancing route frame so the cut into the route has no duplicate hold.
@@ -568,15 +654,43 @@ export function useVideoExportRecorder() {
 
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
       captureFrame();
-      await encodeWebCodecsFrame((encodedDurationMs + (frameIndex * frameDurationMs)) * 1000);
+      // Match the original `(fixedBase + frameIndex * frameDurationMs)`
+      // timestamp math exactly: increment before encoding, so frame 1 lands
+      // at `INTRO_DURATION + frameDurationMs`, not `INTRO_DURATION` (which
+      // would collide with the intro phase's own last encoded timestamp).
+      encodedDurationMs += frameDurationMs;
+      await encodeWebCodecsFrame(encodedDurationMs * 1000);
 
       if (frameIndex % progressUpdateInterval === 0 || frameIndex === frameCount) {
         setExportProgress(progress * 100);
         setExportStage(t('export.recording'));
       }
+
+      const triggeredPictures = getTriggeredPlaybackPictures({
+        pictures,
+        previousProgress,
+        currentProgress: progress,
+        shownPictureIds,
+        queuedPictureIds: [],
+      });
+      previousProgress = progress;
+
+      for (const picture of triggeredPictures) {
+        if (!isRecordingRef.current || recordingCancelledRef.current) break;
+        shownPictureIds.add(picture.id);
+        store.setSelectedPictureId(picture.id);
+        const holdTimestampOffset = encodedDurationMs;
+        const holdDurationMs = picture.displayDuration || 5000;
+        // `progress`/`currentTime` are left untouched for the whole hold, so
+        // the map/marker stay frozen; only `exportPictureHoldElapsedMs`
+        // advances, driving the popup's own zoom/progress-bar animation.
+        await capturePictureHold(holdDurationMs, holdTimestampOffset);
+        encodedDurationMs = holdTimestampOffset + holdDurationMs;
+        store.setSelectedPictureId(null);
+        store.setExportPictureHoldElapsedMs(null);
+      }
     }
 
-    encodedDurationMs += frameCount * frameDurationMs;
     if (!recordingCancelledRef.current && isRecordingRef.current) {
       // Mirror the on-screen finale: a short hold at the finish, then the
       // outward camera move. Both are encoded before the file is finalized.
@@ -593,7 +707,7 @@ export function useVideoExportRecorder() {
     }
 
     if (!recordingCancelledRef.current) finishRecording();
-  }, [captureDeterministicPhase, captureFrame, encodeWebCodecsFrame, finishRecording, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
+  }, [captureDeterministicPhase, capturePictureHold, captureFrame, encodeWebCodecsFrame, finishRecording, pictures, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
 
   useEffect(() => {
     if (!isRecordingRef.current) return;

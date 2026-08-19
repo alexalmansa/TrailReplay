@@ -30,6 +30,21 @@ export function ExportPanel() {
     resetExportResult,
   } = useVideoExportRecorder();
 
+  // The Instagram share prompt used to be a small card buried in the
+  // scrollable sidebar (easy to miss). Surface it as a centered overlay
+  // instead — much harder not to notice right when the export finishes.
+  // Re-arming `shareModalDismissed` when `exportedBlob` changes identity (a
+  // new export just finished) directly in the render body — rather than in
+  // a useEffect — is React's recommended pattern for resetting state in
+  // response to a prop/value change: https://react.dev/learn/you-might-not-need-an-effect
+  const [shareModalDismissed, setShareModalDismissed] = useState(false);
+  const [acknowledgedBlob, setAcknowledgedBlob] = useState<Blob | null>(null);
+  if (exportedBlob !== acknowledgedBlob) {
+    setAcknowledgedBlob(exportedBlob);
+    setShareModalDismissed(false);
+  }
+  const showShareModal = Boolean(exportedBlob) && !isExporting && !shareModalDismissed;
+
   return (
     <div className="space-y-4">
       {/* Mode switch */}
@@ -154,34 +169,6 @@ export function ExportPanel() {
                 <span className="font-medium">{t('export.complete')}</span>
               </div>
 
-              <aside className="rounded-lg border border-[var(--trail-orange)]/35 bg-[var(--trail-orange-15)] p-4">
-                <div className="flex gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--trail-orange)] text-white shadow-sm">
-                    <Instagram className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-semibold text-[var(--evergreen)]">
-                      {t('export.shareTitle')}
-                    </h4>
-                    <p className="mt-1 text-xs leading-5 text-[var(--evergreen-80)]">
-                      {t('export.shareBodyBefore')}{' '}
-                      <a
-                        href="https://www.instagram.com/trailreplay/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold text-[var(--evergreen)] underline decoration-[var(--trail-orange)] underline-offset-2 hover:text-[var(--trail-orange)]"
-                      >
-                        @trailreplay
-                      </a>{' '}
-                      {t('export.shareBodyAfter')}
-                    </p>
-                    <p className="mt-2 text-xs font-medium leading-5 text-[var(--evergreen)]">
-                      {t('export.shareFeature')}
-                    </p>
-                  </div>
-                </div>
-              </aside>
-
               <button
                 onClick={handleDownload}
                 className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2"
@@ -205,6 +192,61 @@ export function ExportPanel() {
             t={t}
             videoExportSettings={videoExportSettings}
           />
+
+          {showShareModal && (
+            <div
+              className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+              onClick={() => setShareModalDismissed(true)}
+            >
+              <div
+                className="relative w-full max-w-sm rounded-xl bg-[var(--canvas)] p-6 text-center shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setShareModalDismissed(true)}
+                  className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/5"
+                  aria-label={t('common.close')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-2 justify-center text-green-600 bg-green-50 px-3 py-2 rounded-lg mb-4">
+                  <Check className="w-5 h-5" />
+                  <span className="font-medium text-sm">{t('export.complete')}</span>
+                </div>
+
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--trail-orange)] text-white shadow-sm">
+                  <Instagram className="w-7 h-7" aria-hidden="true" />
+                </div>
+
+                <h4 className="mt-4 text-base font-semibold text-[var(--evergreen)]">
+                  {t('export.shareTitle')}
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">
+                  {t('export.shareBodyBefore')}{' '}
+                  <a
+                    href="https://www.instagram.com/trailreplay/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-[var(--evergreen)] underline decoration-[var(--trail-orange)] underline-offset-2 hover:text-[var(--trail-orange)]"
+                  >
+                    @trailreplay
+                  </a>{' '}
+                  {t('export.shareBodyAfter')}
+                </p>
+                <p className="mt-3 text-sm font-medium leading-6 text-[var(--evergreen)]">
+                  {t('export.shareFeature')}
+                </p>
+
+                <button
+                  onClick={() => setShareModalDismissed(true)}
+                  className="mt-5 w-full tr-btn tr-btn-primary"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
