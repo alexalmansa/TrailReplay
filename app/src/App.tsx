@@ -62,6 +62,8 @@ function App() {
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
   const exploreMode = useAppStore((state) => state.exploreMode);
   const setExploreMode = useAppStore((state) => state.setExploreMode);
+  const animationPhase = useAppStore((state) => state.animationPhase);
+  const exportPictureHoldElapsedMs = useAppStore((state) => state.exportPictureHoldElapsedMs);
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const textAnnotations = useAppStore((state) => state.textAnnotations);
@@ -301,7 +303,15 @@ function App() {
       clearPendingQueuedPictureOpen();
     }
 
-    if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
+    // Wait for the cold-start preload/intro sequence to finish before ever
+    // triggering a picture. Otherwise a photo anchored at/near progress 0
+    // pops up as soon as Play is clicked (isPlaying flips true immediately),
+    // ahead of the intro camera zoom-in and before the marker has moved.
+    // During a deterministic export, `useVideoExportRecorder` drives its own
+    // picture-hold logic (so the export can freeze the route position for
+    // the full `displayDuration` instead of just showing the popup over an
+    // already-advancing timeline) — this effect must stay out of the way.
+    if (isDeterministicExport || !playback.isPlaying || animationPhase !== 'playing' || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
       lastPlaybackProgressRef.current = currentProgress;
     } else {
       const triggeredPictures = getTriggeredPlaybackPictures({
@@ -319,19 +329,27 @@ function App() {
         queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
         resumePlaybackAfterPictureQueueRef.current = true;
         pause();
-        scheduleNextQueuedPlaybackPicture();
+        // Open the popup synchronously in this same effect, rather than via
+        // scheduleNextQueuedPlaybackPicture's setTimeout(0). Deferring by even
+        // one macrotask let the camera/marker (which react to the same
+        // progress update) paint an extra moving frame before the popup
+        // mounted — most visible for photos anchored right at the start.
+        clearPendingQueuedPictureOpen();
+        openNextQueuedPlaybackPicture();
       }
     }
 
     lastPlaybackProgressRef.current = currentProgress;
   }, [
+    animationPhase,
     autoPlaybackPictureId,
     clearPendingQueuedPictureOpen,
+    isDeterministicExport,
+    openNextQueuedPlaybackPicture,
     pause,
     pictures,
     playback.isPlaying,
     playback.progress,
-    scheduleNextQueuedPlaybackPicture,
     selectedPictureId,
   ]);
 
@@ -496,7 +514,7 @@ function App() {
                   picture={activePicture} 
                   onClose={closeActivePicture}
                   exportFrame={activeExportCropMetrics}
-                  playbackCurrentTime={isDeterministicExport ? playback.currentTime : undefined}
+                  playbackCurrentTime={isDeterministicExport ? (exportPictureHoldElapsedMs ?? playback.currentTime) : undefined}
                 />
               )}
               

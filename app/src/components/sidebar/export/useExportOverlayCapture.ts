@@ -4,6 +4,7 @@ import {
   getCapturedCanvasDrawSize,
   getElevationOverlayDrawRect,
   getExportOverlayMetrics,
+  getObjectContainRect,
   getPopupOverlayDrawRect,
   getStatsOverlayDrawRect,
   isDrawableRect,
@@ -17,6 +18,7 @@ type Html2Canvas = (
     logging: boolean;
     useCORS: boolean;
     allowTaint?: boolean;
+    ignoreElements?: (element: Element) => boolean;
   }
 ) => Promise<HTMLCanvasElement>;
 
@@ -119,11 +121,35 @@ export function useExportOverlayCapture({
           const popupRect = picturePopupElement.getBoundingClientRect();
           const popupDrawRect = getPopupOverlayDrawRect({ popupRect, containerRect, cropX, cropY, scaleToRecording });
           if (isDrawableRect(popupDrawRect)) {
-            const captureCanvas = await capture(picturePopupElement, { backgroundColor: null, scale: 1, logging: false, useCORS: true, allowTaint: true });
+            // html2canvas doesn't reliably support `object-fit: contain` —
+            // it can tile/repeat the source image to fill the element's box
+            // instead of letterboxing it, which showed up as the correctly
+            // sized photo with a stretched, repeated copy behind it. Skip
+            // the <img> in this capture entirely (chrome only: rounded
+            // corners, shadow, progress bar, caption gradient) and rely
+            // solely on the manually contain-fitted `drawImage` below for
+            // the actual photo.
+            const captureCanvas = await capture(picturePopupElement, {
+              backgroundColor: null,
+              scale: 1,
+              logging: false,
+              useCORS: true,
+              allowTaint: true,
+              ignoreElements: (element) => element.tagName === 'IMG',
+            });
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, popupDrawRect.drawX, popupDrawRect.drawY, popupDrawRect.drawWidth, popupDrawRect.drawHeight);
             const popupImageElement = picturePopupElement.querySelector('img') as HTMLImageElement | null;
             if (popupImageElement?.complete && popupImageElement.naturalWidth > 0) {
-              const imageRect = getPopupOverlayDrawRect({ popupRect: popupImageElement.getBoundingClientRect(), containerRect, cropX, cropY, scaleToRecording });
+              // The <img> is styled object-fit: contain, so its own bounding
+              // box is the *full* popup box, not the letterboxed photo
+              // within it — draw into the contain-fitted sub-rect instead,
+              // or the natural image gets stretched to fill the whole box.
+              const containRect = getObjectContainRect(
+                popupImageElement.getBoundingClientRect(),
+                popupImageElement.naturalWidth,
+                popupImageElement.naturalHeight,
+              );
+              const imageRect = getPopupOverlayDrawRect({ popupRect: containRect, containerRect, cropX, cropY, scaleToRecording });
               if (isDrawableRect(imageRect)) overlayContext.drawImage(popupImageElement, imageRect.drawX, imageRect.drawY, imageRect.drawWidth, imageRect.drawHeight);
             }
           }

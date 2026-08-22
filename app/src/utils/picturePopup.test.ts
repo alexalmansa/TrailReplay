@@ -2,18 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { getPicturePopupLayout } from './picturePopup';
 
 describe('getPicturePopupLayout', () => {
-  it('uses the standard preview placement when no export frame is active', () => {
+  it('centers a near-fullscreen box in the map container when no export frame is active', () => {
     const layout = getPicturePopupLayout();
 
     expect(layout.isExportSafe).toBe(false);
-    expect(layout.imageWidth).toBe(288);
+    expect(layout.imageBoxWidth).toBe('97%');
+    expect(layout.imageBoxHeight).toBe('95%');
     expect(layout.popupStyle).toEqual({
-      right: 16,
-      bottom: 16,
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
     });
   });
 
-  it('pushes the popup inside the exported frame when crop bars are present', () => {
+  it('centers a near-fullscreen box inside the exported crop frame, in CSS px', () => {
     const layout = getPicturePopupLayout({
       left: 0,
       right: 120,
@@ -24,14 +26,18 @@ describe('getPicturePopupLayout', () => {
     });
 
     expect(layout.isExportSafe).toBe(true);
-    expect(layout.popupStyle.right).toBeGreaterThan(120);
-    expect(layout.popupStyle.bottom).toBeGreaterThan(80);
-    expect(layout.imageWidth).toBeLessThanOrEqual(288);
+    expect(layout.imageBoxWidth).toBe(720 * 0.97);
+    expect(layout.imageBoxHeight).toBe(405 * 0.95);
+    expect(layout.popupStyle).toEqual({
+      left: 360,
+      top: 202.5,
+      transform: 'translate(-50%, -50%)',
+    });
   });
 
-  it('clamps popup width so narrow export frames still have a usable card', () => {
+  it('accounts for asymmetric crop bars when centering', () => {
     const layout = getPicturePopupLayout({
-      left: 0,
+      left: 40,
       right: 0,
       top: 100,
       bottom: 100,
@@ -39,7 +45,7 @@ describe('getPicturePopupLayout', () => {
       frameHeight: 409,
     });
 
-    expect(layout.imageWidth).toBe(200);
-    expect(layout.popupStyle.maxWidth).toBe(220);
+    expect(layout.popupStyle.left).toBe(40 + 230 / 2);
+    expect(layout.popupStyle.top).toBe(100 + 409 / 2);
   });
 });

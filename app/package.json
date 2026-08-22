@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/generate-sitemap.mjs",
-    "build": "tsc -b && vite build && node scripts/validate-seo-output.mjs",
+    "build": "tsc -b && vite build && node scripts/prerender.mjs && node scripts/validate-seo-output.mjs",
     "seo:generate": "node scripts/generate-sitemap.mjs",
+    "seo:prerender": "node scripts/prerender.mjs",
     "seo:check": "node scripts/validate-seo-output.mjs",
     "lint": "eslint .",
     "test": "vitest",
