@@ -164,6 +164,12 @@ export const de = {
     osmOpenTopo: '(CC-BY-SA) ·',
     osmLabels: 'Etiketten ·',
     osmOpenTopography: 'OpenTopography (ASTER GDEM)',
+    moreTools: 'Weitere Tools',
+    gpxAnimator: 'GPX-Animator',
+    stravaToVideo: 'Strava zu Video',
+    garminToVideo: 'Garmin zu Video',
+    cyclingRouteAnimation: 'Radstrecken-Animation',
+    runningRouteAnimation: 'Laufstrecken-Animation',
   },
   feedback: {
     promptTitle: 'Teilen Sie Ihre Gedanken mit?',

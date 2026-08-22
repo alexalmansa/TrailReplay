@@ -135,7 +135,7 @@ export function TutorialPage() {
         <div className="grid gap-6 xl:grid-cols-2">
           {tutorialVideos.map((video) => (
             <figure key={video.src} className="rounded-[1.25rem] border border-[var(--evergreen)]/10 bg-[var(--canvas)] p-4">
-              <video controls className="aspect-video w-full rounded-xl border border-[var(--evergreen)]/15 bg-black/80">
+              <video controls preload="none" poster={video.poster} className="aspect-video w-full rounded-xl border border-[var(--evergreen)]/15 bg-black/80">
                 <source src={video.src} type="video/mp4" />
               </video>
               <figcaption className="mt-4">

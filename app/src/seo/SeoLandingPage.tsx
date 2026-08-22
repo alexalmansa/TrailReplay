@@ -47,6 +47,9 @@ function HeroMedia({ page, ui }: { page: SeoLandingPageConfig; ui: typeof seoUi.
         <video
           className="h-full w-full object-cover"
           src="/media/video/path-export-with-stats.mp4"
+          poster="/media/images/seo/path-export-with-stats-poster.jpg"
+          width={560}
+          height={560}
           autoPlay
           muted
           loop

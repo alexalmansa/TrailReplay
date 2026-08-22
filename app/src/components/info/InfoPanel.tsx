@@ -1,4 +1,4 @@
-import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText, BookOpen, Download } from 'lucide-react';
+import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText, BookOpen, Download, Sparkles } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
 
@@ -196,6 +196,20 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
             </div>
             <ExternalLink className="w-4 h-4 text-[var(--evergreen-60)] group-hover:text-[var(--evergreen)]" />
           </a>
+        </div>
+
+        {/* More Tools */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-[var(--evergreen)] uppercase tracking-wide">
+            {t('info.moreTools')}
+          </h3>
+          <div className="space-y-1">
+            <InfoLink href="/gpx-animation" icon={<Sparkles className="w-4 h-4" />} label={t('info.gpxAnimator')} />
+            <InfoLink href="/strava-to-video" icon={<Sparkles className="w-4 h-4" />} label={t('info.stravaToVideo')} />
+            <InfoLink href="/garmin-to-video" icon={<Sparkles className="w-4 h-4" />} label={t('info.garminToVideo')} />
+            <InfoLink href="/cycling-route-animation" icon={<Sparkles className="w-4 h-4" />} label={t('info.cyclingRouteAnimation')} />
+            <InfoLink href="/running-route-animation" icon={<Sparkles className="w-4 h-4" />} label={t('info.runningRouteAnimation')} />
+          </div>
         </div>
       </div>
 
