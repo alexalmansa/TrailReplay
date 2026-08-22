@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
+import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
@@ -55,6 +56,7 @@ function App() {
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
+  useUnsavedWorkGuard();
   const tracks = useAppStore((state) => state.tracks);
   const showSidebar = useAppStore((state) => state.isSidebarOpen);
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
@@ -488,6 +490,7 @@ function App() {
                           file: activePendingPicturePlacement.file,
                           displayFile: activePendingPicturePlacement.displayFile,
                           url: activePendingPicturePlacement.url,
+                          isPlaceholder: false,
                           lat: timestampPlacement.lat,
                           lon: timestampPlacement.lon,
                           timestamp: activePendingPicturePlacement.timestamp,
@@ -519,7 +522,7 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
+                accept=".gpx,.kml,.replay,application/gpx+xml,application/vnd.google-earth.kml+xml"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"

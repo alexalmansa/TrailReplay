@@ -41,11 +41,11 @@ export function usePictureMarkers({
       if (!picture.lat || !picture.lon) return;
 
       const element = document.createElement('div');
-      element.className = 'tr-picture-marker';
+      element.className = picture.isPlaceholder ? 'tr-picture-marker tr-picture-marker--placeholder' : 'tr-picture-marker';
       element.style.cssText = `
         width: 32px;
         height: 32px;
-        background: var(--trail-orange);
+        background: ${picture.isPlaceholder ? 'var(--evergreen-60)' : 'var(--trail-orange)'};
         border: 3px solid var(--canvas);
         border-radius: 50%;
         overflow: hidden;
@@ -54,20 +54,24 @@ export function usePictureMarkers({
         justify-content: center;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        opacity: ${picture.isPlaceholder ? '0.7' : '1'};
       `;
-
-      // Show the photo itself, cropped to fill the circle. Fall back to the
-      // generic icon if the thumbnail fails to load (e.g. a revoked blob
-      // URL after reload).
-      const thumb = document.createElement('img');
-      thumb.src = picture.url;
-      thumb.alt = '';
-      thumb.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
-      thumb.onerror = () => {
-        thumb.remove();
-        element.innerHTML = PICTURE_MARKER_ICON_SVG;
-      };
-      element.appendChild(thumb);
+      if (picture.isPlaceholder) {
+        element.innerHTML = '🖼️';
+      } else {
+        // Show the photo itself, cropped to fill the circle. Fall back to
+        // the generic icon if the thumbnail fails to load (e.g. a revoked
+        // blob URL after reload).
+        const thumb = document.createElement('img');
+        thumb.src = picture.url;
+        thumb.alt = '';
+        thumb.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
+        thumb.onerror = () => {
+          thumb.remove();
+          element.innerHTML = PICTURE_MARKER_ICON_SVG;
+        };
+        element.appendChild(thumb);
+      }
 
       element.addEventListener('click', (event) => {
         event.stopPropagation();

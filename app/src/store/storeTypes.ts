@@ -79,6 +79,7 @@ export interface AppState {
   updateComparisonTrackName: (trackId: string, name: string) => void;
   updateComparisonColor: (trackId: string, color: string) => void;
   createJourney: (name: string) => void;
+  updateJourneyName: (name: string) => void;
   addJourneySegment: (segment: JourneySegment) => void;
   removeJourneySegment: (segmentId: string) => void;
   reorderJourneySegments: (segments: JourneySegment[]) => void;
@@ -142,5 +143,9 @@ export interface AppState {
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setSelectedPictureId: (pictureId: string | null) => void;
+  relinkPictureFile: (pictureId: string, file: File) => void;
+  relinkVideoFile: (videoId: string, file: File) => void;
   reset: () => void;
+  /** Bulk-restore only (project load) — bypasses granular per-field actions and their id-generation/side-effect behavior. Do not use for normal UI-driven updates. */
+  hydrateState: (partial: Partial<AppState>) => void;
 }

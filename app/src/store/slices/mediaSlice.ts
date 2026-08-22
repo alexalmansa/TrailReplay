@@ -26,6 +26,8 @@ type MediaSlice = Pick<
   | 'updateTextAnnotation'
   | 'removeTextAnnotation'
   | 'setSelectedPictureId'
+  | 'relinkPictureFile'
+  | 'relinkVideoFile'
 >;
 
 export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
@@ -135,5 +137,25 @@ export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
   setSelectedPictureId: (pictureId) =>
     set((state) => {
       state.selectedPictureId = pictureId;
+    }),
+
+  relinkPictureFile: (pictureId, file) =>
+    set((state) => {
+      const picture = state.pictures.find((entry) => entry.id === pictureId);
+      if (!picture) return;
+
+      picture.file = file;
+      picture.url = URL.createObjectURL(file);
+      picture.isPlaceholder = false;
+    }),
+
+  relinkVideoFile: (videoId, file) =>
+    set((state) => {
+      const video = state.videos.find((entry) => entry.id === videoId);
+      if (!video) return;
+
+      video.file = file;
+      video.url = URL.createObjectURL(file);
+      video.isPlaceholder = false;
     }),
 });

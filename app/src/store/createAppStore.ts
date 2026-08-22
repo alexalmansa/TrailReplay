@@ -64,6 +64,11 @@ export function createAppStore() {
           state.exploreMode = false;
           state.activePanel = 'tracks';
         }),
+
+      hydrateState: (partial) =>
+        set((state) => {
+          Object.assign(state, partial);
+        }),
     }))
   );
 }

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PictureAnnotation } from '@/types';
+import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import {
   getPicturePopupLayout,
   type PicturePopupExportFrame,
 } from '@/utils/picturePopup';
-import { MapPin, Calendar } from 'lucide-react';
+import { MapPin, Calendar, ImageOff, Link2 } from 'lucide-react';
 
 interface PicturePopupProps {
   picture: PictureAnnotation;
@@ -55,6 +56,7 @@ function getZoomStyle(elapsed: number, displayDuration: number): { opacity: numb
 
 export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTime }: PicturePopupProps) {
   const { t } = useI18n();
+  const relinkPictureFile = useAppStore((state) => state.relinkPictureFile);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [displayProgress, setDisplayProgress] = useState(0);
   const [imageSrc, setImageSrc] = useState(picture.url);
@@ -62,6 +64,7 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
   const fallbackImageUrlRef = useRef<string | null>(null);
   const playbackPopupStartTimeRef = useRef<number | null>(null);
   const hasClosedRef = useRef(false);
+  const relinkInputRef = useRef<HTMLInputElement>(null);
 
   const displayDuration = picture.displayDuration || 5000;
   const { imageBoxWidth, imageBoxHeight, isExportSafe, popupStyle } = getPicturePopupLayout(exportFrame);
@@ -151,7 +154,31 @@ export function PicturePopup({ picture, onClose, exportFrame, playbackCurrentTim
         className="tr-picture-popup relative w-full h-full overflow-hidden rounded-xl origin-bottom"
         style={{ opacity, transform: `scale(${scale})` }}
       >
-        {imageSrc ? (
+        {picture.isPlaceholder ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--evergreen)]/10 text-[var(--evergreen-60)] text-sm">
+            <ImageOff className="w-6 h-6" />
+            <span className="px-3 text-center text-xs">{t('media.placeholderFile')}</span>
+            <button
+              type="button"
+              onClick={() => relinkInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-full bg-[var(--trail-orange)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--trail-orange)]/80"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              {t('media.relinkFile')}
+            </button>
+            <input
+              ref={relinkInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (file) relinkPictureFile(picture.id, file);
+              }}
+            />
+          </div>
+        ) : imageSrc ? (
           <img
             src={imageSrc}
             alt={picture.title || t('media.trailPictureAlt')}

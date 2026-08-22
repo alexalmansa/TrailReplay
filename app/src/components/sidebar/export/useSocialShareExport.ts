@@ -36,7 +36,8 @@ export function useSocialShareExport() {
   const photoRef = useRef<HTMLImageElement | null>(null);
   const photoIdRef = useRef<string | null>(null);
 
-  const selectedPicture = pictures.find((p) => p.id === settings.selectedPictureId) ?? null;
+  const selectablePictures = pictures.filter((p) => !p.isPlaceholder);
+  const selectedPicture = selectablePictures.find((p) => p.id === settings.selectedPictureId) ?? null;
 
   useEffect(() => {
     const img = new Image();
@@ -317,7 +318,7 @@ export function useSocialShareExport() {
     fitTrackToMap,
     settings,
     setSocialShareSettings,
-    pictures,
+    pictures: selectablePictures,
     hasTracks: tracks.length > 0,
     routeBboxNorm,
     dataPanelBboxNorm,
