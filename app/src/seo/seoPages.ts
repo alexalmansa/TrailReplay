@@ -121,12 +121,12 @@ export const SEO_LANDING_PAGES: Record<SeoLandingSlug, SeoLandingPageConfig> = {
   'gpx-animation': {
     slug: 'gpx-animation',
     analyticsPageType: 'gpx_animation',
-    eyebrow: 'Free GPX animation maker',
-    title: 'Animate a GPX File on a 3D Map',
-    description: 'Turn a recorded GPS track into a cinematic route animation with terrain, live statistics, elevation, photos, and downloadable video.',
+    eyebrow: 'Free online GPX animator',
+    title: 'GPX Animator: Animate a GPX File on a 3D Map',
+    description: 'TrailReplay is a free GPX animator that turns a recorded GPS track into a cinematic route animation with terrain, live statistics, elevation, photos, and downloadable video.',
     proof: 'Free, open source, and processed in your browser.',
     heroMedia: 'product-video',
-    stepsTitle: 'Make a GPX animation in minutes',
+    stepsTitle: 'Animate a GPX file in minutes',
     stepsIntro: 'No timeline editor is required. Import a route, compose the view, preview it, and record.',
     steps: [
       { title: 'Import GPX or KML', body: 'Drop one route or combine multiple tracks into a longer journey.' },
@@ -144,9 +144,13 @@ export const SEO_LANDING_PAGES: Record<SeoLandingSlug, SeoLandingPageConfig> = {
     detailParagraphs: [
       'A clean track, useful timestamps, and a deliberate camera angle matter more than excessive effects. Start with the whole route, then choose a playback speed that keeps the geography readable.',
       'For a vertical social post, preview the 9:16 crop before recording. For YouTube or a longer film, landscape output leaves more space for the map and statistics.',
+      'Unlike animator tools that require a desktop install, TrailReplay runs entirely in the browser: no download, no Java runtime, no OS-specific build. Import a file, compose the view, and export, all in the same tab.',
     ],
     faq: [
-      { question: 'What is a GPX animation?', answer: 'It is a timed visual replay of GPS coordinates on a map, usually exported as video for sharing or editing.' },
+      { question: 'What is a GPX animator?', answer: 'It is a tool that produces a timed visual replay of GPS coordinates on a map, usually exported as video for sharing or editing.' },
+      { question: 'Do I need to download or install anything?', answer: 'No. TrailReplay is an online GPX animator that runs fully in your browser tab, with no desktop app, Java runtime, or installer required.' },
+      { question: 'Is this the same as a GPX flyover or route replay tool?', answer: '"GPX flyover," "route replay," and "GPX animator" all describe the same idea: replaying a recorded route as a moving animation instead of a static line on a map.' },
+      { question: 'Is TrailReplay a gpx2video alternative?', answer: 'Yes. Like other GPX-to-video tools, TrailReplay converts a track into a shareable video, with 3D terrain, live stats, and photo annotations built in.' },
       { question: 'Can I animate more than one GPX?', answer: 'Yes. TrailReplay supports multiple tracks, journeys, and separate comparison tracks.' },
       { question: 'Can TrailReplay export MP4?', answer: 'Yes, when your browser supports the required encoding path. WebM is available as a fallback.' },
     ],

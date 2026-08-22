@@ -1,0 +1,40 @@
+const HERO_VIDEO = {
+  contentUrl: 'https://trailreplay.com/media/video/path-export-with-stats.mp4',
+  thumbnailUrl: 'https://trailreplay.com/media/images/seo/path-export-with-stats-poster.jpg',
+  durationSeconds: 41,
+};
+
+export const VIDEO_PAGES = [
+  {
+    path: '/gpx-animation',
+    videos: [{ title: 'GPX Animator: Animate a GPX Route in 3D', description: 'See a GPX route animated on a 3D terrain map with live distance, elevation, and pace statistics, exported straight from the browser.', ...HERO_VIDEO }],
+  },
+  {
+    path: '/strava-to-video',
+    videos: [{ title: 'Strava Activity Animated as a 3D Route Video', description: 'See a Strava activity GPX animated on a 3D terrain map with live distance, elevation, and pace statistics, exported straight from the browser.', ...HERO_VIDEO }],
+  },
+  {
+    path: '/garmin-to-video',
+    videos: [{ title: 'Garmin Activity Animated as a 3D Route Video', description: 'See a Garmin Connect activity GPX animated on a 3D terrain map with live distance, elevation, and pace statistics, exported straight from the browser.', ...HERO_VIDEO }],
+  },
+  {
+    path: '/tutorial',
+    videos: [
+      { title: 'Path export with stats', description: 'A full route replay with live stats, elevation, and export-ready framing.', ...HERO_VIDEO },
+      {
+        title: 'Comparison mode demo',
+        description: 'Two GPX files replayed together to compare pace, route choices, and timing.',
+        contentUrl: 'https://trailreplay.com/media/video/comparison-mode-demo.mp4',
+        thumbnailUrl: 'https://trailreplay.com/media/images/seo/comparison-mode-demo-poster.jpg',
+        durationSeconds: 38,
+      },
+      {
+        title: 'Aran by UTMB route with landmarks',
+        description: 'A square route replay showing named places and route annotations across the Aran by UTMB course.',
+        contentUrl: 'https://trailreplay.com/media/video/aran-by-utmb-landmarks-demo.mp4',
+        thumbnailUrl: 'https://trailreplay.com/media/images/seo/aran-by-utmb-landmarks-demo-poster.jpg',
+        durationSeconds: 35,
+      },
+    ],
+  },
+];
