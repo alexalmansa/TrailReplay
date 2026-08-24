@@ -1,4 +1,4 @@
-import type { GPXTrack } from '@/types';
+import type { GPXTrack, RouteTimingMode } from '@/types';
 import type { ComputedJourney, SegmentTiming } from '@/utils/journeyUtils';
 import { calculateDistance } from '@/utils/journeyUtils';
 
@@ -155,6 +155,38 @@ export function projectCoordinateToTracks(
   return bestMatch;
 }
 
+/**
+ * Ordnet einen Punkt nach ZURUECKGELEGTER STRECKE in die Tour ein.
+ *
+ * Der Ruecklauf zaehlt bei Constant Pace nach Kilometern, nicht nach
+ * Messpunkten. Wer bergauf langsam faehrt, erzeugt dort viel mehr Punkte je
+ * Kilometer - nach Punktnummer liegt ein Gipfel deshalb deutlich weiter hinten
+ * als nach Entfernung. Fotos landeten dadurch spuerbar hinter ihrer echten
+ * Stelle. Gibt null zurueck, wenn keine brauchbaren Entfernungen vorliegen.
+ */
+function distanceProgressForJourneySegment(
+  segmentTiming: SegmentTiming,
+  coordinates: ComputedJourney['coordinates'],
+  index: number,
+  fraction: number,
+): number | null {
+  const spanStart = coordinates[segmentTiming.startCoordIndex]?.distance;
+  const spanEnd = coordinates[segmentTiming.endCoordIndex]?.distance;
+  const start = coordinates[index];
+  const end = coordinates[index + 1];
+
+  if (spanStart === undefined || spanEnd === undefined || !start || !end) return null;
+
+  const span = spanEnd - spanStart;
+  if (!(span > 0)) return null;
+
+  const projectedDistance = start.distance + (end.distance - start.distance) * fraction;
+  const local = (projectedDistance - spanStart) / span;
+
+  return segmentTiming.distanceStartRatio +
+    local * (segmentTiming.distanceEndRatio - segmentTiming.distanceStartRatio);
+}
+
 function progressForJourneySegment(segmentTiming: SegmentTiming, startCoordIndex: number, exactIndex: number) {
   const segmentCoordCount = Math.max(segmentTiming.endCoordIndex - segmentTiming.startCoordIndex, 1);
   const localProgress = (exactIndex - startCoordIndex) / segmentCoordCount;
@@ -167,6 +199,8 @@ export function projectCoordinateToJourney(
   targetLat: number,
   targetLon: number,
   fallbackProgress: number,
+  /** Bei 'uniform' (Constant Pace) laeuft der Ruecklauf nach Entfernung. */
+  routeTimingMode: RouteTimingMode = 'recorded',
 ): RouteMatch | null {
   const { coordinates, segmentTimings } = computedJourney;
 
@@ -218,7 +252,11 @@ export function projectCoordinateToJourney(
         end.lon,
       );
       const exactIndex = index + projection.fraction;
-      const progress = progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
+      const distanceProgress = routeTimingMode === 'uniform'
+        ? distanceProgressForJourneySegment(segmentTiming, coordinates, index, projection.fraction)
+        : null;
+      const progress = distanceProgress ??
+        progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
 
       if (!bestMatch || projection.distanceMeters < bestMatch.distanceMeters) {
         bestMatch = {

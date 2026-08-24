@@ -714,9 +714,24 @@ export function getJourneyElevationData(
       ? timing.endCoordIndex - timing.startCoordIndex + 1
       : 1;
     const segmentPointOffset = timing ? i - timing.startCoordIndex : 0;
-    const segmentProgress = segmentPointCount > 1
+    const indexProgress = segmentPointCount > 1
       ? Math.max(0, Math.min(1, segmentPointOffset / (segmentPointCount - 1)))
       : 0;
+
+    // Bei Constant Pace laeuft der Ruecklauf nach Kilometern. Wird die Lage im
+    // Abschnitt trotzdem nach Messpunkt-Nummer bestimmt, wandert ein Gipfel im
+    // Profil nach hinten, weil bergauf mehr Punkte je Kilometer entstehen -
+    // genau der Versatz zwischen Marker, Hoehenprofil und Fotos.
+    const spanStartDistance = timing ? coordinates[timing.startCoordIndex]?.distance : undefined;
+    const spanEndDistance = timing ? coordinates[timing.endCoordIndex]?.distance : undefined;
+    const distanceSpan = spanStartDistance !== undefined && spanEndDistance !== undefined
+      ? spanEndDistance - spanStartDistance
+      : 0;
+    const distanceProgress = routeTimingMode === 'uniform' && distanceSpan > 0 && spanStartDistance !== undefined
+      ? Math.max(0, Math.min(1, (point.distance - spanStartDistance) / distanceSpan))
+      : null;
+
+    const segmentProgress = distanceProgress ?? indexProgress;
     const progressStart = routeTimingMode === 'uniform'
       ? timing?.distanceStartRatio ?? 0
       : timing?.progressStartRatio ?? 0;

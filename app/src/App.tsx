@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
+import { usePictureRouteSync } from '@/hooks/usePictureRouteSync';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
@@ -57,6 +58,9 @@ function App() {
 
   const { parseFiles } = useGPX();
   useUnsavedWorkGuard();
+  // Keeps photo placement on the route current when the timing mode is
+  // switched after import, or when a saved project brings an older value.
+  usePictureRouteSync();
   const tracks = useAppStore((state) => state.tracks);
   const showSidebar = useAppStore((state) => state.isSidebarOpen);
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);

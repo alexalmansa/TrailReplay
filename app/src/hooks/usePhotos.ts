@@ -31,7 +31,7 @@ export function usePhotos() {
     const computedJourney = buildComputedJourney(journeySegments, tracks);
 
     if (computedJourney && computedJourney.coordinates.length > 0) {
-      return projectCoordinateToJourney(computedJourney, lat, lon, playback.progress);
+      return projectCoordinateToJourney(computedJourney, lat, lon, playback.progress, playback.routeTimingMode);
     }
 
     const candidateTracks = activeTrackId
@@ -46,7 +46,7 @@ export function usePhotos() {
     }
 
     return projectCoordinateToTracks(candidateTracks, lat, lon, playback.progress);
-  }, [activeTrackId, journeySegments, playback.progress, tracks]);
+  }, [activeTrackId, journeySegments, playback.progress, playback.routeTimingMode, tracks]);
 
   const processPhoto = useCallback(async (file: File): Promise<ProcessPhotoResult> => {
     const renderableAsset = await createRenderableImageAsset(file);
