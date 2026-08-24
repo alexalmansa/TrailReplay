@@ -11,6 +11,7 @@ import { trackEvent } from '@/utils/analytics';
 import {
   Plus,
   Clock,
+  Edit3,
   Route,
   GitCompareArrows,
 } from 'lucide-react';
@@ -195,6 +196,10 @@ export function JourneyPanel() {
               </button>
             );
           })}
+        </div>
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/60 px-3 py-2 text-xs text-[var(--evergreen-80)]">
+          <Edit3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--trail-orange)]" aria-hidden="true" />
+          <p>{t('journey.customDurationHint')}</p>
         </div>
         <div className="mt-4 border-t border-[var(--evergreen)]/15 pt-3">
           <h4 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">{t('journey.routeTiming')}</h4>

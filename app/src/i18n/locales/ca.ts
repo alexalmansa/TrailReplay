@@ -367,6 +367,7 @@ export const ca = {
     videoTimingHint: 'Tria la durada del vídeo final i com es mou el marcador per la ruta.',
     durationPreset: '{seconds} s',
     durationPresetHint: 'Durada del vídeo',
+    customDurationHint: 'Necessites una durada personalitzada? Fes servir el botó Edita de cada segment del recorregut per ajustar-ne la durada.',
     defaultSettings: 'Ajustos predeterminats',
     defaultTrackTime: 'Temps per defecte de la ruta',
     defaultTrackTimeHint: 'Cada ruta trigarà aquest temps a completar-se a l\'animació',

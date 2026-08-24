@@ -367,6 +367,7 @@ export const de = {
     videoTimingHint: 'Wähle die Länge des fertigen Videos und wie sich der Marker entlang der Route bewegt.',
     durationPreset: '{seconds} Sek.',
     durationPresetHint: 'Videolänge',
+    customDurationHint: 'Du brauchst eine individuelle Länge? Nutze bei jedem Reiseabschnitt unten die Schaltfläche „Bearbeiten“, um seine Dauer festzulegen.',
     defaultSettings: 'Standardeinstellungen',
     defaultTrackTime: 'Standard-Trackzeit',
     defaultTrackTimeHint: 'Die Fertigstellung jedes Tracks in der Animation dauert diese Zeit',

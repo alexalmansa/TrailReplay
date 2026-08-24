@@ -367,6 +367,7 @@ export const fr = {
     videoTimingHint: 'Choisissez la durée de la vidéo finale et le mouvement du marqueur sur l’itinéraire.',
     durationPreset: '{seconds} s',
     durationPresetHint: 'Durée de la vidéo',
+    customDurationHint: 'Vous avez besoin d’une durée personnalisée ? Utilisez le bouton Modifier de chaque segment du parcours ci-dessous pour régler sa durée.',
     defaultSettings: 'Paramètres par défaut',
     defaultTrackTime: 'Durée par défaut du parcours',
     defaultTrackTimeHint: 'Chaque parcours prendra cette durée dans l\'animation',

@@ -367,6 +367,7 @@ export const en = {
     videoTimingHint: 'Choose how long the finished video lasts, then decide how the marker moves along the route.',
     durationPreset: '{seconds} sec',
     durationPresetHint: 'Video length',
+    customDurationHint: 'Need a custom length? Use the Edit button on each journey segment below to set its duration.',
     defaultSettings: 'Default Settings',
     defaultTrackTime: 'Default Track Time',
     defaultTrackTimeHint: 'Each track will take this time to complete in the animation',
