@@ -60,6 +60,7 @@ export function useManualPicturePlacement({
         file: pendingPicture.file,
         displayFile: pendingPicture.displayFile,
         url: pendingPicture.url,
+        isPlaceholder: false,
         lat: placement.lat,
         lon: placement.lon,
         timestamp: pendingPicture.timestamp,

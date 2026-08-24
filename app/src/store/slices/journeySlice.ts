@@ -7,6 +7,7 @@ type JourneySlice = Pick<
   | 'journey'
   | 'journeySegments'
   | 'createJourney'
+  | 'updateJourneyName'
   | 'addJourneySegment'
   | 'removeJourneySegment'
   | 'reorderJourneySegments'
@@ -28,6 +29,11 @@ export const createJourneySlice: AppSliceCreator<JourneySlice> = (set) => ({
         totalDuration: 0,
         totalDistance: 0,
       };
+    }),
+
+  updateJourneyName: (name) =>
+    set((state) => {
+      if (state.journey) state.journey.name = name;
     }),
 
   addJourneySegment: (segment) =>

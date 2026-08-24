@@ -62,6 +62,7 @@ function createPicture(params: {
       file,
       displayFile: params.displayFile,
       url,
+      isPlaceholder: false,
       lat: match.lat,
       lon: match.lon,
       timestamp,

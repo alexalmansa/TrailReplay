@@ -84,7 +84,7 @@ export function TracksPanel() {
     const trailFiles = acceptedFiles.filter(
       (file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
-        return extension === 'gpx' || extension === 'kml' ||
+        return extension === 'gpx' || extension === 'kml' || extension === 'replay' ||
           file.type === 'application/gpx+xml' ||
           file.type === 'application/vnd.google-earth.kml+xml';
       }
@@ -109,6 +109,7 @@ export function TracksPanel() {
     accept: {
       'application/gpx+xml': ['.gpx'],
       'application/vnd.google-earth.kml+xml': ['.kml'],
+      'application/zip': ['.replay'],
     },
     multiple: true,
   });
