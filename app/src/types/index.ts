@@ -77,6 +77,16 @@ export interface PictureAnnotation {
   timestamp?: Date;
   progress: number;
   position: number;
+  /**
+   * Where the photo sits along the route, in metres from the journey start.
+   *
+   * `progress` depends on the timing mode and therefore has to be recomputed
+   * when that mode changes. Distance along the route does not: it increases
+   * monotonically, so it identifies the point unambiguously even where the
+   * route crosses itself or doubles back, and both timing modes can be
+   * derived from it.
+   */
+  routeDistance?: number;
   placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;

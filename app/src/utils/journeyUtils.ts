@@ -307,6 +307,70 @@ function clampDistance(distance: number, totalDistance: number) {
   return Math.max(0, Math.min(distance, totalDistance));
 }
 
+/**
+ * Convert a position given in metres along the route into replay progress.
+ *
+ * Anything anchored to the route - a photo, an annotation - is best stored as
+ * a distance: that value is independent of the timing mode and, unlike a pair
+ * of coordinates, unambiguous where the route doubles back on itself. This is
+ * the one place that turns such an anchor into the progress value the replay
+ * uses, for either timing mode.
+ */
+export function progressForRouteDistance(
+  coordinates: JourneyPoint[],
+  segmentTimings: SegmentTiming[],
+  routeDistance: number,
+  routeTimingMode: RouteTimingMode = 'recorded'
+): number | null {
+  if (segmentTimings.length === 0 || !Number.isFinite(routeDistance)) return null;
+
+  const timing = segmentTimings.find(
+    (candidate) => routeDistance >= candidate.startDistance && routeDistance <= candidate.endDistance
+  ) ?? (routeDistance < segmentTimings[0].startDistance
+    ? segmentTimings[0]
+    : segmentTimings[segmentTimings.length - 1]);
+
+  const span = timing.endDistance - timing.startDistance;
+  // Distance within this segment. Track coordinates carry the distance from
+  // their own track's start, so the segment offset has to come off first.
+  const localDistance = Math.max(0, Math.min(span, routeDistance - timing.startDistance));
+
+  if (routeTimingMode === 'uniform') {
+    const localRatio = span > 0 ? localDistance / span : 0;
+    return clamp01(
+      timing.distanceStartRatio + localRatio * (timing.distanceEndRatio - timing.distanceStartRatio)
+    );
+  }
+
+  // Recorded pace counts measurement points, so walk the segment's points to
+  // find the one this distance falls on.
+  const { startCoordIndex, endCoordIndex } = timing;
+  if (endCoordIndex <= startCoordIndex) return clamp01(timing.progressStartRatio);
+
+  let exactIndex = endCoordIndex;
+  for (let index = startCoordIndex; index < endCoordIndex; index += 1) {
+    const current = coordinates[index]?.distance;
+    const next = coordinates[index + 1]?.distance;
+    if (current === undefined || next === undefined) continue;
+    if (localDistance <= next) {
+      const step = next - current;
+      const fraction = step > 0 ? Math.max(0, Math.min(1, (localDistance - current) / step)) : 0;
+      exactIndex = index + fraction;
+      break;
+    }
+  }
+
+  const coordSpan = Math.max(endCoordIndex - startCoordIndex, 1);
+  const localRatio = (exactIndex - startCoordIndex) / coordSpan;
+  return clamp01(
+    timing.progressStartRatio + localRatio * (timing.progressEndRatio - timing.progressStartRatio)
+  );
+}
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
 function interpolateNullableNumber(
   start: number | null,
   end: number | null,

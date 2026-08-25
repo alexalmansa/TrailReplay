@@ -64,6 +64,7 @@ export function usePhotos() {
       journeySegments,
       computedJourney,
       activeTrackId,
+      routeTimingMode: playback.routeTimingMode,
     });
 
     return resolvePhotoPlacement({
@@ -78,7 +79,7 @@ export function usePhotos() {
       timestampFailureReason: timestampPlacement.reason,
       fallbackProgress: playback.progress,
     });
-  }, [activeTrackId, findPositionOnRoute, journeySegments, playback.progress, tracks]);
+  }, [activeTrackId, findPositionOnRoute, journeySegments, playback.progress, playback.routeTimingMode, tracks]);
 
   const addPhotos = useCallback(async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;

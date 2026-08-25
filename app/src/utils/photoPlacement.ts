@@ -68,6 +68,9 @@ function createPicture(params: {
       timestamp,
       progress: match.progress ?? fallbackProgress,
       position: match.progress ?? fallbackProgress,
+      // Keeps the point the placement actually found, so a later change of
+      // timing mode can be recalculated from it rather than searched for.
+      routeDistance: match.routeDistance,
       placementSource,
       displayDuration: 5000,
     },
