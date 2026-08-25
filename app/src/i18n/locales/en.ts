@@ -54,7 +54,7 @@ export const en = {
     comparisonHint: 'Add a second GPX or KML track to compare side-by-side during animation.',
     mapControlsTitle: 'Map Controls',
     mapControlsPan: 'Drag to move around the map.',
-    mapControlsCamera: 'Ctrl + drag or right-drag to rotate and tilt the view.',
+    mapControlsCamera: 'Right-drag or Ctrl + drag to rotate and tilt the view.',
     mapControlsZoom: 'Scroll or pinch to zoom. Use + and − for precise steps.',
     addComparison: '+ Add Comparison Track',
     parsingComparison: 'Parsing...',

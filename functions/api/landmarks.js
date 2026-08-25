@@ -176,6 +176,19 @@ function exactRouteCacheKey(request, points) {
   return new Request(`${new URL(request.url).origin}/api/landmarks-cache/${points.map((point) => point.join(',')).join(';')}`);
 }
 
+async function lookupWithRouteCache(context, points, bounds) {
+  // This is the final, availability-first fallback. It deliberately does not
+  // depend on a D1 or KV binding, so a binding outage still leaves the nearby
+  // places feature usable through Overpass.
+  const key = exactRouteCacheKey(context.request, points);
+  const cached = await caches.default.match(key);
+  if (cached) return cached;
+  const landmarks = await fetchLandmarks(bounds);
+  const result = json({ landmarks, attribution: '© OpenStreetMap contributors', coverage: { complete: true, source: 'route-cache', tiles: 1, cacheHits: 0, fetchedTiles: 1 } });
+  context.waitUntil(caches.default.put(key, result.clone()));
+  return result;
+}
+
 async function lookupWithGlobalCache(context, tiles) {
   const cache = context.env.LANDMARK_CACHE;
   const cached = await readTiles(cache, tiles);
@@ -229,6 +242,17 @@ async function lookupWithGlobalCache(context, tiles) {
   };
 }
 
+// A browser navigation, stale client, or health check may issue GET. Keep the
+// API contract explicit and JSON-shaped so clients do not try to parse the
+// Cloudflare Pages HTML 404 as JSON. Coordinates belong in a POST body.
+export function onRequestGet() {
+  return json(
+    { error: 'Method not allowed. Request nearby places with POST and a JSON points body.' },
+    405,
+    { Allow: 'POST' },
+  );
+}
+
 export async function onRequestPost(context) {
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'Invalid JSON body' }, 400); }
@@ -244,24 +268,33 @@ export async function onRequestPost(context) {
     // The database binding is deployed before its first planet import. Until
     // that import marks itself complete, serve the existing complete source
     // instead of falsely claiming a partial/empty world database is complete.
-    if (hasLandmarkDatabase(context) && await hasCompleteLandmarkDatabase(context)) {
-      const result = await lookupWithLandmarkDatabase(context, tiles, bounds);
-      return json({ ...result, attribution: '© OpenStreetMap contributors' });
+    if (hasLandmarkDatabase(context)) {
+      try {
+        if (await hasCompleteLandmarkDatabase(context)) {
+          const result = await lookupWithLandmarkDatabase(context, tiles, bounds);
+          return json({ ...result, attribution: '© OpenStreetMap contributors' });
+        }
+      } catch (error) {
+        // A D1 read failure must not make this optional enrichment unavailable.
+        // Continue to the cache/API path below; keep the original exception in
+        // Worker logs for diagnosis without exposing it to the client.
+        console.error('Landmark database lookup failed; falling back', error);
+      }
     }
     if (hasGlobalTileCache(context)) {
-      const result = await lookupWithGlobalCache(context, tiles);
-      return json({ ...result, attribution: '© OpenStreetMap contributors' });
+      try {
+        const result = await lookupWithGlobalCache(context, tiles);
+        return json({ ...result, attribution: '© OpenStreetMap contributors' });
+      } catch (error) {
+        // KV is an optimization, not a dependency. A cache failure should use
+        // the live provider exactly as deployments without the binding do.
+        console.error('Landmark cache lookup failed; falling back', error);
+      }
     }
 
-    // Local development and deployments without the KV binding still work,
-    // using the exact-route edge cache. Production uses the shared tile cache.
-    const key = exactRouteCacheKey(context.request, points);
-    const cached = await caches.default.match(key);
-    if (cached) return cached;
-    const landmarks = await fetchLandmarks(bounds);
-    const result = json({ landmarks, attribution: '© OpenStreetMap contributors', coverage: { complete: true, source: 'route-cache', tiles: 1, cacheHits: 0, fetchedTiles: 1 } });
-    context.waitUntil(caches.default.put(key, result.clone()));
-    return result;
+    // Local development and binding failures use the exact-route edge cache
+    // and then the live provider. Production normally returns earlier from D1.
+    return await lookupWithRouteCache(context, points, bounds);
   } catch (error) {
     console.error('Landmark enrichment error', error);
     return json({ error: error instanceof Error ? error.message : 'Nearby-place service is temporarily unavailable' }, 502);
