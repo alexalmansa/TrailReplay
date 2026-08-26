@@ -178,6 +178,44 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     };
   }, [currentPosition, playback, totalDistance, computeRealElapsedAtProgress, segmentTimings, activeTrack, computedJourney]);
 
+  /**
+   * Breite, die jede Kachel dauerhaft freihaelt.
+   *
+   * Die Box richtete sich bisher nach dem gerade angezeigten Text. Aus "0:00"
+   * wird "42:28", aus "345 m" wird "1018 m" - jede zusaetzliche Ziffer machte
+   * die Box breiter, und sie zappelte waehrend der ganzen Wiedergabe. Am
+   * Anfang war sie ausserdem unangenehm schmal.
+   *
+   * Die Endwerte der Tour stehen aber von vornherein fest. Wir halten deshalb
+   * gleich zu Beginn so viel Platz frei, wie der breiteste Wert spaeter
+   * braucht. Tempo und Puls bleiben aussen vor: Fuer sie gibt es keinen
+   * verlaesslichen Hoechstwert, ihre Texte sind aber ohnehin gleich lang.
+   */
+  const reserveValues = useMemo<Partial<Record<StatId, string>>>(() => {
+    const journeyTrackIds = new Set(
+      segmentTimings
+        .filter((timing) => timing.type === 'track' && timing.trackId)
+        .map((timing) => timing.trackId as string),
+    );
+    const journeyTracks = journeyTrackIds.size > 0
+      ? tracks.filter((track) => journeyTrackIds.has(track.id))
+      : activeTrack
+        ? [activeTrack]
+        : [];
+
+    const totalElevationGain = journeyTracks.reduce((sum, track) => sum + (track.elevationGain || 0), 0);
+    const highestPoint = journeyTracks.reduce((highest, track) => Math.max(highest, track.maxElevation || 0), 0);
+    const fastest = journeyTracks.reduce((highest, track) => Math.max(highest, track.maxSpeed || 0), 0);
+
+    return {
+      duration: formatStatsDuration(computeRealElapsedAtProgress(1)),
+      distance: formatDistance(totalDistance, settings.unitSystem),
+      elevation: formatElevation(totalElevationGain, settings.unitSystem),
+      altitude: formatElevation(highestPoint, settings.unitSystem),
+      speed: formatSpeedFromKmh(fastest, settings.unitSystem),
+    };
+  }, [activeTrack, computeRealElapsedAtProgress, segmentTimings, settings.unitSystem, totalDistance, tracks]);
+
   if (!currentStats || journeySegments.length === 0) return null;
 
   const iconCls = isExportVariant ? 'w-3 h-3 text-white' : isNarrowLayout ? 'w-3.5 h-3.5 text-white' : 'w-4 h-4 text-white';
@@ -263,6 +301,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
             icon={stat.icon}
             label={stat.label}
             value={stat.value!}
+            reserve={reserveValues[stat.id]}
             compact={isNarrowLayout}
             exportCompact={isExportVariant}
           />
@@ -285,11 +324,13 @@ interface StatItemProps {
   icon: React.ReactNode;
   label: string;
   value: string;
+  /** Breitester Text, den diese Kachel im Lauf der Tour zeigen wird. */
+  reserve?: string;
   compact?: boolean;
   exportCompact?: boolean;
 }
 
-function StatItem({ icon, label, value, compact = false, exportCompact = false }: StatItemProps) {
+function StatItem({ icon, label, value, reserve, compact = false, exportCompact = false }: StatItemProps) {
   return (
     <div className={`min-w-max text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
       <div className={`flex items-center justify-center min-w-0 ${
@@ -307,12 +348,20 @@ function StatItem({ icon, label, value, compact = false, exportCompact = false }
         </span>
       </div>
       <div
-        className={`tr-stat-value flex min-h-[1.2rem] items-center justify-center whitespace-nowrap px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
+        className={`tr-stat-value grid min-h-[1.2rem] items-center justify-items-center whitespace-nowrap px-0.5 text-center font-semibold tabular-nums tracking-[-0.03em] ${
           exportCompact ? 'text-[9px] leading-[1.05] text-white' : compact ? 'text-[11px] leading-[1.1]' : 'text-[12px] leading-[1.1]'
         }`}
         title={value}
       >
-        {value}
+        {/* Haelt die Breite des spaeteren Hoechstwerts frei, damit die Box
+            waehrend der Wiedergabe nicht mitwaechst. Liegt in derselben
+            Rasterzelle wie der Wert und ist unsichtbar. */}
+        {reserve && (
+          <span aria-hidden className="invisible col-start-1 row-start-1">
+            {reserve}
+          </span>
+        )}
+        <span className="col-start-1 row-start-1">{value}</span>
       </div>
     </div>
   );
