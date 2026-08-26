@@ -56,6 +56,13 @@ export interface SerializedPicture {
   timestamp?: string;
   progress: number;
   position: number;
+  /**
+   * Distance from the start of the journey, in metres. `progress` depends on
+   * the timing mode; this does not, so it is what lets a reopened project be
+   * recalculated when the mode changes afterwards. Absent in projects saved
+   * before this field existed.
+   */
+  routeDistance?: number;
   placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;

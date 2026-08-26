@@ -70,4 +70,52 @@ describe('hydrateProject', () => {
 
     expect(state.settings.unitSystem).toBe('imperial');
   });
+
+  it('carries a photo route anchor through a save and reopen', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().addPicture({
+      id: 'picture-anchored',
+      file: new File(['image'], 'summit.jpg', { type: 'image/jpeg' }),
+      url: 'blob:summit',
+      isPlaceholder: false,
+      progress: 0.5,
+      position: 0.5,
+      // Metres from the start of the journey. Without it, a reopened project
+      // cannot be recalculated when the timing mode changes afterwards.
+      routeDistance: 1234,
+      placementSource: 'gps',
+      displayDuration: 5000,
+    });
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    expect(targetStore.getState().pictures[0].routeDistance).toBe(1234);
+  });
+
+  it('leaves the anchor absent for projects saved before it existed', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().addPicture({
+      id: 'picture-legacy',
+      file: new File(['image'], 'old.jpg', { type: 'image/jpeg' }),
+      url: 'blob:old',
+      isPlaceholder: false,
+      progress: 0.25,
+      position: 0.25,
+      displayDuration: 5000,
+    });
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    expect(targetStore.getState().pictures[0].routeDistance).toBeUndefined();
+  });
 });
