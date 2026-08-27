@@ -159,7 +159,6 @@ export function TrailMap(_props: TrailMapProps) {
 
   useBaseMapPresentation({
     currentTrackColor: currentTrackColor ?? null,
-    currentTrackName: currentTrackName ?? null,
     isMapLoaded,
     mapRef: map,
     settings,

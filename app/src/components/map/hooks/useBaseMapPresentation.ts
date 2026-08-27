@@ -10,7 +10,6 @@ import {
 
 interface UseBaseMapPresentationOptions {
   currentTrackColor: string | null;
-  currentTrackName: string | null;
   isMapLoaded: boolean;
   mapRef: React.RefObject<maplibregl.Map | null>;
   settings: AppSettings;
@@ -19,7 +18,6 @@ interface UseBaseMapPresentationOptions {
 
 export function useBaseMapPresentation({
   currentTrackColor,
-  currentTrackName,
   isMapLoaded,
   mapRef,
   settings,
@@ -148,20 +146,12 @@ export function useBaseMapPresentation({
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
+    // The moving label is rendered inside the marker DOM overlay so it shares
+    // the marker's transform and cannot trail a frame behind GeoJSON updates.
     if (map.getLayer('main-track-label')) {
-      map.setLayoutProperty('main-track-label', 'visibility', trailStyle.showTrackLabels ? 'visible' : 'none');
-      const color = currentTrackColor || trailStyle.trailColor;
-      map.setPaintProperty('main-track-label', 'text-color', color);
+      map.setLayoutProperty('main-track-label', 'visibility', 'none');
     }
-
-    if (map.getSource('main-track-label')) {
-      (map.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: { label: currentTrackName || '' },
-        geometry: { type: 'Point', coordinates: [0, 0] },
-      });
-    }
-  }, [currentTrackColor, currentTrackName, isMapLoaded, mapRef, trailStyle.showTrackLabels, trailStyle.trailColor]);
+  }, [isMapLoaded, mapRef]);
 
   useEffect(() => {
     const map = mapRef.current;

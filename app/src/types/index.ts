@@ -150,6 +150,7 @@ export interface PlaybackState {
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback' | 'mapbox-streets';
 export type LanguageCode = 'en' | 'es' | 'ca' | 'de' | 'fr';
 export type RouteTimingMode = 'recorded' | 'uniform';
+export type JourneyStatsMode = 'cumulative' | 'per-track';
 
 export interface MapOverlays {
   skiPistes: boolean;
@@ -277,6 +278,7 @@ export interface AppSettings {
   waybackRelease: number | null;
   waybackItemURL: string | null;
   visibleStats: StatId[];
+  journeyStatsMode: JourneyStatsMode;
   statsPosition: { x: number; y: number } | null;
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;

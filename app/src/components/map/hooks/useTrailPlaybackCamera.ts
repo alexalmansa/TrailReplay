@@ -12,7 +12,7 @@ import { smoothBearing, smoothPitch, smoothZoom } from '@/components/map/cameraU
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
-  activeTrack: { points: Array<{ heartRate: number | null }> } | null | undefined;
+  activeTrack: { color: string; points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
   cameraCoordinates: number[][];
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
@@ -71,6 +71,45 @@ interface UseTrailPlaybackCameraParams {
   };
 }
 
+export function resolvePlaybackMarkerColor(
+  configuredMarkerColor: string,
+  activeTrackColor: string | null | undefined,
+  currentTrackColor: string | null | undefined,
+): string {
+  const markerFollowsTrackColors = !!activeTrackColor
+    && configuredMarkerColor.toLowerCase() === activeTrackColor.toLowerCase();
+  return markerFollowsTrackColors && currentTrackColor
+    ? currentTrackColor
+    : configuredMarkerColor;
+}
+
+export function updatePlaybackMarkerElement(
+  element: HTMLElement,
+  markerHtml: string,
+  label: { color: string; text: string } | null,
+) {
+  element.innerHTML = markerHtml;
+  if (!label) return;
+
+  const labelElement = document.createElement('div');
+  labelElement.className = 'tr-marker-label';
+  labelElement.textContent = label.text;
+  Object.assign(labelElement.style, {
+    bottom: 'calc(100% + 8px)',
+    color: label.color,
+    fontSize: '12px',
+    fontWeight: '700',
+    left: '50%',
+    lineHeight: '1.2',
+    pointerEvents: 'none',
+    position: 'absolute',
+    textShadow: '-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff',
+    transform: 'translateX(-50%)',
+    whiteSpace: 'nowrap',
+  });
+  element.appendChild(labelElement);
+}
+
 export function useTrailPlaybackCamera({
   activeTrack,
   allCoordinates,
@@ -102,21 +141,25 @@ export function useTrailPlaybackCamera({
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
 
-    const shouldShowMarker = trailStyle.showMarker &&
+    const shouldShowPlaybackAdornment = (trailStyle.showMarker || trailStyle.showTrackLabels) &&
       (animationPhase === 'playing' || (animationPhase === 'idle' && playbackProgress > 0));
     const currentColor = currentTrackColor || trailStyle.trailColor;
     const icon = isInTransport
       ? TRANSPORT_ICONS[currentSegment?.segment.transportMode || 'car'] || '🚗'
       : currentIcon || trailStyle.currentIcon;
 
-    if (!shouldShowMarker) {
+    if (!shouldShowPlaybackAdornment) {
       markerRef.current?.remove();
       markerRef.current = null;
     } else {
-      const markerColor = trailStyle.markerColor;
-      let markerHtml: string;
+      const markerColor = resolvePlaybackMarkerColor(
+        trailStyle.markerColor,
+        activeTrack?.color,
+        currentTrackColor,
+      );
+      let markerHtml = '';
 
-      if (trailStyle.markerType === 'dot') {
+      if (trailStyle.showMarker && trailStyle.markerType === 'dot') {
         const dotSize = Math.round(14 * trailStyle.markerSize);
         markerHtml = `<div style="
           width: ${dotSize}px;
@@ -127,7 +170,7 @@ export function useTrailPlaybackCamera({
           box-shadow: 0 2px 8px rgba(0,0,0,0.35);
           flex-shrink: 0;
         "></div>`;
-      } else {
+      } else if (trailStyle.showMarker) {
         const fontSize = Math.round(28 * trailStyle.markerSize);
         const circleSize = Math.round(40 * trailStyle.markerSize);
         const iconColor = isSvgActivityIcon(icon) ? markerColor : currentColor;
@@ -151,14 +194,30 @@ export function useTrailPlaybackCamera({
       if (!markerRef.current) {
         const element = document.createElement('div');
         element.className = 'tr-marker';
+        element.style.alignItems = 'center';
+        element.style.display = 'flex';
+        element.style.justifyContent = 'center';
+        element.style.position = 'relative';
         element.style.zIndex = '100';
-        element.innerHTML = markerHtml;
+        updatePlaybackMarkerElement(
+          element,
+          markerHtml,
+          trailStyle.showTrackLabels && currentTrackName
+            ? { color: currentColor, text: currentTrackName }
+            : null,
+        );
         markerRef.current = new maplibregl.Marker({ element, anchor: 'center' })
           .setLngLat([currentPosition.lon, currentPosition.lat])
           .addTo(mapRef.current);
       } else {
         markerRef.current.setLngLat([currentPosition.lon, currentPosition.lat]);
-        markerRef.current.getElement().innerHTML = markerHtml;
+        updatePlaybackMarkerElement(
+          markerRef.current.getElement(),
+          markerHtml,
+          trailStyle.showTrackLabels && currentTrackName
+            ? { color: currentColor, text: currentTrackName }
+            : null,
+        );
       }
     }
 
@@ -234,14 +293,6 @@ export function useTrailPlaybackCamera({
               }
         );
       }
-    }
-
-    if (trailStyle.showTrackLabels && mapRef.current.getSource('main-track-label')) {
-      (mapRef.current.getSource('main-track-label') as maplibregl.GeoJSONSource).setData({
-        type: 'Feature',
-        properties: { label: currentTrackName || '' },
-        geometry: { type: 'Point', coordinates: [currentPosition.lon, currentPosition.lat] },
-      });
     }
 
     if (animationPhase === 'playing' && cameraMode !== 'overview') {

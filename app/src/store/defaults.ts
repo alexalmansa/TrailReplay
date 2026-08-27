@@ -54,6 +54,7 @@ export function createDefaultSettings(): AppSettings {
     waybackRelease: null,
     waybackItemURL: null,
     visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],
+    journeyStatsMode: 'cumulative',
     statsPosition: null,
     paceMode: 'per-km' as const,
     showElevationProfile: false,

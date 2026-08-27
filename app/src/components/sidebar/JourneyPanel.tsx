@@ -28,6 +28,7 @@ export function JourneyPanel() {
   const updateJourneySegmentDuration = useAppStore((state) => state.updateJourneySegmentDuration);
   const clearJourney = useAppStore((state) => state.clearJourney);
   const settings = useAppStore((state) => state.settings);
+  const setSettings = useAppStore((state) => state.setSettings);
   const routeTimingMode = useAppStore((state) => state.playback.routeTimingMode);
   const setRouteTimingMode = useAppStore((state) => state.setRouteTimingMode);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
@@ -201,6 +202,42 @@ export function JourneyPanel() {
           })}
         </div>
       </section>
+
+      {journeySegments.filter((segment) => segment.type === 'track').length > 1 && (
+        <section className="rounded-xl border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
+          <div className="flex items-start gap-2">
+            <GitCompareArrows className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" />
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
+                {t('journey.statsMode')}
+              </h3>
+              <p className="mt-1 text-[11px] leading-4 text-[var(--evergreen-60)]">
+                {t('journey.statsModeHint')}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(['cumulative', 'per-track'] as const).map((mode) => {
+              const active = settings.journeyStatsMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSettings({ journeyStatsMode: mode })}
+                  aria-pressed={active}
+                  className={`min-w-0 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                      : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60 hover:bg-[var(--trail-orange-15)]'
+                  }`}
+                >
+                  {t(mode === 'cumulative' ? 'journey.statsModeCumulative' : 'journey.statsModePerTrack')}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Quick Start */}
       {tracks.length > 0 && (
