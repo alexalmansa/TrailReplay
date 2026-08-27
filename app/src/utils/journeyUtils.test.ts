@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getJourneyElevationData, type JourneyPoint, type SegmentTiming } from './journeyUtils';
 
 const timing = (segmentIndex: number, start: number, end: number, startCoordIndex: number, endCoordIndex: number): SegmentTiming => ({
+  segmentId: `segment-${segmentIndex}`,
   segmentIndex,
   type: 'track',
   duration: end - start,

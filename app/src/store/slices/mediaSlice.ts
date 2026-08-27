@@ -66,13 +66,18 @@ export const createMediaSlice: AppSliceCreator<MediaSlice> = (set) => ({
       }
     }),
 
-  updatePicturePosition: (pictureId, progress) =>
+  updatePicturePosition: (pictureId, progress, routeAnchor) =>
     set((state) => {
       const picture = state.pictures.find((entry) => entry.id === pictureId);
       if (!picture) return;
 
       picture.progress = progress;
       picture.position = progress;
+      if (routeAnchor) {
+        picture.routeDistance = routeAnchor.routeDistance;
+        picture.routeSegmentId = routeAnchor.routeSegmentId;
+        picture.routeSegmentDistance = routeAnchor.routeSegmentDistance;
+      }
     }),
 
   updatePictureMetadata: (pictureId, title, description) =>

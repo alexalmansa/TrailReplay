@@ -63,6 +63,8 @@ export interface SerializedPicture {
    * before this field existed.
    */
   routeDistance?: number;
+  routeSegmentId?: string;
+  routeSegmentDistance?: number;
   placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;

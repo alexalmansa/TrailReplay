@@ -12,6 +12,8 @@ export interface RouteMatch {
    * when the match was made against loose tracks rather than a journey.
    */
   routeDistance?: number;
+  routeSegmentId?: string;
+  routeSegmentDistance?: number;
 }
 
 const METERS_PER_DEGREE_LAT = 111_320;
@@ -166,18 +168,21 @@ export function projectCoordinateToTracks(
  * Track coordinates carry the distance from their own track's start, so the
  * segment's offset within the journey has to be added back on.
  */
-function routeDistanceForJourneySegment(
+function routeAnchorForJourneySegment(
   segmentTiming: SegmentTiming,
   coordinates: ComputedJourney['coordinates'],
   index: number,
   fraction: number,
-): number | null {
+): { routeDistance: number; routeSegmentDistance: number } | null {
   const start = coordinates[index];
   const end = coordinates[index + 1];
   if (!start || !end) return null;
 
   const localDistance = start.distance + (end.distance - start.distance) * fraction;
-  return segmentTiming.startDistance + localDistance;
+  return {
+    routeDistance: segmentTiming.startDistance + localDistance,
+    routeSegmentDistance: localDistance,
+  };
 }
 
 function progressForJourneySegment(segmentTiming: SegmentTiming, startCoordIndex: number, exactIndex: number) {
@@ -202,14 +207,23 @@ export function projectCoordinateToJourney(
   }
 
   if (coordinates.length === 1) {
-    const segmentProgress = segmentTimings[0]?.progressStartRatio ?? fallbackProgress;
-    return matchSinglePoint(
+    const timing = segmentTimings[0];
+    const segmentProgress = timing?.progressStartRatio ?? fallbackProgress;
+    const match = matchSinglePoint(
       targetLat,
       targetLon,
       coordinates[0].lat,
       coordinates[0].lon,
       segmentProgress,
     );
+    return timing
+      ? {
+          ...match,
+          routeDistance: timing.startDistance + coordinates[0].distance,
+          routeSegmentId: timing.segmentId,
+          routeSegmentDistance: coordinates[0].distance,
+        }
+      : match;
   }
 
   let bestMatch: RouteMatch | null = null;
@@ -224,7 +238,12 @@ export function projectCoordinateToJourney(
       const progress = segmentTiming.progressStartRatio;
       const candidate = matchSinglePoint(targetLat, targetLon, point.lat, point.lon, progress);
       if (!bestMatch || candidate.distanceMeters < bestMatch.distanceMeters) {
-        bestMatch = { ...candidate, routeDistance: segmentTiming.startDistance + point.distance };
+        bestMatch = {
+          ...candidate,
+          routeDistance: segmentTiming.startDistance + point.distance,
+          routeSegmentId: segmentTiming.segmentId,
+          routeSegmentDistance: point.distance,
+        };
       }
       continue;
     }
@@ -249,7 +268,7 @@ export function projectCoordinateToJourney(
       }
 
       const exactIndex = index + projection.fraction;
-      const routeDistance = routeDistanceForJourneySegment(
+      const routeAnchor = routeAnchorForJourneySegment(
         segmentTiming,
         coordinates,
         index,
@@ -259,8 +278,8 @@ export function projectCoordinateToJourney(
       // more points per kilometre than a fast descent, so counting points puts
       // a summit much later than counting kilometres - which is why photos
       // showed up well behind the place they were taken.
-      const progress = routeDistance !== null
-        ? progressForRouteDistance(coordinates, segmentTimings, routeDistance, routeTimingMode)
+      const progress = routeAnchor !== null
+        ? progressForRouteDistance(coordinates, segmentTimings, routeAnchor.routeDistance, routeTimingMode)
           ?? progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex)
         : progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
 
@@ -269,7 +288,9 @@ export function projectCoordinateToJourney(
         lon: projection.lon,
         progress: Math.max(0, Math.min(1, progress)),
         distanceMeters: projection.distanceMeters,
-        routeDistance: routeDistance ?? undefined,
+        routeDistance: routeAnchor?.routeDistance,
+        routeSegmentId: segmentTiming.segmentId,
+        routeSegmentDistance: routeAnchor?.routeSegmentDistance,
       };
     }
   }
