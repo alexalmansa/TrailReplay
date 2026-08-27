@@ -17,6 +17,8 @@ export interface TimestampPlacementMatch {
    * journey, where there is no journey-wide distance to refer to.
    */
   routeDistance?: number;
+  routeSegmentId?: string;
+  routeSegmentDistance?: number;
 }
 
 interface TimestampPlacementResult {
@@ -131,6 +133,8 @@ function matchTimestampOnJourneyTrackSegment(
         lon: interpolated.lon,
         progress: progressForSegmentPointIndex(segmentTiming, interpolated.exactPointIndex, track.points.length),
         routeDistance: segmentTiming.startDistance + interpolated.trackDistance,
+        routeSegmentId: segmentTiming.segmentId,
+        routeSegmentDistance: interpolated.trackDistance,
       },
       reason: null,
     };

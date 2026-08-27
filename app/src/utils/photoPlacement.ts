@@ -71,6 +71,8 @@ function createPicture(params: {
       // Keeps the point the placement actually found, so a later change of
       // timing mode can be recalculated from it rather than searched for.
       routeDistance: match.routeDistance,
+      routeSegmentId: match.routeSegmentId,
+      routeSegmentDistance: match.routeSegmentDistance,
       placementSource,
       displayDuration: 5000,
     },
@@ -168,6 +170,9 @@ export function resolvePhotoPlacement(params: {
           lat: timestampPlacement.lat,
           lon: timestampPlacement.lon,
           progress: timestampPlacement.progress,
+          routeDistance: timestampPlacement.routeDistance,
+          routeSegmentId: timestampPlacement.routeSegmentId,
+          routeSegmentDistance: timestampPlacement.routeSegmentDistance,
         }
       : undefined,
   });

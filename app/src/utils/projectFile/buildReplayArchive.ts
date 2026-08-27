@@ -58,6 +58,8 @@ function serializePicture(picture: AppState['pictures'][number]): SerializedPict
     progress: picture.progress,
     position: picture.position,
     routeDistance: picture.routeDistance,
+    routeSegmentId: picture.routeSegmentId,
+    routeSegmentDistance: picture.routeSegmentDistance,
     placementSource: picture.placementSource,
     title: picture.title,
     description: picture.description,

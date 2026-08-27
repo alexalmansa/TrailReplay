@@ -84,6 +84,8 @@ describe('hydrateProject', () => {
       // Metres from the start of the journey. Without it, a reopened project
       // cannot be recalculated when the timing mode changes afterwards.
       routeDistance: 1234,
+      routeSegmentId: sourceStore.getState().journeySegments[0].id,
+      routeSegmentDistance: 1234,
       placementSource: 'gps',
       displayDuration: 5000,
     });
@@ -94,7 +96,11 @@ describe('hydrateProject', () => {
     const targetStore = createAppStore();
     hydrateProject(parsed, targetStore.getState());
 
-    expect(targetStore.getState().pictures[0].routeDistance).toBe(1234);
+    expect(targetStore.getState().pictures[0]).toMatchObject({
+      routeDistance: 1234,
+      routeSegmentId: sourceStore.getState().journeySegments[0].id,
+      routeSegmentDistance: 1234,
+    });
   });
 
   it('leaves the anchor absent for projects saved before it existed', async () => {

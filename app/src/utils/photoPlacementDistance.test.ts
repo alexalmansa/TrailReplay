@@ -4,6 +4,8 @@ import {
   buildComputedJourney,
   getJourneyElevationData,
   progressForRouteDistance,
+  routeDistanceForSegmentAnchor,
+  segmentAnchorForRouteDistance,
 } from '@/utils/journeyUtils';
 import { findTimestampPlacement } from '@/utils/photoTimelinePlacement';
 import { projectCoordinateToJourney } from '@/utils/routeProjection';
@@ -165,5 +167,47 @@ describe('The anchor kept with the photo', () => {
 
     expect(twice).toBeCloseTo(once!, 6);
     expect(once).toBeCloseTo(SUMMIT_BY_DISTANCE, 2);
+  });
+
+  it('stays with its segment when journey segments are reordered', () => {
+    const repeatedSegments = [
+      { id: 'outbound', type: 'track' as const, trackId: 'berg', duration: 60_000 },
+      { id: 'return', type: 'track' as const, trackId: 'berg', duration: 60_000 },
+    ];
+    const beforeReorder = buildComputedJourney(repeatedSegments, [track])!;
+    const afterReorder = buildComputedJourney([...repeatedSegments].reverse(), [track])!;
+
+    const beforeDistance = routeDistanceForSegmentAnchor(
+      beforeReorder.segmentTimings,
+      'return',
+      2000,
+    );
+    const afterDistance = routeDistanceForSegmentAnchor(
+      afterReorder.segmentTimings,
+      'return',
+      2000,
+    );
+
+    expect(beforeDistance).toBe(10_000);
+    expect(afterDistance).toBe(2000);
+    expect(progressForRouteDistance(
+      afterReorder.coordinates,
+      afterReorder.segmentTimings,
+      afterDistance!,
+      'uniform',
+    )).toBeCloseTo(0.125, 3);
+  });
+
+  it('upgrades a legacy journey-wide distance to a stable segment anchor', () => {
+    const repeatedSegments = [
+      { id: 'outbound', type: 'track' as const, trackId: 'berg', duration: 60_000 },
+      { id: 'return', type: 'track' as const, trackId: 'berg', duration: 60_000 },
+    ];
+    const repeatedJourney = buildComputedJourney(repeatedSegments, [track])!;
+
+    expect(segmentAnchorForRouteDistance(repeatedJourney.segmentTimings, 10_000)).toEqual({
+      segmentId: 'return',
+      segmentDistance: 2000,
+    });
   });
 });

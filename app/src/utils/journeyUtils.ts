@@ -41,6 +41,7 @@ export interface JourneyPoint extends GPXPoint {
  * Segment timing information for animation
  */
 export interface SegmentTiming {
+  segmentId: string;
   segmentIndex: number;
   type: 'track' | 'transport';
   duration: number; // in ms
@@ -274,6 +275,7 @@ export function buildComputedJourney(
     }
 
     segmentTimings.push({
+      segmentId: segment.id,
       segmentIndex,
       type: segment.type,
       duration: segment.duration || 0,
@@ -365,6 +367,41 @@ export function progressForRouteDistance(
   return clamp01(
     timing.progressStartRatio + localRatio * (timing.progressEndRatio - timing.progressStartRatio)
   );
+}
+
+/** Resolve a stable segment-local anchor against the journey's current order. */
+export function routeDistanceForSegmentAnchor(
+  segmentTimings: SegmentTiming[],
+  segmentId: string,
+  segmentDistance: number,
+): number | null {
+  if (!Number.isFinite(segmentDistance)) return null;
+
+  const timing = segmentTimings.find((candidate) => candidate.segmentId === segmentId);
+  if (!timing) return null;
+
+  const span = Math.max(0, timing.endDistance - timing.startDistance);
+  return timing.startDistance + Math.max(0, Math.min(span, segmentDistance));
+}
+
+/** Upgrade a journey-wide distance to a stable segment-local anchor. */
+export function segmentAnchorForRouteDistance(
+  segmentTimings: SegmentTiming[],
+  routeDistance: number,
+): { segmentId: string; segmentDistance: number } | null {
+  if (segmentTimings.length === 0 || !Number.isFinite(routeDistance)) return null;
+
+  const timing = segmentTimings.find(
+    (candidate) => routeDistance >= candidate.startDistance && routeDistance <= candidate.endDistance,
+  ) ?? (routeDistance < segmentTimings[0].startDistance
+    ? segmentTimings[0]
+    : segmentTimings[segmentTimings.length - 1]);
+  const span = Math.max(0, timing.endDistance - timing.startDistance);
+
+  return {
+    segmentId: timing.segmentId,
+    segmentDistance: Math.max(0, Math.min(span, routeDistance - timing.startDistance)),
+  };
 }
 
 function clamp01(value: number) {

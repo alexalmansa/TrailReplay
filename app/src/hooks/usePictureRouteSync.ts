@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { buildComputedJourney, progressForRouteDistance } from '@/utils/journeyUtils';
+import {
+  buildComputedJourney,
+  progressForRouteDistance,
+  routeDistanceForSegmentAnchor,
+  segmentAnchorForRouteDistance,
+} from '@/utils/journeyUtils';
 
 /**
  * Keeps photo timing in step with the route and the timing mode.
@@ -10,13 +15,11 @@ import { buildComputedJourney, progressForRouteDistance } from '@/utils/journeyU
  * Constant Pace afterwards and a photo keeps its old, point-counted value: it
  * then appears well behind the place it was taken.
  *
- * The recalculation uses the anchor the placement already established -
- * `routeDistance`, the distance from the start of the journey - and never
- * looks the photo up on the route again. Distance along the route increases
- * monotonically, so it names one specific point even where an out-and-back
- * route covers the same coordinates twice; searching by coordinates could
- * land on the wrong leg. Photos without an anchor - placed by hand, or coming
- * from a project saved before this field existed - are left untouched.
+ * The recalculation uses the anchor the placement already established: a
+ * stable journey segment ID plus the distance from that segment's start. It
+ * never looks the photo up on the route again, so out-and-back coordinates
+ * remain unambiguous and reordering segments does not move the photo to a
+ * different track. Older projects fall back to their journey-wide distance.
  *
  * The effect deliberately does not depend on the picture list it writes to,
  * only on route and timing mode, so one change means exactly one pass.
@@ -42,22 +45,58 @@ export function usePictureRouteSync() {
     }
 
     for (const picture of store.pictures) {
-      if (picture.placementSource === 'manual' || picture.routeDistance === undefined) {
+      let routeSegmentId = picture.routeSegmentId;
+      let routeSegmentDistance = picture.routeSegmentDistance;
+      const hasStableAnchor = routeSegmentId !== undefined && routeSegmentDistance !== undefined;
+      if (picture.placementSource === 'manual' || (!hasStableAnchor && picture.routeDistance === undefined)) {
+        continue;
+      }
+
+      if (!hasStableAnchor && picture.routeDistance !== undefined) {
+        const migratedAnchor = segmentAnchorForRouteDistance(
+          computedJourney.segmentTimings,
+          picture.routeDistance,
+        );
+        routeSegmentId = migratedAnchor?.segmentId;
+        routeSegmentDistance = migratedAnchor?.segmentDistance;
+      }
+      if (routeSegmentId === undefined || routeSegmentDistance === undefined) {
+        continue;
+      }
+
+      const anchoredRouteDistance = routeDistanceForSegmentAnchor(
+        computedJourney.segmentTimings,
+        routeSegmentId,
+        routeSegmentDistance,
+      );
+      if (anchoredRouteDistance === null || anchoredRouteDistance === undefined) {
         continue;
       }
 
       const progress = progressForRouteDistance(
         computedJourney.coordinates,
         computedJourney.segmentTimings,
-        picture.routeDistance,
+        anchoredRouteDistance,
         routeTimingMode,
       );
 
-      if (progress === null || Math.abs(progress - picture.progress) <= TOLERANCE) {
+      if (progress === null) {
         continue;
       }
 
-      store.updatePicturePosition(picture.id, progress);
+      const anchorChanged = picture.routeSegmentId !== routeSegmentId ||
+        picture.routeSegmentDistance !== routeSegmentDistance ||
+        picture.routeDistance === undefined ||
+        Math.abs(picture.routeDistance - anchoredRouteDistance) > TOLERANCE;
+      if (!anchorChanged && Math.abs(progress - picture.progress) <= TOLERANCE) {
+        continue;
+      }
+
+      store.updatePicturePosition(picture.id, progress, {
+        routeDistance: anchoredRouteDistance,
+        routeSegmentId,
+        routeSegmentDistance,
+      });
     }
   }, [isExporting, journeySegments, pictureCount, routeTimingMode, tracks]);
 }

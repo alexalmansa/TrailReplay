@@ -91,7 +91,11 @@ export interface AppState {
   removePendingPicturePlacement: (pictureId: string) => void;
   clearPendingPicturePlacements: () => void;
   removePicture: (pictureId: string) => void;
-  updatePicturePosition: (pictureId: string, progress: number) => void;
+  updatePicturePosition: (
+    pictureId: string,
+    progress: number,
+    routeAnchor?: { routeDistance: number; routeSegmentId: string; routeSegmentDistance: number },
+  ) => void;
   updatePictureMetadata: (pictureId: string, title: string, description: string) => void;
   updatePictureDuration: (pictureId: string, duration: number) => void;
   addVideo: (video: VideoAnnotation) => void;

@@ -87,6 +87,10 @@ export interface PictureAnnotation {
    * derived from it.
    */
   routeDistance?: number;
+  /** Stable journey-segment anchor used when segments are reordered. */
+  routeSegmentId?: string;
+  /** Distance in metres from the start of `routeSegmentId`. */
+  routeSegmentDistance?: number;
   placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;
@@ -112,6 +116,9 @@ export interface PendingPicturePlacement {
     lat: number;
     lon: number;
     progress: number;
+    routeDistance?: number;
+    routeSegmentId?: string;
+    routeSegmentDistance?: number;
   };
 }
 

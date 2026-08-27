@@ -16,6 +16,8 @@ function hydratePicture(serialized: SerializedPicture): PictureAnnotation {
     progress: serialized.progress,
     position: serialized.position,
     routeDistance: serialized.routeDistance,
+    routeSegmentId: serialized.routeSegmentId,
+    routeSegmentDistance: serialized.routeSegmentDistance,
     placementSource: serialized.placementSource,
     title: serialized.title,
     description: serialized.description,
