@@ -43,7 +43,7 @@ function localProgressFor(timing: SegmentTiming, playbackProgress: number): numb
   return Math.max(0, Math.min(1, (playbackProgress - timing.progressStartRatio) / span));
 }
 
-function elapsedTrackTime(
+export function elapsedTrackTime(
   segmentTimings: SegmentTiming[],
   tracks: GPXTrack[],
   activeTrack: GPXTrack | undefined,

@@ -4,7 +4,7 @@ import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
 import type { StatId } from '@/types';
-import { calculateCurrentLiveStats } from './liveStats';
+import { calculateCurrentLiveStats, elapsedTrackTime } from './liveStats';
 import {
   Route,
   Timer,
@@ -83,13 +83,13 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     const fastest = journeyTracks.reduce((highest, track) => Math.max(highest, track.maxSpeed || 0), 0);
 
     return {
-      duration: formatStatsDuration(computeRealElapsedAtProgress(1)),
+      duration: formatStatsDuration(elapsedTrackTime(segmentTimings, tracks, activeTrack, 1)),
       distance: formatDistance(totalDistance, settings.unitSystem),
       elevation: formatElevation(totalElevationGain, settings.unitSystem),
       altitude: formatElevation(highestPoint, settings.unitSystem),
       speed: formatSpeedFromKmh(fastest, settings.unitSystem),
     };
-  }, [activeTrack, computeRealElapsedAtProgress, segmentTimings, settings.unitSystem, totalDistance, tracks]);
+  }, [activeTrack, segmentTimings, settings.unitSystem, totalDistance, tracks]);
 
   if (!currentStats || journeySegments.length === 0) return null;
 
