@@ -1,5 +1,6 @@
-import type { GPXPoint, GPXTrack, JourneySegment, TrackSegment } from '@/types';
+import type { GPXPoint, GPXTrack, JourneySegment, RouteTimingMode, TrackSegment } from '@/types';
 import type { ComputedJourney, SegmentTiming } from '@/utils/journeyUtils';
+import { progressForRouteDistance } from '@/utils/journeyUtils';
 
 export type TimestampPlacementFailureReason =
   | 'missing-timestamp'
@@ -10,6 +11,12 @@ export interface TimestampPlacementMatch {
   lat: number;
   lon: number;
   progress: number;
+  /**
+   * Where the match sits along the journey, in metres from its start. Absent
+   * when the match was made against a single loose track rather than a
+   * journey, where there is no journey-wide distance to refer to.
+   */
+  routeDistance?: number;
 }
 
 interface TimestampPlacementResult {
@@ -37,6 +44,9 @@ function interpolateBetweenTimedPoints(
     lat: lower.point.lat + (upper.point.lat - lower.point.lat) * ratio,
     lon: lower.point.lon + (upper.point.lon - lower.point.lon) * ratio,
     exactPointIndex: lower.index + (upper.index - lower.index) * ratio,
+    // Distance from the start of this track, interpolated the same way. It is
+    // what anchors the photo to one specific place on the route.
+    trackDistance: lower.point.distance + (upper.point.distance - lower.point.distance) * ratio,
   };
 }
 
@@ -120,6 +130,7 @@ function matchTimestampOnJourneyTrackSegment(
         lat: interpolated.lat,
         lon: interpolated.lon,
         progress: progressForSegmentPointIndex(segmentTiming, interpolated.exactPointIndex, track.points.length),
+        routeDistance: segmentTiming.startDistance + interpolated.trackDistance,
       },
       reason: null,
     };
@@ -134,8 +145,10 @@ export function findTimestampPlacement(params: {
   journeySegments: JourneySegment[];
   computedJourney: ComputedJourney | null;
   activeTrackId: string | null;
+  /** Constant Pace ('uniform') times the replay by distance, not by point. */
+  routeTimingMode?: RouteTimingMode;
 }): TimestampPlacementResult {
-  const { activeTrackId, computedJourney, journeySegments, timestamp, tracks } = params;
+  const { activeTrackId, computedJourney, journeySegments, routeTimingMode = 'recorded', timestamp, tracks } = params;
 
   if (!timestamp || Number.isNaN(timestamp.getTime())) {
     return { match: null, reason: 'missing-timestamp' };
@@ -168,7 +181,22 @@ export function findTimestampPlacement(params: {
 
       const result = matchTimestampOnJourneyTrackSegment(track, segmentTiming, timestampMs);
       if (result.match) {
-        return result;
+        // The timestamp already picked the exact point on the route. Turn that
+        // one point into progress for the active timing mode - the point
+        // itself is never looked up again, so the photo cannot wander to
+        // another part of the track.
+        const progress = result.match.routeDistance !== undefined
+          ? progressForRouteDistance(
+            computedJourney.coordinates,
+            computedJourney.segmentTimings,
+            result.match.routeDistance,
+            routeTimingMode,
+          )
+          : null;
+
+        return progress === null
+          ? result
+          : { match: { ...result.match, progress }, reason: null };
       }
     }
 

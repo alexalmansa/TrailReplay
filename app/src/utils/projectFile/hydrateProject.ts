@@ -15,6 +15,7 @@ function hydratePicture(serialized: SerializedPicture): PictureAnnotation {
     timestamp: serialized.timestamp ? new Date(serialized.timestamp) : undefined,
     progress: serialized.progress,
     position: serialized.position,
+    routeDistance: serialized.routeDistance,
     placementSource: serialized.placementSource,
     title: serialized.title,
     description: serialized.description,

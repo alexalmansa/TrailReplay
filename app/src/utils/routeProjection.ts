@@ -1,12 +1,17 @@
-import type { GPXTrack } from '@/types';
+import type { GPXTrack, RouteTimingMode } from '@/types';
 import type { ComputedJourney, SegmentTiming } from '@/utils/journeyUtils';
-import { calculateDistance } from '@/utils/journeyUtils';
+import { calculateDistance, progressForRouteDistance } from '@/utils/journeyUtils';
 
 export interface RouteMatch {
   progress: number;
   lat: number;
   lon: number;
   distanceMeters: number;
+  /**
+   * Where the match sits along the journey, in metres from its start. Absent
+   * when the match was made against loose tracks rather than a journey.
+   */
+  routeDistance?: number;
 }
 
 const METERS_PER_DEGREE_LAT = 111_320;
@@ -155,6 +160,26 @@ export function projectCoordinateToTracks(
   return bestMatch;
 }
 
+/**
+ * Distance from the journey start for a point between two coordinates.
+ *
+ * Track coordinates carry the distance from their own track's start, so the
+ * segment's offset within the journey has to be added back on.
+ */
+function routeDistanceForJourneySegment(
+  segmentTiming: SegmentTiming,
+  coordinates: ComputedJourney['coordinates'],
+  index: number,
+  fraction: number,
+): number | null {
+  const start = coordinates[index];
+  const end = coordinates[index + 1];
+  if (!start || !end) return null;
+
+  const localDistance = start.distance + (end.distance - start.distance) * fraction;
+  return segmentTiming.startDistance + localDistance;
+}
+
 function progressForJourneySegment(segmentTiming: SegmentTiming, startCoordIndex: number, exactIndex: number) {
   const segmentCoordCount = Math.max(segmentTiming.endCoordIndex - segmentTiming.startCoordIndex, 1);
   const localProgress = (exactIndex - startCoordIndex) / segmentCoordCount;
@@ -167,6 +192,8 @@ export function projectCoordinateToJourney(
   targetLat: number,
   targetLon: number,
   fallbackProgress: number,
+  /** Bei 'uniform' (Constant Pace) laeuft der Ruecklauf nach Entfernung. */
+  routeTimingMode: RouteTimingMode = 'recorded',
 ): RouteMatch | null {
   const { coordinates, segmentTimings } = computedJourney;
 
@@ -197,7 +224,7 @@ export function projectCoordinateToJourney(
       const progress = segmentTiming.progressStartRatio;
       const candidate = matchSinglePoint(targetLat, targetLon, point.lat, point.lon, progress);
       if (!bestMatch || candidate.distanceMeters < bestMatch.distanceMeters) {
-        bestMatch = candidate;
+        bestMatch = { ...candidate, routeDistance: segmentTiming.startDistance + point.distance };
       }
       continue;
     }
@@ -217,17 +244,33 @@ export function projectCoordinateToJourney(
         end.lat,
         end.lon,
       );
-      const exactIndex = index + projection.fraction;
-      const progress = progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
-
-      if (!bestMatch || projection.distanceMeters < bestMatch.distanceMeters) {
-        bestMatch = {
-          lat: projection.lat,
-          lon: projection.lon,
-          progress: Math.max(0, Math.min(1, progress)),
-          distanceMeters: projection.distanceMeters,
-        };
+      if (bestMatch && projection.distanceMeters >= bestMatch.distanceMeters) {
+        continue;
       }
+
+      const exactIndex = index + projection.fraction;
+      const routeDistance = routeDistanceForJourneySegment(
+        segmentTiming,
+        coordinates,
+        index,
+        projection.fraction,
+      );
+      // Constant Pace advances by distance travelled. A slow climb records far
+      // more points per kilometre than a fast descent, so counting points puts
+      // a summit much later than counting kilometres - which is why photos
+      // showed up well behind the place they were taken.
+      const progress = routeDistance !== null
+        ? progressForRouteDistance(coordinates, segmentTimings, routeDistance, routeTimingMode)
+          ?? progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex)
+        : progressForJourneySegment(segmentTiming, segmentTiming.startCoordIndex, exactIndex);
+
+      bestMatch = {
+        lat: projection.lat,
+        lon: projection.lon,
+        progress: Math.max(0, Math.min(1, progress)),
+        distanceMeters: projection.distanceMeters,
+        routeDistance: routeDistance ?? undefined,
+      };
     }
   }
 

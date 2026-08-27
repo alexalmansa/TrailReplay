@@ -57,6 +57,7 @@ function serializePicture(picture: AppState['pictures'][number]): SerializedPict
     timestamp: picture.timestamp?.toISOString(),
     progress: picture.progress,
     position: picture.position,
+    routeDistance: picture.routeDistance,
     placementSource: picture.placementSource,
     title: picture.title,
     description: picture.description,
