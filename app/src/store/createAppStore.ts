@@ -43,6 +43,7 @@ export function createAppStore() {
           state.enrichedLandmarks = [];
           state.showAutomaticLandmarks = false;
           state.enabledLandmarkGroups = [];
+          state.nearbyPlaceTypes = null;
           state.nearbyPlacesEnabled = true;
           state.nearbyPlacesLoading = false;
           state.nearbyPlacesError = null;
@@ -62,6 +63,11 @@ export function createAppStore() {
           state.cameraPosition = null;
           state.exploreMode = false;
           state.activePanel = 'tracks';
+        }),
+
+      hydrateState: (partial) =>
+        set((state) => {
+          Object.assign(state, partial);
         }),
     }))
   );

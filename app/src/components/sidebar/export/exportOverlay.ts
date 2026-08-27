@@ -15,7 +15,10 @@ type Rect = {
 export type ExportOverlayMetrics = ReturnType<typeof getExportOverlayMetrics>;
 
 export function getOverlayRefreshIntervalMs(fps: number) {
-  return Math.max(21, Math.round(1000 / Math.min(fps * 2, 48)));
+  // Re-capturing the DOM overlay is considerably more expensive than drawing
+  // the map frame. A 12 fps cadence keeps the elevation marker readable while
+  // avoiding a distracting per-frame redraw in the exported video.
+  return Math.max(83, Math.round(1000 / Math.min(fps, 12)));
 }
 
 export function getExportOverlayMetrics(
@@ -108,6 +111,33 @@ export function getElevationOverlayDrawRect(params: {
     drawY: params.recordH - drawHeight - params.margin,
     drawWidth,
     drawHeight,
+  };
+}
+
+/**
+ * The popup's `<img>` is styled `object-fit: contain` so the whole photo
+ * stays visible regardless of its aspect ratio vs. its box — the element's
+ * own bounding box is still the *full* box, though, not the letterboxed
+ * content within it. Drawing straight into `popupRect` (as
+ * `getPopupOverlayDrawRect` does) stretches the natural image to fill that
+ * full box, ignoring its aspect ratio, so exported photos looked squashed/
+ * stretched. This re-derives the same contain-fitted sub-rect the browser
+ * computes for `object-fit: contain`, so the "crisp" redraw matches what's
+ * actually visible on screen.
+ */
+export function getObjectContainRect(box: Rect, naturalWidth: number, naturalHeight: number): Rect {
+  if (naturalWidth <= 0 || naturalHeight <= 0 || box.width <= 0 || box.height <= 0) return box;
+
+  const boxAspect = box.width / box.height;
+  const imageAspect = naturalWidth / naturalHeight;
+  const width = imageAspect > boxAspect ? box.width : box.height * imageAspect;
+  const height = imageAspect > boxAspect ? box.width / imageAspect : box.height;
+
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
   };
 }
 

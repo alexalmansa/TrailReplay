@@ -1,0 +1,102 @@
+import { useEffect } from 'react';
+import { useAppStore } from '@/store/useAppStore';
+import {
+  buildComputedJourney,
+  progressForRouteDistance,
+  routeDistanceForSegmentAnchor,
+  segmentAnchorForRouteDistance,
+} from '@/utils/journeyUtils';
+
+/**
+ * Keeps photo timing in step with the route and the timing mode.
+ *
+ * A photo's `progress` is computed once, when it is added, using whichever
+ * timing mode is active at that moment. Add the photos first and switch to
+ * Constant Pace afterwards and a photo keeps its old, point-counted value: it
+ * then appears well behind the place it was taken.
+ *
+ * The recalculation uses the anchor the placement already established: a
+ * stable journey segment ID plus the distance from that segment's start. It
+ * never looks the photo up on the route again, so out-and-back coordinates
+ * remain unambiguous and reordering segments does not move the photo to a
+ * different track. Older projects fall back to their journey-wide distance.
+ *
+ * The effect deliberately does not depend on the picture list it writes to,
+ * only on route and timing mode, so one change means exactly one pass.
+ */
+const TOLERANCE = 1e-6;
+
+export function usePictureRouteSync() {
+  const tracks = useAppStore((state) => state.tracks);
+  const journeySegments = useAppStore((state) => state.journeySegments);
+  const routeTimingMode = useAppStore((state) => state.playback.routeTimingMode);
+  const pictureCount = useAppStore((state) => state.pictures.length);
+  const isExporting = useAppStore((state) => state.isExporting);
+
+  useEffect(() => {
+    if (isExporting || pictureCount === 0) {
+      return;
+    }
+
+    const store = useAppStore.getState();
+    const computedJourney = buildComputedJourney(store.journeySegments, store.tracks);
+    if (!computedJourney || computedJourney.coordinates.length === 0) {
+      return;
+    }
+
+    for (const picture of store.pictures) {
+      let routeSegmentId = picture.routeSegmentId;
+      let routeSegmentDistance = picture.routeSegmentDistance;
+      const hasStableAnchor = routeSegmentId !== undefined && routeSegmentDistance !== undefined;
+      if (picture.placementSource === 'manual' || (!hasStableAnchor && picture.routeDistance === undefined)) {
+        continue;
+      }
+
+      if (!hasStableAnchor && picture.routeDistance !== undefined) {
+        const migratedAnchor = segmentAnchorForRouteDistance(
+          computedJourney.segmentTimings,
+          picture.routeDistance,
+        );
+        routeSegmentId = migratedAnchor?.segmentId;
+        routeSegmentDistance = migratedAnchor?.segmentDistance;
+      }
+      if (routeSegmentId === undefined || routeSegmentDistance === undefined) {
+        continue;
+      }
+
+      const anchoredRouteDistance = routeDistanceForSegmentAnchor(
+        computedJourney.segmentTimings,
+        routeSegmentId,
+        routeSegmentDistance,
+      );
+      if (anchoredRouteDistance === null || anchoredRouteDistance === undefined) {
+        continue;
+      }
+
+      const progress = progressForRouteDistance(
+        computedJourney.coordinates,
+        computedJourney.segmentTimings,
+        anchoredRouteDistance,
+        routeTimingMode,
+      );
+
+      if (progress === null) {
+        continue;
+      }
+
+      const anchorChanged = picture.routeSegmentId !== routeSegmentId ||
+        picture.routeSegmentDistance !== routeSegmentDistance ||
+        picture.routeDistance === undefined ||
+        Math.abs(picture.routeDistance - anchoredRouteDistance) > TOLERANCE;
+      if (!anchorChanged && Math.abs(progress - picture.progress) <= TOLERANCE) {
+        continue;
+      }
+
+      store.updatePicturePosition(picture.id, progress, {
+        routeDistance: anchoredRouteDistance,
+        routeSegmentId,
+        routeSegmentDistance,
+      });
+    }
+  }, [isExporting, journeySegments, pictureCount, routeTimingMode, tracks]);
+}

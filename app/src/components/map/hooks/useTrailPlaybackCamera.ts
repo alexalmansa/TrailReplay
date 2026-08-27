@@ -314,12 +314,44 @@ export function useTrailPlaybackCamera({
       const newZoom = smoothZoom(currentZoom, targetPose.zoom);
       const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch);
 
+      // With 3D terrain the marker is drawn on the terrain surface, while the
+      // camera aims at the centre point's elevation. MapLibre normally keeps
+      // that elevation clamped to the terrain for us — but it stops doing so
+      // for the rest of the session as soon as any `easeTo` has run with
+      // terrain enabled (`_elevationFreeze` is only cleared for eases that
+      // pass `freezeElevation`), and `jumpTo` never updates it at all. The
+      // replay camera eases every frame and the export jumps every frame, so
+      // the centre stays pinned at whatever elevation it last had while the
+      // marker climbs away from it: on a summit the marker leaves the top of
+      // the frame, and the error grows with altitude. Pass the elevation
+      // explicitly with the rest of the pose. `queryTerrainElevation` already
+      // includes the terrain exaggeration and returns null when terrain is
+      // off, in which case we leave the elevation alone.
+      const terrainElevation = mapRef.current.queryTerrainElevation([
+        currentPosition.lon,
+        currentPosition.lat,
+      ]);
+      const centerElevation = typeof terrainElevation === 'number' && Number.isFinite(terrainElevation)
+        ? { elevation: terrainElevation }
+        : {};
+
+      // `easeTo` ignores an elevation passed in options - it derives its own
+      // target from the terrain and interpolates toward it, which lags behind
+      // on a continuous climb because every frame replaces the previous ease
+      // before it finishes. Setting it here first makes the eased path start
+      // from the correct height as well.
+      if (centerElevation.elevation !== undefined
+        && Math.abs(mapRef.current.transform.elevation - centerElevation.elevation) > 0.25) {
+        mapRef.current.setCenterElevation(centerElevation.elevation);
+      }
+
       // During deterministic export, camera interpolation must not run on its
       // own clock. The exporter advances playback one frame at a time and waits
       // for this exact pose to render before encoding it.
       if (isDeterministicExport) {
         mapRef.current.jumpTo({
           ...targetPose,
+          ...centerElevation,
           center: [currentPosition.lon, currentPosition.lat],
           zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
           pitch: cameraMode === 'follow' ? targetPose.pitch : newPitch,
@@ -328,11 +360,13 @@ export function useTrailPlaybackCamera({
       } else if (cameraMode === 'follow') {
         mapRef.current.easeTo({
           ...targetPose,
+          ...centerElevation,
           center: [currentPosition.lon, currentPosition.lat],
           duration: 100,
         });
       } else {
         mapRef.current.easeTo({
+          ...centerElevation,
           center: [currentPosition.lon, currentPosition.lat],
           zoom: newZoom,
           pitch: newPitch,

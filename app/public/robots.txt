@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://trailreplay.com/sitemap.xml
+Sitemap: https://trailreplay.com/sitemap-video.xml

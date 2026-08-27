@@ -57,7 +57,7 @@ export function createDefaultSettings(): AppSettings {
     journeyStatsMode: 'cumulative',
     statsPosition: null,
     paceMode: 'per-km' as const,
-    showElevationProfile: false,
+    showElevationProfile: true,
   };
 }
 

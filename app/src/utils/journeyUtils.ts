@@ -3,7 +3,7 @@
  * Handles coordinate flattening, segment timing, and transport interpolation
  */
 
-import type { GPXTrack, GPXPoint, JourneySegment, TrackSegment, TransportSegment } from '@/types';
+import type { GPXTrack, GPXPoint, JourneySegment, RouteTimingMode, TrackSegment, TransportSegment } from '@/types';
 
 // Transport mode speeds (km/h) for estimating transport duration
 const TRANSPORT_SPEEDS: Record<string, number> = {
@@ -41,6 +41,7 @@ export interface JourneyPoint extends GPXPoint {
  * Segment timing information for animation
  */
 export interface SegmentTiming {
+  segmentId: string;
   segmentIndex: number;
   type: 'track' | 'transport';
   duration: number; // in ms
@@ -274,6 +275,7 @@ export function buildComputedJourney(
     }
 
     segmentTimings.push({
+      segmentId: segment.id,
       segmentIndex,
       type: segment.type,
       duration: segment.duration || 0,
@@ -305,6 +307,105 @@ export function buildComputedJourney(
 
 function clampDistance(distance: number, totalDistance: number) {
   return Math.max(0, Math.min(distance, totalDistance));
+}
+
+/**
+ * Convert a position given in metres along the route into replay progress.
+ *
+ * Anything anchored to the route - a photo, an annotation - is best stored as
+ * a distance: that value is independent of the timing mode and, unlike a pair
+ * of coordinates, unambiguous where the route doubles back on itself. This is
+ * the one place that turns such an anchor into the progress value the replay
+ * uses, for either timing mode.
+ */
+export function progressForRouteDistance(
+  coordinates: JourneyPoint[],
+  segmentTimings: SegmentTiming[],
+  routeDistance: number,
+  routeTimingMode: RouteTimingMode = 'recorded'
+): number | null {
+  if (segmentTimings.length === 0 || !Number.isFinite(routeDistance)) return null;
+
+  const timing = segmentTimings.find(
+    (candidate) => routeDistance >= candidate.startDistance && routeDistance <= candidate.endDistance
+  ) ?? (routeDistance < segmentTimings[0].startDistance
+    ? segmentTimings[0]
+    : segmentTimings[segmentTimings.length - 1]);
+
+  const span = timing.endDistance - timing.startDistance;
+  // Distance within this segment. Track coordinates carry the distance from
+  // their own track's start, so the segment offset has to come off first.
+  const localDistance = Math.max(0, Math.min(span, routeDistance - timing.startDistance));
+
+  if (routeTimingMode === 'uniform') {
+    const localRatio = span > 0 ? localDistance / span : 0;
+    return clamp01(
+      timing.distanceStartRatio + localRatio * (timing.distanceEndRatio - timing.distanceStartRatio)
+    );
+  }
+
+  // Recorded pace counts measurement points, so walk the segment's points to
+  // find the one this distance falls on.
+  const { startCoordIndex, endCoordIndex } = timing;
+  if (endCoordIndex <= startCoordIndex) return clamp01(timing.progressStartRatio);
+
+  let exactIndex = endCoordIndex;
+  for (let index = startCoordIndex; index < endCoordIndex; index += 1) {
+    const current = coordinates[index]?.distance;
+    const next = coordinates[index + 1]?.distance;
+    if (current === undefined || next === undefined) continue;
+    if (localDistance <= next) {
+      const step = next - current;
+      const fraction = step > 0 ? Math.max(0, Math.min(1, (localDistance - current) / step)) : 0;
+      exactIndex = index + fraction;
+      break;
+    }
+  }
+
+  const coordSpan = Math.max(endCoordIndex - startCoordIndex, 1);
+  const localRatio = (exactIndex - startCoordIndex) / coordSpan;
+  return clamp01(
+    timing.progressStartRatio + localRatio * (timing.progressEndRatio - timing.progressStartRatio)
+  );
+}
+
+/** Resolve a stable segment-local anchor against the journey's current order. */
+export function routeDistanceForSegmentAnchor(
+  segmentTimings: SegmentTiming[],
+  segmentId: string,
+  segmentDistance: number,
+): number | null {
+  if (!Number.isFinite(segmentDistance)) return null;
+
+  const timing = segmentTimings.find((candidate) => candidate.segmentId === segmentId);
+  if (!timing) return null;
+
+  const span = Math.max(0, timing.endDistance - timing.startDistance);
+  return timing.startDistance + Math.max(0, Math.min(span, segmentDistance));
+}
+
+/** Upgrade a journey-wide distance to a stable segment-local anchor. */
+export function segmentAnchorForRouteDistance(
+  segmentTimings: SegmentTiming[],
+  routeDistance: number,
+): { segmentId: string; segmentDistance: number } | null {
+  if (segmentTimings.length === 0 || !Number.isFinite(routeDistance)) return null;
+
+  const timing = segmentTimings.find(
+    (candidate) => routeDistance >= candidate.startDistance && routeDistance <= candidate.endDistance,
+  ) ?? (routeDistance < segmentTimings[0].startDistance
+    ? segmentTimings[0]
+    : segmentTimings[segmentTimings.length - 1]);
+  const span = Math.max(0, timing.endDistance - timing.startDistance);
+
+  return {
+    segmentId: timing.segmentId,
+    segmentDistance: Math.max(0, Math.min(span, routeDistance - timing.startDistance)),
+  };
+}
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
 }
 
 function interpolateNullableNumber(
@@ -687,7 +788,8 @@ export function getSegmentAtDistance(
  */
 export function getJourneyElevationData(
   coordinates: JourneyPoint[],
-  segmentTimings: SegmentTiming[]
+  segmentTimings: SegmentTiming[],
+  routeTimingMode: RouteTimingMode = 'recorded'
 ): Array<{
   distance: number;
   elevation: number;
@@ -695,7 +797,6 @@ export function getJourneyElevationData(
   segmentIndex: number;
   segmentType: 'track' | 'transport';
 }> {
-  void segmentTimings;
   if (coordinates.length === 0) return [];
 
   const data: Array<{
@@ -706,23 +807,48 @@ export function getJourneyElevationData(
     segmentType: 'track' | 'transport';
   }> = [];
 
-  let totalDistance = 0;
-  const totalCoords = coordinates.length;
+  const timingBySegment = new Map(segmentTimings.map((timing) => [timing.segmentIndex, timing]));
 
   coordinates.forEach((point, i) => {
-    if (i > 0) {
-      totalDistance += calculateDistance(
-        coordinates[i - 1].lat,
-        coordinates[i - 1].lon,
-        point.lat,
-        point.lon
-      );
-    }
+    const timing = timingBySegment.get(point.segmentIndex);
+    const segmentPointCount = timing
+      ? timing.endCoordIndex - timing.startCoordIndex + 1
+      : 1;
+    const segmentPointOffset = timing ? i - timing.startCoordIndex : 0;
+    const indexProgress = segmentPointCount > 1
+      ? Math.max(0, Math.min(1, segmentPointOffset / (segmentPointCount - 1)))
+      : 0;
+
+    // Bei Constant Pace laeuft der Ruecklauf nach Kilometern. Wird die Lage im
+    // Abschnitt trotzdem nach Messpunkt-Nummer bestimmt, wandert ein Gipfel im
+    // Profil nach hinten, weil bergauf mehr Punkte je Kilometer entstehen -
+    // genau der Versatz zwischen Marker, Hoehenprofil und Fotos.
+    const spanStartDistance = timing ? coordinates[timing.startCoordIndex]?.distance : undefined;
+    const spanEndDistance = timing ? coordinates[timing.endCoordIndex]?.distance : undefined;
+    const distanceSpan = spanStartDistance !== undefined && spanEndDistance !== undefined
+      ? spanEndDistance - spanStartDistance
+      : 0;
+    const distanceProgress = routeTimingMode === 'uniform' && distanceSpan > 0 && spanStartDistance !== undefined
+      ? Math.max(0, Math.min(1, (point.distance - spanStartDistance) / distanceSpan))
+      : null;
+
+    const segmentProgress = distanceProgress ?? indexProgress;
+    const progressStart = routeTimingMode === 'uniform'
+      ? timing?.distanceStartRatio ?? 0
+      : timing?.progressStartRatio ?? 0;
+    const progressEnd = routeTimingMode === 'uniform'
+      ? timing?.distanceEndRatio ?? 1
+      : timing?.progressEndRatio ?? 1;
+    const distanceStart = timing?.startDistance ?? 0;
+    const distanceEnd = timing?.endDistance ?? distanceStart;
 
     data.push({
-      distance: totalDistance,
+      // Never use raw coordinate count here: separate GPX files commonly have
+      // very different sampling rates. The elevation chart must share the
+      // same horizontal scale as replay progress.
+      distance: distanceStart + (distanceEnd - distanceStart) * segmentProgress,
       elevation: point.elevation,
-      progress: i / (totalCoords - 1),
+      progress: progressStart + (progressEnd - progressStart) * segmentProgress,
       segmentIndex: point.segmentIndex,
       segmentType: point.segmentType,
     });

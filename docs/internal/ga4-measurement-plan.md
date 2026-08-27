@@ -1,6 +1,6 @@
 # TrailReplay GA4 Measurement Plan
 
-Last updated: 2026-08-12
+Last updated: 2026-08-17
 
 ## Implementation status
 
@@ -11,6 +11,7 @@ The phase-one measurement foundation is implemented on `codex/seo-foundation-ga4
 - localhost, `*.vercel.app`, and `*.pages.dev` are excluded by default
 - filenames and custom timestamps are no longer sent
 - route imports, video exports, feedback submissions, support clicks, help CTAs, and Web Vitals have reporting context
+- map styles, overlays, 3D terrain, camera modes, follow-behind presets, and replay controls are measured
 - Google Signals and advertising-personalization signals are disabled
 - the privacy policy discloses GA4 collection
 
@@ -47,6 +48,14 @@ The current repository already sends GA4 events from the web app for:
 - `export_failed`
 - `export_cancelled`
 - `web_vital`
+- `project_save_started`
+- `project_save_completed`
+- `project_save_cancelled`
+- `project_save_failed`
+- `project_open_started`
+- `project_open_completed`
+- `project_open_failed`
+- `project_open_cancelled`
 
 Current issues to fix before expanding coverage:
 
@@ -108,7 +117,7 @@ Parameter definitions:
 | `welcome_action_clicked` | User clicks upload or explore from the empty-state overlay | `welcome_action` | No |
 | `file_picker_opened` | User opens the route file picker | `picker_location` | No |
 | `route_import_started` | Import begins | `route_file_count`, `route_input_method` | No |
-| `route_import_completed` | At least one route was parsed and added | `route_imported_track_count`, `route_total_distance_bucket`, `route_has_timestamps` | Yes |
+| `route_import_completed` | At least one route was parsed and added | `route_file_count`, `route_imported_track_count`, `route_import_is_multi_file`, `route_total_distance_bucket`, `route_has_timestamps` | Yes |
 | `route_import_failed` | Route import throws | `route_file_count`, `route_error_type` | No |
 
 Parameter definitions:
@@ -116,6 +125,7 @@ Parameter definitions:
 - `welcome_action`: `upload`, `explore`
 - `picker_location`: `welcome_overlay`, `tracks_panel`
 - `route_input_method`: `file_picker`, `dropzone`
+- `route_import_is_multi_file`: whether the user selected more than one file in the import action
 - `route_total_distance_bucket`: `short`, `medium`, `long`, `ultra`
 - `route_has_timestamps`: `true`, `false`
 - `route_error_type`: `parse_error`, `empty_result`, `unsupported_format`, `unknown`
@@ -134,13 +144,18 @@ Recommended bucket thresholds:
 | `comparison_track_added` | User adds a comparison route | `comparison_track_count` | No |
 | `track_visibility_changed` | User toggles route visibility | `visible`, `track_count_visible` | No |
 | `journey_segment_changed` | User edits journey structure | `journey_action`, `journey_segment_count` | No |
+| `transport_added` | User inserts a transfer between route segments | `transport_mode`, `journey_segment_count`, `journey_track_count` | No |
 | `settings_changed` | User changes reporting-relevant settings | `setting_name`, `setting_value` | No |
+| `feature_enabled` | User turns a toggleable map feature on or off | `feature_name`, `feature_state`, `feature_context` | No |
 
 Parameter definitions:
 
 - `journey_action`: `added`, `removed`, `reordered`, `updated`
+- `transport_mode`: `car`, `bus`, `train`, `plane`, `bike`, `walk`, or `ferry`
 - `setting_name`: `language`, `unit_system`, `map_style`, `camera_mode`, `show_pictures`
 - `setting_value`: bounded enum only
+
+For `feature_enabled`, use only product-owned bounded names such as `terrain_3d` and `map_overlay_skiPistes`; `feature_state` is `enabled` or `disabled`, and `feature_context` is currently `settings`.
 
 Only send `settings_changed` for settings that materially affect usage analysis. Do not send every transient slider update.
 
@@ -148,7 +163,7 @@ Only send `settings_changed` for settings that materially affect usage analysis.
 
 | Event | Trigger | Parameters | Key Event |
 | --- | --- | --- | --- |
-| `playback_started` | User starts playback from a stopped state | `playback_source`, `has_pictures`, `has_annotations` | No |
+| `playback_started` | User starts playback from a stopped state | `playback_source`, `has_pictures`, `has_annotations`, `track_count`, `camera_mode`, `camera_preset`, `map_style`, `terrain_3d_enabled` | No |
 | `playback_paused` | User pauses playback | `playback_progress_bucket` | No |
 | `playback_seeked` | User scrubs or skips the timeline | `seek_method`, `playback_progress_bucket` | No |
 | `playback_speed_changed` | User changes speed | `playback_speed` | No |
@@ -241,6 +256,49 @@ Parameter definitions:
 
 Current coverage is already present. Add `page_type` to make the metrics usable across the app and help pages.
 
+### 9. Project File (Save / Open)
+
+Tracks usage of the `.replay` project save/open feature (issue #79), which lets a user
+persist the current project (routes, journey, annotations, settings — never photo/video
+bytes) to a downloadable archive and later reopen it instead of re-importing GPX/KML.
+
+The project has an editable name (`journey.name`, edited in the Generate tab's Save
+Project card) that drives the saved file name. On Chromium browsers, saving uses the
+File System Access API (`showSaveFilePicker`) so the user can overwrite an existing file
+in place instead of the browser auto-suffixing a new download; the chosen file handle is
+remembered for the rest of the page session so repeat saves silently overwrite the same
+file. Firefox/Safari (no File System Access API support) fall back to a plain anchor
+download, same as before.
+
+| Event | Trigger | Parameters | Key Event |
+| --- | --- | --- | --- |
+| `project_save_started` | User clicks Save Project (sidebar) or the popup-blocked feedback fallback | `save_source` | No |
+| `project_save_completed` | The `.replay` archive was written (overwritten via File System Access, or downloaded) | `save_source`, `save_method`, `track_count`, `picture_count`, `video_count` | Yes |
+| `project_save_cancelled` | User dismissed the native save-file picker without choosing a location | `save_source` | No |
+| `project_save_failed` | Archive build or write/download failed | `save_source` | No |
+| `project_open_started` | User selects a `.replay` file to open | — | No |
+| `project_open_completed` | The archive was parsed and the project state restored | `format_version`, `track_count`, `picture_count`, `video_count` | Yes |
+| `project_open_failed` | The archive was corrupt, oversized, an unsupported version, or missing an asset | `error_code` | No |
+| `project_open_cancelled` | User declined the "this will replace your current work" confirmation | `reason` | No |
+
+Parameter definitions:
+
+- `save_source`: `sidebar`, `feedback_popup_blocked`
+- `save_method`: `file_system_access`, `download`
+- `track_count`, `picture_count`, `video_count`: integers
+- `format_version`: integer, the `.replay` archive's `formatVersion`
+- `error_code`: `corrupt`, `unsupported-version`, `missing-asset`, `too-large`, `unknown`
+- `reason`: `confirm_replace_declined`
+
+Break down `project_save_completed` by `save_method` to see what share of saves land as
+a true in-place overwrite (`file_system_access`) versus a plain download that the browser
+may auto-suffix (`download`).
+
+Compare `project_open_completed` against `route_import_completed` to see what share of
+route-loading sessions come from reopening a saved project rather than importing a fresh
+GPX/KML file, and compare `project_save_completed` counts against `export_completed` to
+gauge Save-Project adoption relative to video export.
+
 ## GA4 Custom Dimensions to Register
 
 Register only the dimensions needed for reporting. Suggested event-scoped dimensions:
@@ -252,6 +310,7 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `cta_location` | `cta_location` |
 | `target_page` | `target_page` |
 | `route_input_method` | `route_input_method` |
+| `route_import_is_multi_file` | `route_import_is_multi_file` |
 | `route_total_distance_bucket` | `route_total_distance_bucket` |
 | `route_error_type` | `route_error_type` |
 | `photo_placement_result` | `photo_placement_result` |
@@ -265,8 +324,21 @@ Register only the dimensions needed for reporting. Suggested event-scoped dimens
 | `export_blob_size_bucket` | `export_blob_size_bucket` |
 | `feedback_category` | `feedback_category` |
 | `support_location` | `support_location` |
+| `feature_name` | `feature_name` |
+| `feature_state` | `feature_state` |
+| `feature_context` | `feature_context` |
+| `setting_name` | `setting_name` |
+| `setting_value` | `setting_value` |
+| `transport_mode` | `transport_mode` |
+| `camera_mode` | `camera_mode` |
+| `camera_preset` | `camera_preset` |
+| `map_style` | `map_style` |
+| `terrain_3d_enabled` | `terrain_3d_enabled` |
 | `link_location` | `link_location` |
 | `link_type` | `link_type` |
+| `save_source` | `save_source` |
+| `save_method` | `save_method` |
+| `error_code` | `error_code` |
 
 Do not register dimensions for:
 
@@ -286,6 +358,8 @@ Mark these as key events after rollout:
 | `export_completed` | Primary product success event |
 | `feedback_submitted` | Strong engagement / user intent signal |
 | `support_clicked` | Optional, only if support behavior matters commercially |
+| `project_save_completed` | Direct answer to "how many users download a `.replay` file" |
+| `project_open_completed` | Direct answer to "how many users reopen a project instead of importing a fresh GPX" |
 
 Do not mark low-intent events like `page_view`, `playback_started`, or `help_cta_clicked` as key events.
 

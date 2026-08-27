@@ -1,11 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { usePhotos } from '@/hooks/usePhotos';
 import { isImageFile } from '@/utils/files';
 import { useI18n } from '@/i18n/useI18n';
 import { Switch } from '@/components/ui/switch';
-import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2 } from 'lucide-react';
+import { trackEvent } from '@/utils/analytics';
+import { Play, Trash2, Image as ImageIcon, Video, MapPin, Clock, Settings2, Link2 } from 'lucide-react';
 
 const DEFAULT_DISPLAY_DURATION = 5000; // 5 seconds
 
@@ -20,11 +21,34 @@ export function PicturesPanel() {
   const updatePictureDuration = useAppStore((state) => state.updatePictureDuration);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
   const setSelectedPictureId = useAppStore((state) => state.setSelectedPictureId);
+  const relinkPictureFile = useAppStore((state) => state.relinkPictureFile);
+  const relinkVideoFile = useAppStore((state) => state.relinkVideoFile);
   const { addPhotos, isProcessing } = usePhotos();
-  
+
   const [activeTab, setActiveTab] = useState<'pictures' | 'videos'>('pictures');
   const [editingPicture, setEditingPicture] = useState<string | null>(null);
   const [durationValue, setDurationValue] = useState(5);
+  const relinkTargetRef = useRef<{ kind: 'picture' | 'video'; id: string } | null>(null);
+  const relinkInputRef = useRef<HTMLInputElement>(null);
+
+  const startRelink = (kind: 'picture' | 'video', id: string) => {
+    relinkTargetRef.current = { kind, id };
+    relinkInputRef.current?.click();
+  };
+
+  const handleRelinkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    const target = relinkTargetRef.current;
+    relinkTargetRef.current = null;
+    if (!file || !target) return;
+
+    if (target.kind === 'picture') {
+      relinkPictureFile(target.id, file);
+    } else {
+      relinkVideoFile(target.id, file);
+    }
+  };
   
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (activeTab === 'pictures') {
@@ -65,6 +89,17 @@ export function PicturesPanel() {
 
   return (
     <div className="space-y-4">
+      <input
+        ref={relinkInputRef}
+        type="file"
+        accept="image/*,video/*"
+        onChange={handleRelinkFileChange}
+        className="hidden"
+      />
+      <div className="rounded-xl border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('media.videoMomentsTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('media.videoMomentsHint')}</p>
+      </div>
       <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -73,7 +108,14 @@ export function PicturesPanel() {
           </div>
           <Switch
             checked={showPictures}
-            onCheckedChange={(checked) => setSettings({ showPictures: checked })}
+            onCheckedChange={(checked) => {
+              setSettings({ showPictures: checked });
+              trackEvent('feature_enabled', {
+                feature_name: 'pictures',
+                feature_state: checked ? 'enabled' : 'disabled',
+                feature_context: 'media_panel',
+              });
+            }}
           />
         </div>
       </div>
@@ -171,18 +213,27 @@ export function PicturesPanel() {
                       className="w-20 h-20 rounded-xl overflow-hidden border border-[var(--evergreen)]/20 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--trail-orange)]"
                       title={t('media.previewPicture')}
                     >
-                      <img
-                        src={picture.url}
-                        alt={t('media.trailAlt')}
-                        className="w-full h-full object-cover"
-                      />
+                      {picture.isPlaceholder ? (
+                        <div
+                          className="w-full h-full flex items-center justify-center bg-[var(--evergreen)]/10 text-[var(--evergreen-60)]"
+                          title={t('media.placeholderFile')}
+                        >
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                      ) : (
+                        <img
+                          src={picture.url}
+                          alt={t('media.trailAlt')}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </button>
                     
                     {/* Info */}
                     <div className="flex-1 min-w-0 space-y-2">
                       <div>
                         <p className="text-sm font-medium text-[var(--evergreen)] truncate">
-                          {picture.file.name}
+                          {picture.file?.name ?? picture.originalFileName}
                         </p>
                       </div>
 
@@ -222,7 +273,16 @@ export function PicturesPanel() {
                   </div>
 
                   {/* Actions */}
-                  <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className={`mt-3 grid gap-2 ${picture.isPlaceholder ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                    {picture.isPlaceholder && (
+                      <button
+                        onClick={() => startRelink('picture', picture.id)}
+                        className="flex items-center justify-center rounded-lg border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] px-3 py-2 hover:bg-[var(--trail-orange)]/20"
+                        title={t('media.relinkFile')}
+                      >
+                        <Link2 className="w-4 h-4 text-[var(--trail-orange)]" />
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setEditingPicture(picture.id);
@@ -304,7 +364,7 @@ export function PicturesPanel() {
                   
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-[var(--evergreen)] truncate">
-                      {video.file.name}
+                      {video.file?.name ?? video.originalFileName}
                     </p>
                     <p className="text-xs text-[var(--evergreen-60)]">
                       {t('media.percentOfJourney', { percent: (video.progress * 100).toFixed(0) })}
@@ -312,6 +372,15 @@ export function PicturesPanel() {
                   </div>
                   
                   <div className="flex items-center gap-1">
+                    {video.isPlaceholder && (
+                      <button
+                        onClick={() => startRelink('video', video.id)}
+                        className="p-1.5 hover:bg-[var(--trail-orange)]/20 text-[var(--trail-orange)] rounded"
+                        title={t('media.relinkFile')}
+                      >
+                        <Link2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => seekToProgress(video.progress)}
                       className="p-1.5 hover:bg-[var(--evergreen)]/10 rounded"

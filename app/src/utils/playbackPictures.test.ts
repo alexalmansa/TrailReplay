@@ -10,6 +10,7 @@ function createPicture(id: string, progress: number): PictureAnnotation {
     id,
     file: new File(['image'], `${id}.jpg`, { type: 'image/jpeg' }),
     url: `blob:${id}`,
+    isPlaceholder: false,
     progress,
     position: progress,
     displayDuration: 5000,

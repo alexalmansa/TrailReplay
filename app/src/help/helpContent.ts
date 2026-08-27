@@ -14,18 +14,21 @@ export function getTutorialVideos(t: Translate) {
       title: t('help.tutorial.videos.pathExport.title'),
       description: t('help.tutorial.videos.pathExport.description'),
       src: '/media/video/path-export-with-stats.mp4',
+      poster: '/media/images/seo/path-export-with-stats-poster.jpg',
       downloadLabel: t('help.tutorial.videos.pathExport.downloadLabel'),
     },
     {
       title: t('help.tutorial.videos.comparison.title'),
       description: t('help.tutorial.videos.comparison.description'),
       src: '/media/video/comparison-mode-demo.mp4',
+      poster: '/media/images/seo/comparison-mode-demo-poster.jpg',
       downloadLabel: t('help.tutorial.videos.comparison.downloadLabel'),
     },
     {
       title: t('help.tutorial.videos.aranLandmarks.title'),
       description: t('help.tutorial.videos.aranLandmarks.description'),
       src: '/media/video/aran-by-utmb-landmarks-demo.mp4',
+      poster: '/media/images/seo/aran-by-utmb-landmarks-demo-poster.jpg',
       downloadLabel: t('help.tutorial.videos.aranLandmarks.downloadLabel'),
     },
   ];

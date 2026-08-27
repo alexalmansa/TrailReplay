@@ -105,7 +105,14 @@ describe('resolvePhotoPlacement', () => {
         timestamp: new Date('2026-04-07T10:30:00Z'),
       },
       gpsRouteMatch: { lat: 41.4, lon: 2.18, progress: 0.2, distanceMeters: 600 },
-      timestampPlacement: { lat: 41.395, lon: 2.175, progress: 0.48 },
+      timestampPlacement: {
+        lat: 41.395,
+        lon: 2.175,
+        progress: 0.48,
+        routeDistance: 4800,
+        routeSegmentId: 'segment-2',
+        routeSegmentDistance: 800,
+      },
       timestampFailureReason: null,
       fallbackProgress: 0.1,
     });
@@ -119,6 +126,9 @@ describe('resolvePhotoPlacement', () => {
         lat: 41.395,
         lon: 2.175,
         progress: 0.48,
+        routeDistance: 4800,
+        routeSegmentId: 'segment-2',
+        routeSegmentDistance: 800,
       });
     }
   });

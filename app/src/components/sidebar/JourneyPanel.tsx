@@ -7,14 +7,17 @@ import { createId } from '@/utils/id';
 import { TrackSegmentItem, TransportSegmentItem } from './journey/JourneySegmentItems';
 import { TRANSPORT_MODES } from './journey/journeyTransport';
 import { createTransportSegment } from './journey/createTransportSegment';
+import { trackEvent } from '@/utils/analytics';
 import {
   Plus,
   Clock,
+  Edit3,
   Route,
   GitCompareArrows,
 } from 'lucide-react';
 
 const DEFAULT_TRACK_SEGMENT_DURATION_MS = 30_000;
+const VIDEO_DURATION_OPTIONS = [15, 30, 60, 90] as const;
 const MAX_SEGMENT_DURATION_SECONDS = 120;
 
 export function JourneyPanel() {
@@ -38,6 +41,21 @@ export function JourneyPanel() {
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [customDuration, setCustomDuration] = useState<number>(30);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const setVideoDuration = (seconds: number) => {
+    const totalMilliseconds = seconds * 1000;
+    const currentTotal = journeySegments.reduce((total, segment) => total + Math.max(segment.duration || 0, 0), 0);
+    const fallbackWeight = journeySegments.length > 0 ? 1 / journeySegments.length : 0;
+    let assigned = 0;
+
+    reorderJourneySegments(journeySegments.map((segment, index) => {
+      const isLast = index === journeySegments.length - 1;
+      const weight = currentTotal > 0 ? (segment.duration || 0) / currentTotal : fallbackWeight;
+      const duration = isLast ? totalMilliseconds - assigned : Math.round(totalMilliseconds * weight);
+      assigned += duration;
+      return { ...segment, duration };
+    }));
+  };
   
   // Calculate total journey stats
   const totalDistance = journeySegments.reduce((sum, seg) => {
@@ -115,6 +133,11 @@ export function JourneyPanel() {
     const newSegments = [...journeySegments];
     newSegments.splice(selectedTransportIndex + 1, 0, newTransportSegment);
     reorderJourneySegments(newSegments);
+    trackEvent('transport_added', {
+      transport_mode: mode,
+      journey_segment_count: newSegments.length,
+      journey_track_count: newSegments.filter((segment) => segment.type === 'track').length,
+    });
 
     setShowTransportMenu(false);
     setSelectedTransportIndex(null);
@@ -150,6 +173,61 @@ export function JourneyPanel() {
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border border-[var(--trail-orange)]/40 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('journey.videoTimingTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('journey.videoTimingHint')}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {VIDEO_DURATION_OPTIONS.map((seconds) => {
+            const isActive = Math.round(totalDuration / 1000) === seconds;
+            return (
+              <button
+                key={seconds}
+                type="button"
+                onClick={() => setVideoDuration(seconds)}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  isActive
+                    ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                    : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60'
+                }`}
+              >
+                <span className="block text-sm font-bold">{t('journey.durationPreset', { seconds })}</span>
+                <span className={`block text-[10px] ${isActive ? 'text-[var(--canvas)]/75' : 'text-[var(--evergreen-60)]'}`}>
+                  {t('journey.durationPresetHint')}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex items-start gap-2 rounded-lg border border-[var(--evergreen)]/15 bg-[var(--canvas)]/60 px-3 py-2 text-xs text-[var(--evergreen-80)]">
+          <Edit3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--trail-orange)]" aria-hidden="true" />
+          <p>{t('journey.customDurationHint')}</p>
+        </div>
+        <div className="mt-4 border-t border-[var(--evergreen)]/15 pt-3">
+          <h4 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">{t('journey.routeTiming')}</h4>
+          <p className="mt-1 text-[11px] leading-4 text-[var(--evergreen-60)]">{t('journey.routeTimingHint')}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(['recorded', 'uniform'] as const).map((mode) => {
+              const active = routeTimingMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setRouteTimingMode(mode)}
+                  aria-pressed={active}
+                  className={`min-w-0 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                      : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60'
+                  }`}
+                >
+                  {mode === 'recorded' ? t('journey.routeTimingRecorded') : t('journey.routeTimingUniform')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Journey Stats */}
       {journeySegments.length > 0 && (
         <div className="bg-[var(--evergreen)] text-[var(--canvas)] p-3 rounded-lg">
@@ -167,41 +245,6 @@ export function JourneyPanel() {
           </div>
         </div>
       )}
-
-      {/* Playback pace belongs with journey setup, rather than buried in the timeline. */}
-      <section className="rounded-xl border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
-        <div className="flex items-start gap-2">
-          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" />
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
-              {t('journey.routeTiming')}
-            </h3>
-            <p className="mt-1 text-[11px] leading-4 text-[var(--evergreen-60)]">
-              {t('journey.routeTimingHint')}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {(['recorded', 'uniform'] as const).map((mode) => {
-            const active = routeTimingMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setRouteTimingMode(mode)}
-                aria-pressed={active}
-                className={`min-w-0 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
-                  active
-                    ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
-                    : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60 hover:bg-[var(--trail-orange-15)]'
-                }`}
-              >
-                {mode === 'recorded' ? t('journey.routeTimingRecorded') : t('journey.routeTimingUniform')}
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
       {journeySegments.filter((segment) => segment.type === 'track').length > 1 && (
         <section className="rounded-xl border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
@@ -240,7 +283,7 @@ export function JourneyPanel() {
       )}
 
       {/* Quick Start */}
-      {tracks.length > 0 && (
+      {tracks.length > 1 && (
         <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)]/30 rounded-lg p-3">
           <h3 className="text-xs font-bold text-[var(--trail-orange)] uppercase tracking-wide mb-2">
             {t('journey.quickStart')}
@@ -268,7 +311,7 @@ export function JourneyPanel() {
       )}
       
       {/* Add Tracks */}
-      {tracks.length > 0 && (
+      {tracks.length > 1 && (
         <div>
           <h3 className="text-sm font-bold text-[var(--evergreen)] mb-2 uppercase tracking-wide">
             {t('journey.addTracksTitle')}

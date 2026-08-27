@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
+import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
+import { usePictureRouteSync } from '@/hooks/usePictureRouteSync';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
@@ -19,6 +21,7 @@ import {
 } from '@/utils/playbackPictures';
 import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
 import { trackEvent } from '@/utils/analytics';
+import { useI18n } from '@/i18n/useI18n';
 
 const Sidebar = lazy(() => import('@/components/sidebar/Sidebar').then((module) => ({ default: module.Sidebar })));
 const InfoPanel = lazy(() => import('@/components/info/InfoPanel').then((module) => ({ default: module.InfoPanel })));
@@ -34,6 +37,7 @@ function isNarrowFrame(width: number, height: number) {
 }
 
 function App() {
+  const { t } = useI18n();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statsDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
@@ -53,11 +57,17 @@ function App() {
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
+  useUnsavedWorkGuard();
+  // Keeps photo placement on the route current when the timing mode is
+  // switched after import, or when a saved project brings an older value.
+  usePictureRouteSync();
   const tracks = useAppStore((state) => state.tracks);
   const showSidebar = useAppStore((state) => state.isSidebarOpen);
   const setShowSidebar = useAppStore((state) => state.setSidebarOpen);
   const exploreMode = useAppStore((state) => state.exploreMode);
   const setExploreMode = useAppStore((state) => state.setExploreMode);
+  const animationPhase = useAppStore((state) => state.animationPhase);
+  const exportPictureHoldElapsedMs = useAppStore((state) => state.exportPictureHoldElapsedMs);
   const pictures = useAppStore((state) => state.pictures);
   const pendingPicturePlacements = useAppStore((state) => state.pendingPicturePlacements);
   const textAnnotations = useAppStore((state) => state.textAnnotations);
@@ -142,8 +152,11 @@ function App() {
       const files = e.target.files;
       try {
         if (files && files.length > 0) {
-          await parseFiles(files, 'file_picker');
+          const importedTracks = await parseFiles(files, 'file_picker');
           setShowSidebar(true);
+          if (importedTracks?.length) {
+            toast.success(t('workflow.routeImported'));
+          }
         }
       } catch {
         // `parseFiles` already reports a localized error through the app store.
@@ -155,7 +168,7 @@ function App() {
         }
       }
     },
-    [parseFiles, setShowSidebar]
+    [parseFiles, setShowSidebar, t]
   );
 
   // Trigger file picker
@@ -208,7 +221,10 @@ function App() {
         return {
           top: frameTop + 14,
           left: frameLeft + (frameWidth / 2),
-          width: Math.max(frameWidth - 24, 0),
+          // Match the auto-sized wrapper used after a drag. Giving the wrapper
+          // the whole frame width makes the overlay background appear too wide
+          // until the first drag updates statsPosition.
+          width: 'fit-content',
           maxWidth: Math.min(Math.max(frameWidth - 24, 0), 268),
           transform: 'translateX(-50%)',
         } satisfies CSSProperties;
@@ -217,7 +233,7 @@ function App() {
       return {
         top: frameTop + 16,
         left: frameLeft + 16,
-        width: Math.max(frameWidth - 32, 0),
+        width: 'fit-content',
         maxWidth: Math.min(Math.max(frameWidth - 32, 0), 320),
       } satisfies CSSProperties;
     }
@@ -291,7 +307,15 @@ function App() {
       clearPendingQueuedPictureOpen();
     }
 
-    if (!playback.isPlaying || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
+    // Wait for the cold-start preload/intro sequence to finish before ever
+    // triggering a picture. Otherwise a photo anchored at/near progress 0
+    // pops up as soon as Play is clicked (isPlaying flips true immediately),
+    // ahead of the intro camera zoom-in and before the marker has moved.
+    // During a deterministic export, `useVideoExportRecorder` drives its own
+    // picture-hold logic (so the export can freeze the route position for
+    // the full `displayDuration` instead of just showing the popup over an
+    // already-advancing timeline) — this effect must stay out of the way.
+    if (isDeterministicExport || !playback.isPlaying || animationPhase !== 'playing' || selectedPictureId || autoPlaybackPictureId || pictures.length === 0) {
       lastPlaybackProgressRef.current = currentProgress;
     } else {
       const triggeredPictures = getTriggeredPlaybackPictures({
@@ -309,19 +333,27 @@ function App() {
         queuedPlaybackPictureIdsRef.current.push(...triggeredPictures.map((picture) => picture.id));
         resumePlaybackAfterPictureQueueRef.current = true;
         pause();
-        scheduleNextQueuedPlaybackPicture();
+        // Open the popup synchronously in this same effect, rather than via
+        // scheduleNextQueuedPlaybackPicture's setTimeout(0). Deferring by even
+        // one macrotask let the camera/marker (which react to the same
+        // progress update) paint an extra moving frame before the popup
+        // mounted — most visible for photos anchored right at the start.
+        clearPendingQueuedPictureOpen();
+        openNextQueuedPlaybackPicture();
       }
     }
 
     lastPlaybackProgressRef.current = currentProgress;
   }, [
+    animationPhase,
     autoPlaybackPictureId,
     clearPendingQueuedPictureOpen,
+    isDeterministicExport,
+    openNextQueuedPlaybackPicture,
     pause,
     pictures,
     playback.isPlaying,
     playback.progress,
-    scheduleNextQueuedPlaybackPicture,
     selectedPictureId,
   ]);
 
@@ -462,11 +494,15 @@ function App() {
                           file: activePendingPicturePlacement.file,
                           displayFile: activePendingPicturePlacement.displayFile,
                           url: activePendingPicturePlacement.url,
+                          isPlaceholder: false,
                           lat: timestampPlacement.lat,
                           lon: timestampPlacement.lon,
                           timestamp: activePendingPicturePlacement.timestamp,
                           progress: timestampPlacement.progress,
                           position: timestampPlacement.progress,
+                          routeDistance: timestampPlacement.routeDistance,
+                          routeSegmentId: timestampPlacement.routeSegmentId,
+                          routeSegmentDistance: timestampPlacement.routeSegmentDistance,
                           placementSource: 'timestamp',
                           title: activePendingPicturePlacement.title,
                           description: activePendingPicturePlacement.description,
@@ -485,7 +521,7 @@ function App() {
                   picture={activePicture} 
                   onClose={closeActivePicture}
                   exportFrame={activeExportCropMetrics}
-                  playbackCurrentTime={isDeterministicExport ? playback.currentTime : undefined}
+                  playbackCurrentTime={isDeterministicExport ? (exportPictureHoldElapsedMs ?? playback.currentTime) : undefined}
                 />
               )}
               
@@ -493,7 +529,7 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
+                accept=".gpx,.kml,.replay,application/gpx+xml,application/vnd.google-earth.kml+xml"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"

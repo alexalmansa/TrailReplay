@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
 import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
+import { trackEvent } from '@/utils/analytics';
 import { RouteLandmarksEditor } from './RouteLandmarksEditor';
 import { MapNavigationGuide } from './MapNavigationGuide';
 import {
@@ -134,11 +135,33 @@ export function SettingsPanel() {
   }, [settings.mapStyle, settings.waybackRelease, setSettings, t]);
 
   const toggleOverlay = (key: keyof MapOverlays) => {
-    setSettings({ mapOverlays: { ...settings.mapOverlays, [key]: !settings.mapOverlays?.[key] } });
+    const enabled = !settings.mapOverlays?.[key];
+    setSettings({ mapOverlays: { ...settings.mapOverlays, [key]: enabled } });
+    trackEvent('feature_enabled', {
+      feature_name: `map_overlay_${key}`,
+      feature_state: enabled ? 'enabled' : 'disabled',
+      feature_context: 'settings',
+    });
+  };
+
+  const selectMapStyle = (style: MapStyle) => {
+    if (settings.mapStyle === style) return;
+    setMapStyle(style);
+    trackEvent('settings_changed', { setting_name: 'map_style', setting_value: style });
+  };
+
+  const selectCameraMode = (mode: CameraMode) => {
+    if (cameraSettings.mode === mode) return;
+    setCameraMode(mode);
+    trackEvent('settings_changed', { setting_name: 'camera_mode', setting_value: mode });
   };
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-[var(--trail-orange)]/30 bg-[var(--trail-orange-15)] p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('settings.mapCameraTitle')}</h3>
+        <p className="mt-1 text-xs leading-4 text-[var(--evergreen-80)]">{t('settings.mapCameraHint')}</p>
+      </div>
       <MapNavigationGuide />
 
       {/* Map Style */}
@@ -151,7 +174,7 @@ export function SettingsPanel() {
           {MAP_STYLES.map((style) => (
             <button
               key={style.id}
-              onClick={() => setMapStyle(style.id)}
+              onClick={() => selectMapStyle(style.id)}
               className={`
                 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors text-left
                 ${settings.mapStyle === style.id
@@ -305,7 +328,7 @@ export function SettingsPanel() {
           {CAMERA_MODES.map((mode) => (
             <button
               key={mode.id}
-              onClick={() => setCameraMode(mode.id)}
+              onClick={() => selectCameraMode(mode.id)}
               className={`
                 w-full flex items-center justify-between p-3 rounded-lg border-2 transition-colors
                 ${cameraSettings.mode === mode.id
@@ -337,12 +360,14 @@ export function SettingsPanel() {
               {FOLLOW_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
-                  onClick={() =>
+                  onClick={() => {
+                    if (cameraSettings.followBehindPreset === preset.id) return;
                     setCameraSettings({
                       followBehindPreset: preset.id,
                       followBehindZoomLevel: getFollowBehindZoomLevelForPreset(preset.id),
-                    })
-                  }
+                    });
+                    trackEvent('settings_changed', { setting_name: 'follow_behind_preset', setting_value: preset.id });
+                  }}
                   className={`
                     flex-1 py-2 px-1 rounded text-xs font-medium transition-colors
                     ${cameraSettings.followBehindPreset === preset.id
@@ -373,7 +398,15 @@ export function SettingsPanel() {
           <input
             type="checkbox"
             checked={settings.show3DTerrain}
-            onChange={(e) => setSettings({ show3DTerrain: e.target.checked })}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              setSettings({ show3DTerrain: enabled });
+              trackEvent('feature_enabled', {
+                feature_name: 'terrain_3d',
+                feature_state: enabled ? 'enabled' : 'disabled',
+                feature_context: 'settings',
+              });
+            }}
             className="w-5 h-5 accent-[var(--trail-orange)]"
           />
         </label>

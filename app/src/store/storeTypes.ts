@@ -36,6 +36,7 @@ export interface AppState {
   enrichedLandmarks: RouteLandmark[];
   showAutomaticLandmarks: boolean;
   enabledLandmarkGroups: LandmarkType[];
+  nearbyPlaceTypes: LandmarkType[] | null;
   nearbyPlacesEnabled: boolean;
   nearbyPlacesLoading: boolean;
   nearbyPlacesError: string | null;
@@ -43,6 +44,10 @@ export interface AppState {
   playback: PlaybackState;
   cinematicPlayed: boolean;
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
+  // Drives PicturePopup's progress bar / zoom timing during a deterministic
+  // export hold, decoupled from `playback.currentTime` so the route position
+  // (and everything derived from it) stays frozen while the photo is shown.
+  exportPictureHoldElapsedMs: number | null;
   settings: AppSettings;
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;
@@ -74,6 +79,7 @@ export interface AppState {
   updateComparisonTrackName: (trackId: string, name: string) => void;
   updateComparisonColor: (trackId: string, color: string) => void;
   createJourney: (name: string) => void;
+  updateJourneyName: (name: string) => void;
   addJourneySegment: (segment: JourneySegment) => void;
   removeJourneySegment: (segmentId: string) => void;
   reorderJourneySegments: (segments: JourneySegment[]) => void;
@@ -85,7 +91,11 @@ export interface AppState {
   removePendingPicturePlacement: (pictureId: string) => void;
   clearPendingPicturePlacements: () => void;
   removePicture: (pictureId: string) => void;
-  updatePicturePosition: (pictureId: string, progress: number) => void;
+  updatePicturePosition: (
+    pictureId: string,
+    progress: number,
+    routeAnchor?: { routeDistance: number; routeSegmentId: string; routeSegmentDistance: number },
+  ) => void;
   updatePictureMetadata: (pictureId: string, title: string, description: string) => void;
   updatePictureDuration: (pictureId: string, duration: number) => void;
   addVideo: (video: VideoAnnotation) => void;
@@ -101,6 +111,7 @@ export interface AppState {
   removeLandmark: (landmarkId: string) => void;
   setShowAutomaticLandmarks: (show: boolean) => void;
   setEnabledLandmarkGroups: (groups: LandmarkType[]) => void;
+  setNearbyPlaceTypes: (types: LandmarkType[] | null) => void;
   setNearbyPlacesEnabled: (enabled: boolean) => void;
   setEnrichedLandmarks: (landmarks: RouteLandmark[]) => void;
   setNearbyPlacesStatus: (loading: boolean, error?: string | null, coverage?: NearbyPlacesCoverage | null) => void;
@@ -114,6 +125,7 @@ export interface AppState {
   setCurrentSegment: (index: number, progress: number) => void;
   setCinematicPlayed: (played: boolean) => void;
   setAnimationPhase: (phase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended') => void;
+  setExportPictureHoldElapsedMs: (elapsedMs: number | null) => void;
   resetPlayback: () => void;
   setSettings: (settings: Partial<AppSettings>) => void;
   setCameraSettings: (settings: Partial<CameraSettings>) => void;
@@ -135,5 +147,9 @@ export interface AppState {
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setSelectedPictureId: (pictureId: string | null) => void;
+  relinkPictureFile: (pictureId: string, file: File) => void;
+  relinkVideoFile: (videoId: string, file: File) => void;
   reset: () => void;
+  /** Bulk-restore only (project load) — bypasses granular per-field actions and their id-generation/side-effect behavior. Do not use for normal UI-driven updates. */
+  hydrateState: (partial: Partial<AppState>) => void;
 }

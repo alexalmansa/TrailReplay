@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
+import { useProjectFile } from '@/hooks/useProjectFile';
 import { ExportSettingsModal } from './export/ExportSettingsModal';
 import { QUALITY_OPTIONS } from './export/exportConfig';
 import { useVideoExportRecorder } from './export/useVideoExportRecorder';
 import { SocialSharePanel } from './export/SocialSharePanel';
-import { Check, Download, Film, ImageIcon, Settings, X } from 'lucide-react';
+import { Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, X } from 'lucide-react';
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -14,7 +15,12 @@ export function ExportPanel() {
   const playback = useAppStore((state) => state.playback);
   const exportMode = useAppStore((state) => state.exportSubMode);
   const setExportMode = useAppStore((state) => state.setExportSubMode);
+  const tracks = useAppStore((state) => state.tracks);
+  const isAppExporting = useAppStore((state) => state.isExporting);
+  const journeyName = useAppStore((state) => state.journey?.name);
+  const updateJourneyName = useAppStore((state) => state.updateJourneyName);
   const [showSettings, setShowSettings] = useState(false);
+  const { saveProject, isSaving } = useProjectFile();
 
   const {
     actualFormat,
@@ -30,8 +36,49 @@ export function ExportPanel() {
     resetExportResult,
   } = useVideoExportRecorder();
 
+  // The Instagram share prompt used to be a small card buried in the
+  // scrollable sidebar (easy to miss). Surface it as a centered overlay
+  // instead — much harder not to notice right when the export finishes.
+  // Re-arming `shareModalDismissed` when `exportedBlob` changes identity (a
+  // new export just finished) directly in the render body — rather than in
+  // a useEffect — is React's recommended pattern for resetting state in
+  // response to a prop/value change: https://react.dev/learn/you-might-not-need-an-effect
+  const [shareModalDismissed, setShareModalDismissed] = useState(false);
+  const [acknowledgedBlob, setAcknowledgedBlob] = useState<Blob | null>(null);
+  if (exportedBlob !== acknowledgedBlob) {
+    setAcknowledgedBlob(exportedBlob);
+    setShareModalDismissed(false);
+  }
+  const showShareModal = Boolean(exportedBlob) && !isExporting && !shareModalDismissed;
+
   return (
     <div className="space-y-4">
+      {/* Save Project */}
+      <div className="rounded-lg border border-[var(--evergreen)]/15 bg-[var(--evergreen)]/3 p-3">
+        <h3 className="text-sm font-bold text-[var(--evergreen)]">{t('export.saveProjectTitle')}</h3>
+        <p className="mt-0.5 text-xs text-[var(--evergreen-60)]">{t('export.saveProjectBody')}</p>
+        <label className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--evergreen-60)]">
+          {t('export.projectNameLabel')}
+        </label>
+        <input
+          type="text"
+          value={journeyName ?? ''}
+          onChange={(event) => updateJourneyName(event.target.value)}
+          disabled={!journeyName}
+          placeholder={t('export.projectNamePlaceholder')}
+          className="mt-1 w-full rounded-lg border border-[var(--evergreen)]/20 bg-white/90 px-3 py-2 text-sm text-[var(--evergreen)] focus:outline-none focus:border-[var(--trail-orange)] disabled:opacity-50"
+        />
+        <button
+          type="button"
+          onClick={() => saveProject('sidebar')}
+          disabled={isAppExporting || isSaving || tracks.length === 0}
+          className="tr-btn tr-btn-secondary mt-3 flex w-full items-center justify-center gap-1.5 py-2 text-sm disabled:opacity-45 disabled:cursor-not-allowed"
+        >
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {t('sidebar.saveProject')}
+        </button>
+      </div>
+
       {/* Mode switch */}
       <div className="grid grid-cols-2 gap-1">
         <button
@@ -111,7 +158,7 @@ export function ExportPanel() {
               className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Film className="w-5 h-5" />
-              {t('export.startRecording')}
+              {t('export.generateVideo')}
             </button>
           )}
 
@@ -177,6 +224,61 @@ export function ExportPanel() {
             t={t}
             videoExportSettings={videoExportSettings}
           />
+
+          {showShareModal && (
+            <div
+              className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+              onClick={() => setShareModalDismissed(true)}
+            >
+              <div
+                className="relative w-full max-w-sm rounded-xl bg-[var(--canvas)] p-6 text-center shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setShareModalDismissed(true)}
+                  className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/5"
+                  aria-label={t('common.close')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-2 justify-center text-green-600 bg-green-50 px-3 py-2 rounded-lg mb-4">
+                  <Check className="w-5 h-5" />
+                  <span className="font-medium text-sm">{t('export.complete')}</span>
+                </div>
+
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--trail-orange)] text-white shadow-sm">
+                  <Instagram className="w-7 h-7" aria-hidden="true" />
+                </div>
+
+                <h4 className="mt-4 text-base font-semibold text-[var(--evergreen)]">
+                  {t('export.shareTitle')}
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-[var(--evergreen-80)]">
+                  {t('export.shareBodyBefore')}{' '}
+                  <a
+                    href="https://www.instagram.com/trailreplay/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-[var(--evergreen)] underline decoration-[var(--trail-orange)] underline-offset-2 hover:text-[var(--trail-orange)]"
+                  >
+                    @trailreplay
+                  </a>{' '}
+                  {t('export.shareBodyAfter')}
+                </p>
+                <p className="mt-3 text-sm font-medium leading-6 text-[var(--evergreen)]">
+                  {t('export.shareFeature')}
+                </p>
+
+                <button
+                  onClick={() => setShareModalDismissed(true)}
+                  className="mt-5 w-full tr-btn tr-btn-primary"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

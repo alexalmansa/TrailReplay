@@ -67,14 +67,30 @@ export interface Journey {
 
 export interface PictureAnnotation {
   id: string;
-  file: File;
+  file: File | null;
   displayFile?: File;
   url: string;
+  isPlaceholder: boolean;
+  originalFileName?: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;
   progress: number;
   position: number;
+  /**
+   * Where the photo sits along the route, in metres from the journey start.
+   *
+   * `progress` depends on the timing mode and therefore has to be recomputed
+   * when that mode changes. Distance along the route does not: it increases
+   * monotonically, so it identifies the point unambiguously even where the
+   * route crosses itself or doubles back, and both timing modes can be
+   * derived from it.
+   */
+  routeDistance?: number;
+  /** Stable journey-segment anchor used when segments are reordered. */
+  routeSegmentId?: string;
+  /** Distance in metres from the start of `routeSegmentId`. */
+  routeSegmentDistance?: number;
   placementSource?: 'gps' | 'timestamp' | 'manual';
   title?: string;
   description?: string;
@@ -100,13 +116,18 @@ export interface PendingPicturePlacement {
     lat: number;
     lon: number;
     progress: number;
+    routeDistance?: number;
+    routeSegmentId?: string;
+    routeSegmentDistance?: number;
   };
 }
 
 export interface VideoAnnotation {
   id: string;
-  file: File;
+  file: File | null;
   url: string;
+  isPlaceholder: boolean;
+  originalFileName?: string;
   lat?: number;
   lon?: number;
   timestamp?: Date;
