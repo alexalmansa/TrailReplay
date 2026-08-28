@@ -1,5 +1,6 @@
 import type { AppState } from '@/store/storeTypes';
 import { parseGPX } from '@/utils/gpxParser';
+import { createDefaultCameraSettings } from '@/store/defaults';
 import type { ComparisonTrack, PictureAnnotation, VideoAnnotation } from '@/types';
 import type { ParsedProject, SerializedPicture, SerializedVideo } from './types';
 
@@ -85,7 +86,9 @@ export function hydrateProject(parsed: ParsedProject, store: AppState): void {
     nearbyPlaceTypes: project.nearbyPlaceTypes,
     showAutomaticLandmarks: project.showAutomaticLandmarks,
     settings: project.settings,
-    cameraSettings: project.cameraSettings,
+    // Older saved projects predate cameraStability; backfill it so an
+    // undefined value doesn't turn the camera smoothing math into NaN.
+    cameraSettings: { ...createDefaultCameraSettings(), ...project.cameraSettings },
     videoExportSettings: project.videoExportSettings,
     socialShareSettings: project.socialShareSettings,
     activePanel: 'tracks',

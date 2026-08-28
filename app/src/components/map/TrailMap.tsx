@@ -192,6 +192,7 @@ export function TrailMap(_props: TrailMapProps) {
     cameraCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
+    cameraStability: cameraSettings.cameraStability,
     completedCoordinates,
     computedJourney,
     currentIcon,

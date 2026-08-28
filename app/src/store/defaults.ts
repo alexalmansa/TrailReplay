@@ -69,6 +69,7 @@ export function createDefaultCameraSettings(): CameraSettings {
     bearing: 0,
     followBehindPreset: DEFAULT_FOLLOW_BEHIND_PRESET,
     followBehindZoomLevel: getFollowBehindZoomLevelForPreset(DEFAULT_FOLLOW_BEHIND_PRESET),
+    cameraStability: 0.5,
   };
 }
 

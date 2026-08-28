@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { calculateTerrainAwareAdjustments, smoothBearing, smoothPitch, smoothZoom } from './cameraUtils';
+import {
+  calculateTerrainAwareAdjustments,
+  cameraReactivityFromStability,
+  smoothBearing,
+  smoothPitch,
+  smoothZoom,
+} from './cameraUtils';
 
 describe('camera utilities', () => {
   it('holds the heading for small route wiggles', () => {
@@ -35,5 +41,27 @@ describe('camera utilities', () => {
 
     const climbingRoute = [{ elevation: 600 }, { elevation: 1800 }];
     expect(calculateTerrainAwareAdjustments(1800, climbingRoute, 1).zoomAdjust).toBeGreaterThan(1.5);
+  });
+
+  it('maps the stability slider to a reactivity multiplier centered on the tuned defaults', () => {
+    expect(cameraReactivityFromStability(0.5)).toBeCloseTo(1);
+    expect(cameraReactivityFromStability(0)).toBeCloseTo(0.25);
+    expect(cameraReactivityFromStability(1)).toBeCloseTo(1.75);
+    expect(cameraReactivityFromStability(Number.NaN)).toBeCloseTo(1);
+  });
+
+  it('a low reactivity holds the heading through bigger route wiggles than the default', () => {
+    expect(smoothBearing(90, 93, undefined, undefined, 0.25)).toBe(90);
+    expect(smoothBearing(90, 100, undefined, undefined, 0.25)).toBe(90);
+  });
+
+  it('a high reactivity turns and zooms faster than the default', () => {
+    const stableChange = smoothBearing(0, 150, undefined, undefined, 0.25) - 0;
+    const reactiveChange = smoothBearing(0, 150, undefined, undefined, 1.75) - 0;
+    expect(reactiveChange).toBeGreaterThan(stableChange);
+
+    const stableZoom = smoothZoom(15, 16, undefined, undefined, 0.25);
+    const reactiveZoom = smoothZoom(15, 16, undefined, undefined, 1.75);
+    expect(reactiveZoom - 15).toBeGreaterThan(stableZoom - 15);
   });
 });

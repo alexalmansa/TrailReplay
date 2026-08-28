@@ -196,6 +196,8 @@ export interface CameraSettings {
   bearing: number;
   followBehindPreset: 'very-close' | 'close' | 'medium' | 'far';
   followBehindZoomLevel: number;
+  /** 0 = maximally stable/smooth camera, 1 = maximally reactive/tight tracking. */
+  cameraStability: number;
 }
 
 export type VideoFormat = 'webm' | 'mp4';

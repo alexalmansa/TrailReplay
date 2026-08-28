@@ -142,6 +142,11 @@ export const fr = {
       medium: 'Moyenne',
       far: 'Lointaine',
     },
+    cameraStability: {
+      title: 'Stabilité de la caméra',
+      stable: 'Stable',
+      reactive: 'Réactive',
+    },
     units: 'Unités',
     unitMetric: 'Métrique (km)',
     unitImperial: 'Impérial (mi)',

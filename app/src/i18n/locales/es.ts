@@ -142,6 +142,11 @@ export const es = {
       medium: 'Medio',
       far: 'Lejos',
     },
+    cameraStability: {
+      title: 'Estabilidad de cámara',
+      stable: 'Estable',
+      reactive: 'Reactiva',
+    },
     units: 'Unidades',
     unitMetric: 'Métrico (km)',
     unitImperial: 'Imperial (mi)',

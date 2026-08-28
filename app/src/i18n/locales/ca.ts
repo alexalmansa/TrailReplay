@@ -142,6 +142,11 @@ export const ca = {
       medium: 'Mitjà',
       far: 'Lluny',
     },
+    cameraStability: {
+      title: 'Estabilitat de la càmera',
+      stable: 'Estable',
+      reactive: 'Reactiva',
+    },
     units: 'Unitats',
     unitMetric: 'Mètric (km)',
     unitImperial: 'Imperial (mi)',

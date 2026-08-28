@@ -1,8 +1,21 @@
+/**
+ * Scales a stability-tuned setting (0-1, where 0.5 matches the values tuned
+ * below) into a multiplier applied to smoothing speed and deadbands. 0 = very
+ * stable (quarter speed, wider deadbands), 1 = very reactive (1.75x speed,
+ * narrower deadbands).
+ */
+export function cameraReactivityFromStability(cameraStability: number): number {
+  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clamped = Math.max(0, Math.min(1, safeValue));
+  return 0.25 + clamped * 1.5;
+}
+
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
   smoothingFactor: number = 0.03,
   stabilityDeadbandDegrees: number = 4,
+  reactivity: number = 1,
 ): number {
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
@@ -12,14 +25,16 @@ export function smoothBearing(
   // section. At a close, pitched camera angle those tiny corrections read as
   // distracting side-to-side camera movement. Keep the current heading until
   // the route has made a meaningful turn; larger turns still take the normal
-  // smooth, shortest-path transition below.
-  if (Math.abs(diff) < stabilityDeadbandDegrees) {
+  // smooth, shortest-path transition below. A lower reactivity widens this
+  // deadband (more stable); a higher one narrows it (more responsive).
+  const deadband = stabilityDeadbandDegrees / reactivity;
+  if (Math.abs(diff) < deadband) {
     return (currentBearing + 360) % 360;
   }
 
   // Keep sharp switchbacks cinematic rather than snapping the view sideways.
-  const maxChange = 0.85;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+  const maxChange = 0.85 * reactivity;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
 
   return (currentBearing + change + 360) % 360;
 }
@@ -35,15 +50,17 @@ export function smoothZoom(
   targetZoom: number,
   smoothingFactor: number = 0.12,
   stabilityDeadband: number = 0.035,
+  reactivity: number = 1,
 ): number {
   const diff = targetZoom - currentZoom;
 
-  if (Math.abs(diff) < stabilityDeadband) {
+  const deadband = stabilityDeadband / reactivity;
+  if (Math.abs(diff) < deadband) {
     return currentZoom;
   }
 
-  const maxChange = diff < 0 ? 0.12 : 0.035;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+  const maxChange = (diff < 0 ? 0.12 : 0.035) * reactivity;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
 
   return currentZoom + change;
 }
@@ -58,15 +75,17 @@ export function smoothPitch(
   targetPitch: number,
   smoothingFactor: number = 0.12,
   stabilityDeadband: number = 0.35,
+  reactivity: number = 1,
 ): number {
   const diff = targetPitch - currentPitch;
 
-  if (Math.abs(diff) < stabilityDeadband) {
+  const deadband = stabilityDeadband / reactivity;
+  if (Math.abs(diff) < deadband) {
     return currentPitch;
   }
 
-  const maxChange = diff < 0 ? 0.6 : 0.22;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor));
+  const maxChange = (diff < 0 ? 0.6 : 0.22) * reactivity;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
 
   return currentPitch + change;
 }

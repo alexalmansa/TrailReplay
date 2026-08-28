@@ -8,7 +8,7 @@ import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
-import { smoothBearing, smoothPitch, smoothZoom } from '@/components/map/cameraUtils';
+import { cameraReactivityFromStability, smoothBearing, smoothPitch, smoothZoom } from '@/components/map/cameraUtils';
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
@@ -17,6 +17,8 @@ interface UseTrailPlaybackCameraParams {
   cameraCoordinates: number[][];
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
   cameraMode: 'overview' | 'follow' | 'follow-behind';
+  /** 0 = maximally stable/smooth camera, 1 = maximally reactive/tight tracking. */
+  cameraStability: number;
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
   currentIcon: string;
@@ -116,6 +118,7 @@ export function useTrailPlaybackCamera({
   cameraCoordinates,
   animationPhase,
   cameraMode,
+  cameraStability,
   completedCoordinates,
   computedJourney,
   currentIcon,
@@ -307,12 +310,19 @@ export function useTrailPlaybackCamera({
 
       // Follow the replay plan's evenly sampled forward heading. Raw GPX
       // bearings can jump at uneven samples and make tight turns feel abrupt.
+      const reactivity = cameraReactivityFromStability(cameraStability);
       targetBearingRef.current = targetPose.bearing;
-      smoothBearingRef.current = smoothBearing(smoothBearingRef.current, targetPose.bearing);
+      smoothBearingRef.current = smoothBearing(
+        smoothBearingRef.current,
+        targetPose.bearing,
+        undefined,
+        undefined,
+        reactivity,
+      );
 
       const currentZoom = mapRef.current.getZoom();
-      const newZoom = smoothZoom(currentZoom, targetPose.zoom);
-      const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch);
+      const newZoom = smoothZoom(currentZoom, targetPose.zoom, undefined, undefined, reactivity);
+      const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch, undefined, undefined, reactivity);
 
       // With 3D terrain the marker is drawn on the terrain surface, while the
       // camera aims at the centre point's elevation. MapLibre normally keeps
@@ -389,6 +399,7 @@ export function useTrailPlaybackCamera({
     allCoordinates,
     animationPhase,
     cameraMode,
+    cameraStability,
     cameraCoordinates,
     completedCoordinates,
     computedJourney,
