@@ -40,7 +40,7 @@ function colorFor(landmark: RouteLandmark) {
   // imagery without competing with the route's orange accent.
   if (landmark.source === 'user') return '#E86F51';
   if (['summit', 'high-point', 'highest-point'].includes(landmark.type)) return '#E86F51';
-  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#A86CC1';
+  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#6D7E96';
   if (['town', 'trailhead', 'aid-station'].includes(landmark.type)) return '#F7F2E8';
   if (landmark.type === 'waterfall') return '#63C5D9';
   if (['lake', 'water', 'river-crossing'].includes(landmark.type)) return '#3C9DCC';
