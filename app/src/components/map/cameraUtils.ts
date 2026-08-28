@@ -10,12 +10,36 @@ export function cameraReactivityFromStability(cameraStability: number): number {
   return 0.25 + clamped * 1.5;
 }
 
+/**
+ * The smoothing constants below are per-call caps on how far the camera may
+ * move. They were tuned against live playback, which updates the camera once
+ * per rendered animation frame at roughly this interval. Deterministic video
+ * export instead calls the smoothing functions once per *encoded* frame, so a
+ * 30fps export calls them half as often as a 60fps export over the same
+ * clip — without correcting for that, the exact same route plays back with
+ * half the camera movement at 30fps and double at 60fps. Callers should scale
+ * the actual elapsed time between calls against this reference to keep the
+ * camera's real-world speed constant regardless of frame rate.
+ */
+export const CAMERA_SMOOTHING_REFERENCE_FRAME_MS = 1000 / 60;
+
+export function frameTimeMultiplierFromDeltaMs(deltaMs: number): number {
+  if (!Number.isFinite(deltaMs) || deltaMs <= 0) return 1;
+  // Clamp so a stalled tab or a very low export fps can't make a single call
+  // fling the camera across a huge jump; it just catches up over a couple of
+  // extra calls instead, which stays smooth since every step still eases
+  // toward the same target pose.
+  const clampedDeltaMs = Math.min(deltaMs, CAMERA_SMOOTHING_REFERENCE_FRAME_MS * 4);
+  return clampedDeltaMs / CAMERA_SMOOTHING_REFERENCE_FRAME_MS;
+}
+
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
   smoothingFactor: number = 0.03,
   stabilityDeadbandDegrees: number = 4,
   reactivity: number = 1,
+  frameTimeMultiplier: number = 1,
 ): number {
   let diff = targetBearing - currentBearing;
   if (diff > 180) diff -= 360;
@@ -26,15 +50,18 @@ export function smoothBearing(
   // distracting side-to-side camera movement. Keep the current heading until
   // the route has made a meaningful turn; larger turns still take the normal
   // smooth, shortest-path transition below. A lower reactivity widens this
-  // deadband (more stable); a higher one narrows it (more responsive).
+  // deadband (more stable); a higher one narrows it (more responsive). This
+  // threshold is about ignoring GPS jitter, not about frame rate, so it is
+  // deliberately left unscaled by frameTimeMultiplier.
   const deadband = stabilityDeadbandDegrees / reactivity;
   if (Math.abs(diff) < deadband) {
     return (currentBearing + 360) % 360;
   }
 
   // Keep sharp switchbacks cinematic rather than snapping the view sideways.
-  const maxChange = 0.85 * reactivity;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
+  const speed = reactivity * frameTimeMultiplier;
+  const maxChange = 0.85 * speed;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
   return (currentBearing + change + 360) % 360;
 }
@@ -51,6 +78,7 @@ export function smoothZoom(
   smoothingFactor: number = 0.12,
   stabilityDeadband: number = 0.035,
   reactivity: number = 1,
+  frameTimeMultiplier: number = 1,
 ): number {
   const diff = targetZoom - currentZoom;
 
@@ -59,8 +87,9 @@ export function smoothZoom(
     return currentZoom;
   }
 
-  const maxChange = (diff < 0 ? 0.12 : 0.035) * reactivity;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
+  const speed = reactivity * frameTimeMultiplier;
+  const maxChange = (diff < 0 ? 0.12 : 0.035) * speed;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
   return currentZoom + change;
 }
@@ -76,6 +105,7 @@ export function smoothPitch(
   smoothingFactor: number = 0.12,
   stabilityDeadband: number = 0.35,
   reactivity: number = 1,
+  frameTimeMultiplier: number = 1,
 ): number {
   const diff = targetPitch - currentPitch;
 
@@ -84,8 +114,9 @@ export function smoothPitch(
     return currentPitch;
   }
 
-  const maxChange = (diff < 0 ? 0.6 : 0.22) * reactivity;
-  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * reactivity));
+  const speed = reactivity * frameTimeMultiplier;
+  const maxChange = (diff < 0 ? 0.6 : 0.22) * speed;
+  const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
   return currentPitch + change;
 }

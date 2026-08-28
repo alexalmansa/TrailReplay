@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateTerrainAwareAdjustments,
   cameraReactivityFromStability,
+  frameTimeMultiplierFromDeltaMs,
   smoothBearing,
   smoothPitch,
   smoothZoom,
@@ -63,5 +64,34 @@ describe('camera utilities', () => {
     const stableZoom = smoothZoom(15, 16, undefined, undefined, 0.25);
     const reactiveZoom = smoothZoom(15, 16, undefined, undefined, 1.75);
     expect(reactiveZoom - 15).toBeGreaterThan(stableZoom - 15);
+  });
+
+  it('maps elapsed time to a frame-time multiplier centered on a 60fps reference frame', () => {
+    expect(frameTimeMultiplierFromDeltaMs(1000 / 60)).toBeCloseTo(1);
+    expect(frameTimeMultiplierFromDeltaMs(1000 / 30)).toBeCloseTo(2);
+    expect(frameTimeMultiplierFromDeltaMs(1000 / 120)).toBeCloseTo(0.5);
+    // Non-finite or non-positive deltas (first frame, clock hiccups) fall back to neutral.
+    expect(frameTimeMultiplierFromDeltaMs(0)).toBe(1);
+    expect(frameTimeMultiplierFromDeltaMs(Number.NaN)).toBe(1);
+    // A huge gap (e.g. a backgrounded tab) is clamped rather than flinging the camera.
+    expect(frameTimeMultiplierFromDeltaMs(10_000)).toBeCloseTo(4);
+  });
+
+  it('produces the same total camera movement over a fixed clip regardless of export fps', () => {
+    // Simulates exporting the same 1-second turn at 30fps vs 60fps: without
+    // frame-time compensation, 60fps calls the smoothing function twice as
+    // often and the camera would travel roughly twice as far in that second.
+    const runFrames = (frameCount: number, deltaMs: number) => {
+      let bearing = 0;
+      for (let i = 0; i < frameCount; i += 1) {
+        const multiplier = frameTimeMultiplierFromDeltaMs(deltaMs);
+        bearing = smoothBearing(bearing, 90, undefined, undefined, 1, multiplier);
+      }
+      return bearing;
+    };
+
+    const after30fps = runFrames(30, 1000 / 30);
+    const after60fps = runFrames(60, 1000 / 60);
+    expect(after60fps).toBeCloseTo(after30fps, 1);
   });
 });

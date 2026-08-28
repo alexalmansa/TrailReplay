@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Feature, LineString } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import { INTRO_DURATION, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
@@ -8,7 +8,13 @@ import { getHeartRateColor } from '@/utils/gpxParser';
 import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
-import { cameraReactivityFromStability, smoothBearing, smoothPitch, smoothZoom } from '@/components/map/cameraUtils';
+import {
+  cameraReactivityFromStability,
+  frameTimeMultiplierFromDeltaMs,
+  smoothBearing,
+  smoothPitch,
+  smoothZoom,
+} from '@/components/map/cameraUtils';
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
@@ -141,6 +147,8 @@ export function useTrailPlaybackCamera({
   targetBearingRef,
   trailStyle,
 }: UseTrailPlaybackCameraParams) {
+  const lastCameraFrameTimeRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
 
@@ -311,6 +319,20 @@ export function useTrailPlaybackCamera({
       // Follow the replay plan's evenly sampled forward heading. Raw GPX
       // bearings can jump at uneven samples and make tight turns feel abrupt.
       const reactivity = cameraReactivityFromStability(cameraStability);
+
+      // The smoothing calls below cap how far the camera may move *per call*,
+      // not per second — so calling them more often (a higher live frame rate,
+      // or a higher export fps) previously made the camera move faster and
+      // travel further over the same clip. Scale by the actual elapsed time
+      // since the last call so the camera's real-world speed stays constant
+      // regardless of how often this effect runs.
+      const now = performance.now();
+      const deltaMs = lastCameraFrameTimeRef.current !== null
+        ? now - lastCameraFrameTimeRef.current
+        : null;
+      lastCameraFrameTimeRef.current = now;
+      const frameTimeMultiplier = deltaMs !== null ? frameTimeMultiplierFromDeltaMs(deltaMs) : 1;
+
       targetBearingRef.current = targetPose.bearing;
       smoothBearingRef.current = smoothBearing(
         smoothBearingRef.current,
@@ -318,11 +340,12 @@ export function useTrailPlaybackCamera({
         undefined,
         undefined,
         reactivity,
+        frameTimeMultiplier,
       );
 
       const currentZoom = mapRef.current.getZoom();
-      const newZoom = smoothZoom(currentZoom, targetPose.zoom, undefined, undefined, reactivity);
-      const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch, undefined, undefined, reactivity);
+      const newZoom = smoothZoom(currentZoom, targetPose.zoom, undefined, undefined, reactivity, frameTimeMultiplier);
+      const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch, undefined, undefined, reactivity, frameTimeMultiplier);
 
       // With 3D terrain the marker is drawn on the terrain surface, while the
       // camera aims at the centre point's elevation. MapLibre normally keeps
@@ -385,6 +408,11 @@ export function useTrailPlaybackCamera({
           easing: (value: number) => value,
         });
       }
+    } else {
+      // Playback is paused/idle or a new export is starting: don't let a gap
+      // since the last frame (e.g. time spent paused) be read as an elapsed
+      // delta once playback resumes.
+      lastCameraFrameTimeRef.current = null;
     }
 
     setCameraPosition({
