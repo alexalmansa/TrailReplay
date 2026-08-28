@@ -18,8 +18,11 @@ export function cameraReactivityFromStability(cameraStability: number): number {
  * 30fps export calls them half as often as a 60fps export over the same
  * clip — without correcting for that, the exact same route plays back with
  * half the camera movement at 30fps and double at 60fps. Callers should scale
- * the actual elapsed time between calls against this reference to keep the
- * camera's real-world speed constant regardless of frame rate.
+ * the elapsed *simulated playback time* between calls (not wall-clock time)
+ * against this reference to keep the camera's real-world speed constant
+ * regardless of frame rate. Wall-clock time doesn't work for this: during
+ * deterministic export, playback time advances by a fixed step per encoded
+ * frame independent of how long that frame actually takes to render.
  */
 export const CAMERA_SMOOTHING_REFERENCE_FRAME_MS = 1000 / 60;
 
@@ -119,6 +122,40 @@ export function smoothPitch(
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
   return currentPitch + change;
+}
+
+/**
+ * Chases a target lng/lat the way MapLibre's `easeTo({ duration })` would if
+ * retriggered every frame with a slowly moving target: each call advances by
+ * the fraction of `chaseDurationMs` that has elapsed, so repeated calls trace
+ * out the same decaying-lag path.
+ *
+ * Live playback used to get this lag "for free" from calling
+ * `map.easeTo({ center, duration: 100 })` every animation frame — a fresh
+ * 100ms linear ease queued on top of whatever ease was already in flight,
+ * which averages out route/GPS jitter into a smooth pan. Deterministic export
+ * instead has to render a fully-settled pose before every encoded frame (a
+ * mid-ease frame would bake motion blur into a still image), so it applies
+ * poses with `jumpTo` — which skipped this lag entirely and let every bit of
+ * jitter in `currentPosition` show up directly, making the exported camera
+ * visibly twitchier than the live preview of the exact same replay. Computing
+ * the same lag by hand and passing the result to `jumpTo` in both places
+ * keeps them visually identical while still letting export capture a
+ * fully-settled frame each time.
+ */
+export function smoothCoordinate(
+  current: [number, number],
+  target: [number, number],
+  deltaMs: number,
+  chaseDurationMs: number = 100,
+): [number, number] {
+  if (!Number.isFinite(deltaMs) || deltaMs <= 0) return target;
+
+  const t = Math.min(1, deltaMs / chaseDurationMs);
+  return [
+    current[0] + (target[0] - current[0]) * t,
+    current[1] + (target[1] - current[1]) * t,
+  ];
 }
 
 export const TERRAIN_CAMERA_SETTINGS = {

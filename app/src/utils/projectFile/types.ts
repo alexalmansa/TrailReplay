@@ -4,6 +4,7 @@ import type {
   IconChange,
   Journey,
   JourneySegment,
+  RouteTimingMode,
   SocialShareSettings,
   TextAnnotation,
   VideoExportSettings,
@@ -97,6 +98,7 @@ export interface ReplayProjectFile {
   enabledLandmarkGroups: LandmarkType[];
   nearbyPlaceTypes: LandmarkType[] | null;
   showAutomaticLandmarks: boolean;
+  routeTimingMode: RouteTimingMode;
   settings: AppSettings;
   cameraSettings: CameraSettings;
   videoExportSettings: VideoExportSettings;

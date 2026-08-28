@@ -4,6 +4,7 @@ import {
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
+  smoothCoordinate,
   smoothPitch,
   smoothZoom,
 } from './cameraUtils';
@@ -93,5 +94,31 @@ describe('camera utilities', () => {
     const after30fps = runFrames(30, 1000 / 30);
     const after60fps = runFrames(60, 1000 / 60);
     expect(after60fps).toBeCloseTo(after30fps, 1);
+  });
+
+  it('smoothCoordinate snaps straight to target on the first call', () => {
+    expect(smoothCoordinate([0, 0], [1, 2], -1)).toEqual([1, 2]);
+    expect(smoothCoordinate([0, 0], [1, 2], 0)).toEqual([1, 2]);
+  });
+
+  it('smoothCoordinate reaches the target once elapsed time covers the chase duration', () => {
+    expect(smoothCoordinate([0, 0], [1, 2], 100, 100)).toEqual([1, 2]);
+    expect(smoothCoordinate([0, 0], [1, 2], 500, 100)).toEqual([1, 2]);
+  });
+
+  it('smoothCoordinate advances proportionally to elapsed time for a partial step', () => {
+    expect(smoothCoordinate([0, 0], [10, 20], 25, 100)).toEqual([2.5, 5]);
+  });
+
+  it('smoothCoordinate keeps narrowing the gap to a fixed target over repeated small steps', () => {
+    let position: [number, number] = [0, 0];
+    let previousGap = 10;
+    for (let i = 0; i < 10; i += 1) {
+      position = smoothCoordinate(position, [10, 0], 10, 100);
+      const gap = 10 - position[0];
+      expect(gap).toBeLessThan(previousGap);
+      expect(gap).toBeGreaterThan(0);
+      previousGap = gap;
+    }
   });
 });

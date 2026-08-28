@@ -12,6 +12,7 @@ import {
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
+  smoothCoordinate,
   smoothPitch,
   smoothZoom,
 } from '@/components/map/cameraUtils';
@@ -25,6 +26,7 @@ interface UseTrailPlaybackCameraParams {
   cameraMode: 'overview' | 'follow' | 'follow-behind';
   /** 0 = maximally stable/smooth camera, 1 = maximally reactive/tight tracking. */
   cameraStability: number;
+  currentTimeMs: number;
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
   currentIcon: string;
@@ -64,7 +66,6 @@ interface UseTrailPlaybackCameraParams {
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
   isExporting: boolean;
-  isDeterministicExport: boolean;
   trailStyle: {
     colorMode: 'fixed' | 'heartRate' | 'zones';
     colorZones: readonly TrailColorZone[];
@@ -128,13 +129,13 @@ export function useTrailPlaybackCamera({
   completedCoordinates,
   computedJourney,
   currentIcon,
+  currentTimeMs,
   currentPosition,
   currentSegment,
   currentTrackColor,
   currentTrackName,
   elevationData,
   followBehindZoomLevel,
-  isDeterministicExport,
   isExporting,
   isInTransport,
   isMapLoaded,
@@ -148,6 +149,7 @@ export function useTrailPlaybackCamera({
   trailStyle,
 }: UseTrailPlaybackCameraParams) {
   const lastCameraFrameTimeRef = useRef<number | null>(null);
+  const smoothedCenterRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
@@ -323,14 +325,17 @@ export function useTrailPlaybackCamera({
       // The smoothing calls below cap how far the camera may move *per call*,
       // not per second — so calling them more often (a higher live frame rate,
       // or a higher export fps) previously made the camera move faster and
-      // travel further over the same clip. Scale by the actual elapsed time
-      // since the last call so the camera's real-world speed stays constant
-      // regardless of how often this effect runs.
-      const now = performance.now();
+      // travel further over the same clip. Scale by the elapsed *simulated*
+      // playback time since the last call (not wall-clock time) so the
+      // camera's speed relative to the route stays constant. Wall-clock time
+      // would be wrong here: deterministic export advances `currentTimeMs` by
+      // a fixed step per encoded frame regardless of how long each frame
+      // actually takes to render and encode, so the real elapsed time between
+      // calls doesn't reflect the export fps at all.
       const deltaMs = lastCameraFrameTimeRef.current !== null
-        ? now - lastCameraFrameTimeRef.current
+        ? currentTimeMs - lastCameraFrameTimeRef.current
         : null;
-      lastCameraFrameTimeRef.current = now;
+      lastCameraFrameTimeRef.current = currentTimeMs;
       const frameTimeMultiplier = deltaMs !== null ? frameTimeMultiplierFromDeltaMs(deltaMs) : 1;
 
       targetBearingRef.current = targetPose.bearing;
@@ -347,16 +352,24 @@ export function useTrailPlaybackCamera({
       const newZoom = smoothZoom(currentZoom, targetPose.zoom, undefined, undefined, reactivity, frameTimeMultiplier);
       const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch, undefined, undefined, reactivity, frameTimeMultiplier);
 
+      // Chase the marker's exact position the same way live playback used to
+      // get "for free" from re-triggering `map.easeTo({ center, duration: 100 })`
+      // every animation frame (see smoothCoordinate's doc comment for why that
+      // can't be used directly during export). Compute it by hand here so both
+      // paths land on the same rendered position.
+      const targetCenter: [number, number] = [currentPosition.lon, currentPosition.lat];
+      const smoothedCenter = smoothedCenterRef.current === null || deltaMs === null
+        ? targetCenter
+        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs);
+      smoothedCenterRef.current = smoothedCenter;
+
       // With 3D terrain the marker is drawn on the terrain surface, while the
       // camera aims at the centre point's elevation. MapLibre normally keeps
-      // that elevation clamped to the terrain for us — but it stops doing so
-      // for the rest of the session as soon as any `easeTo` has run with
-      // terrain enabled (`_elevationFreeze` is only cleared for eases that
-      // pass `freezeElevation`), and `jumpTo` never updates it at all. The
-      // replay camera eases every frame and the export jumps every frame, so
-      // the centre stays pinned at whatever elevation it last had while the
-      // marker climbs away from it: on a summit the marker leaves the top of
-      // the frame, and the error grows with altitude. Pass the elevation
+      // that elevation clamped to the terrain for us, but `jumpTo` (used for
+      // every camera update here, live or exported) never updates it at all,
+      // so the centre stays pinned at whatever elevation it last had while
+      // the marker climbs away from it: on a summit the marker leaves the top
+      // of the frame, and the error grows with altitude. Pass the elevation
       // explicitly with the rest of the pose. `queryTerrainElevation` already
       // includes the terrain exaggeration and returns null when terrain is
       // off, in which case we leave the elevation alone.
@@ -368,46 +381,27 @@ export function useTrailPlaybackCamera({
         ? { elevation: terrainElevation }
         : {};
 
-      // `easeTo` ignores an elevation passed in options - it derives its own
-      // target from the terrain and interpolates toward it, which lags behind
-      // on a continuous climb because every frame replaces the previous ease
-      // before it finishes. Setting it here first makes the eased path start
-      // from the correct height as well.
       if (centerElevation.elevation !== undefined
         && Math.abs(mapRef.current.transform.elevation - centerElevation.elevation) > 0.25) {
         mapRef.current.setCenterElevation(centerElevation.elevation);
       }
 
-      // During deterministic export, camera interpolation must not run on its
-      // own clock. The exporter advances playback one frame at a time and waits
-      // for this exact pose to render before encoding it.
-      if (isDeterministicExport) {
-        mapRef.current.jumpTo({
-          ...targetPose,
-          ...centerElevation,
-          center: [currentPosition.lon, currentPosition.lat],
-          zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
-          pitch: cameraMode === 'follow' ? targetPose.pitch : newPitch,
-          bearing: cameraMode === 'follow' ? targetPose.bearing : smoothBearingRef.current,
-        });
-      } else if (cameraMode === 'follow') {
-        mapRef.current.easeTo({
-          ...targetPose,
-          ...centerElevation,
-          center: [currentPosition.lon, currentPosition.lat],
-          duration: 100,
-        });
-      } else {
-        mapRef.current.easeTo({
-          ...centerElevation,
-          center: [currentPosition.lon, currentPosition.lat],
-          zoom: newZoom,
-          pitch: newPitch,
-          bearing: smoothBearingRef.current,
-          duration: 100,
-          easing: (value: number) => value,
-        });
-      }
+      // Apply the already-smoothed pose with `jumpTo` rather than `easeTo` in
+      // both live playback and export. `easeTo` used to be how live playback
+      // got its center-panning smoothing, but that made it diverge from
+      // export (which must render a fully-settled pose per encoded frame, so
+      // it always used `jumpTo`) — the live preview looked stable while the
+      // export was visibly twitchier, since it was missing that lag. Now that
+      // `smoothedCenter` reproduces the same lag deterministically, both
+      // paths apply identical values the same way.
+      mapRef.current.jumpTo({
+        ...targetPose,
+        ...centerElevation,
+        center: smoothedCenter,
+        zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
+        pitch: cameraMode === 'follow' ? targetPose.pitch : newPitch,
+        bearing: cameraMode === 'follow' ? targetPose.bearing : smoothBearingRef.current,
+      });
     } else {
       // Playback is paused/idle or a new export is starting: don't let a gap
       // since the last frame (e.g. time spent paused) be read as an elapsed
@@ -434,11 +428,11 @@ export function useTrailPlaybackCamera({
     currentIcon,
     currentPosition,
     currentSegment,
+    currentTimeMs,
     currentTrackColor,
     currentTrackName,
     elevationData,
     followBehindZoomLevel,
-    isDeterministicExport,
     isInTransport,
     isMapLoaded,
     mapRef,

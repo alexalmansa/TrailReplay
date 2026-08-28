@@ -124,4 +124,36 @@ describe('hydrateProject', () => {
 
     expect(targetStore.getState().pictures[0].routeDistance).toBeUndefined();
   });
+
+  it('carries camera stability and route timing mode through a save and reopen', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().setCameraSettings({ cameraStability: 0.9 });
+    sourceStore.getState().setRouteTimingMode('uniform');
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    const state = targetStore.getState();
+    expect(state.cameraSettings.cameraStability).toBe(0.9);
+    expect(state.playback.routeTimingMode).toBe('uniform');
+  });
+
+  it('defaults route timing mode to recorded for projects saved before it existed', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().setRouteTimingMode('uniform');
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+    delete (parsed.project as { routeTimingMode?: unknown }).routeTimingMode;
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
+  });
 });
