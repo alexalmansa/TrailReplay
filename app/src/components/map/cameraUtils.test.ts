@@ -23,6 +23,27 @@ describe('camera utilities', () => {
     expect(smoothBearing(0, 150)).toBeCloseTo(0.85);
   });
 
+  it('still widens the deadband at low stability, ignoring a turn the baseline would follow', () => {
+    // reactivity 0.25 (lowest stability) widens the deadband to 4/0.25 = 16
+    // degrees, so a 10-degree wiggle is still ignored the same as before.
+    expect(smoothBearing(90, 100, undefined, undefined, 0.25)).toBe(90);
+  });
+
+  it('turns faster at low stability than naively scaling speed by reactivity would', () => {
+    // Low stability (reactivity 0.25) used to also cap turn speed at 0.25x
+    // baseline (maxChange 0.85 * 0.25 = 0.2125/frame) — slow enough that on
+    // a curvy route the camera's facing direction permanently fell behind
+    // the route's real heading, breaking the follow-behind chase-camera
+    // illusion. It should now turn noticeably faster than that old cap,
+    // while still slower than the reactivity-1 baseline.
+    const oldNaiveMaxChange = 0.85 * 0.25;
+    const baselineMaxChange = 0.85 * 1;
+    const result = smoothBearing(0, 90, undefined, undefined, 0.25);
+    expect(result).toBeGreaterThan(oldNaiveMaxChange);
+    expect(result).toBeLessThan(baselineMaxChange);
+    expect(result).toBeCloseTo(0.53125, 5);
+  });
+
   it('holds zoom steady for tiny terrain-estimation changes', () => {
     expect(smoothZoom(15, 15.02)).toBe(15);
   });

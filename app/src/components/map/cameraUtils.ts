@@ -36,6 +36,24 @@ export function frameTimeMultiplierFromDeltaMs(deltaMs: number): number {
   return clampedDeltaMs / CAMERA_SMOOTHING_REFERENCE_FRAME_MS;
 }
 
+/**
+ * `reactivity` below 1 (the tuned baseline) used to also throttle how fast
+ * the bearing may *turn*, on top of widening the deadband. At the lowest
+ * stability setting (reactivity 0.25) that made turning ~4x slower than
+ * baseline, and on a curvy route the camera's facing direction permanently
+ * fell behind the route's real heading — instead of a chase camera looking
+ * behind the marker, it read as a near-static view just watching the marker
+ * drift through frame, because the direction it faced barely followed real
+ * turns. Widening the deadband is the actual point of lowering stability
+ * (ignore more GPS jitter); slowing the turn rate this much was an
+ * unintended side effect of reusing the same multiplier for both. Only
+ * soften the slowdown below the baseline, and leave reactivity >= 1 (the
+ * "more reactive" half) and the deadband untouched.
+ */
+function bearingTurnReactivity(reactivity: number): number {
+  return reactivity >= 1 ? reactivity : 1 - (1 - reactivity) * 0.5;
+}
+
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
@@ -62,7 +80,7 @@ export function smoothBearing(
   }
 
   // Keep sharp switchbacks cinematic rather than snapping the view sideways.
-  const speed = reactivity * frameTimeMultiplier;
+  const speed = bearingTurnReactivity(reactivity) * frameTimeMultiplier;
   const maxChange = 0.85 * speed;
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
