@@ -21,6 +21,12 @@ interface CalculateCurrentLiveStatsInput {
   segmentTimings: SegmentTiming[];
   totalDistance: number;
   tracks: GPXTrack[];
+  /** Video length in seconds, used as a fallback "duration" for routes with no recorded GPS time (see `elapsedTrackTime`). */
+  videoDurationSeconds?: number;
+}
+
+function recordedTime(track: GPXTrack | undefined): number {
+  return track ? track.movingTime || track.totalTime : 0;
 }
 
 export function calculateElevationGain(
@@ -43,21 +49,44 @@ function localProgressFor(timing: SegmentTiming, playbackProgress: number): numb
   return Math.max(0, Math.min(1, (playbackProgress - timing.progressStartRatio) / span));
 }
 
+/**
+ * GPX files with no recorded timestamps (common for planned/drawn routes,
+ * and for anyone using "Constant Pace" specifically because they don't have
+ * real timing data) leave every track's `movingTime`/`totalTime` at 0. That
+ * silently made this always return 0 regardless of playback position, so the
+ * "duration" stat looked stuck rather than reporting the one duration that
+ * *is* meaningful here: how far into the exported/played video the replay
+ * is. Fall back to that whenever none of the relevant tracks have real time
+ * data, instead of showing a duration that can never move.
+ */
 export function elapsedTrackTime(
   segmentTimings: SegmentTiming[],
   tracks: GPXTrack[],
   activeTrack: GPXTrack | undefined,
   playbackProgress: number,
+  videoDurationSeconds: number = 0,
 ): number {
   if (segmentTimings.length === 0) {
-    return activeTrack ? (activeTrack.movingTime || activeTrack.totalTime) * playbackProgress : 0;
+    const trackRealTime = recordedTime(activeTrack);
+    return trackRealTime > 0
+      ? trackRealTime * playbackProgress
+      : videoDurationSeconds * playbackProgress;
+  }
+
+  const hasRecordedTiming = segmentTimings.some((timing) => (
+    timing.type === 'track' && timing.trackId
+      ? recordedTime(tracks.find((candidate) => candidate.id === timing.trackId)) > 0
+      : false
+  ));
+  if (!hasRecordedTiming) {
+    return videoDurationSeconds * playbackProgress;
   }
 
   return segmentTimings.reduce((elapsed, timing) => {
     if (timing.type !== 'track' || !timing.trackId) return elapsed;
     const track = tracks.find((candidate) => candidate.id === timing.trackId);
     if (!track) return elapsed;
-    const trackRealTime = track.movingTime || track.totalTime;
+    const trackRealTime = recordedTime(track);
     if (playbackProgress >= timing.progressEndRatio) return elapsed + trackRealTime;
     if (playbackProgress > timing.progressStartRatio) {
       return elapsed + trackRealTime * localProgressFor(timing, playbackProgress);
@@ -123,6 +152,7 @@ export function calculateCurrentLiveStats({
   segmentTimings,
   totalDistance,
   tracks,
+  videoDurationSeconds = 0,
 }: CalculateCurrentLiveStatsInput): CurrentLiveStats {
   const currentTiming = segmentTimings.find(
     (timing) => timing.segmentIndex === currentPosition.segmentIndex,
@@ -137,12 +167,16 @@ export function calculateCurrentLiveStats({
   else distance = currentPosition.distance ?? distance;
   if (resetThisSegment) distance = currentPosition.distance ?? 0;
 
-  let duration = elapsedTrackTime(segmentTimings, tracks, activeTrack, playbackProgress);
+  let duration = elapsedTrackTime(segmentTimings, tracks, activeTrack, playbackProgress, videoDurationSeconds);
   if (resetThisSegment) {
-    duration = currentTiming?.type === 'track' && currentTrack
-      ? (currentTrack.movingTime || currentTrack.totalTime)
-        * localProgressFor(currentTiming, playbackProgress)
-      : 0;
+    if (currentTiming?.type === 'track' && currentTrack) {
+      const trackRealTime = recordedTime(currentTrack);
+      duration = trackRealTime > 0
+        ? trackRealTime * localProgressFor(currentTiming, playbackProgress)
+        : (currentTiming.duration / 1000) * localProgressFor(currentTiming, playbackProgress);
+    } else {
+      duration = 0;
+    }
   }
 
   const rollingSpeed = completedKilometerSpeed(

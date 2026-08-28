@@ -50,8 +50,9 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
       segmentTimings,
       totalDistance,
       tracks,
+      videoDurationSeconds: playback.totalDuration / 1000,
     });
-  }, [activeTrack, computedJourney, currentPosition, playback.progress, segmentTimings, settings.journeyStatsMode, totalDistance, tracks]);
+  }, [activeTrack, computedJourney, currentPosition, playback.progress, playback.totalDuration, segmentTimings, settings.journeyStatsMode, totalDistance, tracks]);
 
   /**
    * Breite, die jede Kachel dauerhaft freihaelt.
@@ -83,13 +84,13 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     const fastest = journeyTracks.reduce((highest, track) => Math.max(highest, track.maxSpeed || 0), 0);
 
     return {
-      duration: formatStatsDuration(elapsedTrackTime(segmentTimings, tracks, activeTrack, 1)),
+      duration: formatStatsDuration(elapsedTrackTime(segmentTimings, tracks, activeTrack, 1, playback.totalDuration / 1000)),
       distance: formatDistance(totalDistance, settings.unitSystem),
       elevation: formatElevation(totalElevationGain, settings.unitSystem),
       altitude: formatElevation(highestPoint, settings.unitSystem),
       speed: formatSpeedFromKmh(fastest, settings.unitSystem),
     };
-  }, [activeTrack, segmentTimings, settings.unitSystem, totalDistance, tracks]);
+  }, [activeTrack, playback.totalDuration, segmentTimings, settings.unitSystem, totalDistance, tracks]);
 
   if (!currentStats || journeySegments.length === 0) return null;
 
