@@ -18,7 +18,6 @@ import {
 
 const DEFAULT_TRACK_SEGMENT_DURATION_MS = 30_000;
 const VIDEO_DURATION_OPTIONS = [15, 30, 60, 90] as const;
-const MAX_SEGMENT_DURATION_SECONDS = 120;
 
 export function JourneyPanel() {
   const { t } = useI18n();
@@ -39,7 +38,9 @@ export function JourneyPanel() {
   const [showTransportMenu, setShowTransportMenu] = useState(false);
   const [selectedTransportIndex, setSelectedTransportIndex] = useState<number | null>(null);
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
-  const [customDuration, setCustomDuration] = useState<number>(30);
+  // '' while the input is cleared mid-edit, so the field doesn't snap to a
+  // forced minimum the instant the user deletes all the digits.
+  const [customDuration, setCustomDuration] = useState<number | ''>(30);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const setVideoDuration = (seconds: number) => {
@@ -143,8 +144,8 @@ export function JourneyPanel() {
     setSelectedTransportIndex(null);
   };
   
-  const updateSegmentDuration = (segmentId: string, duration: number) => {
-    const boundedDuration = Math.min(MAX_SEGMENT_DURATION_SECONDS, Math.max(1, duration));
+  const updateSegmentDuration = (segmentId: string, duration: number | '') => {
+    const boundedDuration = Math.max(1, duration || 1);
     updateJourneySegmentDuration(segmentId, boundedDuration * 1000);
     setEditingSegment(null);
   };
@@ -385,7 +386,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 30000) / 1000));
+                      setCustomDuration((segment.duration || 30000) / 1000);
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -396,7 +397,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 5000) / 1000));
+                      setCustomDuration((segment.duration || 5000) / 1000);
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -518,13 +519,22 @@ export function JourneyPanel() {
                   <input
                     type="number"
                     value={customDuration}
-                    onChange={(e) => setCustomDuration(Math.min(
-                      MAX_SEGMENT_DURATION_SECONDS,
-                      Math.max(1, parseInt(e.target.value) || 1)
-                    ))}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setCustomDuration('');
+                        return;
+                      }
+                      const parsed = parseInt(raw, 10);
+                      if (!Number.isNaN(parsed)) {
+                        setCustomDuration(Math.max(1, parsed));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (customDuration === '') setCustomDuration(1);
+                    }}
                     className="flex-1 px-3 py-2 border-2 border-[var(--evergreen)]/30 rounded-lg bg-[var(--canvas)] text-[var(--evergreen)]"
                     min="1"
-                    max={MAX_SEGMENT_DURATION_SECONDS}
                     autoFocus
                   />
                   <span className="text-sm text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>
