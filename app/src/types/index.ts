@@ -171,6 +171,7 @@ export interface PlaybackState {
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback' | 'mapbox-streets';
 export type LanguageCode = 'en' | 'es' | 'ca' | 'de' | 'fr';
 export type RouteTimingMode = 'recorded' | 'uniform';
+export type JourneyStatsMode = 'cumulative' | 'per-track';
 
 export interface MapOverlays {
   skiPistes: boolean;
@@ -195,6 +196,8 @@ export interface CameraSettings {
   bearing: number;
   followBehindPreset: 'very-close' | 'close' | 'medium' | 'far';
   followBehindZoomLevel: number;
+  /** 0 = maximally stable/smooth camera, 1 = maximally reactive/tight tracking. */
+  cameraStability: number;
 }
 
 export type VideoFormat = 'webm' | 'mp4';
@@ -298,6 +301,7 @@ export interface AppSettings {
   waybackRelease: number | null;
   waybackItemURL: string | null;
   visibleStats: StatId[];
+  journeyStatsMode: JourneyStatsMode;
   statsPosition: { x: number; y: number } | null;
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;

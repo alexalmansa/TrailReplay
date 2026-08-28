@@ -1,5 +1,6 @@
 import type { AppState } from '@/store/storeTypes';
 import { parseGPX } from '@/utils/gpxParser';
+import { createDefaultCameraSettings, createDefaultPlayback } from '@/store/defaults';
 import type { ComparisonTrack, PictureAnnotation, VideoAnnotation } from '@/types';
 import type { ParsedProject, SerializedPicture, SerializedVideo } from './types';
 
@@ -84,8 +85,15 @@ export function hydrateProject(parsed: ParsedProject, store: AppState): void {
     enabledLandmarkGroups: project.enabledLandmarkGroups,
     nearbyPlaceTypes: project.nearbyPlaceTypes,
     showAutomaticLandmarks: project.showAutomaticLandmarks,
+    // Older saved projects predate routeTimingMode; fall back to 'recorded'
+    // (the app default) rather than leaving it undefined. Built from the
+    // defaults rather than `store.playback`, since `store` was captured
+    // before `store.reset()` above and still holds the pre-reset value.
+    playback: { ...createDefaultPlayback(), routeTimingMode: project.routeTimingMode ?? 'recorded' },
     settings: project.settings,
-    cameraSettings: project.cameraSettings,
+    // Older saved projects predate cameraStability; backfill it so an
+    // undefined value doesn't turn the camera smoothing math into NaN.
+    cameraSettings: { ...createDefaultCameraSettings(), ...project.cameraSettings },
     videoExportSettings: project.videoExportSettings,
     socialShareSettings: project.socialShareSettings,
     activePanel: 'tracks',

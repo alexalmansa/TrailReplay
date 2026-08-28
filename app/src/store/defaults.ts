@@ -54,6 +54,7 @@ export function createDefaultSettings(): AppSettings {
     waybackRelease: null,
     waybackItemURL: null,
     visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],
+    journeyStatsMode: 'cumulative',
     statsPosition: null,
     paceMode: 'per-km' as const,
     showElevationProfile: true,
@@ -68,6 +69,7 @@ export function createDefaultCameraSettings(): CameraSettings {
     bearing: 0,
     followBehindPreset: DEFAULT_FOLLOW_BEHIND_PRESET,
     followBehindZoomLevel: getFollowBehindZoomLevelForPreset(DEFAULT_FOLLOW_BEHIND_PRESET),
+    cameraStability: 0.5,
   };
 }
 

@@ -13,7 +13,6 @@ const AUTO_RESET_DELAY = 3000; // 3 seconds after outro before auto-reset
 
 // Duration limits (in milliseconds)
 const MIN_DURATION = 15000; // Keep the 15-second Timeline preset valid
-const MAX_DURATION = 120000; // 120 seconds maximum
 
 export function PlaybackProvider({ children }: PlaybackProviderProps) {
   const playback = useAppStore((state) => state.playback);
@@ -37,8 +36,10 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
 
   const activeTrack = tracks.find((t) => t.id === activeTrackId);
 
-  // Calculate total duration based on journey segments or active track
-  // Duration is clamped between 15-120 seconds to match the Timeline presets.
+  // Calculate total duration based on journey segments or active track.
+  // Only a floor is enforced (to keep the 15-second Timeline preset valid);
+  // there's no upper cap, so segment durations set in the Journey panel are
+  // fully honored regardless of how long the resulting video is.
   const calculateTotalDuration = useCallback(() => {
     let duration = 0;
 
@@ -50,8 +51,7 @@ export function PlaybackProvider({ children }: PlaybackProviderProps) {
       duration = 60000;
     }
 
-    // Clamp duration between MIN and MAX
-    return Math.max(MIN_DURATION, Math.min(MAX_DURATION, duration));
+    return Math.max(MIN_DURATION, duration);
   }, [journeySegments, activeTrack]);
 
   // Clear all timeouts

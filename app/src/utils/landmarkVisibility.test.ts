@@ -8,4 +8,21 @@ describe('selectVisibleLandmarks', () => {
   it('caps very-close icon candidates at six', () => {
     expect(selectVisibleLandmarks(landmarks, { mode: 'follow-behind', preset: 'very-close', progress: 0, totalDistanceMeters: 1_000 }).length).toBe(6);
   });
+
+  it('keeps a wider landmark window for long-distance far views', () => {
+    const distant = [{ ...landmarks[0], id: 'distant', routeDistanceMeters: 12_000 }];
+    expect(selectVisibleLandmarks(distant, { mode: 'follow-behind', preset: 'far', progress: 0, totalDistanceMeters: 100_000 })).toHaveLength(1);
+    expect(selectVisibleLandmarks(distant, { mode: 'follow-behind', preset: 'close', progress: 0, totalDistanceMeters: 100_000 })).toHaveLength(0);
+  });
+
+  it('uses actual route distance when replay time is not proportional to distance', () => {
+    const nearMarker = [{ ...landmarks[0], id: 'actual-distance', routeDistanceMeters: 70_000 }];
+    expect(selectVisibleLandmarks(nearMarker, {
+      mode: 'follow-behind',
+      preset: 'medium',
+      progress: 0.2,
+      totalDistanceMeters: 100_000,
+      currentDistanceMeters: 70_000,
+    })).toHaveLength(1);
+  });
 });

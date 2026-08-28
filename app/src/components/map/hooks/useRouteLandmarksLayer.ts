@@ -40,7 +40,7 @@ function colorFor(landmark: RouteLandmark) {
   // imagery without competing with the route's orange accent.
   if (landmark.source === 'user') return '#E86F51';
   if (['summit', 'high-point', 'highest-point'].includes(landmark.type)) return '#E86F51';
-  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#A86CC1';
+  if (['pass', 'finish', 'halfway'].includes(landmark.type)) return '#6D7E96';
   if (['town', 'trailhead', 'aid-station'].includes(landmark.type)) return '#F7F2E8';
   if (landmark.type === 'waterfall') return '#63C5D9';
   if (['lake', 'water', 'river-crossing'].includes(landmark.type)) return '#3C9DCC';
@@ -79,10 +79,10 @@ export function useRouteLandmarksLayer({ landmarks, isMapLoaded, mapRef }: { lan
     });
     if (!map.getSource(SOURCE)) map.addSource(SOURCE, { type: 'geojson', data: data([]) });
     if (!map.getLayer(ICON)) map.addLayer({ id: ICON, type: 'symbol', source: SOURCE, layout: {
-      'icon-image': ['concat', IMAGE_PREFIX, ['get', 'icon']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.62, 15, 0.92], 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'symbol-sort-key': ['get', 'importance'],
+      'icon-image': ['concat', IMAGE_PREFIX, ['get', 'icon']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.52, 9, 0.62, 15, 0.92], 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'symbol-sort-key': ['get', 'importance'],
     }, paint: { 'icon-color': ['get', 'color'], 'icon-opacity': ['get', 'opacity'] } });
     if (!map.getLayer(LABEL)) map.addLayer({ id: LABEL, type: 'symbol', source: SOURCE, layout: {
-      'text-field': ['get', 'title'], 'text-font': ['Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 0, 11, 12, 15, 13], 'text-max-width': 11, 'text-offset': [0, 1.7], 'text-anchor': 'top', 'text-optional': true, 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['get', 'importance'],
+      'text-field': ['get', 'title'], 'text-font': ['Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 9, 9, 10, 11, 12, 15, 13], 'text-max-width': 11, 'text-offset': [0, 1.7], 'text-anchor': 'top', 'text-optional': true, 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['get', 'importance'],
     }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#030506', 'text-halo-width': 3.5, 'text-halo-blur': 0.6, 'text-opacity': ['get', 'opacity'] } });
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data(landmarks));
   }, [isMapLoaded, landmarks, mapRef]);

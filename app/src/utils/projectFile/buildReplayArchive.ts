@@ -112,6 +112,7 @@ export async function buildReplayArchive(state: AppState): Promise<Blob> {
     enabledLandmarkGroups: state.enabledLandmarkGroups,
     nearbyPlaceTypes: state.nearbyPlaceTypes,
     showAutomaticLandmarks: state.showAutomaticLandmarks,
+    routeTimingMode: state.playback.routeTimingMode,
     settings: state.settings,
     cameraSettings: state.cameraSettings,
     videoExportSettings: state.videoExportSettings,

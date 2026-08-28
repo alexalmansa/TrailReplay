@@ -382,6 +382,30 @@ export function SettingsPanel() {
             </div>
           </div>
         )}
+
+        {/* Camera Stability */}
+        {cameraSettings.mode !== 'overview' && (
+          <div className="mt-3 p-3 bg-[var(--evergreen)]/5 rounded-lg">
+            <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.cameraStability.title')}</p>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={cameraSettings.cameraStability}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setCameraSettings({ cameraStability: value });
+                trackEvent('settings_changed', { setting_name: 'camera_stability', setting_value: value });
+              }}
+              className="w-full accent-[var(--trail-orange)]"
+            />
+            <div className="flex justify-between text-[10px] text-[var(--evergreen-60)]">
+              <span>{t('settings.cameraStability.stable')}</span>
+              <span>{t('settings.cameraStability.reactive')}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Terrain */}

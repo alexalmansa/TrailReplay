@@ -18,7 +18,6 @@ import {
 
 const DEFAULT_TRACK_SEGMENT_DURATION_MS = 30_000;
 const VIDEO_DURATION_OPTIONS = [15, 30, 60, 90] as const;
-const MAX_SEGMENT_DURATION_SECONDS = 120;
 
 export function JourneyPanel() {
   const { t } = useI18n();
@@ -31,6 +30,7 @@ export function JourneyPanel() {
   const updateJourneySegmentDuration = useAppStore((state) => state.updateJourneySegmentDuration);
   const clearJourney = useAppStore((state) => state.clearJourney);
   const settings = useAppStore((state) => state.settings);
+  const setSettings = useAppStore((state) => state.setSettings);
   const routeTimingMode = useAppStore((state) => state.playback.routeTimingMode);
   const setRouteTimingMode = useAppStore((state) => state.setRouteTimingMode);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
@@ -38,7 +38,9 @@ export function JourneyPanel() {
   const [showTransportMenu, setShowTransportMenu] = useState(false);
   const [selectedTransportIndex, setSelectedTransportIndex] = useState<number | null>(null);
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
-  const [customDuration, setCustomDuration] = useState<number>(30);
+  // '' while the input is cleared mid-edit, so the field doesn't snap to a
+  // forced minimum the instant the user deletes all the digits.
+  const [customDuration, setCustomDuration] = useState<number | ''>(30);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const setVideoDuration = (seconds: number) => {
@@ -142,8 +144,8 @@ export function JourneyPanel() {
     setSelectedTransportIndex(null);
   };
   
-  const updateSegmentDuration = (segmentId: string, duration: number) => {
-    const boundedDuration = Math.min(MAX_SEGMENT_DURATION_SECONDS, Math.max(1, duration));
+  const updateSegmentDuration = (segmentId: string, duration: number | '') => {
+    const boundedDuration = Math.max(1, duration || 1);
     updateJourneySegmentDuration(segmentId, boundedDuration * 1000);
     setEditingSegment(null);
   };
@@ -245,7 +247,43 @@ export function JourneyPanel() {
         </div>
       )}
 
-      {/* Building a multi-route story is only relevant when there is another route to add. */}
+      {journeySegments.filter((segment) => segment.type === 'track').length > 1 && (
+        <section className="rounded-xl border border-[var(--evergreen)]/20 bg-[var(--evergreen)]/5 p-3">
+          <div className="flex items-start gap-2">
+            <GitCompareArrows className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" />
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--evergreen)]">
+                {t('journey.statsMode')}
+              </h3>
+              <p className="mt-1 text-[11px] leading-4 text-[var(--evergreen-60)]">
+                {t('journey.statsModeHint')}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(['cumulative', 'per-track'] as const).map((mode) => {
+              const active = settings.journeyStatsMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSettings({ journeyStatsMode: mode })}
+                  aria-pressed={active}
+                  className={`min-w-0 rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${
+                    active
+                      ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                      : 'border-[var(--evergreen)]/20 bg-[var(--canvas)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]/60 hover:bg-[var(--trail-orange-15)]'
+                  }`}
+                >
+                  {t(mode === 'cumulative' ? 'journey.statsModeCumulative' : 'journey.statsModePerTrack')}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Quick Start */}
       {tracks.length > 1 && (
         <div className="bg-[var(--trail-orange-15)] border border-[var(--trail-orange)]/30 rounded-lg p-3">
           <h3 className="text-xs font-bold text-[var(--trail-orange)] uppercase tracking-wide mb-2">
@@ -348,7 +386,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 30000) / 1000));
+                      setCustomDuration((segment.duration || 30000) / 1000);
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -359,7 +397,7 @@ export function JourneyPanel() {
                     onRemove={() => removeJourneySegment(segment.id)}
                     onEditDuration={() => {
                       setEditingSegment(segment.id);
-                      setCustomDuration(Math.min(MAX_SEGMENT_DURATION_SECONDS, (segment.duration || 5000) / 1000));
+                      setCustomDuration((segment.duration || 5000) / 1000);
                     }}
                     onSeek={() => seekToProgress(getSegmentProgress(index))}
                   />
@@ -481,13 +519,22 @@ export function JourneyPanel() {
                   <input
                     type="number"
                     value={customDuration}
-                    onChange={(e) => setCustomDuration(Math.min(
-                      MAX_SEGMENT_DURATION_SECONDS,
-                      Math.max(1, parseInt(e.target.value) || 1)
-                    ))}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setCustomDuration('');
+                        return;
+                      }
+                      const parsed = parseInt(raw, 10);
+                      if (!Number.isNaN(parsed)) {
+                        setCustomDuration(Math.max(1, parsed));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (customDuration === '') setCustomDuration(1);
+                    }}
                     className="flex-1 px-3 py-2 border-2 border-[var(--evergreen)]/30 rounded-lg bg-[var(--canvas)] text-[var(--evergreen)]"
                     min="1"
-                    max={MAX_SEGMENT_DURATION_SECONDS}
                     autoFocus
                   />
                   <span className="text-sm text-[var(--evergreen-60)]">{t('common.secondsShort')}</span>

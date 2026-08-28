@@ -4,6 +4,7 @@ import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
 import type { StatId } from '@/types';
+import { calculateCurrentLiveStats, elapsedTrackTime } from './liveStats';
 import {
   Route,
   Timer,
@@ -38,145 +39,20 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     computedJourney,
   } = useComputedJourney();
 
-  const calculateElevationGainFromPoints = (points: Array<{ elevation: number }>, upToIndex: number): number => {
-    if (upToIndex <= 0 || points.length === 0) return 0;
-    let elevationGain = 0;
-    const endIndex = Math.min(upToIndex, points.length - 1);
-    for (let i = 1; i <= endIndex; i++) {
-      const elevationDiff = points[i].elevation - points[i - 1].elevation;
-      if (elevationDiff > 0) elevationGain += elevationDiff;
-    }
-    return elevationGain;
-  };
-
-  const computeRealElapsedAtProgress = useMemo(() => {
-    return (progress: number): number => {
-      if (segmentTimings.length > 0) {
-        let elapsed = 0;
-        for (const timing of segmentTimings) {
-          if (timing.type !== 'track' || !timing.trackId) continue;
-          const track = tracks.find((t) => t.id === timing.trackId);
-          if (!track) continue;
-          const trackRealTime = track.movingTime || track.totalTime;
-          if (progress >= timing.progressEndRatio) {
-            elapsed += trackRealTime;
-          } else if (progress > timing.progressStartRatio) {
-            const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
-            const localProgress = segmentSpan > 0
-              ? (progress - timing.progressStartRatio) / segmentSpan
-              : 0;
-            elapsed += trackRealTime * localProgress;
-          }
-        }
-        return elapsed;
-      } else if (activeTrack) {
-        return (activeTrack.movingTime || activeTrack.totalTime) * progress;
-      }
-      return 0;
-    };
-  }, [segmentTimings, tracks, activeTrack]);
-
   const currentStats = useMemo(() => {
     if (!currentPosition) return null;
-
-    // Accurate current journey distance from actual interpolated position
-    let distanceAtProgress = totalDistance * playback.progress;
-    if (currentPosition) {
-      if (segmentTimings.length > 0) {
-        const posTiming = segmentTimings.find((t) => t.segmentIndex === currentPosition.segmentIndex);
-        if (posTiming) distanceAtProgress = posTiming.startDistance + (currentPosition.distance ?? 0);
-      } else {
-        distanceAtProgress = currentPosition.distance ?? distanceAtProgress;
-      }
-    }
-
-    const realElapsedSeconds = computeRealElapsedAtProgress(playback.progress);
-    const averageSpeedMps = realElapsedSeconds > 0 ? distanceAtProgress / realElapsedSeconds : 0;
-
-    // Per-km pace: pace for the last *completed* km using GPS timestamps (only updates at km boundaries)
-    const completedKms = Math.floor(distanceAtProgress / 1000);
-    let perKmSpeedMps = 0; // shows '--:--' until first km completes
-    if (completedKms >= 1) {
-      const kmStartDist = (completedKms - 1) * 1000;
-      const kmEndDist = completedKms * 1000;
-
-      // Find the coordinate nearest to a journey-cumulative distance via binary search
-      const findCoordAt = (targetMeters: number) => {
-        if (computedJourney && segmentTimings.length > 0) {
-          for (const t of segmentTimings) {
-            if (targetMeters >= t.startDistance && targetMeters <= t.endDistance) {
-              const seg = computedJourney.coordinates.slice(t.startCoordIndex, t.endCoordIndex + 1);
-              const local = targetMeters - t.startDistance;
-              let lo = 0, hi = seg.length - 1;
-              while (lo < hi) {
-                const mid = (lo + hi) >> 1;
-                if ((seg[mid].distance ?? 0) < local) lo = mid + 1;
-                else hi = mid;
-              }
-              return seg[lo] ?? null;
-            }
-          }
-        } else if (activeTrack) {
-          const pts = activeTrack.points;
-          let lo = 0, hi = pts.length - 1;
-          while (lo < hi) {
-            const mid = (lo + hi) >> 1;
-            if (pts[mid].distance < targetMeters) lo = mid + 1;
-            else hi = mid;
-          }
-          return pts[lo] ?? null;
-        }
-        return null;
-      };
-
-      const startCoord = findCoordAt(kmStartDist);
-      const endCoord = findCoordAt(kmEndDist);
-      if (startCoord?.time && endCoord?.time) {
-        const elapsed = (endCoord.time.getTime() - startCoord.time.getTime()) / 1000;
-        if (elapsed > 0) perKmSpeedMps = 1000 / elapsed;
-      }
-    }
-
-    let cumulativeElevationGain = 0;
-    if (computedJourney && segmentTimings.length > 0) {
-      for (const timing of segmentTimings) {
-        if (timing.type !== 'track') continue;
-        if (playback.progress >= timing.progressEndRatio) {
-          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
-          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, segmentCoords.length - 1);
-        } else if (playback.progress > timing.progressStartRatio) {
-          const segmentSpan = timing.progressEndRatio - timing.progressStartRatio;
-          const localProgress = segmentSpan > 0
-            ? (playback.progress - timing.progressStartRatio) / segmentSpan
-            : 0;
-          const segmentLength = timing.endCoordIndex - timing.startCoordIndex + 1;
-          const upToIndex = Math.floor(localProgress * (segmentLength - 1));
-          const segmentCoords = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
-          cumulativeElevationGain += calculateElevationGainFromPoints(segmentCoords, upToIndex);
-          break;
-        }
-      }
-    } else if (activeTrack) {
-      const targetDistance = activeTrack.totalDistance * playback.progress;
-      let currentPointIndex = 0;
-      for (let i = 0; i < activeTrack.points.length; i++) {
-        if (activeTrack.points[i].distance >= targetDistance) { currentPointIndex = i; break; }
-        currentPointIndex = i;
-      }
-      cumulativeElevationGain = calculateElevationGainFromPoints(activeTrack.points, currentPointIndex);
-    }
-
-    return {
-      distance: distanceAtProgress,
-      duration: realElapsedSeconds,
-      averageSpeed: averageSpeedMps,
-      rollingSpeed: perKmSpeedMps,
-      currentSpeed: currentPosition.speed || 0,
-      elevationGain: cumulativeElevationGain,
-      altitude: currentPosition.elevation ?? null,
-      heartRate: currentPosition.heartRate,
-    };
-  }, [currentPosition, playback, totalDistance, computeRealElapsedAtProgress, segmentTimings, activeTrack, computedJourney]);
+    return calculateCurrentLiveStats({
+      activeTrack,
+      computedJourney,
+      currentPosition,
+      playbackProgress: playback.progress,
+      restartPerTrack: settings.journeyStatsMode === 'per-track',
+      segmentTimings,
+      totalDistance,
+      tracks,
+      videoDurationSeconds: playback.totalDuration / 1000,
+    });
+  }, [activeTrack, computedJourney, currentPosition, playback.progress, playback.totalDuration, segmentTimings, settings.journeyStatsMode, totalDistance, tracks]);
 
   /**
    * Breite, die jede Kachel dauerhaft freihaelt.
@@ -208,13 +84,13 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
     const fastest = journeyTracks.reduce((highest, track) => Math.max(highest, track.maxSpeed || 0), 0);
 
     return {
-      duration: formatStatsDuration(computeRealElapsedAtProgress(1)),
+      duration: formatStatsDuration(elapsedTrackTime(segmentTimings, tracks, activeTrack, 1, playback.totalDuration / 1000)),
       distance: formatDistance(totalDistance, settings.unitSystem),
       elevation: formatElevation(totalElevationGain, settings.unitSystem),
       altitude: formatElevation(highestPoint, settings.unitSystem),
       speed: formatSpeedFromKmh(fastest, settings.unitSystem),
     };
-  }, [activeTrack, computeRealElapsedAtProgress, segmentTimings, settings.unitSystem, totalDistance, tracks]);
+  }, [activeTrack, playback.totalDuration, segmentTimings, settings.unitSystem, totalDistance, tracks]);
 
   if (!currentStats || journeySegments.length === 0) return null;
 

@@ -61,7 +61,6 @@ export function TrailMap(_props: TrailMapProps) {
   const playback = useAppStore((state) => state.playback);
   const animationPhase = useAppStore((state) => state.animationPhase);
   const isExporting = useAppStore((state) => state.isExporting);
-  const isDeterministicExport = useAppStore((state) => state.isDeterministicExport);
   const setAnimationPhase = useAppStore((state) => state.setAnimationPhase);
   const setCameraPosition = useAppStore((state) => state.setCameraPosition);
   const setCameraSettings = useAppStore((state) => state.setCameraSettings);
@@ -159,7 +158,6 @@ export function TrailMap(_props: TrailMapProps) {
 
   useBaseMapPresentation({
     currentTrackColor: currentTrackColor ?? null,
-    currentTrackName: currentTrackName ?? null,
     isMapLoaded,
     mapRef: map,
     settings,
@@ -193,16 +191,17 @@ export function TrailMap(_props: TrailMapProps) {
     cameraCoordinates: cameraPathCoordinates,
     animationPhase,
     cameraMode,
+    cameraStability: cameraSettings.cameraStability,
     completedCoordinates,
     computedJourney,
     currentIcon,
+    currentTimeMs: playback.currentTime,
     currentPosition,
     currentSegment,
     currentTrackColor: currentTrackColor ?? null,
     currentTrackName: currentTrackName ?? null,
     elevationData,
     followBehindZoomLevel,
-    isDeterministicExport,
     isExporting,
     isInTransport,
     isMapLoaded,
