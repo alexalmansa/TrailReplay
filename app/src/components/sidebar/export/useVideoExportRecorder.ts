@@ -306,9 +306,14 @@ export function useVideoExportRecorder() {
     }
 
     if (cachedLogoRef.current) {
-      const logoWidth = Math.round(recordW * 0.14);
+      // Size relative to the long edge (fixed per quality level regardless
+      // of aspect ratio - see getResolution), not the frame width. Basing it
+      // on width alone made the watermark shrink drastically for portrait
+      // (9:16) and square exports, since their width is the *short* edge.
+      const longEdge = Math.max(recordW, recordH);
+      const logoWidth = Math.round(longEdge * 0.16);
       const logoHeight = Math.round(logoWidth / 2.5);
-      const margin = Math.round(recordW * 0.025);
+      const margin = Math.round(longEdge * 0.025);
       const logoX = recordW - logoWidth - margin;
       const logoY = margin;
       context.save();
