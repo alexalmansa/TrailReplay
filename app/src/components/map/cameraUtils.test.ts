@@ -8,6 +8,7 @@ import {
   smoothCoordinate,
   smoothPitch,
   smoothZoom,
+  smoothZoomTarget,
 } from './cameraUtils';
 
 describe('camera utilities', () => {
@@ -113,6 +114,25 @@ describe('camera utilities', () => {
     const stableZoom = smoothZoom(15, 16, undefined, undefined, 0.25);
     const reactiveZoom = smoothZoom(15, 16, undefined, undefined, 1.75);
     expect(reactiveZoom - 15).toBeGreaterThan(stableZoom - 15);
+  });
+
+  it('preserves terrain zoom targets at the default and reactive settings', () => {
+    expect(smoothZoomTarget(15, 13, 16, 0.5)).toBe(13);
+    expect(smoothZoomTarget(15, 13, 16, 1)).toBe(13);
+  });
+
+  it('holds small terrain zoom reversals in cinematic mode', () => {
+    expect(smoothZoomTarget(14, 14.25, 100, 0)).toBe(14);
+    expect(smoothZoomTarget(14, 13.75, 100, 0)).toBe(14);
+  });
+
+  it('opens the cinematic frame faster than it zooms back in', () => {
+    const zoomedOut = smoothZoomTarget(15, 13, 100, 0);
+    const zoomedIn = smoothZoomTarget(15, 17, 100, 0);
+
+    expect(15 - zoomedOut).toBeGreaterThan((zoomedIn - 15) * 3);
+    expect(zoomedOut).toBeGreaterThan(13);
+    expect(zoomedIn).toBeLessThan(17);
   });
 
   it('maps elapsed time to a frame-time multiplier centered on a 60fps reference frame', () => {

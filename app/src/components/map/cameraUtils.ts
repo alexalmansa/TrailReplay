@@ -138,6 +138,42 @@ export function smoothZoom(
 }
 
 /**
+ * Low-pass filters the requested zoom before `smoothZoom` moves the camera.
+ * Terrain protection can alternate between nearby targets on rolling ground;
+ * smoothing only the camera pose still makes it reverse direction every time
+ * that target changes. Cinematic mode therefore adds target hysteresis and an
+ * asymmetric response: it opens the frame when needed, but returns to a close
+ * shot much more slowly. The default and reactive half remain unchanged.
+ */
+export function smoothZoomTarget(
+  currentTarget: number,
+  nextTarget: number,
+  deltaMs: number,
+  cameraStability: number,
+): number {
+  const safeStability = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clampedStability = Math.max(0, Math.min(1, safeStability));
+  const cinematicPosition = Math.max(0, (0.5 - clampedStability) / 0.5);
+  const cinematicAmount = cinematicPosition * cinematicPosition;
+
+  if (cinematicAmount === 0 || !Number.isFinite(deltaMs) || deltaMs <= 0) {
+    return nextTarget;
+  }
+
+  const difference = nextTarget - currentTarget;
+  const deadband = 0.035 + 0.265 * cinematicAmount;
+  if (Math.abs(difference) <= deadband) return currentTarget;
+
+  const openingFrame = difference < 0;
+  const responseDurationMs = openingFrame
+    ? 100 + 1_100 * cinematicAmount
+    : 100 + 4_900 * cinematicAmount;
+  const interpolation = 1 - Math.exp(-deltaMs / responseDurationMs);
+
+  return currentTarget + difference * interpolation;
+}
+
+/**
  * Keeps terrain protection from visibly tilting the horizon in steps. Reducing
  * pitch opens the view, so that safety adjustment is allowed to happen faster
  * than pitching back down into a close cinematic angle.
