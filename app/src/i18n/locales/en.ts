@@ -337,7 +337,6 @@ export const en = {
     ghostTrailOpacityHint: 'Set to 0 to hide the full route preview and reveal it only as playback progresses.',
     statsTitle: 'Stats',
     statsHint: 'Drag the stats box on the map to reposition it.',
-    statsSize: 'Stats size',
     paceMode: 'Pace mode',
     paceModeCumulative: 'Overall',
     paceModePerKm: 'Per km',

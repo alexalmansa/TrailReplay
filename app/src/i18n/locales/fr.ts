@@ -337,7 +337,6 @@ export const fr = {
     ghostTrailOpacityHint: 'Mettre à 0 pour masquer l\'aperçu complet du tracé et ne le révéler qu\'au fur et à mesure de la lecture.',
     statsTitle: 'Statistiques',
     statsHint: 'Glissez la boîte de stats sur la carte pour la repositionner.',
-    statsSize: 'Taille des statistiques',
     paceMode: 'Mode allure',
     paceModeCumulative: 'Globale',
     paceModePerKm: 'Par km',

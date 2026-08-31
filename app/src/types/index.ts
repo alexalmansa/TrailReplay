@@ -304,6 +304,7 @@ export interface AppSettings {
   journeyStatsMode: JourneyStatsMode;
   statsPosition: { x: number; y: number } | null;
   statsScale: number;
+  statsLayout: 'auto' | 'horizontal' | 'vertical';
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;
 }

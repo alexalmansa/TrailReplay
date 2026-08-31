@@ -157,10 +157,10 @@ describe('hydrateProject', () => {
     expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
   });
 
-  it('persists stats scale and defaults legacy projects to 1x', async () => {
+  it('persists stats presentation and defaults legacy projects to the automatic 1x layout', async () => {
     const sourceStore = createAppStore();
     sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
-    sourceStore.getState().setSettings({ statsScale: 1.6 });
+    sourceStore.getState().setSettings({ statsScale: 1.6, statsLayout: 'vertical' });
 
     const blob = await buildReplayArchive(sourceStore.getState());
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
@@ -168,10 +168,13 @@ describe('hydrateProject', () => {
     const scaledStore = createAppStore();
     hydrateProject(parsed, scaledStore.getState());
     expect(scaledStore.getState().settings.statsScale).toBe(1.6);
+    expect(scaledStore.getState().settings.statsLayout).toBe('vertical');
 
     delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsScale;
+    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsLayout;
     const legacyStore = createAppStore();
     hydrateProject(parsed, legacyStore.getState());
     expect(legacyStore.getState().settings.statsScale).toBe(1);
+    expect(legacyStore.getState().settings.statsLayout).toBe('auto');
   });
 });

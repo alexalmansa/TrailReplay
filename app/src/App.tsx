@@ -36,12 +36,28 @@ function isNarrowFrame(width: number, height: number) {
   return width <= height || width < 560;
 }
 
+type StatsResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+interface StatsResizeStart {
+  corner: StatsResizeCorner;
+  mouseX: number;
+  mouseY: number;
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  scale: number;
+}
+
 function App() {
   const { t } = useI18n();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statsScaleWrapperRef = useRef<HTMLDivElement>(null);
   const statsDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
+  const statsResizeStartRef = useRef<StatsResizeStart | null>(null);
   const [isDraggingStats, setIsDraggingStats] = useState(false);
+  const [isResizingStats, setIsResizingStats] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -201,6 +217,9 @@ function App() {
   const statsShouldUseNarrowLayout = activeExportCropMetrics
     ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
     : isNarrowScreen;
+  const resolvedStatsLayout = settings.statsLayout === 'auto'
+    ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
+    : settings.statsLayout;
 
   const statsOverlayStyle = (() => {
     if (settings.statsPosition) {
@@ -269,6 +288,36 @@ function App() {
     setIsDraggingStats(true);
   }, [settings.statsPosition]);
 
+  const handleStatsResizeStart = useCallback((e: React.MouseEvent, corner: StatsResizeCorner) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wrapper = statsScaleWrapperRef.current;
+    const container = mapContainerRef.current;
+    if (!wrapper || !container) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    // Materialize the automatic starting position so resizing keeps the
+    // panel's visible top-left corner stable.
+    setSettings({
+      statsPosition: {
+        x: Math.max(0, Math.min(1, (rect.left - containerRect.left) / containerRect.width)),
+        y: Math.max(0, Math.min(1, (rect.top - containerRect.top) / containerRect.height)),
+      },
+    });
+    statsResizeStartRef.current = {
+      corner,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      width: rect.width,
+      height: rect.height,
+      left: rect.left - containerRect.left,
+      top: rect.top - containerRect.top,
+      scale: settings.statsScale,
+    };
+    setIsResizingStats(true);
+  }, [setSettings, settings.statsScale]);
+
   useEffect(() => {
     if (!isDraggingStats) return;
     const onMove = (e: MouseEvent) => {
@@ -289,6 +338,47 @@ function App() {
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, [isDraggingStats, setSettings]);
+
+  useEffect(() => {
+    if (!isResizingStats) return;
+    const onMove = (e: MouseEvent) => {
+      const container = mapContainerRef.current;
+      const start = statsResizeStartRef.current;
+      if (!container || !start) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const dx = e.clientX - start.mouseX;
+      const dy = e.clientY - start.mouseY;
+      const fromLeft = start.corner.includes('left');
+      const fromTop = start.corner.includes('top');
+      const width = Math.max(72, start.width + (fromLeft ? -dx : dx));
+      const height = Math.max(52, start.height + (fromTop ? -dy : dy));
+      const areaRatio = (width * height) / Math.max(1, start.width * start.height);
+      const scale = Math.max(0.6, Math.min(2, start.scale * Math.sqrt(areaRatio)));
+      const layout = width >= height ? 'horizontal' : 'vertical';
+      const left = fromLeft ? start.left + start.width - width : start.left;
+      const top = fromTop ? start.top + start.height - height : start.top;
+
+      setSettings({
+        statsScale: Math.round(scale * 100) / 100,
+        statsLayout: layout,
+        statsPosition: {
+          x: Math.max(0, Math.min(0.98, left / containerRect.width)),
+          y: Math.max(0, Math.min(0.98, top / containerRect.height)),
+        },
+      });
+    };
+    const onUp = () => {
+      statsResizeStartRef.current = null;
+      setIsResizingStats(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isResizingStats, setSettings]);
 
   useEffect(() => {
     return () => {
@@ -461,17 +551,20 @@ function App() {
               {/* Stats Overlay */}
               {hasTracks && (
                 <div
-                  className="absolute z-10"
+                  className="group absolute z-10"
                   style={{
                     ...statsOverlayStyle,
-                    cursor: isDraggingStats ? 'grabbing' : 'grab',
+                    cursor: isDraggingStats ? 'grabbing' : isResizingStats ? 'default' : 'grab',
                     userSelect: 'none',
                   }}
                   onMouseDown={handleStatsDragStart}
                 >
                   <div
+                    ref={statsScaleWrapperRef}
                     data-stats-scale-wrapper
                     style={{
+                      position: 'relative',
+                      width: 'fit-content',
                       transform: `scale(${settings.statsScale})`,
                       transformOrigin: settings.statsPosition || !statsShouldUseNarrowLayout
                         ? 'top left'
@@ -479,9 +572,27 @@ function App() {
                     }}
                   >
                     <StatsOverlay
-                      layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
+                      layout={resolvedStatsLayout}
                       variant={activeExportCropMetrics ? 'export' : 'default'}
                     />
+                    {!isExporting && (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((corner) => {
+                      const vertical = corner.startsWith('top') ? 'top-[-5px]' : 'bottom-[-5px]';
+                      const horizontal = corner.endsWith('left') ? 'left-[-5px]' : 'right-[-5px]';
+                      const cursor = corner === 'top-left' || corner === 'bottom-right'
+                        ? 'cursor-nwse-resize'
+                        : 'cursor-nesw-resize';
+                      return (
+                        <button
+                          key={corner}
+                          type="button"
+                          aria-label="Resize stats"
+                          className={`absolute ${vertical} ${horizontal} ${cursor} z-20 h-3 w-3 rounded-full border-2 border-white bg-[var(--evergreen)] shadow-md transition-opacity ${
+                            isResizingStats ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                          }`}
+                          onMouseDown={(event) => handleStatsResizeStart(event, corner)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}

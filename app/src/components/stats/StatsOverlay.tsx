@@ -17,7 +17,7 @@ import {
 
 interface StatsOverlayProps {
   compact?: boolean;
-  layout?: 'default' | 'narrow';
+  layout?: 'default' | 'narrow' | 'horizontal' | 'vertical';
   variant?: 'default' | 'export';
 }
 
@@ -28,6 +28,8 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
   const isNarrowLayout = compact || layout === 'narrow';
+  const isHorizontalLayout = layout === 'horizontal';
+  const isVerticalLayout = layout === 'vertical';
   const isExportVariant = variant === 'export';
 
   const {
@@ -150,9 +152,13 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
 
   if (visibleStats.length === 0) return null;
 
-  const cols = isExportVariant || isNarrowLayout
-    ? Math.min(visibleStats.length, 2)
-    : Math.min(visibleStats.length, 4);
+  const cols = isVerticalLayout
+    ? 1
+    : isHorizontalLayout
+      ? visibleStats.length
+      : isExportVariant || isNarrowLayout
+        ? Math.min(visibleStats.length, 2)
+        : Math.min(visibleStats.length, 4);
 
   const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
   const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;

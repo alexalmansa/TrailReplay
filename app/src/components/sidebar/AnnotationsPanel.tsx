@@ -531,24 +531,6 @@ export function AnnotationsPanel() {
             );
           })}
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs text-[var(--evergreen-60)] uppercase tracking-wide">
-              {t('annotations.statsSize')}
-            </Label>
-            <span className="text-xs text-[var(--evergreen-60)]">
-              {settings.statsScale.toFixed(1)}x
-            </span>
-          </div>
-          <Slider
-            value={[settings.statsScale]}
-            onValueChange={([value]) => setSettings({ statsScale: value })}
-            min={0.6}
-            max={2}
-            step={0.1}
-            className="w-full"
-          />
-        </div>
         {settings.visibleStats.includes('pace') && (
           <div className="space-y-1.5">
             <Label className="text-xs text-[var(--evergreen-60)] uppercase tracking-wide">
