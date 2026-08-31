@@ -17,6 +17,8 @@ import { getTriggeredPlaybackPictures } from '@/utils/playbackPictures';
 import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
 import {
   buildJourneyDistanceProfile,
+  getSegmentAtDistance,
+  getSegmentAtProgress,
   getJourneyPointAtDistance,
   getJourneyPointAtProgress,
   type JourneyPoint,
@@ -221,6 +223,31 @@ export function useVideoExportRecorder() {
 
     return values;
   }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings, t, totalDistance]);
+  const getTrackLabel = useCallback((progress: number): { color: string; text: string } | null => {
+    const state = useAppStore.getState();
+    if (!state.settings.trailStyle.showTrackLabels) return null;
+
+    if (!computedJourney) {
+      return activeTrack
+        ? { color: state.settings.trailStyle.trailColor, text: activeTrack.name }
+        : null;
+    }
+
+    const currentSegment = state.playback.routeTimingMode === 'uniform' && journeyDistanceProfile
+      ? getSegmentAtDistance(
+          journeyDistanceProfile,
+          journeyDistanceProfile.totalDistance * progress,
+          segmentTimings,
+        )
+      : getSegmentAtProgress(progress, segmentTimings);
+    const trackId = currentSegment?.segment.type === 'track'
+      ? currentSegment.segment.trackId
+      : undefined;
+    const track = trackId ? state.tracks.find((candidate) => candidate.id === trackId) : null;
+    return track
+      ? { color: track.color || state.settings.trailStyle.trailColor, text: track.name }
+      : null;
+  }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings]);
   const {
     cachedOverlayRef,
     drawElevationProgress,
@@ -430,6 +457,24 @@ export function useVideoExportRecorder() {
           context.fillText(markerIcon.textContent, markerX, markerY);
         }
       }
+
+      const trackLabel = getTrackLabel(useAppStore.getState().playback.progress);
+      if (trackLabel?.text) {
+        const labelFontSize = 12 * scaleY;
+        const markerTop = markerY - (markerRect.height / 2) * scaleY;
+
+        context.save();
+        context.font = `700 ${labelFontSize}px JetBrains Mono, monospace`;
+        context.textAlign = 'center';
+        context.textBaseline = 'bottom';
+        context.lineJoin = 'round';
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 3 * scaleY;
+        context.strokeText(trackLabel.text, markerX, markerTop - 8 * scaleY);
+        context.fillStyle = trackLabel.color;
+        context.fillText(trackLabel.text, markerX, markerTop - 8 * scaleY);
+        context.restore();
+      }
     }
 
     if (cachedLogoRef.current) {
@@ -452,7 +497,7 @@ export function useVideoExportRecorder() {
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [cachedOverlayRef, drawElevationProgress, drawStatsValues, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
+  }, [cachedOverlayRef, drawElevationProgress, drawStatsValues, getTrackLabel, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
   // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
   // No-op for the MediaRecorder path, which samples the canvas stream itself.
