@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateTerrainAwareAdjustments,
+  cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
@@ -71,6 +72,32 @@ describe('camera utilities', () => {
     expect(cameraReactivityFromStability(0)).toBeCloseTo(0.25);
     expect(cameraReactivityFromStability(1)).toBeCloseTo(1.75);
     expect(cameraReactivityFromStability(Number.NaN)).toBeCloseTo(1);
+  });
+
+  it('turns the stable endpoint into a cinematic centre glide', () => {
+    expect(cameraCenterChaseDurationFromStability(0)).toBe(900);
+    expect(cameraCenterChaseDurationFromStability(0.25)).toBe(300);
+    expect(cameraCenterChaseDurationFromStability(0.5)).toBe(100);
+    expect(cameraCenterChaseDurationFromStability(1)).toBe(55);
+    expect(cameraCenterChaseDurationFromStability(Number.NaN)).toBe(100);
+  });
+
+  it('filters positional corrections much more strongly at maximum stability', () => {
+    const target: [number, number] = [10, 0];
+    const cinematic = smoothCoordinate(
+      [0, 0],
+      target,
+      1000 / 60,
+      cameraCenterChaseDurationFromStability(0),
+    );
+    const defaultCamera = smoothCoordinate(
+      [0, 0],
+      target,
+      1000 / 60,
+      cameraCenterChaseDurationFromStability(0.5),
+    );
+
+    expect(cinematic[0]).toBeLessThan(defaultCamera[0] / 5);
   });
 
   it('a low reactivity holds the heading through bigger route wiggles than the default', () => {

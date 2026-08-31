@@ -11,6 +11,28 @@ export function cameraReactivityFromStability(cameraStability: number): number {
 }
 
 /**
+ * Controls how closely the camera centre chases the moving route marker.
+ *
+ * The middle of the slider preserves the original 100ms follow camera. Moving
+ * toward reactive shortens that delay a little, while the stable half ramps
+ * non-linearly into a long, floating camera move. The squared curve keeps the
+ * familiar behaviour around the default but makes the far-left endpoint a
+ * deliberate cinematic mode instead of merely a wider bearing deadband.
+ */
+export function cameraCenterChaseDurationFromStability(cameraStability: number): number {
+  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clamped = Math.max(0, Math.min(1, safeValue));
+
+  if (clamped < 0.5) {
+    const cinematicAmount = (0.5 - clamped) / 0.5;
+    return 100 + 800 * cinematicAmount * cinematicAmount;
+  }
+
+  const reactiveAmount = (clamped - 0.5) / 0.5;
+  return 100 - 45 * reactiveAmount;
+}
+
+/**
  * The smoothing constants below are per-call caps on how far the camera may
  * move. They were tuned against live playback, which updates the camera once
  * per rendered animation frame at roughly this interval. Deterministic video

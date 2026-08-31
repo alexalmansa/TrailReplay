@@ -9,6 +9,7 @@ import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
 import {
+  cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
@@ -358,9 +359,10 @@ export function useTrailPlaybackCamera({
       // can't be used directly during export). Compute it by hand here so both
       // paths land on the same rendered position.
       const targetCenter: [number, number] = [currentPosition.lon, currentPosition.lat];
+      const centerChaseDuration = cameraCenterChaseDurationFromStability(cameraStability);
       const smoothedCenter = smoothedCenterRef.current === null || deltaMs === null
         ? targetCenter
-        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs);
+        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs, centerChaseDuration);
       smoothedCenterRef.current = smoothedCenter;
 
       // With 3D terrain the marker is drawn on the terrain surface, while the

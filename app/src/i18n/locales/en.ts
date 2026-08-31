@@ -144,7 +144,7 @@ export const en = {
     },
     cameraStability: {
       title: 'Camera Stability',
-      stable: 'Stable',
+      stable: 'Cinematic',
       reactive: 'Reactive',
     },
     units: 'Units',
