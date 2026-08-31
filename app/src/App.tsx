@@ -66,6 +66,14 @@ interface StatsResizeStart {
   scale: number;
 }
 
+interface StatsResizeGuide {
+  corner: StatsResizeCorner;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 function App() {
   const { t } = useI18n();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +83,7 @@ function App() {
   const statsResizeStartRef = useRef<StatsResizeStart | null>(null);
   const [isDraggingStats, setIsDraggingStats] = useState(false);
   const [isResizingStats, setIsResizingStats] = useState(false);
+  const [statsResizeGuide, setStatsResizeGuide] = useState<StatsResizeGuide | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -248,6 +257,27 @@ function App() {
         ? previewStatCount
         : statsShouldUseNarrowLayout ? Math.min(previewStatCount, 2) : Math.min(previewStatCount, 4);
   const previewColumnOptions = Array.from({ length: previewStatCount }, (_, index) => index + 1);
+  const resizeGuideTargets = statsResizeGuide
+    ? previewColumnOptions.map((columns) => {
+      const rows = Math.ceil(previewStatCount / columns);
+      const ratio = columns / rows;
+      const area = statsResizeGuide.width * statsResizeGuide.height;
+      const targetWidth = Math.sqrt(area * ratio);
+      const targetHeight = Math.sqrt(area / ratio);
+      const fromLeft = statsResizeGuide.corner.includes('left');
+      const fromTop = statsResizeGuide.corner.includes('top');
+      const anchorRight = statsResizeGuide.left + statsResizeGuide.width;
+      const anchorBottom = statsResizeGuide.top + statsResizeGuide.height;
+      const targetLeft = fromLeft ? anchorRight - targetWidth : statsResizeGuide.left;
+      const targetTop = fromTop ? anchorBottom - targetHeight : statsResizeGuide.top;
+      return {
+        columns,
+        rows,
+        handleX: fromLeft ? targetLeft : targetLeft + targetWidth,
+        handleY: fromTop ? targetTop : targetTop + targetHeight,
+      };
+    })
+    : [];
 
   const statsOverlayStyle = (() => {
     if (settings.statsPosition) {
@@ -343,6 +373,13 @@ function App() {
       top: rect.top - containerRect.top,
       scale: settings.statsScale,
     };
+    setStatsResizeGuide({
+      corner,
+      left: rect.left - containerRect.left,
+      top: rect.top - containerRect.top,
+      width: rect.width,
+      height: rect.height,
+    });
     setIsResizingStats(true);
   }, [setSettings, settings.statsScale]);
 
@@ -399,6 +436,7 @@ function App() {
     };
     const onUp = () => {
       statsResizeStartRef.current = null;
+      setStatsResizeGuide(null);
       setIsResizingStats(false);
     };
     window.addEventListener('mousemove', onMove);
@@ -646,6 +684,24 @@ function App() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {isResizingStats && statsResizeGuide && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
+                  {resizeGuideTargets.map((target) => (
+                    <div
+                      key={`${target.columns}-${target.rows}`}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide shadow-lg ${
+                        target.columns === previewColumns
+                          ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                          : 'border-white/35 bg-[rgba(9,14,19,0.88)] text-white/75'
+                      }`}
+                      style={{ left: target.handleX, top: target.handleY }}
+                    >
+                      {target.columns} × {target.rows}
+                    </div>
+                  ))}
                 </div>
               )}
 
