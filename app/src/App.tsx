@@ -239,6 +239,15 @@ function App() {
     : settings.statsLayout === 'auto'
     ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
     : settings.statsLayout;
+  const previewStatCount = Math.max(1, settings.visibleStats.length);
+  const previewColumns = settings.statsColumns !== null
+    ? Math.max(1, Math.min(previewStatCount, Math.round(settings.statsColumns)))
+    : settings.statsLayout === 'vertical'
+      ? 1
+      : settings.statsLayout === 'horizontal'
+        ? previewStatCount
+        : statsShouldUseNarrowLayout ? Math.min(previewStatCount, 2) : Math.min(previewStatCount, 4);
+  const previewRows = Math.ceil(previewStatCount / previewColumns);
 
   const statsOverlayStyle = (() => {
     if (settings.statsPosition) {
@@ -593,6 +602,23 @@ function App() {
                         : 'top center',
                     }}
                   >
+                    {isResizingStats && (
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 z-30 grid overflow-hidden rounded-[inherit] border-2 border-dashed border-white/80 bg-white/[0.04]"
+                        style={{
+                          gridTemplateColumns: `repeat(${previewColumns}, minmax(0, 1fr))`,
+                          gridTemplateRows: `repeat(${previewRows}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {Array.from({ length: previewStatCount }, (_, index) => (
+                          <div
+                            key={index}
+                            className="border border-dashed border-white/35"
+                          />
+                        ))}
+                      </div>
+                    )}
                     <StatsOverlay
                       layout={resolvedStatsLayout}
                       variant={activeExportCropMetrics ? 'export' : 'default'}
