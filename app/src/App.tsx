@@ -247,7 +247,7 @@ function App() {
       : settings.statsLayout === 'horizontal'
         ? previewStatCount
         : statsShouldUseNarrowLayout ? Math.min(previewStatCount, 2) : Math.min(previewStatCount, 4);
-  const previewRows = Math.ceil(previewStatCount / previewColumns);
+  const previewColumnOptions = Array.from({ length: previewStatCount }, (_, index) => index + 1);
 
   const statsOverlayStyle = (() => {
     if (settings.statsPosition) {
@@ -605,18 +605,22 @@ function App() {
                     {isResizingStats && (
                       <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-30 grid overflow-hidden rounded-[inherit] border-2 border-dashed border-white/80 bg-white/[0.04]"
-                        style={{
-                          gridTemplateColumns: `repeat(${previewColumns}, minmax(0, 1fr))`,
-                          gridTemplateRows: `repeat(${previewRows}, minmax(0, 1fr))`,
-                        }}
+                        className="pointer-events-none absolute left-0 top-[-42px] z-30 flex w-max max-w-[min(90vw,520px)] gap-1 rounded-lg border border-white/20 bg-[rgba(9,14,19,0.94)] p-1 shadow-lg"
                       >
-                        {Array.from({ length: previewStatCount }, (_, index) => (
-                          <div
-                            key={index}
-                            className="border border-dashed border-white/35"
-                          />
-                        ))}
+                        {previewColumnOptions.map((columns) => {
+                          const rows = Math.ceil(previewStatCount / columns);
+                          const active = columns === previewColumns;
+                          return (
+                            <div
+                              key={columns}
+                              className={`whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                                active ? 'bg-[var(--evergreen)] text-[var(--canvas)]' : 'text-white/65'
+                              }`}
+                            >
+                              {columns} × {rows}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     <StatsOverlay
