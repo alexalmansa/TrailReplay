@@ -21,6 +21,11 @@ export function getOverlayRefreshIntervalMs(fps: number) {
   return Math.max(83, Math.round(1000 / Math.min(fps, 12)));
 }
 
+export function getStatsValueTimelineBucket(currentTimeMs: number) {
+  const safeTime = Number.isFinite(currentTimeMs) ? Math.max(0, currentTimeMs) : 0;
+  return Math.floor(safeTime / 100);
+}
+
 export function getExportOverlayMetrics(
   containerRect: Size,
   recordW: number,

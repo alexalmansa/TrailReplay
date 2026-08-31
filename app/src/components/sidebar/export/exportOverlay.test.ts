@@ -6,6 +6,7 @@ import {
   getOverlayRefreshIntervalMs,
   getPopupOverlayDrawRect,
   getStatsOverlayDrawRect,
+  getStatsValueTimelineBucket,
   isDrawableRect,
 } from './exportOverlay';
 
@@ -15,6 +16,13 @@ describe('exportOverlay', () => {
     expect(getOverlayRefreshIntervalMs(24)).toBe(83);
     expect(getOverlayRefreshIntervalMs(12)).toBe(83);
     expect(getOverlayRefreshIntervalMs(6)).toBe(167);
+  });
+
+  it('paces native stat updates by encoded video time rather than wall-clock time', () => {
+    expect(getStatsValueTimelineBucket(0)).toBe(0);
+    expect(getStatsValueTimelineBucket(99)).toBe(0);
+    expect(getStatsValueTimelineBucket(100)).toBe(1);
+    expect(getStatsValueTimelineBucket(1_050)).toBe(10);
   });
 
   it('derives crop metrics and overlay scaling from the exported frame', () => {

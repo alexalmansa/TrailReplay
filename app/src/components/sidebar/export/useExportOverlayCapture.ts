@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { getElevationAtProgress } from '@/components/map/elevationProfile';
 import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
 import { convertElevation } from '@/utils/units';
+import type { StatId } from '@/types';
 import {
   getCapturedCanvasDrawSize,
   getElevationOverlayDrawRect,
@@ -10,6 +11,7 @@ import {
   getObjectContainRect,
   getPopupOverlayDrawRect,
   getStatsOverlayDrawRect,
+  getStatsValueTimelineBucket,
   isDrawableRect,
 } from './exportOverlay';
 
@@ -40,10 +42,12 @@ interface UseExportOverlayCaptureOptions {
   }>;
   includeElevation: boolean;
   includeStats: boolean;
+  getStatsValues: (progress: number) => Partial<Record<StatId, string>>;
 }
 
 export function useExportOverlayCapture({
   elevationData,
+  getStatsValues,
   includeElevation,
   includeStats,
 }: UseExportOverlayCaptureOptions) {
@@ -53,6 +57,10 @@ export function useExportOverlayCapture({
   const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
   const overlayRunIdRef = useRef(0);
   const elevationPathCacheRef = useRef(new Map<string, Path2D>());
+  const statsValuesCacheRef = useRef<{
+    timelineBucket: number;
+    values: Partial<Record<StatId, string>>;
+  }>({ timelineBucket: -1, values: {} });
   const elevationSegments = useMemo(() => {
     const segments = new Map<number, {
       points: Array<{ elevation: number; progress: number }>;
@@ -120,7 +128,14 @@ export function useExportOverlayCapture({
           try {
             const statsCaptureScale = 4;
             const statsRect = statsElement.getBoundingClientRect();
-            const captureCanvas = await capture(statsElement, { backgroundColor: null, scale: statsCaptureScale, logging: false, useCORS: true, allowTaint: true });
+            const captureCanvas = await capture(statsElement, {
+              backgroundColor: null,
+              scale: statsCaptureScale,
+              logging: false,
+              useCORS: true,
+              allowTaint: true,
+              ignoreElements: (element) => element.hasAttribute('data-export-stat-value'),
+            });
             const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
             const hasCustomPosition = useAppStore.getState().settings.statsPosition !== null;
             const statsDrawRect = getStatsOverlayDrawRect({
@@ -198,6 +213,84 @@ export function useExportOverlayCapture({
       overlayBusyRef.current = false;
     }
   }, [includeElevation, includeStats]);
+
+  const drawStatsValues = useCallback((
+    context: CanvasRenderingContext2D,
+    {
+      containerRect,
+      cropX,
+      cropY,
+      recordW,
+      recordH,
+      scaleToRecording,
+    }: {
+      containerRect: DOMRect;
+      cropX: number;
+      cropY: number;
+      recordW: number;
+      recordH: number;
+      scaleToRecording: number;
+    },
+  ) => {
+    if (!includeStats) return;
+
+    const statsElement = document.querySelector('.tr-stats-overlay') as HTMLElement | null;
+    if (!statsElement) return;
+
+    const state = useAppStore.getState();
+    // Ten value updates per second of encoded video are visually fluid for
+    // changing numerals, while avoiding repeated route-stat calculations on
+    // every 30/60fps frame. Drawing the cached values remains per-frame.
+    const timelineBucket = getStatsValueTimelineBucket(state.playback.currentTime);
+    if (timelineBucket !== statsValuesCacheRef.current.timelineBucket) {
+      statsValuesCacheRef.current = {
+        timelineBucket,
+        values: getStatsValues(state.playback.progress),
+      };
+    }
+
+    const statsRect = statsElement.getBoundingClientRect();
+    if (statsRect.width <= 0 || statsRect.height <= 0) return;
+
+    const margin = Math.round(recordW * 0.025);
+    const hasCustomPosition = state.settings.statsPosition !== null;
+    const drawRect = getStatsOverlayDrawRect({
+      captureCanvas: {
+        width: statsRect.width * scaleToRecording,
+        height: statsRect.height * scaleToRecording,
+      },
+      scaleToRecording: 1,
+      positionScale: scaleToRecording,
+      recordW,
+      recordH,
+      margin,
+      ...(hasCustomPosition && { elementRect: statsRect, containerRect, cropX, cropY }),
+    });
+    const elementScaleX = drawRect.drawWidth / statsRect.width;
+    const elementScaleY = drawRect.drawHeight / statsRect.height;
+
+    statsElement.querySelectorAll<HTMLElement>('[data-export-stat-value]').forEach((valueElement) => {
+      const id = valueElement.dataset.exportStatValue as StatId | undefined;
+      const value = id ? statsValuesCacheRef.current.values[id] : undefined;
+      if (!value) return;
+
+      const rect = valueElement.getBoundingClientRect();
+      const style = getComputedStyle(valueElement);
+      const centerX = drawRect.drawX
+        + (rect.left + rect.width / 2 - statsRect.left) * elementScaleX;
+      const centerY = drawRect.drawY
+        + (rect.top + rect.height / 2 - statsRect.top) * elementScaleY;
+      const fontSize = (Number.parseFloat(style.fontSize) || 9) * elementScaleY;
+
+      context.save();
+      context.font = `${style.fontWeight || '600'} ${fontSize}px ${style.fontFamily || 'sans-serif'}`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillStyle = style.color || '#ffffff';
+      context.fillText(value, centerX, centerY);
+      context.restore();
+    });
+  }, [getStatsValues, includeStats]);
 
   const drawElevationProgress = useCallback((
     context: CanvasRenderingContext2D,
@@ -342,11 +435,13 @@ export function useExportOverlayCapture({
     overlayLastUpdateRef.current = 0;
     overlayRunIdRef.current += 1;
     elevationPathCacheRef.current.clear();
+    statsValuesCacheRef.current = { timelineBucket: -1, values: {} };
   }, []);
 
   return {
     cachedOverlayRef,
     drawElevationProgress,
+    drawStatsValues,
     loadHtml2Canvas,
     overlayBusyRef,
     overlayLastUpdateRef,

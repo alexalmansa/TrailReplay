@@ -174,6 +174,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
         {visibleStats.map((stat) => (
           <StatItem
             key={stat.id}
+            statId={stat.id}
             icon={stat.icon}
             label={stat.label}
             value={stat.value!}
@@ -197,6 +198,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
 }
 
 interface StatItemProps {
+  statId: StatId;
   icon: React.ReactNode;
   label: string;
   value: string;
@@ -206,7 +208,7 @@ interface StatItemProps {
   exportCompact?: boolean;
 }
 
-function StatItem({ icon, label, value, reserve, compact = false, exportCompact = false }: StatItemProps) {
+function StatItem({ statId, icon, label, value, reserve, compact = false, exportCompact = false }: StatItemProps) {
   return (
     <div className={`min-w-max text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
       <div className={`flex items-center justify-center min-w-0 ${
@@ -237,7 +239,12 @@ function StatItem({ icon, label, value, reserve, compact = false, exportCompact 
             {reserve}
           </span>
         )}
-        <span className="col-start-1 row-start-1">{value}</span>
+        <span
+          className="col-start-1 row-start-1"
+          data-export-stat-value={statId}
+        >
+          {value}
+        </span>
       </div>
     </div>
   );
