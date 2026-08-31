@@ -118,6 +118,7 @@ export function useVideoExportRecorder() {
   const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
   const {
     cachedOverlayRef,
+    drawElevationProgress,
     loadHtml2Canvas,
     overlayBusyRef,
     overlayLastUpdateRef,
@@ -212,6 +213,16 @@ export function useVideoExportRecorder() {
 
     const scaleX = recordW / cropW;
     const scaleY = recordH / cropH;
+
+    // The static elevation profile remains in the cached DOM snapshot, while
+    // its progress fill and label are cheap native-canvas primitives. Drawing
+    // only those moving pieces here keeps them at the actual video frame rate
+    // without running html2canvas 30 or 60 times per second.
+    drawElevationProgress(context, {
+      recordW,
+      recordH,
+      scaleToRecording: scaleX,
+    });
 
     // The photo popup should read as fully in front of everything else
     // (matching the live view's z-index stacking): neither the route
@@ -325,7 +336,7 @@ export function useVideoExportRecorder() {
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [cachedOverlayRef, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
+  }, [cachedOverlayRef, drawElevationProgress, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
   // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
   // No-op for the MediaRecorder path, which samples the canvas stream itself.

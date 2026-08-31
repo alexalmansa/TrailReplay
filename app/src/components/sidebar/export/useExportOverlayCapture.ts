@@ -42,6 +42,7 @@ export function useExportOverlayCapture({
   const overlayLastUpdateRef = useRef(0);
   const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
   const overlayRunIdRef = useRef(0);
+  const elevationPathCacheRef = useRef(new Map<string, Path2D>());
 
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (window.html2canvas) return true;
@@ -108,7 +109,16 @@ export function useExportOverlayCapture({
         const elevationElement = document.getElementById('mapElevationProfile') as HTMLElement | null;
         if (elevationElement) {
           try {
-            const captureCanvas = await capture(elevationElement, { backgroundColor: null, scale: 1, logging: false, useCORS: true });
+            const captureCanvas = await capture(elevationElement, {
+              backgroundColor: null,
+              scale: 1,
+              logging: false,
+              useCORS: true,
+              // The progress fill and elevation label are drawn directly onto
+              // every video frame below. Keeping them out of this comparatively
+              // expensive DOM snapshot prevents a stale 12fps copy underneath.
+              ignoreElements: (element) => element.hasAttribute('data-export-elevation-dynamic'),
+            });
             const rect = getElevationOverlayDrawRect({ captureCanvas, scaleToRecording, recordW, recordH, margin });
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, rect.drawX, rect.drawY, rect.drawWidth, rect.drawHeight);
           } catch { /* Skip overlay when capture fails. */ }
@@ -162,12 +172,120 @@ export function useExportOverlayCapture({
     }
   }, [includeElevation, includeStats]);
 
+  const drawElevationProgress = useCallback((
+    context: CanvasRenderingContext2D,
+    {
+      recordW,
+      recordH,
+      scaleToRecording,
+    }: {
+      recordW: number;
+      recordH: number;
+      scaleToRecording: number;
+    },
+  ) => {
+    if (!includeElevation || typeof Path2D === 'undefined') return;
+
+    const svg = document.getElementById('elevationProfileSvg') as SVGSVGElement | null;
+    const elevationElement = document.getElementById('mapElevationProfile');
+    if (!svg || !elevationElement) return;
+
+    const viewBox = svg.viewBox.baseVal;
+    if (viewBox.width <= 0 || viewBox.height <= 0) return;
+
+    const elementRect = elevationElement.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    if (elementRect.width <= 0 || elementRect.height <= 0) return;
+
+    // Match the exact centered/constrained rect used for the cached static
+    // elevation snapshot, then place the SVG and label within that rect using
+    // their DOM-relative positions.
+    const overlayRect = getElevationOverlayDrawRect({
+      captureCanvas: { width: elementRect.width, height: elementRect.height },
+      scaleToRecording,
+      recordW,
+      recordH,
+      margin: Math.round(recordW * 0.025),
+    });
+    const elementScaleX = overlayRect.drawWidth / elementRect.width;
+    const elementScaleY = overlayRect.drawHeight / elementRect.height;
+    const drawX = overlayRect.drawX + (svgRect.left - elementRect.left) * elementScaleX;
+    const drawY = overlayRect.drawY + (svgRect.top - elementRect.top) * elementScaleY;
+    const drawWidth = svgRect.width * elementScaleX;
+    const drawHeight = svgRect.height * elementScaleY;
+    const progress = Math.max(0, Math.min(1, useAppStore.getState().playback.progress));
+
+    context.save();
+    context.translate(drawX, drawY);
+    context.scale(drawWidth / viewBox.width, drawHeight / viewBox.height);
+    context.beginPath();
+    context.rect(viewBox.x, viewBox.y, viewBox.width * progress, viewBox.height);
+    context.clip();
+
+    svg.querySelectorAll<SVGPathElement>('[data-export-elevation-segment]').forEach((element) => {
+      const pathData = element.getAttribute('d');
+      if (!pathData) return;
+
+      let path = elevationPathCacheRef.current.get(pathData);
+      if (!path) {
+        path = new Path2D(pathData);
+        elevationPathCacheRef.current.set(pathData, path);
+      }
+
+      const color = svg.dataset.exportElevationProgressColor
+        || element.dataset.exportElevationColor
+        || '#c1652f';
+      context.globalAlpha = 0.7;
+      context.fillStyle = color;
+      context.fill(path);
+      context.globalAlpha = 1;
+      context.strokeStyle = color;
+      context.lineWidth = 2;
+      context.stroke(path);
+    });
+    context.restore();
+
+    const label = document.querySelector('[data-export-elevation-label]');
+    label?.querySelectorAll<HTMLElement>('[data-export-elevation-text]').forEach((textElement) => {
+      const text = textElement.textContent?.trim();
+      if (!text) return;
+
+      const rect = textElement.getBoundingClientRect();
+      const style = getComputedStyle(textElement);
+      const centerX = overlayRect.drawX
+        + (rect.left + rect.width / 2 - elementRect.left) * elementScaleX;
+      const centerY = overlayRect.drawY
+        + (rect.top + rect.height / 2 - elementRect.top) * elementScaleY;
+      const fontSize = (Number.parseFloat(style.fontSize) || 12) * elementScaleY;
+
+      context.save();
+      context.font = `${style.fontWeight || '700'} ${fontSize}px ${style.fontFamily || 'sans-serif'}`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillStyle = style.color || '#ffffff';
+      context.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      context.shadowBlur = 5 * elementScaleY;
+      context.shadowOffsetY = 2 * elementScaleY;
+      context.fillText(text, centerX, centerY);
+      context.restore();
+    });
+  }, [includeElevation]);
+
   const resetOverlayCapture = useCallback(() => {
     cachedOverlayRef.current = null;
     overlayBusyRef.current = false;
     overlayLastUpdateRef.current = 0;
     overlayRunIdRef.current += 1;
+    elevationPathCacheRef.current.clear();
   }, []);
 
-  return { cachedOverlayRef, loadHtml2Canvas, overlayBusyRef, overlayLastUpdateRef, resetOverlayCapture, updateOverlayAsync };
+  return {
+    cachedOverlayRef,
+    drawElevationProgress,
+    loadHtml2Canvas,
+    overlayBusyRef,
+    overlayLastUpdateRef,
+    resetOverlayCapture,
+    updateOverlayAsync,
+  };
 }
