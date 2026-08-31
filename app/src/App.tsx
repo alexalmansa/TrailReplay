@@ -273,8 +273,10 @@ function App() {
       return {
         columns,
         rows,
-        handleX: fromLeft ? targetLeft : targetLeft + targetWidth,
-        handleY: fromTop ? targetTop : targetTop + targetHeight,
+        left: targetLeft,
+        top: targetTop,
+        width: targetWidth,
+        height: targetHeight,
       };
     })
     : [];
@@ -692,12 +694,17 @@ function App() {
                   {resizeGuideTargets.map((target) => (
                     <div
                       key={`${target.columns}-${target.rows}`}
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide shadow-lg ${
+                      className={`absolute flex items-center justify-center rounded-lg border-2 border-dashed text-[10px] font-semibold uppercase tracking-wide shadow-lg transition-colors ${
                         target.columns === previewColumns
-                          ? 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
-                          : 'border-white/35 bg-[rgba(9,14,19,0.88)] text-white/75'
+                          ? 'border-[var(--evergreen)] bg-[var(--evergreen)]/20 text-white'
+                          : 'border-white/30 bg-white/[0.03] text-white/65'
                       }`}
-                      style={{ left: target.handleX, top: target.handleY }}
+                      style={{
+                        left: target.left,
+                        top: target.top,
+                        width: target.width,
+                        height: target.height,
+                      }}
                     >
                       {target.columns} × {target.rows}
                     </div>
