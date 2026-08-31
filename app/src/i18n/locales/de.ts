@@ -337,6 +337,7 @@ export const de = {
     ghostTrailOpacityHint: 'Legen Sie den Wert auf 0 fest, um die vollständige Routenvorschau auszublenden und sie erst bei fortschreitender Wiedergabe anzuzeigen.',
     statsTitle: 'Statistiken',
     statsHint: 'Ziehen Sie das Statistikfeld auf der Karte, um es neu zu positionieren.',
+    statsSize: 'Statistikgröße',
     paceMode: 'Tempomodus',
     paceModeCumulative: 'Gesamt',
     paceModePerKm: 'Pro km',

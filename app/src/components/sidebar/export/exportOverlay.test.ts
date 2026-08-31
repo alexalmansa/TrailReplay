@@ -62,6 +62,28 @@ describe('exportOverlay', () => {
     expect(rect.drawY).toBe(27);
   });
 
+  it('honors the user-selected stats scale in exported frames', () => {
+    const normal = getStatsOverlayDrawRect({
+      captureCanvas: { width: 300, height: 100 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+      sizeScale: 1,
+    });
+    const large = getStatsOverlayDrawRect({
+      captureCanvas: { width: 300, height: 100 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+      sizeScale: 1.5,
+    });
+
+    expect(large.drawWidth).toBeCloseTo(normal.drawWidth * 1.5);
+    expect(large.drawHeight).toBeCloseTo(normal.drawHeight * 1.5);
+  });
+
   it('keeps the stats overlay pinned to the top-left for landscape exports', () => {
     const rect = getStatsOverlayDrawRect({
       captureCanvas: { width: 520, height: 120 },

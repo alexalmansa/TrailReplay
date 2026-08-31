@@ -156,4 +156,22 @@ describe('hydrateProject', () => {
 
     expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
   });
+
+  it('persists stats scale and defaults legacy projects to 1x', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().setSettings({ statsScale: 1.6 });
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const scaledStore = createAppStore();
+    hydrateProject(parsed, scaledStore.getState());
+    expect(scaledStore.getState().settings.statsScale).toBe(1.6);
+
+    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsScale;
+    const legacyStore = createAppStore();
+    hydrateProject(parsed, legacyStore.getState());
+    expect(legacyStore.getState().settings.statsScale).toBe(1);
+  });
 });

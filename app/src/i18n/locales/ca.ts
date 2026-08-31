@@ -337,6 +337,7 @@ export const ca = {
     ghostTrailOpacityHint: 'Posa 0 per amagar la previsualització completa de la ruta i revelar-la només a mesura que avança la reproducció.',
     statsTitle: 'Estadístiques',
     statsHint: 'Arrossega el quadre d\'estadístiques al mapa per reposicionar-lo.',
+    statsSize: 'Mida de les estadístiques',
     paceMode: 'Mode ritme',
     paceModeCumulative: 'Global',
     paceModePerKm: 'Per km',

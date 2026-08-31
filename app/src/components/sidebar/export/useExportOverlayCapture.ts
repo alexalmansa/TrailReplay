@@ -24,6 +24,9 @@ type Html2Canvas = (
     useCORS: boolean;
     allowTaint?: boolean;
     ignoreElements?: (element: Element) => boolean;
+    onclone?: (documentClone: Document) => void;
+    width?: number;
+    height?: number;
   }
 ) => Promise<HTMLCanvasElement>;
 
@@ -134,12 +137,24 @@ export function useExportOverlayCapture({
               logging: false,
               useCORS: true,
               allowTaint: true,
+              width: statsElement.offsetWidth,
+              height: statsElement.offsetHeight,
               ignoreElements: (element) => element.hasAttribute('data-export-stat-value'),
+              // Capture the intrinsic 1x overlay, then apply statsScale once
+              // in the export layout math below. Otherwise html2canvas may
+              // bake the preview's ancestor transform into the bitmap and the
+              // compositor would scale it a second time.
+              onclone: (documentClone) => {
+                const scaleWrapper = documentClone.querySelector('[data-stats-scale-wrapper]') as HTMLElement | null;
+                if (scaleWrapper) scaleWrapper.style.transform = 'none';
+              },
             });
             const { drawWidth, drawHeight } = getCapturedCanvasDrawSize(captureCanvas, scaleToRecording, statsCaptureScale);
             const hasCustomPosition = useAppStore.getState().settings.statsPosition !== null;
+            const statsScale = useAppStore.getState().settings.statsScale ?? 1;
             const statsDrawRect = getStatsOverlayDrawRect({
               captureCanvas: { width: drawWidth, height: drawHeight }, scaleToRecording: 1, positionScale: scaleToRecording, recordW, recordH, margin,
+              sizeScale: statsScale,
               ...(hasCustomPosition && { elementRect: statsRect, containerRect, cropX, cropY }),
             });
             overlayContext.drawImage(captureCanvas, 0, 0, captureCanvas.width, captureCanvas.height, statsDrawRect.drawX, statsDrawRect.drawY, statsDrawRect.drawWidth, statsDrawRect.drawHeight);
@@ -254,16 +269,18 @@ export function useExportOverlayCapture({
 
     const margin = Math.round(recordW * 0.025);
     const hasCustomPosition = state.settings.statsPosition !== null;
+    const statsScale = state.settings.statsScale ?? 1;
     const drawRect = getStatsOverlayDrawRect({
       captureCanvas: {
-        width: statsRect.width * scaleToRecording,
-        height: statsRect.height * scaleToRecording,
+        width: (statsRect.width / statsScale) * scaleToRecording,
+        height: (statsRect.height / statsScale) * scaleToRecording,
       },
       scaleToRecording: 1,
       positionScale: scaleToRecording,
       recordW,
       recordH,
       margin,
+      sizeScale: statsScale,
       ...(hasCustomPosition && { elementRect: statsRect, containerRect, cropX, cropY }),
     });
     const elementScaleX = drawRect.drawWidth / statsRect.width;

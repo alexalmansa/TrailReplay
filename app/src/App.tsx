@@ -469,10 +469,20 @@ function App() {
                   }}
                   onMouseDown={handleStatsDragStart}
                 >
-                  <StatsOverlay
-                    layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
-                    variant={activeExportCropMetrics ? 'export' : 'default'}
-                  />
+                  <div
+                    data-stats-scale-wrapper
+                    style={{
+                      transform: `scale(${settings.statsScale})`,
+                      transformOrigin: settings.statsPosition || !statsShouldUseNarrowLayout
+                        ? 'top left'
+                        : 'top center',
+                    }}
+                  >
+                    <StatsOverlay
+                      layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
+                      variant={activeExportCropMetrics ? 'export' : 'default'}
+                    />
+                  </div>
                 </div>
               )}
 
