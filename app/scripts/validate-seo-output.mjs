@@ -30,8 +30,42 @@ function visibleWordCount(html) {
     .length;
 }
 
+function validateVideoObjects(value, file, location = '$') {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => validateVideoObjects(item, file, `${location}[${index}]`));
+    return;
+  }
+
+  if (!value || typeof value !== 'object') return;
+
+  const types = Array.isArray(value['@type']) ? value['@type'] : [value['@type']];
+  if (types.includes('VideoObject')) {
+    for (const property of ['name', 'thumbnailUrl', 'uploadDate']) {
+      if (!value[property]) {
+        failures.push(`${file} has a VideoObject at ${location} without required ${property}`);
+      }
+    }
+  }
+
+  for (const [property, child] of Object.entries(value)) {
+    validateVideoObjects(child, file, `${location}.${property}`);
+  }
+}
+
+function validateStructuredData(html, file) {
+  const scriptPattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  for (const match of html.matchAll(scriptPattern)) {
+    try {
+      validateVideoObjects(JSON.parse(match[1]), file);
+    } catch (error) {
+      failures.push(`${file} contains invalid JSON-LD: ${error.message}`);
+    }
+  }
+}
+
 for (const { file, canonical } of requiredDocuments) {
   const html = await readFile(path.join(distRoot, file), 'utf8');
+  validateStructuredData(html, file);
   if (!html.includes('<title>')) failures.push(`${file} is missing a title`);
   if (!html.includes(`rel="canonical" href="${canonical}"`)) {
     failures.push(`${file} is missing canonical ${canonical}`);
