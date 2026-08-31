@@ -36,6 +36,23 @@ function isNarrowFrame(width: number, height: number) {
   return width <= height || width < 560;
 }
 
+function chooseStatsColumns(width: number, height: number, statCount: number) {
+  const count = Math.max(1, statCount);
+  const targetRatio = Math.max(0.1, width / Math.max(1, height));
+  let bestColumns = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let columns = 1; columns <= count; columns += 1) {
+    const rows = Math.ceil(count / columns);
+    const gridRatio = columns / rows;
+    const score = Math.abs(Math.log(targetRatio / gridRatio));
+    if (score < bestScore) {
+      bestScore = score;
+      bestColumns = columns;
+    }
+  }
+  return bestColumns;
+}
+
 type StatsResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 interface StatsResizeStart {
@@ -217,7 +234,9 @@ function App() {
   const statsShouldUseNarrowLayout = activeExportCropMetrics
     ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
     : isNarrowScreen;
-  const resolvedStatsLayout = settings.statsLayout === 'auto'
+  const resolvedStatsLayout = settings.statsColumns !== null
+    ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
+    : settings.statsLayout === 'auto'
     ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
     : settings.statsLayout;
 
@@ -355,13 +374,14 @@ function App() {
       const height = Math.max(52, start.height + (fromTop ? -dy : dy));
       const areaRatio = (width * height) / Math.max(1, start.width * start.height);
       const scale = Math.max(0.6, Math.min(2, start.scale * Math.sqrt(areaRatio)));
-      const layout = width >= height ? 'horizontal' : 'vertical';
+      const columns = chooseStatsColumns(width, height, settings.visibleStats.length);
       const left = fromLeft ? start.left + start.width - width : start.left;
       const top = fromTop ? start.top + start.height - height : start.top;
 
       setSettings({
         statsScale: Math.round(scale * 100) / 100,
-        statsLayout: layout,
+        statsLayout: 'auto',
+        statsColumns: columns,
         statsPosition: {
           x: Math.max(0, Math.min(0.98, left / containerRect.width)),
           y: Math.max(0, Math.min(0.98, top / containerRect.height)),
@@ -378,7 +398,7 @@ function App() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [isResizingStats, setSettings]);
+  }, [isResizingStats, setSettings, settings.visibleStats.length]);
 
   useEffect(() => {
     return () => {
@@ -566,6 +586,8 @@ function App() {
                       position: 'relative',
                       width: 'fit-content',
                       transform: `scale(${settings.statsScale})`,
+                      outline: isResizingStats ? '1px dashed rgba(255,255,255,0.8)' : undefined,
+                      outlineOffset: isResizingStats ? '4px' : undefined,
                       transformOrigin: settings.statsPosition || !statsShouldUseNarrowLayout
                         ? 'top left'
                         : 'top center',

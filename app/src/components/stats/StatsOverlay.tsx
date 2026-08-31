@@ -152,13 +152,16 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
 
   if (visibleStats.length === 0) return null;
 
-  const cols = isVerticalLayout
+  const configuredColumns = Number.isFinite(settings.statsColumns)
+    ? Math.max(1, Math.min(visibleStats.length, Math.round(settings.statsColumns ?? 1)))
+    : null;
+  const cols = configuredColumns ?? (isVerticalLayout
     ? 1
     : isHorizontalLayout
       ? visibleStats.length
       : isExportVariant || isNarrowLayout
         ? Math.min(visibleStats.length, 2)
-        : Math.min(visibleStats.length, 4);
+        : Math.min(visibleStats.length, 4));
 
   const trackCount = segmentTimings.filter((s) => s.type === 'track').length;
   const transportCount = segmentTimings.filter((s) => s.type === 'transport').length;
@@ -177,7 +180,11 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
         className={`grid w-max ${isExportVariant || isNarrowLayout ? 'gap-x-1.5 gap-y-1.5 mb-0' : 'gap-2 mb-0'}`}
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(max-content, 1fr))` }}
       >
-        {visibleStats.map((stat) => (
+        {visibleStats.map((stat, index) => {
+          const remainder = visibleStats.length % cols;
+          const firstIncompleteRowIndex = visibleStats.length - remainder;
+          const centerOffset = remainder > 0 ? Math.ceil((cols - remainder) / 2) : 0;
+          return (
           <StatItem
             key={stat.id}
             statId={stat.id}
@@ -187,8 +194,10 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
             reserve={reserveValues[stat.id]}
             compact={isNarrowLayout}
             exportCompact={isExportVariant}
+            gridColumnStart={index === firstIncompleteRowIndex && remainder > 0 ? centerOffset + 1 : undefined}
           />
-        ))}
+          );
+        })}
       </div>
 
       {!isExportVariant && segmentTimings.length > 1 && (
@@ -212,11 +221,15 @@ interface StatItemProps {
   reserve?: string;
   compact?: boolean;
   exportCompact?: boolean;
+  gridColumnStart?: number;
 }
 
-function StatItem({ statId, icon, label, value, reserve, compact = false, exportCompact = false }: StatItemProps) {
+function StatItem({ statId, icon, label, value, reserve, compact = false, exportCompact = false, gridColumnStart }: StatItemProps) {
   return (
-    <div className={`min-w-max text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}>
+    <div
+      className={`min-w-max text-center ${exportCompact ? 'px-0.5 py-0.5' : compact ? 'px-1 py-0.5' : 'px-1 py-0.5'}`}
+      style={gridColumnStart ? { gridColumnStart } : undefined}
+    >
       <div className={`flex items-center justify-center min-w-0 ${
         exportCompact ? 'gap-1 mb-0.5' : compact ? 'gap-1 mb-1' : 'gap-1.5 mb-1.5'
       }`}>
