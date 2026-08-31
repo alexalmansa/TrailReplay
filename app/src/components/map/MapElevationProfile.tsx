@@ -316,7 +316,6 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
           >
             {isInTransport ? (
               <span
-                data-export-elevation-text
                 className={`block text-white ${
                   isNonWideExportPreview ? 'text-[18px] leading-none' : 'text-[12px] leading-none'
                 }`}
@@ -336,13 +335,11 @@ export function MapElevationProfile({ className = '', exportFrame = null }: MapE
                 }`}
               >
                 <span
-                  data-export-elevation-text
                   className={isNonWideExportPreview ? 'text-[22px] leading-none tracking-[-0.03em]' : 'text-[14px] leading-none'}
                 >
                   {formattedCurrentElev}
                 </span>
                 <span
-                  data-export-elevation-text
                   className={`font-semibold uppercase ${
                     isNonWideExportPreview ? 'text-[14px] leading-none' : 'text-[9px] leading-none'
                   }`}

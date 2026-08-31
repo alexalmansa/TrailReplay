@@ -125,6 +125,7 @@ export function useVideoExportRecorder() {
     resetOverlayCapture,
     updateOverlayAsync,
   } = useExportOverlayCapture({
+    elevationData,
     includeElevation,
     includeStats,
   });

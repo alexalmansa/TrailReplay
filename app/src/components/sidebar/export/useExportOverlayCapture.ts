@@ -1,5 +1,8 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { getElevationAtProgress } from '@/components/map/elevationProfile';
+import { TRANSPORT_ICONS } from '@/utils/journeyUtils';
+import { convertElevation } from '@/utils/units';
 import {
   getCapturedCanvasDrawSize,
   getElevationOverlayDrawRect,
@@ -29,11 +32,18 @@ declare global {
 }
 
 interface UseExportOverlayCaptureOptions {
+  elevationData: Array<{
+    elevation: number;
+    progress: number;
+    segmentIndex: number;
+    segmentType: 'track' | 'transport';
+  }>;
   includeElevation: boolean;
   includeStats: boolean;
 }
 
 export function useExportOverlayCapture({
+  elevationData,
   includeElevation,
   includeStats,
 }: UseExportOverlayCaptureOptions) {
@@ -43,6 +53,23 @@ export function useExportOverlayCapture({
   const html2CanvasLoaderRef = useRef<Promise<boolean> | null>(null);
   const overlayRunIdRef = useRef(0);
   const elevationPathCacheRef = useRef(new Map<string, Path2D>());
+  const elevationSegments = useMemo(() => {
+    const segments = new Map<number, {
+      points: Array<{ elevation: number; progress: number }>;
+      type: 'track' | 'transport';
+    }>();
+
+    elevationData.forEach((sample) => {
+      const segment = segments.get(sample.segmentIndex) ?? {
+        points: [],
+        type: sample.segmentType,
+      };
+      segment.points.push({ elevation: sample.elevation, progress: sample.progress });
+      segments.set(sample.segmentIndex, segment);
+    });
+    segments.forEach((segment) => segment.points.sort((a, b) => a.progress - b.progress));
+    return segments;
+  }, [elevationData]);
 
   const loadHtml2Canvas = useCallback(async (): Promise<boolean> => {
     if (window.html2canvas) return true;
@@ -245,31 +272,69 @@ export function useExportOverlayCapture({
     });
     context.restore();
 
-    const label = document.querySelector('[data-export-elevation-label]');
-    label?.querySelectorAll<HTMLElement>('[data-export-elevation-text]').forEach((textElement) => {
-      const text = textElement.textContent?.trim();
-      if (!text) return;
+    if (progress <= 0) return;
 
-      const rect = textElement.getBoundingClientRect();
-      const style = getComputedStyle(textElement);
-      const centerX = overlayRect.drawX
-        + (rect.left + rect.width / 2 - elementRect.left) * elementScaleX;
-      const centerY = overlayRect.drawY
-        + (rect.top + rect.height / 2 - elementRect.top) * elementScaleY;
-      const fontSize = (Number.parseFloat(style.fontSize) || 12) * elementScaleY;
-
-      context.save();
-      context.font = `${style.fontWeight || '700'} ${fontSize}px ${style.fontFamily || 'sans-serif'}`;
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      context.fillStyle = style.color || '#ffffff';
-      context.shadowColor = 'rgba(0, 0, 0, 0.8)';
-      context.shadowBlur = 5 * elementScaleY;
-      context.shadowOffsetY = 2 * elementScaleY;
-      context.fillText(text, centerX, centerY);
-      context.restore();
+    let currentSegment: {
+      points: Array<{ elevation: number; progress: number }>;
+      type: 'track' | 'transport';
+    } | undefined;
+    let currentSegmentIndex = 0;
+    elevationSegments.forEach((segment, segmentIndex) => {
+      const first = segment.points[0];
+      const last = segment.points[segment.points.length - 1];
+      if (first && last && progress >= first.progress && progress <= last.progress) {
+        currentSegment = segment;
+        currentSegmentIndex = segmentIndex;
+      }
     });
-  }, [includeElevation]);
+    if (!currentSegment) return;
+
+    const state = useAppStore.getState();
+    const unitSystem = state.settings.unitSystem;
+    const isCompact = recordW > recordH;
+    const centerX = drawX + progress * drawWidth;
+    const baselineY = overlayRect.drawY
+      + overlayRect.drawHeight
+      - (isCompact ? 4 : 8) * elementScaleY;
+
+    context.save();
+    context.textBaseline = 'bottom';
+    context.fillStyle = '#ffffff';
+    context.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    context.shadowBlur = 5 * elementScaleY;
+    context.shadowOffsetY = 2 * elementScaleY;
+
+    if (currentSegment.type === 'transport') {
+      const journeySegment = state.journeySegments[currentSegmentIndex];
+      const mode = journeySegment?.type === 'transport' ? journeySegment.mode : 'car';
+      const icon = TRANSPORT_ICONS[mode] || '🚗';
+      context.font = `${(isCompact ? 12 : 18) * elementScaleY}px sans-serif`;
+      context.textAlign = 'center';
+      context.fillText(icon, centerX, baselineY);
+    } else {
+      const elevation = getElevationAtProgress(currentSegment.points, progress);
+      const value = String(Math.round(convertElevation(elevation, unitSystem)));
+      const unit = unitSystem === 'metric' ? 'M' : 'FT';
+      const valueSize = (isCompact ? 14 : 22) * elementScaleY;
+      const unitSize = (isCompact ? 9 : 14) * elementScaleY;
+      const gap = (isCompact ? 4 : 6) * elementScaleX;
+      const family = 'JetBrains Mono, monospace';
+
+      context.font = `700 ${valueSize}px ${family}`;
+      const valueWidth = context.measureText(value).width;
+      context.font = `600 ${unitSize}px ${family}`;
+      const unitWidth = context.measureText(unit).width;
+      let textX = centerX - (valueWidth + gap + unitWidth) / 2;
+
+      context.textAlign = 'left';
+      context.font = `700 ${valueSize}px ${family}`;
+      context.fillText(value, textX, baselineY);
+      textX += valueWidth + gap;
+      context.font = `600 ${unitSize}px ${family}`;
+      context.fillText(unit, textX, baselineY);
+    }
+    context.restore();
+  }, [elevationSegments, includeElevation]);
 
   const resetOverlayCapture = useCallback(() => {
     cachedOverlayRef.current = null;
