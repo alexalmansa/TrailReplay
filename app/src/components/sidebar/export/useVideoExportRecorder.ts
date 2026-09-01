@@ -14,6 +14,24 @@ import {
 } from '@/utils/analytics';
 import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
 import { getTriggeredPlaybackPictures } from '@/utils/playbackPictures';
+import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
+import {
+  buildJourneyDistanceProfile,
+  getSegmentAtDistance,
+  getSegmentAtProgress,
+  getJourneyPointAtDistance,
+  getJourneyPointAtProgress,
+  type JourneyPoint,
+} from '@/utils/journeyUtils';
+import {
+  formatDistance,
+  formatElevation,
+  formatPace,
+  formatSpeedFromKmh,
+  formatStatsDuration,
+} from '@/utils/units';
+import { calculateCurrentLiveStats } from '@/components/stats/liveStats';
+import type { StatId } from '@/types';
 import {
   getSupportedMimeType,
   getVideoBitrate,
@@ -101,7 +119,18 @@ export function useVideoExportRecorder() {
   const setSpeed = useAppStore((state) => state.setSpeed);
   const play = useAppStore((state) => state.play);
   const setCinematicPlayed = useAppStore((state) => state.setCinematicPlayed);
-  const { cameraPathCoordinates, elevationData } = useComputedJourney();
+  const {
+    activeTrack,
+    cameraPathCoordinates,
+    computedJourney,
+    elevationData,
+    segmentTimings,
+    totalDistance,
+  } = useComputedJourney();
+  const journeyDistanceProfile = useMemo(
+    () => computedJourney ? buildJourneyDistanceProfile(computedJourney.coordinates) : null,
+    [computedJourney],
+  );
 
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
 
@@ -116,14 +145,121 @@ export function useVideoExportRecorder() {
   const includeStats = visibleStats.length > 0;
   const includeElevation = showElevationProfile;
   const overlayRefreshIntervalMs = useMemo(() => getOverlayRefreshIntervalMs(videoExportSettings.fps), [videoExportSettings.fps]);
+  const getStatsValues = useCallback((progress: number): Partial<Record<StatId, string>> => {
+    const state = useAppStore.getState();
+    const routeTimingMode = state.playback.routeTimingMode;
+    let journeyPosition: JourneyPoint | null = null;
+    if (computedJourney) {
+      journeyPosition = routeTimingMode === 'uniform' && journeyDistanceProfile
+        ? getJourneyPointAtDistance(
+            journeyDistanceProfile,
+            journeyDistanceProfile.totalDistance * progress,
+          )
+        : getJourneyPointAtProgress(progress, computedJourney.coordinates, segmentTimings);
+    } else if (activeTrack) {
+      const trackPosition = interpolateTrackPoint(activeTrack, activeTrack.totalDistance * progress);
+      if (trackPosition) {
+        journeyPosition = {
+          ...trackPosition,
+          segmentIndex: 0,
+          segmentType: 'track',
+          trackId: activeTrack.id,
+        };
+      }
+    }
+    if (!journeyPosition) return {};
+    const currentStats = calculateCurrentLiveStats({
+      activeTrack,
+      computedJourney,
+      currentPosition: journeyPosition,
+      playbackProgress: progress,
+      restartPerTrack: state.settings.journeyStatsMode === 'per-track',
+      segmentTimings,
+      totalDistance,
+      tracks: state.tracks,
+      videoDurationSeconds: state.playback.totalDuration / 1000,
+    });
+    const isInTransport = journeyPosition.segmentType === 'transport';
+    const values: Partial<Record<StatId, string>> = {};
+
+    state.settings.visibleStats.forEach((id) => {
+      switch (id) {
+        case 'duration':
+          values[id] = formatStatsDuration(currentStats.duration);
+          break;
+        case 'distance':
+          values[id] = formatDistance(currentStats.distance, state.settings.unitSystem);
+          break;
+        case 'pace':
+          values[id] = isInTransport
+            ? '--'
+            : formatPace(
+                state.settings.paceMode === 'per-km'
+                  ? currentStats.rollingSpeed
+                  : currentStats.averageSpeed,
+                state.settings.unitSystem,
+              );
+          break;
+        case 'elevation':
+          values[id] = isInTransport
+            ? '--'
+            : formatElevation(currentStats.elevationGain, state.settings.unitSystem);
+          break;
+        case 'speed':
+          values[id] = formatSpeedFromKmh(currentStats.currentSpeed, state.settings.unitSystem);
+          break;
+        case 'altitude':
+          values[id] = currentStats.altitude !== null
+            ? formatElevation(currentStats.altitude, state.settings.unitSystem)
+            : '--';
+          break;
+        case 'heartRate':
+          if (currentStats.heartRate) {
+            values[id] = `${Math.round(currentStats.heartRate)} ${t('stats.bpm')}`;
+          }
+          break;
+      }
+    });
+
+    return values;
+  }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings, t, totalDistance]);
+  const getTrackLabel = useCallback((progress: number): { color: string; text: string } | null => {
+    const state = useAppStore.getState();
+    if (!state.settings.trailStyle.showTrackLabels) return null;
+
+    if (!computedJourney) {
+      return activeTrack
+        ? { color: state.settings.trailStyle.trailColor, text: activeTrack.name }
+        : null;
+    }
+
+    const currentSegment = state.playback.routeTimingMode === 'uniform' && journeyDistanceProfile
+      ? getSegmentAtDistance(
+          journeyDistanceProfile,
+          journeyDistanceProfile.totalDistance * progress,
+          segmentTimings,
+        )
+      : getSegmentAtProgress(progress, segmentTimings);
+    const trackId = currentSegment?.segment.type === 'track'
+      ? currentSegment.segment.trackId
+      : undefined;
+    const track = trackId ? state.tracks.find((candidate) => candidate.id === trackId) : null;
+    return track
+      ? { color: track.color || state.settings.trailStyle.trailColor, text: track.name }
+      : null;
+  }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings]);
   const {
     cachedOverlayRef,
+    drawElevationProgress,
+    drawStatsValues,
     loadHtml2Canvas,
     overlayBusyRef,
     overlayLastUpdateRef,
     resetOverlayCapture,
     updateOverlayAsync,
   } = useExportOverlayCapture({
+    elevationData,
+    getStatsValues,
     includeElevation,
     includeStats,
   });
@@ -212,6 +348,24 @@ export function useVideoExportRecorder() {
 
     const scaleX = recordW / cropW;
     const scaleY = recordH / cropH;
+
+    // The static elevation profile remains in the cached DOM snapshot, while
+    // its progress fill and label are cheap native-canvas primitives. Drawing
+    // only those moving pieces here keeps them at the actual video frame rate
+    // without running html2canvas 30 or 60 times per second.
+    drawStatsValues(context, {
+      containerRect,
+      cropX,
+      cropY,
+      recordW,
+      recordH,
+      scaleToRecording: scaleX,
+    });
+    drawElevationProgress(context, {
+      recordW,
+      recordH,
+      scaleToRecording: scaleX,
+    });
 
     // The photo popup should read as fully in front of everything else
     // (matching the live view's z-index stacking): neither the route
@@ -303,6 +457,24 @@ export function useVideoExportRecorder() {
           context.fillText(markerIcon.textContent, markerX, markerY);
         }
       }
+
+      const trackLabel = getTrackLabel(useAppStore.getState().playback.progress);
+      if (trackLabel?.text) {
+        const labelFontSize = 12 * scaleY;
+        const markerTop = markerY - (markerRect.height / 2) * scaleY;
+
+        context.save();
+        context.font = `700 ${labelFontSize}px JetBrains Mono, monospace`;
+        context.textAlign = 'center';
+        context.textBaseline = 'bottom';
+        context.lineJoin = 'round';
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 3 * scaleY;
+        context.strokeText(trackLabel.text, markerX, markerTop - 8 * scaleY);
+        context.fillStyle = trackLabel.color;
+        context.fillText(trackLabel.text, markerX, markerTop - 8 * scaleY);
+        context.restore();
+      }
     }
 
     if (cachedLogoRef.current) {
@@ -325,7 +497,7 @@ export function useVideoExportRecorder() {
     if (Date.now() - overlayLastUpdateRef.current >= overlayRefreshIntervalMs && !overlayBusyRef.current) {
       updateOverlayAsync(recordW, recordH);
     }
-  }, [cachedOverlayRef, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
+  }, [cachedOverlayRef, drawElevationProgress, drawStatsValues, getTrackLabel, overlayBusyRef, overlayLastUpdateRef, overlayRefreshIntervalMs, preloadSvgMarkerIcon, updateOverlayAsync, videoExportSettings.resolution]);
 
   // When encoding via WebCodecs, push the freshly drawn canvas to the encoder.
   // No-op for the MediaRecorder path, which samples the canvas stream itself.

@@ -144,7 +144,7 @@ export const ca = {
     },
     cameraStability: {
       title: 'Estabilitat de la càmera',
-      stable: 'Estable',
+      stable: 'Cinemàtica',
       reactive: 'Reactiva',
     },
     units: 'Unitats',

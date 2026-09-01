@@ -6,6 +6,7 @@ import {
   getOverlayRefreshIntervalMs,
   getPopupOverlayDrawRect,
   getStatsOverlayDrawRect,
+  getStatsValueTimelineBucket,
   isDrawableRect,
 } from './exportOverlay';
 
@@ -15,6 +16,13 @@ describe('exportOverlay', () => {
     expect(getOverlayRefreshIntervalMs(24)).toBe(83);
     expect(getOverlayRefreshIntervalMs(12)).toBe(83);
     expect(getOverlayRefreshIntervalMs(6)).toBe(167);
+  });
+
+  it('paces native stat updates by encoded video time rather than wall-clock time', () => {
+    expect(getStatsValueTimelineBucket(0)).toBe(0);
+    expect(getStatsValueTimelineBucket(99)).toBe(0);
+    expect(getStatsValueTimelineBucket(100)).toBe(1);
+    expect(getStatsValueTimelineBucket(1_050)).toBe(10);
   });
 
   it('derives crop metrics and overlay scaling from the exported frame', () => {
@@ -52,6 +60,28 @@ describe('exportOverlay', () => {
     expect(rect.drawWidth).toBeLessThanOrEqual(1080 * 0.56);
     expect(rect.drawX).toBeCloseTo((1080 - rect.drawWidth) / 2);
     expect(rect.drawY).toBe(27);
+  });
+
+  it('honors the user-selected stats scale in exported frames', () => {
+    const normal = getStatsOverlayDrawRect({
+      captureCanvas: { width: 300, height: 100 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+      sizeScale: 1,
+    });
+    const large = getStatsOverlayDrawRect({
+      captureCanvas: { width: 300, height: 100 },
+      scaleToRecording: 1,
+      recordW: 1920,
+      recordH: 1080,
+      margin: 48,
+      sizeScale: 1.5,
+    });
+
+    expect(large.drawWidth).toBeCloseTo(normal.drawWidth * 1.5);
+    expect(large.drawHeight).toBeCloseTo(normal.drawHeight * 1.5);
   });
 
   it('keeps the stats overlay pinned to the top-left for landscape exports', () => {

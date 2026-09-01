@@ -1,6 +1,6 @@
 import type { AppState } from '@/store/storeTypes';
 import { parseGPX } from '@/utils/gpxParser';
-import { createDefaultCameraSettings, createDefaultPlayback } from '@/store/defaults';
+import { createDefaultCameraSettings, createDefaultPlayback, createDefaultSettings } from '@/store/defaults';
 import type { ComparisonTrack, PictureAnnotation, VideoAnnotation } from '@/types';
 import type { ParsedProject, SerializedPicture, SerializedVideo } from './types';
 
@@ -90,7 +90,9 @@ export function hydrateProject(parsed: ParsedProject, store: AppState): void {
     // defaults rather than `store.playback`, since `store` was captured
     // before `store.reset()` above and still holds the pre-reset value.
     playback: { ...createDefaultPlayback(), routeTimingMode: project.routeTimingMode ?? 'recorded' },
-    settings: project.settings,
+    // Merge defaults so projects saved before newer presentation controls
+    // (such as statsScale) retain the original 1x appearance.
+    settings: { ...createDefaultSettings(), ...project.settings },
     // Older saved projects predate cameraStability; backfill it so an
     // undefined value doesn't turn the camera smoothing math into NaN.
     cameraSettings: { ...createDefaultCameraSettings(), ...project.cameraSettings },

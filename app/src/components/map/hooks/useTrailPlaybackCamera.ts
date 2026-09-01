@@ -9,12 +9,14 @@ import { buildSegmentLineFeatures } from '@/utils/trailColorFeatures';
 import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
 import {
+  cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
   smoothCoordinate,
   smoothPitch,
   smoothZoom,
+  smoothZoomTarget,
 } from '@/components/map/cameraUtils';
 import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
 
@@ -150,6 +152,13 @@ export function useTrailPlaybackCamera({
 }: UseTrailPlaybackCameraParams) {
   const lastCameraFrameTimeRef = useRef<number | null>(null);
   const smoothedCenterRef = useRef<[number, number] | null>(null);
+  const smoothedZoomTargetRef = useRef<number | null>(null);
+
+  // Explicit distance/mode changes should take effect immediately instead of
+  // being mistaken for terrain noise by the cinematic target filter.
+  useEffect(() => {
+    smoothedZoomTargetRef.current = null;
+  }, [cameraMode, followBehindZoomLevel]);
 
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
@@ -349,7 +358,23 @@ export function useTrailPlaybackCamera({
       );
 
       const currentZoom = mapRef.current.getZoom();
-      const newZoom = smoothZoom(currentZoom, targetPose.zoom, undefined, undefined, reactivity, frameTimeMultiplier);
+      const stabilizedZoomTarget = smoothedZoomTargetRef.current === null || deltaMs === null
+        ? targetPose.zoom
+        : smoothZoomTarget(
+            smoothedZoomTargetRef.current,
+            targetPose.zoom,
+            deltaMs,
+            cameraStability,
+          );
+      smoothedZoomTargetRef.current = stabilizedZoomTarget;
+      const newZoom = smoothZoom(
+        currentZoom,
+        stabilizedZoomTarget,
+        undefined,
+        undefined,
+        reactivity,
+        frameTimeMultiplier,
+      );
       const newPitch = smoothPitch(mapRef.current.getPitch(), targetPose.pitch, undefined, undefined, reactivity, frameTimeMultiplier);
 
       // Chase the marker's exact position the same way live playback used to
@@ -358,9 +383,10 @@ export function useTrailPlaybackCamera({
       // can't be used directly during export). Compute it by hand here so both
       // paths land on the same rendered position.
       const targetCenter: [number, number] = [currentPosition.lon, currentPosition.lat];
+      const centerChaseDuration = cameraCenterChaseDurationFromStability(cameraStability);
       const smoothedCenter = smoothedCenterRef.current === null || deltaMs === null
         ? targetCenter
-        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs);
+        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs, centerChaseDuration);
       smoothedCenterRef.current = smoothedCenter;
 
       // With 3D terrain the marker is drawn on the terrain surface, while the
@@ -407,6 +433,7 @@ export function useTrailPlaybackCamera({
       // since the last frame (e.g. time spent paused) be read as an elapsed
       // delta once playback resumes.
       lastCameraFrameTimeRef.current = null;
+      smoothedZoomTargetRef.current = null;
     }
 
     setCameraPosition({

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateTerrainAwareAdjustments,
+  cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
   smoothCoordinate,
   smoothPitch,
   smoothZoom,
+  smoothZoomTarget,
 } from './cameraUtils';
 
 describe('camera utilities', () => {
@@ -73,6 +75,32 @@ describe('camera utilities', () => {
     expect(cameraReactivityFromStability(Number.NaN)).toBeCloseTo(1);
   });
 
+  it('turns the stable endpoint into a cinematic centre glide', () => {
+    expect(cameraCenterChaseDurationFromStability(0)).toBe(900);
+    expect(cameraCenterChaseDurationFromStability(0.25)).toBe(300);
+    expect(cameraCenterChaseDurationFromStability(0.5)).toBe(100);
+    expect(cameraCenterChaseDurationFromStability(1)).toBe(55);
+    expect(cameraCenterChaseDurationFromStability(Number.NaN)).toBe(100);
+  });
+
+  it('filters positional corrections much more strongly at maximum stability', () => {
+    const target: [number, number] = [10, 0];
+    const cinematic = smoothCoordinate(
+      [0, 0],
+      target,
+      1000 / 60,
+      cameraCenterChaseDurationFromStability(0),
+    );
+    const defaultCamera = smoothCoordinate(
+      [0, 0],
+      target,
+      1000 / 60,
+      cameraCenterChaseDurationFromStability(0.5),
+    );
+
+    expect(cinematic[0]).toBeLessThan(defaultCamera[0] / 5);
+  });
+
   it('a low reactivity holds the heading through bigger route wiggles than the default', () => {
     expect(smoothBearing(90, 93, undefined, undefined, 0.25)).toBe(90);
     expect(smoothBearing(90, 100, undefined, undefined, 0.25)).toBe(90);
@@ -86,6 +114,25 @@ describe('camera utilities', () => {
     const stableZoom = smoothZoom(15, 16, undefined, undefined, 0.25);
     const reactiveZoom = smoothZoom(15, 16, undefined, undefined, 1.75);
     expect(reactiveZoom - 15).toBeGreaterThan(stableZoom - 15);
+  });
+
+  it('preserves terrain zoom targets at the default and reactive settings', () => {
+    expect(smoothZoomTarget(15, 13, 16, 0.5)).toBe(13);
+    expect(smoothZoomTarget(15, 13, 16, 1)).toBe(13);
+  });
+
+  it('holds small terrain zoom reversals in cinematic mode', () => {
+    expect(smoothZoomTarget(14, 14.25, 100, 0)).toBe(14);
+    expect(smoothZoomTarget(14, 13.75, 100, 0)).toBe(14);
+  });
+
+  it('opens the cinematic frame faster than it zooms back in', () => {
+    const zoomedOut = smoothZoomTarget(15, 13, 100, 0);
+    const zoomedIn = smoothZoomTarget(15, 17, 100, 0);
+
+    expect(15 - zoomedOut).toBeGreaterThan((zoomedIn - 15) * 3);
+    expect(zoomedOut).toBeGreaterThan(13);
+    expect(zoomedIn).toBeLessThan(17);
   });
 
   it('maps elapsed time to a frame-time multiplier centered on a 60fps reference frame', () => {

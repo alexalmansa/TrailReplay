@@ -303,6 +303,9 @@ export interface AppSettings {
   visibleStats: StatId[];
   journeyStatsMode: JourneyStatsMode;
   statsPosition: { x: number; y: number } | null;
+  statsScale: number;
+  statsLayout: 'auto' | 'horizontal' | 'vertical';
+  statsColumns: number | null;
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;
 }
