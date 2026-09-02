@@ -23,16 +23,27 @@ describe('follow-behind distance stops', () => {
     expect(FOLLOW_BEHIND_STOP_COUNT).toBeGreaterThan(4);
   });
 
-  it('keeps the named presets on exactly the framing they always had', () => {
-    // Saved projects store a level, so these must not drift.
-    expect(getFollowBehindCameraTarget(getFollowBehindZoomLevelForPreset('far'), 'playback'))
-      .toEqual({ zoom: 11, pitch: 30 });
-    expect(getFollowBehindCameraTarget(getFollowBehindZoomLevelForPreset('medium'), 'playback'))
-      .toEqual({ zoom: 14, pitch: 35 });
-    expect(getFollowBehindCameraTarget(getFollowBehindZoomLevelForPreset('close'), 'playback'))
-      .toEqual({ zoom: 15, pitch: 45 });
-    expect(getFollowBehindCameraTarget(getFollowBehindZoomLevelForPreset('very-close'), 'playback'))
-      .toEqual({ zoom: 16, pitch: 55 });
+  it('keeps every named preset on a level that still resolves to a stop', () => {
+    // The framing each name describes has moved closer, but the levels saved in
+    // existing projects must still land somewhere valid.
+    for (const preset of ['far', 'medium', 'close', 'very-close'] as const) {
+      const level = getFollowBehindZoomLevelForPreset(preset);
+      expect(getFollowBehindLevelForStopIndex(getFollowBehindStopIndexForLevel(level))).toBe(level);
+    }
+  });
+
+  it('sits closer than the ladder it replaced, at every position', () => {
+    // The old stops, widest to closest. Each new stop must be nearer than the
+    // one that shared its place, the widest is no wider than the old
+    // second-widest, and the closest goes beyond the old closest.
+    const previousZooms = [11, 12, 13, 14, 14.5, 15, 15.5, 16];
+    const zooms = Array.from({ length: FOLLOW_BEHIND_STOP_COUNT }, (_, index) =>
+      getFollowBehindCameraTarget(getFollowBehindLevelForStopIndex(index), 'playback').zoom);
+
+    expect(zooms).toHaveLength(previousZooms.length);
+    zooms.forEach((zoom, index) => expect(zoom).toBeGreaterThan(previousZooms[index]));
+    expect(zooms[0]).toBeGreaterThanOrEqual(previousZooms[1]);
+    expect(zooms[zooms.length - 1]).toBeGreaterThan(previousZooms[previousZooms.length - 1]);
   });
 
   it('steps monotonically closer, without skipping or repeating a stop', () => {

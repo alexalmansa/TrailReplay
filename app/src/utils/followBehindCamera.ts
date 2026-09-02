@@ -17,33 +17,46 @@ type FollowBehindCameraProfile = 'intro' | 'playback';
 /**
  * The distance stops the slider and the map's +/- buttons step through.
  *
- * The four named presets keep the exact zoom, pitch and level they always had,
- * so saved projects and the preset names still mean the same thing. The extra
- * stops sit between them: the jump from `far` to `medium` was three whole zoom
- * levels, which is far too coarse a step when the right framing for a replay
- * lands somewhere in the middle.
+ * The whole ladder sits closer than it used to. The old widest stop (zoom 11)
+ * was wide enough that the marker read as a dot on a map rather than a subject
+ * being followed, so the second-widest becomes the new limit and a stop closer
+ * than the old `very-close` is added at the other end. Every position is nearer
+ * than the one that shared its place before.
+ *
+ * The four named presets keep their levels (0 / 33 / 66 / 100) so stored
+ * settings and saved projects still land on a valid stop, but the framing each
+ * one describes has moved in with everything else. The stops between them exist
+ * because the old `far`-to-`medium` gap was three whole zoom levels, far too
+ * coarse when the right framing lands in the middle.
  */
 const PLAYBACK_CAMERA_ANCHORS: FollowBehindCameraAnchor[] = [
-  { id: 'far', level: 0, zoom: 11, pitch: 30 },
-  { level: 11, zoom: 12, pitch: 32 },
-  { level: 22, zoom: 13, pitch: 33.5 },
-  { id: 'medium', level: 33, zoom: 14, pitch: 35 },
-  { level: 49.5, zoom: 14.5, pitch: 40 },
-  { id: 'close', level: 66, zoom: 15, pitch: 45 },
-  { level: 83, zoom: 15.5, pitch: 50 },
-  { id: 'very-close', level: 100, zoom: 16, pitch: 55 },
+  { id: 'far', level: 0, zoom: 12, pitch: 32 },
+  { level: 11, zoom: 12.8, pitch: 34 },
+  { level: 22, zoom: 13.6, pitch: 36 },
+  { id: 'medium', level: 33, zoom: 14.5, pitch: 40 },
+  { level: 49.5, zoom: 15, pitch: 44 },
+  { id: 'close', level: 66, zoom: 15.5, pitch: 48 },
+  { level: 83, zoom: 16, pitch: 52 },
+  { id: 'very-close', level: 100, zoom: 16.5, pitch: 56 },
 ];
 
-/** Same stops, on the wider pose the cinematic fly-in finishes at. */
+/**
+ * Same stops, on the wider pose a cinematic fly-in would finish at.
+ *
+ * Currently unused — `getIntroCameraPose` deliberately targets the playback
+ * pose so the fly-in lands exactly where playback begins, rather than arriving
+ * somewhere wider and then zooming again. Kept in step with the playback ladder
+ * so it stays coherent if that changes.
+ */
 const INTRO_CAMERA_ANCHORS: FollowBehindCameraAnchor[] = [
-  { id: 'far', level: 0, zoom: 14, pitch: 45 },
-  { level: 11, zoom: 14.35, pitch: 46.7 },
-  { level: 22, zoom: 14.7, pitch: 48.3 },
-  { id: 'medium', level: 33, zoom: 15, pitch: 50 },
-  { level: 49.5, zoom: 15.5, pitch: 52.5 },
-  { id: 'close', level: 66, zoom: 16, pitch: 55 },
-  { level: 83, zoom: 16.5, pitch: 57.5 },
-  { id: 'very-close', level: 100, zoom: 17, pitch: 60 },
+  { id: 'far', level: 0, zoom: 13, pitch: 47 },
+  { level: 11, zoom: 13.8, pitch: 48.5 },
+  { level: 22, zoom: 14.6, pitch: 50 },
+  { id: 'medium', level: 33, zoom: 15.5, pitch: 52 },
+  { level: 49.5, zoom: 16, pitch: 54 },
+  { id: 'close', level: 66, zoom: 16.5, pitch: 56 },
+  { level: 83, zoom: 17, pitch: 58 },
+  { id: 'very-close', level: 100, zoom: 17.5, pitch: 60 },
 ];
 
 /** Levels of each stop, in order from furthest to closest. */
@@ -179,8 +192,13 @@ const REFERENCE_VIEWPORT_WIDTH_PX = 1280;
  * video. This is the knob that decides what "sensible starting framing" means:
  * lower pulls the camera in and makes the replay feel faster, higher pushes it
  * out and calms it down.
+ *
+ * Tightened from 20s so a freshly loaded route starts closer, on top of the
+ * whole stop ladder having moved in. Both were needed: shifting the ladder
+ * alone left several routes snapping to the same absolute zoom as before,
+ * because the target they were snapping to had not moved.
  */
-const SECONDS_TO_CROSS_VIEWPORT = 20;
+const SECONDS_TO_CROSS_VIEWPORT = 13;
 
 /**
  * The distance stop to start a freshly loaded route on.

@@ -21,10 +21,10 @@ describe('replay camera plan', () => {
       center: [0, 0], zoom: 14, pitch: 0, bearing: 0,
     });
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
-      center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
+      center: [0, 0], zoom: 16.5, pitch: 56, bearing: 90,
     });
     expect(getIntroCameraPose({ ...options, cameraMode: 'follow-behind' })).toMatchObject({
-      center: [0, 0], zoom: 16, pitch: 55, bearing: 90,
+      center: [0, 0], zoom: 16.5, pitch: 56, bearing: 90,
     });
     expect(getPlaybackCameraPose({ ...options, cameraMode: 'overview' })).toBeNull();
   });
@@ -54,7 +54,7 @@ describe('replay camera plan', () => {
       cameraMode: 'follow-behind',
       elevationData,
       progress: 0,
-    })).toMatchObject({ zoom: 16, pitch: 55 });
+    })).toMatchObject({ zoom: 16.5, pitch: 56 });
 
     // Pitch still flattens by the full terrain allowance on a big climb; the
     // zoom pull-back is deliberately gentler than it used to be, so the
@@ -64,7 +64,7 @@ describe('replay camera plan', () => {
       cameraMode: 'follow-behind',
       elevationData,
       progress: 1,
-    })).toMatchObject({ zoom: 15.2, pitch: 40 });
+    })).toMatchObject({ zoom: 15.7, pitch: 41 });
   });
 
   it('adds an incoming-bearing warmup pose around a turn', () => {
