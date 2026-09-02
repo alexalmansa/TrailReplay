@@ -95,10 +95,30 @@ height 903 m in one frame).
 ### 3. The channel you blame is usually not the one moving
 
 "The zoom is bumping in and out" was, when measured, a zoom channel that did not
-change *at all* for an entire replay. The pumping was the camera's look-at
-**height** bobbing over terrain — which in a pitched view moves the picture along
-the view axis and looks exactly like zoom. Measure every channel before forming a
-theory.
+change *at all* for an entire replay. This happened **twice**, with two different
+culprits:
+
+- the camera's look-at **height** bobbing over terrain, which in a pitched view
+  moves the picture along the view axis;
+- **pitch** drifting a few degrees, which changes how much ground fills the
+  frame.
+
+Both read as zoom to the eye. Measure every channel before forming a theory.
+
+### 4. Channels sharing an input need comparable sensitivity to it
+
+Zoom and pitch are both driven by the same terrain risk value, but through very
+different budgets — and their deadbands were not scaled to match. With a zoom
+budget of 0.8 against a 0.4 deadband, and a pitch budget of 15 against a 1.4
+deadband, pitch ended up roughly five times more reactive to the same wobble.
+Measured at maximum stability, risk drifting between 0.36 and 0.70 moved zoom by
+0.27 (entirely swallowed, nothing rendered) and pitch by 5 degrees (of which 3.6
+to 4.9 rendered).
+
+So when one channel looks calm and another does not, compare
+`budget / deadband` across them before touching the smoothing. Calming the
+shared input helps every channel at once; changing one channel's budget is what
+brings them into line.
 
 ## How to measure
 

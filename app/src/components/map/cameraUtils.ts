@@ -115,8 +115,17 @@ export function centerChaseDurationMs(cameraStability: number): number {
  * (`cameraPathCoordinates`), so a span measured in samples covers the same
  * fraction of the replay — and so the same amount of screen motion — whether
  * the route is 10 km or 200 km.
+ *
+ * Width matters as much as symmetry. Those 601 samples work out at about six
+ * rendered frames apart, so the first version of this — two samples either
+ * side — averaged over barely a fifth of a second of video and left plenty of
+ * bob behind. This spans eight either side, a little over a second of video,
+ * which is long enough to flatten the undulations while still following the
+ * shape of the ground. They are spaced two apart rather than packed together
+ * because the width of the window does the smoothing; extra samples inside it
+ * would only cost terrain lookups per frame.
  */
-export const TERRAIN_SAMPLE_INDEX_OFFSETS = [-2, -1, 0, 1, 2] as const;
+export const TERRAIN_SAMPLE_INDEX_OFFSETS = [-8, -6, -4, -2, 0, 2, 4, 6, 8] as const;
 
 /**
  * Ceiling on how fast the look-at height may move, in metres per second of
@@ -328,7 +337,27 @@ export const TERRAIN_CAMERA_SETTINGS = {
    * as the camera pumping even when it moves monotonically.
    */
   MAX_ZOOM_OUT: 0.8,
-  MAX_PITCH_REDUCE: 15,
+  /**
+   * Pitch allowed to flatten for terrain, in degrees.
+   *
+   * Cut hard from 15, for the same reason the zoom budget was cut, and then
+   * some: pitch was by far the most sensitive channel to leftover wobble in the
+   * terrain reading. Both channels are driven by the same risk value, but a
+   * budget of 15 against a 1.4 degree deadband made pitch roughly five times
+   * more reactive to it than zoom is to its own. Measured on two real routes at
+   * maximum stability, the risk drifting between 0.36 and 0.70 moved the zoom
+   * 0.27 — entirely swallowed by its deadband, nothing rendered — while moving
+   * the pitch 5 degrees, of which 3.6 to 4.9 rendered. Tilting the camera
+   * changes how much ground fills the frame, so that reads as the picture
+   * slowly breathing in and out, which is exactly the symptom on routes with a
+   * lot of elevation change.
+   *
+   * A budget this small still flattens the view on genuinely steep ground, but
+   * cannot be moved by ordinary variation in the terrain reading. As with zoom,
+   * this is not the mechanism keeping the marker framed — `setCenterElevation`
+   * pinning the look-at point to the terrain surface is.
+   */
+  MAX_PITCH_REDUCE: 4,
   MIN_ZOOM: 8,
   MAX_ZOOM: 14,
   MIN_PITCH: 15,

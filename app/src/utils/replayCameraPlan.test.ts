@@ -56,15 +56,16 @@ describe('replay camera plan', () => {
       progress: 0,
     })).toMatchObject({ zoom: 16.5, pitch: 56 });
 
-    // Pitch still flattens by the full terrain allowance on a big climb; the
-    // zoom pull-back is deliberately gentler than it used to be, so the
-    // framing stays consistent instead of re-scaling on every climb.
+    // Both pull-backs are deliberately small now. They exist to take the edge
+    // off genuinely steep ground, not to re-frame the shot: keeping the marker
+    // in view is `setCenterElevation`'s job. A big climb spends the whole
+    // budget and it is still only 0.8 zoom levels and 4 degrees.
     expect(getPlaybackCameraPose({
       ...options,
       cameraMode: 'follow-behind',
       elevationData,
       progress: 1,
-    })).toMatchObject({ zoom: 15.7, pitch: 41 });
+    })).toMatchObject({ zoom: 15.7, pitch: 52 });
   });
 
   it('adds an incoming-bearing warmup pose around a turn', () => {
