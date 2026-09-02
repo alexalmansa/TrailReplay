@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
-import { getFollowBehindZoomLevelForPreset } from '@/utils/followBehindCamera';
+import {
+  FOLLOW_BEHIND_STOP_COUNT,
+  getFollowBehindLevelForStopIndex,
+  getFollowBehindStopIndexForLevel,
+  getNearestFollowBehindPreset,
+} from '@/utils/followBehindCamera';
 import { trackEvent } from '@/utils/analytics';
 import { RouteLandmarksEditor } from './RouteLandmarksEditor';
 import { MapNavigationGuide } from './MapNavigationGuide';
@@ -37,15 +42,13 @@ const CAMERA_MODES: { id: CameraMode; nameKey: string; descriptionKey: string }[
   { id: 'follow-behind', nameKey: 'settings.cameraModes.followBehind', descriptionKey: 'settings.cameraModes.followBehindDesc' },
 ];
 
-const FOLLOW_PRESETS: Array<{
-  id: CameraSettings['followBehindPreset'];
-  nameKey: string;
-}> = [
-  { id: 'very-close', nameKey: 'settings.followPresets.veryClose' },
-  { id: 'close', nameKey: 'settings.followPresets.close' },
-  { id: 'medium', nameKey: 'settings.followPresets.medium' },
-  { id: 'far', nameKey: 'settings.followPresets.far' },
-];
+/** Label shown for the distance the slider currently sits nearest to. */
+const FOLLOW_PRESET_NAME_KEYS: Record<CameraSettings['followBehindPreset'], string> = {
+  'very-close': 'veryClose',
+  close: 'close',
+  medium: 'medium',
+  far: 'far',
+};
 
 type WaybackItem = {
   releaseNum: number;
@@ -355,30 +358,34 @@ export function SettingsPanel() {
         {/* Follow Behind Presets */}
         {cameraSettings.mode === 'follow-behind' && (
           <div className="mt-3 p-3 bg-[var(--evergreen)]/5 rounded-lg">
-            <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.followPresets.title')}</p>
-            <div className="flex gap-2">
-              {FOLLOW_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => {
-                    if (cameraSettings.followBehindPreset === preset.id) return;
-                    setCameraSettings({
-                      followBehindPreset: preset.id,
-                      followBehindZoomLevel: getFollowBehindZoomLevelForPreset(preset.id),
-                    });
-                    trackEvent('settings_changed', { setting_name: 'follow_behind_preset', setting_value: preset.id });
-                  }}
-                  className={`
-                    flex-1 py-2 px-1 rounded text-xs font-medium transition-colors
-                    ${cameraSettings.followBehindPreset === preset.id
-                      ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                      : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
-                    }
-                  `}
-                >
-                  {t(preset.nameKey)}
-                </button>
-              ))}
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-xs text-[var(--evergreen-60)]">{t('settings.followPresets.title')}</p>
+              <span className="text-[10px] font-medium text-[var(--evergreen-60)]">
+                {t(`settings.followPresets.${FOLLOW_PRESET_NAME_KEYS[cameraSettings.followBehindPreset]}`)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={FOLLOW_BEHIND_STOP_COUNT - 1}
+              step={1}
+              value={getFollowBehindStopIndexForLevel(cameraSettings.followBehindZoomLevel)}
+              onChange={(e) => {
+                const level = getFollowBehindLevelForStopIndex(Number(e.target.value));
+                setCameraSettings({
+                  followBehindZoomLevel: level,
+                  followBehindPreset: getNearestFollowBehindPreset(level),
+                });
+                trackEvent('settings_changed', {
+                  setting_name: 'follow_behind_distance',
+                  setting_value: level,
+                });
+              }}
+              className="w-full accent-[var(--trail-orange)]"
+            />
+            <div className="flex justify-between text-[10px] text-[var(--evergreen-60)]">
+              <span>{t('settings.followPresets.far')}</span>
+              <span>{t('settings.followPresets.veryClose')}</span>
             </div>
           </div>
         )}
