@@ -167,6 +167,7 @@ export const es = {
     connect: 'Conectar',
     github: 'Ver en GitHub',
     instagram: 'Seguir en Instagram',
+    builtBy: 'Creado por Bresca',
     support: 'Apoya el proyecto',
     donateTitle: 'Invítame a un café',
     donateSubtitle: 'Ayuda a mantener TrailReplay gratis',
@@ -538,6 +539,7 @@ export const es = {
   help: {
     common: {
       backToApp: 'Volver a la app',
+      builtBy: 'Creado por Bresca',
       openApp: 'Abrir TrailReplay',
       github: 'GitHub',
       builtForLabel: 'Pensado para',
