@@ -56,12 +56,15 @@ describe('replay camera plan', () => {
       progress: 0,
     })).toMatchObject({ zoom: 16, pitch: 55 });
 
+    // Pitch still flattens by the full terrain allowance on a big climb; the
+    // zoom pull-back is deliberately gentler than it used to be, so the
+    // framing stays consistent instead of re-scaling on every climb.
     expect(getPlaybackCameraPose({
       ...options,
       cameraMode: 'follow-behind',
       elevationData,
       progress: 1,
-    })).toMatchObject({ zoom: 14, pitch: 40 });
+    })).toMatchObject({ zoom: 14.8, pitch: 40 });
   });
 
   it('adds an incoming-bearing warmup pose around a turn', () => {

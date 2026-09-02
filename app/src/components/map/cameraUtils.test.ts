@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateTerrainAwareAdjustments,
   cameraReactivityFromStability,
+  centerChaseDurationMs,
   frameTimeMultiplierFromDeltaMs,
   smoothBearing,
   smoothCoordinate,
+  limitRateOfChange,
+  MAX_CENTER_ELEVATION_RATE_M_PER_S,
   smoothPitch,
   smoothZoom,
+  TERRAIN_CAMERA_SETTINGS,
+  TERRAIN_SAMPLE_INDEX_OFFSETS,
 } from './cameraUtils';
 
 describe('camera utilities', () => {
@@ -24,9 +29,20 @@ describe('camera utilities', () => {
   });
 
   it('still widens the deadband at low stability, ignoring a turn the baseline would follow', () => {
-    // reactivity 0.25 (lowest stability) widens the deadband to 4/0.25 = 16
-    // degrees, so a 10-degree wiggle is still ignored the same as before.
-    expect(smoothBearing(90, 100, undefined, undefined, 0.25)).toBe(90);
+    // Lowest stability (reactivity 0.25) widens the deadband, but only to
+    // 4 * 1.5 = 6 degrees. A 5-degree wiggle the baseline would follow is
+    // still ignored here.
+    expect(smoothBearing(90, 95, undefined, undefined, 0.25)).toBe(90);
+  });
+
+  it('answers a real turn at low stability by easing, not by holding then swinging', () => {
+    // A 10-degree turn used to sit inside the 16-degree dead zone and move the
+    // camera not at all, until enough error banked up to escape it and the
+    // camera swung through the lot. It now starts turning immediately, and
+    // gently: a fraction of a degree on this frame.
+    const eased = smoothBearing(90, 100, undefined, undefined, 0.25);
+    expect(eased).toBeGreaterThan(90);
+    expect(eased - 90).toBeLessThan(0.5);
   });
 
   it('turns faster at low stability than naively scaling speed by reactivity would', () => {
@@ -62,8 +78,50 @@ describe('camera utilities', () => {
     const flatHighRoute = [{ elevation: 1800 }, { elevation: 1820 }];
     expect(calculateTerrainAwareAdjustments(1800, flatHighRoute, 0).zoomAdjust).toBe(0);
 
+    // A climb still opens the frame, but altitude alone is a scene-scaling
+    // hint rather than the safety mechanism (the playback camera pins its
+    // centre to the terrain surface), so it may not spend the whole budget.
     const climbingRoute = [{ elevation: 600 }, { elevation: 1800 }];
-    expect(calculateTerrainAwareAdjustments(1800, climbingRoute, 1).zoomAdjust).toBeGreaterThan(1.5);
+    const climbAdjust = calculateTerrainAwareAdjustments(1800, climbingRoute, 1).zoomAdjust;
+    expect(climbAdjust).toBeGreaterThan(0);
+    expect(climbAdjust).toBeLessThanOrEqual(
+      TERRAIN_CAMERA_SETTINGS.MAX_ZOOM_OUT * TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_WEIGHT,
+    );
+  });
+
+  it('reads terrain as a gradient so route length does not change the framing', () => {
+    // Two routes made of the identical 8% climb-and-descend sawtooth, one
+    // 10 km long and one 200 km long. Identical terrain and identical
+    // elevation range, so the camera must frame them the same way.
+    //
+    // The terrain window is a fraction of playback progress (a camera move
+    // should take a couple of seconds of video whatever the route), which on
+    // the long route spans 20 km of ground and on the short one 1 km. Reading
+    // that window as a raw elevation *change* therefore measured route length,
+    // not terrain: the long route saturated the pull-back while the short one
+    // barely triggered it.
+    const sawtooth = (totalMeters: number) => {
+      const period = 5000;
+      const points = [];
+      for (let distance = 0; distance <= totalMeters; distance += 100) {
+        const phase = (distance % period) / period;
+        const elevation = 1000 + (phase < 0.5 ? phase * 2 : (1 - phase) * 2) * 200;
+        points.push({ distance, elevation });
+      }
+      return points;
+    };
+
+    const short = calculateTerrainAwareAdjustments(1100, sawtooth(10_000), 0.5).zoomAdjust;
+    const long = calculateTerrainAwareAdjustments(1100, sawtooth(200_000), 0.5).zoomAdjust;
+
+    // The two windows still cover different amounts of ground, so the readings
+    // are not identical - but they must land within a fraction of a zoom level
+    // of each other rather than at opposite ends of the budget.
+    expect(Math.abs(long - short)).toBeLessThan(0.2);
+    // And an 8% sawtooth is real but moderate terrain: it should use part of
+    // the pull-back budget, not all of it.
+    expect(short).toBeGreaterThan(0);
+    expect(short).toBeLessThan(TERRAIN_CAMERA_SETTINGS.MAX_ZOOM_OUT);
   });
 
   it('maps the stability slider to a reactivity multiplier centered on the tuned defaults', () => {
@@ -74,8 +132,43 @@ describe('camera utilities', () => {
   });
 
   it('a low reactivity holds the heading through bigger route wiggles than the default', () => {
-    expect(smoothBearing(90, 93, undefined, undefined, 0.25)).toBe(90);
-    expect(smoothBearing(90, 100, undefined, undefined, 0.25)).toBe(90);
+    // 5 degrees is past the tuned 4-degree deadband but inside the widened
+    // 6-degree one, so the stable end ignores a wiggle the default follows.
+    expect(smoothBearing(90, 95, undefined, undefined, 0.25)).toBe(90);
+    expect(smoothBearing(90, 95)).not.toBe(90);
+  });
+
+  it('samples terrain symmetrically around the marker so a slope is unbiased', () => {
+    // The mean of a straight slope is its midpoint, so averaging these offsets
+    // must not shift the look-at height on constant gradient - that is what
+    // lets the bob be smoothed without the camera sitting behind on a climb.
+    const sum = TERRAIN_SAMPLE_INDEX_OFFSETS.reduce<number>((total, offset) => total + offset, 0);
+    expect(sum).toBe(0);
+    expect(TERRAIN_SAMPLE_INDEX_OFFSETS.length).toBeGreaterThan(1);
+  });
+
+  it('passes through normal terrain movement but clips tile-refresh spikes', () => {
+    // 400 m/s over a 16.7ms frame allows ~6.7 m: real ground moves less than
+    // that, so the value is untouched...
+    expect(limitRateOfChange(1000, 1004, 1000 / 60, MAX_CENTER_ELEVATION_RATE_M_PER_S)).toBe(1004);
+    // ...while a 900 m single-frame jump from a refining tile is clipped.
+    const clipped = limitRateOfChange(1000, 1900, 1000 / 60, MAX_CENTER_ELEVATION_RATE_M_PER_S);
+    expect(clipped).toBeGreaterThan(1000);
+    expect(clipped).toBeLessThan(1010);
+    // Direction is preserved downward too.
+    expect(limitRateOfChange(1000, 100, 1000 / 60, MAX_CENTER_ELEVATION_RATE_M_PER_S)).toBeLessThan(1000);
+    // No usable elapsed time, or no previous value: adopt the target.
+    expect(limitRateOfChange(1000, 1900, 0, MAX_CENTER_ELEVATION_RATE_M_PER_S)).toBe(1900);
+    expect(limitRateOfChange(Number.NaN, 1900, 1000 / 60, MAX_CENTER_ELEVATION_RATE_M_PER_S)).toBe(1900);
+  });
+
+  it('lengthens the centre chase at the stable end of the slider', () => {
+    // The chase lag is what gives the pan its weight; it used to be a fixed
+    // 100ms at every slider position, so stability changed how the camera
+    // turned but not how it moved.
+    expect(centerChaseDurationMs(0)).toBeGreaterThan(centerChaseDurationMs(0.5));
+    expect(centerChaseDurationMs(0.5)).toBeGreaterThan(centerChaseDurationMs(1));
+    expect(centerChaseDurationMs(Number.NaN)).toBe(centerChaseDurationMs(0.5));
   });
 
   it('a high reactivity turns and zooms faster than the default', () => {

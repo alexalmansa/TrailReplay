@@ -54,6 +54,102 @@ function bearingTurnReactivity(reactivity: number): number {
   return reactivity >= 1 ? reactivity : 1 - (1 - reactivity) * 0.5;
 }
 
+/**
+ * How far the jitter deadband may widen as stability increases.
+ *
+ * The deadband is a dead zone: inside it the camera holds a fixed heading and
+ * does not move at all. Scaling it by the full inverse of reactivity made the
+ * most stable setting a 16 degree dead zone, and measuring a real replay there
+ * showed the camera frozen for 84% of frames — in stretches averaging over
+ * three seconds — then swinging through the whole banked-up error in about
+ * half a second once the route finally escaped the zone. Stop-and-go is the
+ * opposite of what the stable end of the slider is for.
+ *
+ * Cap the widening and let the slower turn rate carry the smoothing instead. A
+ * slow continuous approach rejects the same GPS jitter by simply not being
+ * able to react to it, and it keeps the camera always gently moving.
+ */
+const MAX_BEARING_DEADBAND_SCALE = 1.5;
+
+function bearingDeadbandScale(reactivity: number): number {
+  return reactivity >= 1 ? 1 / reactivity : Math.min(MAX_BEARING_DEADBAND_SCALE, 1 / reactivity);
+}
+
+/**
+ * How long the camera centre takes to catch up with the marker, in ms.
+ *
+ * `smoothCoordinate`'s lag is the single biggest contributor to how the motion
+ * reads, and it used to be a fixed 100 ms at every slider position — so the
+ * stability control changed how the camera *turned* but not how it *moved*.
+ * Stretching the chase at the stable end is what gives the pan its weight;
+ * shortening it at the reactive end keeps the marker pinned for users who want
+ * tight tracking.
+ */
+export function centerChaseDurationMs(cameraStability: number): number {
+  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clamped = Math.max(0, Math.min(1, safeValue));
+  return 220 - clamped * 150;
+}
+
+/**
+ * Route samples either side of the marker whose terrain heights are averaged
+ * into the camera's look-at height.
+ *
+ * The centre elevation used to be whatever `queryTerrainElevation` returned
+ * directly under the marker on that frame. At this compression a single frame
+ * advances tens of metres of ground, so the camera hugged every hummock in the
+ * terrain mesh: measured on a real replay the look-at height changed on *every*
+ * frame, reversed direction over a thousand times in one clip, and moved a
+ * median of 3.6 m (99th percentile 28 m) per frame. In a pitched view that
+ * vertical bob reads as the picture pumping in and out.
+ *
+ * Averaging over a span of route rather than lagging in time is what makes this
+ * safe. A time lag would smooth the bumps but also sit permanently behind on
+ * every sustained climb — and these routes climb hundreds of metres per second
+ * of video, which is enough to walk the marker out of frame. The mean of a
+ * straight slope is exactly its midpoint value, so a symmetric spatial average
+ * introduces no offset at all on constant gradient; it only removes the
+ * roughness riding on top.
+ *
+ * The camera path is always resampled to a fixed number of points
+ * (`cameraPathCoordinates`), so a span measured in samples covers the same
+ * fraction of the replay — and so the same amount of screen motion — whether
+ * the route is 10 km or 200 km.
+ */
+export const TERRAIN_SAMPLE_INDEX_OFFSETS = [-2, -1, 0, 1, 2] as const;
+
+/**
+ * Ceiling on how fast the look-at height may move, in metres per second of
+ * playback time.
+ *
+ * Terrain tiles refining mid-flight change what `queryTerrainElevation` reports
+ * from one frame to the next — the raw signal contained single-frame jumps of
+ * over 900 m. Real ground under these replays moves at a few hundred metres per
+ * second of video at most, so a limit set well above that never binds on
+ * genuine terrain and exists purely to absorb those artefacts.
+ */
+export const MAX_CENTER_ELEVATION_RATE_M_PER_S = 400;
+
+/**
+ * Limits how far a value may move this frame, given how much playback time has
+ * elapsed. Unlike a smoothing filter this does not lag a signal that stays
+ * inside the limit — it only clips excursions that exceed it.
+ */
+export function limitRateOfChange(
+  current: number,
+  target: number,
+  deltaMs: number,
+  maxRatePerSecond: number,
+): number {
+  if (!Number.isFinite(current)) return target;
+  if (!Number.isFinite(deltaMs) || deltaMs <= 0) return target;
+
+  const maxChange = (maxRatePerSecond * deltaMs) / 1000;
+  const diff = target - current;
+  if (Math.abs(diff) <= maxChange) return target;
+  return current + Math.sign(diff) * maxChange;
+}
+
 export function smoothBearing(
   currentBearing: number,
   targetBearing: number,
@@ -71,10 +167,12 @@ export function smoothBearing(
   // distracting side-to-side camera movement. Keep the current heading until
   // the route has made a meaningful turn; larger turns still take the normal
   // smooth, shortest-path transition below. A lower reactivity widens this
-  // deadband (more stable); a higher one narrows it (more responsive). This
-  // threshold is about ignoring GPS jitter, not about frame rate, so it is
-  // deliberately left unscaled by frameTimeMultiplier.
-  const deadband = stabilityDeadbandDegrees / reactivity;
+  // deadband (more stable); a higher one narrows it (more responsive), though
+  // the widening is capped so the stable end glides rather than sticking and
+  // slipping — see bearingDeadbandScale. This threshold is about ignoring GPS
+  // jitter, not about frame rate, so it is deliberately left unscaled by
+  // frameTimeMultiplier.
+  const deadband = stabilityDeadbandDegrees * bearingDeadbandScale(reactivity);
   if (Math.abs(diff) < deadband) {
     return (currentBearing + 360) % 360;
   }
@@ -97,7 +195,11 @@ export function smoothZoom(
   currentZoom: number,
   targetZoom: number,
   smoothingFactor: number = 0.12,
-  stabilityDeadband: number = 0.035,
+  // Wide enough that the terrain estimate drifting by a fraction of a zoom
+  // level leaves the framing alone entirely. A camera that is always creeping
+  // toward a slightly different zoom never looks settled, and on a long route
+  // the terrain under the marker changes constantly.
+  stabilityDeadband: number = 0.1,
   reactivity: number = 1,
   frameTimeMultiplier: number = 1,
 ): number {
@@ -179,8 +281,30 @@ export function smoothCoordinate(
 export const TERRAIN_CAMERA_SETTINGS = {
   ELEVATION_RISK_METERS: 1200,
   STEEPNESS_RISK_FACTOR: 18,
-  LOOK_AHEAD_PROGRESS: 0.02,
-  MAX_ZOOM_OUT: 2,
+  LOOK_AHEAD_PROGRESS: 0.05,
+  /**
+   * Sustained gradient (metres climbed per metre travelled) that justifies the
+   * full pull-back. A replay camera loses its subject on *steep* ground, and
+   * steepness is a ratio — so this threshold means the same thing on a 5 km
+   * hill repeat and on a 200 km alpine tour.
+   */
+  FULL_RISK_GRADIENT: 0.12,
+  /**
+   * Shortest span a single gradient sample may be measured over. GPS elevation
+   * noise of a couple of metres between samples recorded ~20 m apart reads as a
+   * 10% slope; averaging over at least this much travel keeps the measurement
+   * about the terrain rather than about the noise.
+   */
+  MIN_GRADIENT_SPAN_METERS: 200,
+  /**
+   * The altitude term is a scene-scaling hint, not the safety mechanism: the
+   * playback camera pins its centre to the terrain surface via
+   * `setCenterElevation`, which is what actually keeps a climbing marker in
+   * frame. Weighted below the steepness term so a route that repeatedly drops
+   * into valleys and climbs back out doesn't re-frame on every col.
+   */
+  ELEVATION_RISK_WEIGHT: 0.5,
+  MAX_ZOOM_OUT: 1.2,
   MAX_PITCH_REDUCE: 15,
   MIN_ZOOM: 8,
   MAX_ZOOM: 14,
@@ -188,9 +312,53 @@ export const TERRAIN_CAMERA_SETTINGS = {
   MAX_PITCH: 50,
 } as const;
 
+/**
+ * Mean absolute gradient across a span of the route, or `null` when the samples
+ * carry no usable distances (in which case the caller falls back to comparing
+ * raw elevations).
+ *
+ * Gradient rather than raw elevation change is the whole point: the window is
+ * sized as a fraction of *playback progress* so a camera move takes a couple of
+ * seconds of video regardless of the route, but that means the window spans a
+ * few hundred metres of a short route and several kilometres of a long one. An
+ * elevation *delta* measured that way is really measuring route length, and on
+ * a long route it saturates any sane threshold on every single climb. A
+ * gradient divides that delta by the distance it was gained over, so the same
+ * terrain reads the same on any route.
+ */
+function meanAbsoluteGradient(
+  elevationData: Array<{ elevation: number; distance?: number }>,
+  startIndex: number,
+  endIndex: number,
+): number | null {
+  const minSpan = TERRAIN_CAMERA_SETTINGS.MIN_GRADIENT_SPAN_METERS;
+  let gradientSum = 0;
+  let sampleCount = 0;
+  let spanStart = startIndex;
+
+  for (let index = startIndex + 1; index <= endIndex; index++) {
+    const from = elevationData[spanStart];
+    const to = elevationData[index];
+    if (!from || !to) continue;
+    if (!Number.isFinite(from.distance) || !Number.isFinite(to.distance)) return null;
+
+    const run = (to.distance as number) - (from.distance as number);
+    if (run < minSpan) continue;
+
+    const rise = to.elevation - from.elevation;
+    if (Number.isFinite(rise) && run > 0) {
+      gradientSum += Math.abs(rise) / run;
+      sampleCount++;
+    }
+    spanStart = index;
+  }
+
+  return sampleCount > 0 ? gradientSum / sampleCount : null;
+}
+
 export function calculateTerrainAwareAdjustments(
   elevation: number,
-  elevationData: Array<{ elevation: number; progress?: number }>,
+  elevationData: Array<{ elevation: number; distance?: number; progress?: number }>,
   currentProgress: number
 ): { zoomAdjust: number; pitchAdjust: number } {
   // Absolute altitude is not what makes a replay camera lose its subject. The
@@ -215,13 +383,24 @@ export function calculateTerrainAwareAdjustments(
     const lookAhead = TERRAIN_CAMERA_SETTINGS.LOOK_AHEAD_PROGRESS;
     const behindIdx = Math.max(0, Math.floor((currentProgress - lookAhead) * (elevationData.length - 1)));
     const aheadIdx = Math.min(elevationData.length - 1, Math.floor((currentProgress + lookAhead) * (elevationData.length - 1)));
-    const behindElev = elevationData[behindIdx]?.elevation || elevation;
-    const aheadElev = elevationData[aheadIdx]?.elevation || elevation;
-    const elevChange = Math.abs(aheadElev - behindElev);
-    steepnessRisk = Math.min((elevChange / 100) * TERRAIN_CAMERA_SETTINGS.STEEPNESS_RISK_FACTOR / 100, 1);
+    const gradient = meanAbsoluteGradient(elevationData, behindIdx, aheadIdx);
+
+    if (gradient !== null) {
+      steepnessRisk = Math.min(gradient / TERRAIN_CAMERA_SETTINGS.FULL_RISK_GRADIENT, 1);
+    } else {
+      // No distances to divide by (synthetic data, or a track recorded without
+      // them): fall back to the raw elevation change across the window.
+      const behindElev = elevationData[behindIdx]?.elevation || elevation;
+      const aheadElev = elevationData[aheadIdx]?.elevation || elevation;
+      const elevChange = Math.abs(aheadElev - behindElev);
+      steepnessRisk = Math.min((elevChange / 100) * TERRAIN_CAMERA_SETTINGS.STEEPNESS_RISK_FACTOR / 100, 1);
+    }
   }
 
-  const combinedRisk = Math.max(elevationRisk, steepnessRisk);
+  const combinedRisk = Math.max(
+    elevationRisk * TERRAIN_CAMERA_SETTINGS.ELEVATION_RISK_WEIGHT,
+    steepnessRisk,
+  );
 
   return {
     zoomAdjust: combinedRisk * TERRAIN_CAMERA_SETTINGS.MAX_ZOOM_OUT,

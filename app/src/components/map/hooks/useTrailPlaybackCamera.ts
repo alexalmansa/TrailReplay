@@ -10,7 +10,11 @@ import { buildColorZoneLineFeatures } from '@/utils/trailColorFeatures';
 import type { TrailColorZone } from '@/types';
 import {
   cameraReactivityFromStability,
+  centerChaseDurationMs,
   frameTimeMultiplierFromDeltaMs,
+  limitRateOfChange,
+  MAX_CENTER_ELEVATION_RATE_M_PER_S,
+  TERRAIN_SAMPLE_INDEX_OFFSETS,
   smoothBearing,
   smoothCoordinate,
   smoothPitch,
@@ -150,6 +154,7 @@ export function useTrailPlaybackCamera({
 }: UseTrailPlaybackCameraParams) {
   const lastCameraFrameTimeRef = useRef<number | null>(null);
   const smoothedCenterRef = useRef<[number, number] | null>(null);
+  const smoothedElevationRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !currentPosition) return;
@@ -360,7 +365,12 @@ export function useTrailPlaybackCamera({
       const targetCenter: [number, number] = [currentPosition.lon, currentPosition.lat];
       const smoothedCenter = smoothedCenterRef.current === null || deltaMs === null
         ? targetCenter
-        : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs);
+        : smoothCoordinate(
+            smoothedCenterRef.current,
+            targetCenter,
+            deltaMs,
+            centerChaseDurationMs(cameraStability),
+          );
       smoothedCenterRef.current = smoothedCenter;
 
       // With 3D terrain the marker is drawn on the terrain surface, while the
@@ -373,17 +383,46 @@ export function useTrailPlaybackCamera({
       // explicitly with the rest of the pose. `queryTerrainElevation` already
       // includes the terrain exaggeration and returns null when terrain is
       // off, in which case we leave the elevation alone.
-      const terrainElevation = mapRef.current.queryTerrainElevation([
-        currentPosition.lon,
-        currentPosition.lat,
-      ]);
-      const centerElevation = typeof terrainElevation === 'number' && Number.isFinite(terrainElevation)
-        ? { elevation: terrainElevation }
-        : {};
+      //
+      // Read that height as an average over a span of route rather than from
+      // the single point under the marker: at this compression one frame covers
+      // tens of metres of ground, so sampling one point tracked every hummock
+      // in the terrain mesh and the view bobbed constantly. Averaging
+      // symmetrically leaves constant gradient untouched, so this costs no
+      // accuracy on a climb — see cameraUtils' TERRAIN_SAMPLE_INDEX_OFFSETS for
+      // why a time-based lag is the wrong tool here.
+      const sampleBaseIndex = Math.round(
+        Math.max(0, Math.min(1, playbackProgress)) * Math.max(0, cameraCoordinates.length - 1),
+      );
+      let elevationSum = 0;
+      let elevationSamples = 0;
 
-      if (centerElevation.elevation !== undefined
-        && Math.abs(mapRef.current.transform.elevation - centerElevation.elevation) > 0.25) {
-        mapRef.current.setCenterElevation(centerElevation.elevation);
+      for (const offset of TERRAIN_SAMPLE_INDEX_OFFSETS) {
+        const index = Math.max(0, Math.min(cameraCoordinates.length - 1, sampleBaseIndex + offset));
+        const coordinate = cameraCoordinates[index];
+        if (!coordinate) continue;
+
+        const sampled = mapRef.current.queryTerrainElevation([coordinate[0], coordinate[1]]);
+        if (typeof sampled === 'number' && Number.isFinite(sampled)) {
+          elevationSum += sampled;
+          elevationSamples++;
+        }
+      }
+
+      let centerElevation: { elevation?: number } = {};
+
+      if (elevationSamples > 0) {
+        const averaged = elevationSum / elevationSamples;
+        const previousElevation = smoothedElevationRef.current;
+        const settled = previousElevation === null || deltaMs === null
+          ? averaged
+          : limitRateOfChange(previousElevation, averaged, deltaMs, MAX_CENTER_ELEVATION_RATE_M_PER_S);
+
+        smoothedElevationRef.current = settled;
+        centerElevation = { elevation: settled };
+        mapRef.current.setCenterElevation(settled);
+      } else {
+        smoothedElevationRef.current = null;
       }
 
       // Apply the already-smoothed pose with `jumpTo` rather than `easeTo` in
