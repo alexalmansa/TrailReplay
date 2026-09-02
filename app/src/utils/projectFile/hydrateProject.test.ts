@@ -156,4 +156,28 @@ describe('hydrateProject', () => {
 
     expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
   });
+
+  it('persists stats presentation and defaults legacy projects to the automatic 1x layout', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+    sourceStore.getState().setSettings({ statsScale: 1.6, statsLayout: 'vertical', statsColumns: 2 });
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const scaledStore = createAppStore();
+    hydrateProject(parsed, scaledStore.getState());
+    expect(scaledStore.getState().settings.statsScale).toBe(1.6);
+    expect(scaledStore.getState().settings.statsLayout).toBe('vertical');
+    expect(scaledStore.getState().settings.statsColumns).toBe(2);
+
+    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsScale;
+    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsLayout;
+    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsColumns;
+    const legacyStore = createAppStore();
+    hydrateProject(parsed, legacyStore.getState());
+    expect(legacyStore.getState().settings.statsScale).toBe(1);
+    expect(legacyStore.getState().settings.statsLayout).toBe('auto');
+    expect(legacyStore.getState().settings.statsColumns).toBeNull();
+  });
 });

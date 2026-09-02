@@ -21,6 +21,11 @@ export function getOverlayRefreshIntervalMs(fps: number) {
   return Math.max(83, Math.round(1000 / Math.min(fps, 12)));
 }
 
+export function getStatsValueTimelineBucket(currentTimeMs: number) {
+  const safeTime = Number.isFinite(currentTimeMs) ? Math.max(0, currentTimeMs) : 0;
+  return Math.floor(safeTime / 100);
+}
+
 export function getExportOverlayMetrics(
   containerRect: Size,
   recordW: number,
@@ -63,13 +68,18 @@ export function getStatsOverlayDrawRect(params: {
   containerRect?: { left: number; top: number };
   cropX?: number;
   cropY?: number;
+  /** User-selected visual scale for the complete stats block. */
+  sizeScale?: number;
 }) {
-  const rawWidth = params.captureCanvas.width * params.scaleToRecording;
+  const sizeScale = Number.isFinite(params.sizeScale)
+    ? Math.max(0.6, Math.min(2, params.sizeScale ?? 1))
+    : 1;
+  const rawWidth = params.captureCanvas.width * params.scaleToRecording * sizeScale;
   const isNarrowFrame = params.recordW <= params.recordH;
   const maxWidth = Math.min(
     rawWidth,
     params.recordW - (params.margin * 2),
-    params.recordW * (isNarrowFrame ? 0.56 : 0.28),
+    params.recordW * (isNarrowFrame ? 0.56 : 0.28) * Math.max(1, sizeScale),
   );
   const drawWidth = Math.max(0, maxWidth);
   const drawHeight = params.captureCanvas.height * (drawWidth / params.captureCanvas.width);

@@ -144,7 +144,7 @@ export const en = {
     },
     cameraStability: {
       title: 'Camera Stability',
-      stable: 'Stable',
+      stable: 'Cinematic',
       reactive: 'Reactive',
     },
     units: 'Units',
@@ -167,6 +167,7 @@ export const en = {
     connect: 'Connect',
     github: 'View on GitHub',
     instagram: 'Follow on Instagram',
+    builtBy: 'Built by Bresca',
     support: 'Support the Project',
     donateTitle: 'Buy me a coffee',
     donateSubtitle: 'Help keep TrailReplay free',
@@ -538,6 +539,7 @@ export const en = {
   help: {
     common: {
       backToApp: 'Back to app',
+      builtBy: 'Built by Bresca',
       openApp: 'Open TrailReplay',
       github: 'GitHub',
       builtForLabel: 'Built for',

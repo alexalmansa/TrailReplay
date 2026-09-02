@@ -1,4 +1,4 @@
-import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText, BookOpen, Download, Sparkles } from 'lucide-react';
+import { X, Github, Instagram, MessageSquare, Heart, ExternalLink, Shield, FileText, BookOpen, Download, Sparkles, Building2 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { trackEvent } from '@/utils/analytics';
 
@@ -133,6 +133,12 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
               href="https://www.instagram.com/trailreplay/"
               icon={<Instagram className="w-4 h-4" />}
               label={t('info.instagram')}
+              external
+            />
+            <InfoLink
+              href="https://bresca.ai"
+              icon={<Building2 className="w-4 h-4" />}
+              label={t('info.builtBy')}
               external
             />
           </div>

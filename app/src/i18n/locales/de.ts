@@ -144,7 +144,7 @@ export const de = {
     },
     cameraStability: {
       title: 'Kamerastabilität',
-      stable: 'Stabil',
+      stable: 'Filmisch',
       reactive: 'Reaktiv',
     },
     units: 'Einheiten',
@@ -167,6 +167,7 @@ export const de = {
     connect: 'Verbinden',
     github: 'Auf GitHub ansehen',
     instagram: 'Folgen Sie auf Instagram',
+    builtBy: 'Erstellt von Bresca',
     support: 'Unterstützen Sie das Projekt',
     donateTitle: 'Kauf mir einen Kaffee',
     donateSubtitle: 'Helfen Sie mit, TrailReplay kostenlos zu halten',
@@ -538,6 +539,7 @@ export const de = {
   help: {
     common: {
       backToApp: 'Zurück zur App',
+      builtBy: 'Erstellt von Bresca',
       openApp: 'Öffnen Sie TrailReplay',
       github: 'GitHub',
       builtForLabel: 'Gebaut für',

@@ -11,6 +11,28 @@ export function cameraReactivityFromStability(cameraStability: number): number {
 }
 
 /**
+ * Controls how closely the camera centre chases the moving route marker.
+ *
+ * The middle of the slider preserves the original 100ms follow camera. Moving
+ * toward reactive shortens that delay a little, while the stable half ramps
+ * non-linearly into a long, floating camera move. The squared curve keeps the
+ * familiar behaviour around the default but makes the far-left endpoint a
+ * deliberate cinematic mode instead of merely a wider bearing deadband.
+ */
+export function cameraCenterChaseDurationFromStability(cameraStability: number): number {
+  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clamped = Math.max(0, Math.min(1, safeValue));
+
+  if (clamped < 0.5) {
+    const cinematicAmount = (0.5 - clamped) / 0.5;
+    return 100 + 800 * cinematicAmount * cinematicAmount;
+  }
+
+  const reactiveAmount = (clamped - 0.5) / 0.5;
+  return 100 - 45 * reactiveAmount;
+}
+
+/**
  * The smoothing constants below are per-call caps on how far the camera may
  * move. They were tuned against live playback, which updates the camera once
  * per rendered animation frame at roughly this interval. Deterministic video
@@ -73,22 +95,6 @@ const MAX_BEARING_DEADBAND_SCALE = 1.5;
 
 function bearingDeadbandScale(reactivity: number): number {
   return reactivity >= 1 ? 1 / reactivity : Math.min(MAX_BEARING_DEADBAND_SCALE, 1 / reactivity);
-}
-
-/**
- * How long the camera centre takes to catch up with the marker, in ms.
- *
- * `smoothCoordinate`'s lag is the single biggest contributor to how the motion
- * reads, and it used to be a fixed 100 ms at every slider position — so the
- * stability control changed how the camera *turned* but not how it *moved*.
- * Stretching the chase at the stable end is what gives the pan its weight;
- * shortening it at the reactive end keeps the marker pinned for users who want
- * tight tracking.
- */
-export function centerChaseDurationMs(cameraStability: number): number {
-  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
-  const clamped = Math.max(0, Math.min(1, safeValue));
-  return 220 - clamped * 150;
 }
 
 /**
@@ -224,6 +230,42 @@ export function smoothZoom(
   const change = Math.max(-maxChange, Math.min(maxChange, diff * smoothingFactor * speed));
 
   return currentZoom + change;
+}
+
+/**
+ * Low-pass filters the requested zoom before `smoothZoom` moves the camera.
+ * Terrain protection can alternate between nearby targets on rolling ground;
+ * smoothing only the camera pose still makes it reverse direction every time
+ * that target changes. Cinematic mode therefore adds target hysteresis and an
+ * asymmetric response: it opens the frame when needed, but returns to a close
+ * shot much more slowly. The default and reactive half remain unchanged.
+ */
+export function smoothZoomTarget(
+  currentTarget: number,
+  nextTarget: number,
+  deltaMs: number,
+  cameraStability: number,
+): number {
+  const safeStability = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const clampedStability = Math.max(0, Math.min(1, safeStability));
+  const cinematicPosition = Math.max(0, (0.5 - clampedStability) / 0.5);
+  const cinematicAmount = cinematicPosition * cinematicPosition;
+
+  if (cinematicAmount === 0 || !Number.isFinite(deltaMs) || deltaMs <= 0) {
+    return nextTarget;
+  }
+
+  const difference = nextTarget - currentTarget;
+  const deadband = 0.035 + 0.265 * cinematicAmount;
+  if (Math.abs(difference) <= deadband) return currentTarget;
+
+  const openingFrame = difference < 0;
+  const responseDurationMs = openingFrame
+    ? 100 + 1_100 * cinematicAmount
+    : 100 + 4_900 * cinematicAmount;
+  const interpolation = 1 - Math.exp(-deltaMs / responseDurationMs);
+
+  return currentTarget + difference * interpolation;
 }
 
 /**

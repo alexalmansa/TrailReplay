@@ -112,6 +112,17 @@ export function HelpLayout({ eyebrow, title, description, headerActions = [], ch
             <a href="/running-route-animation" className="font-semibold text-[var(--trail-orange)] hover:underline">Running animation</a>
           </div>
         </section>
+
+        <footer className="border-t border-[var(--evergreen)]/12 pt-6 text-xs text-[var(--evergreen-60)]">
+          <a
+            href="https://bresca.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold hover:text-[var(--trail-orange)] hover:underline"
+          >
+            {t('help.common.builtBy')}
+          </a>
+        </footer>
       </main>
     </div>
   );

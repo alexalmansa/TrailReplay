@@ -275,9 +275,16 @@ Everything lives in `cameraUtils.ts`:
 - `bearingDeadbandScale` / `bearingTurnReactivity` — how the bearing deadband and
   turn rate respond to that multiplier. Both are deliberately capped; read their
   comments before widening either.
-- `centerChaseDurationMs` — lag on the horizontal pan. The biggest single lever
-  on how the motion *feels*, and for a long time it was a constant that the
-  stability slider did not touch at all.
+- `cameraCenterChaseDurationFromStability` — lag on the horizontal pan. The
+  biggest single lever on how the motion *feels*, and for a long time it was a
+  constant that the stability slider did not touch at all. The stable half ramps
+  steeply (900ms at the endpoint against 100ms at the default), which is what
+  lets the marker drift within the frame instead of the camera chasing every
+  wiggle.
+- `smoothZoomTarget` — low-passes the requested zoom *before* the pose smoothing
+  sees it, with hysteresis and a slow return, for the stable half of the slider.
+  It backstops the terrain settings below: those aim to keep the target calm in
+  the first place, this catches whatever still gets through.
 - `TERRAIN_CAMERA_SETTINGS` — terrain-driven zoom and pitch pull-back.
   `FULL_RISK_GRADIENT` is a gradient, not a height, on purpose.
 - `TERRAIN_SAMPLE_INDEX_OFFSETS` — width of the terrain average. Widening it

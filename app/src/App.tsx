@@ -36,12 +36,54 @@ function isNarrowFrame(width: number, height: number) {
   return width <= height || width < 560;
 }
 
+function chooseStatsColumns(width: number, height: number, statCount: number) {
+  const count = Math.max(1, statCount);
+  const targetRatio = Math.max(0.1, width / Math.max(1, height));
+  let bestColumns = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let columns = 1; columns <= count; columns += 1) {
+    const rows = Math.ceil(count / columns);
+    const gridRatio = columns / rows;
+    const score = Math.abs(Math.log(targetRatio / gridRatio));
+    if (score < bestScore) {
+      bestScore = score;
+      bestColumns = columns;
+    }
+  }
+  return bestColumns;
+}
+
+type StatsResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+interface StatsResizeStart {
+  corner: StatsResizeCorner;
+  mouseX: number;
+  mouseY: number;
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  scale: number;
+}
+
+interface StatsResizeGuide {
+  corner: StatsResizeCorner;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 function App() {
   const { t } = useI18n();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statsScaleWrapperRef = useRef<HTMLDivElement>(null);
   const statsDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
+  const statsResizeStartRef = useRef<StatsResizeStart | null>(null);
   const [isDraggingStats, setIsDraggingStats] = useState(false);
+  const [isResizingStats, setIsResizingStats] = useState(false);
+  const [statsResizeGuide, setStatsResizeGuide] = useState<StatsResizeGuide | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -201,6 +243,43 @@ function App() {
   const statsShouldUseNarrowLayout = activeExportCropMetrics
     ? isNarrowFrame(activeExportCropMetrics.frameWidth, activeExportCropMetrics.frameHeight)
     : isNarrowScreen;
+  const resolvedStatsLayout = settings.statsColumns !== null
+    ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
+    : settings.statsLayout === 'auto'
+    ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
+    : settings.statsLayout;
+  const previewStatCount = Math.max(1, settings.visibleStats.length);
+  const previewColumns = settings.statsColumns !== null
+    ? Math.max(1, Math.min(previewStatCount, Math.round(settings.statsColumns)))
+    : settings.statsLayout === 'vertical'
+      ? 1
+      : settings.statsLayout === 'horizontal'
+        ? previewStatCount
+        : statsShouldUseNarrowLayout ? Math.min(previewStatCount, 2) : Math.min(previewStatCount, 4);
+  const previewColumnOptions = Array.from({ length: previewStatCount }, (_, index) => index + 1);
+  const resizeGuideTargets = statsResizeGuide
+    ? previewColumnOptions.map((columns) => {
+      const rows = Math.ceil(previewStatCount / columns);
+      const ratio = columns / rows;
+      const area = statsResizeGuide.width * statsResizeGuide.height;
+      const targetWidth = Math.sqrt(area * ratio);
+      const targetHeight = Math.sqrt(area / ratio);
+      const fromLeft = statsResizeGuide.corner.includes('left');
+      const fromTop = statsResizeGuide.corner.includes('top');
+      const anchorRight = statsResizeGuide.left + statsResizeGuide.width;
+      const anchorBottom = statsResizeGuide.top + statsResizeGuide.height;
+      const targetLeft = fromLeft ? anchorRight - targetWidth : statsResizeGuide.left;
+      const targetTop = fromTop ? anchorBottom - targetHeight : statsResizeGuide.top;
+      return {
+        columns,
+        rows,
+        left: targetLeft,
+        top: targetTop,
+        width: targetWidth,
+        height: targetHeight,
+      };
+    })
+    : [];
 
   const statsOverlayStyle = (() => {
     if (settings.statsPosition) {
@@ -269,6 +348,43 @@ function App() {
     setIsDraggingStats(true);
   }, [settings.statsPosition]);
 
+  const handleStatsResizeStart = useCallback((e: React.MouseEvent, corner: StatsResizeCorner) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wrapper = statsScaleWrapperRef.current;
+    const container = mapContainerRef.current;
+    if (!wrapper || !container) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    // Materialize the automatic starting position so resizing keeps the
+    // panel's visible top-left corner stable.
+    setSettings({
+      statsPosition: {
+        x: Math.max(0, Math.min(1, (rect.left - containerRect.left) / containerRect.width)),
+        y: Math.max(0, Math.min(1, (rect.top - containerRect.top) / containerRect.height)),
+      },
+    });
+    statsResizeStartRef.current = {
+      corner,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      width: rect.width,
+      height: rect.height,
+      left: rect.left - containerRect.left,
+      top: rect.top - containerRect.top,
+      scale: settings.statsScale,
+    };
+    setStatsResizeGuide({
+      corner,
+      left: rect.left - containerRect.left,
+      top: rect.top - containerRect.top,
+      width: rect.width,
+      height: rect.height,
+    });
+    setIsResizingStats(true);
+  }, [setSettings, settings.statsScale]);
+
   useEffect(() => {
     if (!isDraggingStats) return;
     const onMove = (e: MouseEvent) => {
@@ -289,6 +405,49 @@ function App() {
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, [isDraggingStats, setSettings]);
+
+  useEffect(() => {
+    if (!isResizingStats) return;
+    const onMove = (e: MouseEvent) => {
+      const container = mapContainerRef.current;
+      const start = statsResizeStartRef.current;
+      if (!container || !start) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const dx = e.clientX - start.mouseX;
+      const dy = e.clientY - start.mouseY;
+      const fromLeft = start.corner.includes('left');
+      const fromTop = start.corner.includes('top');
+      const width = Math.max(72, start.width + (fromLeft ? -dx : dx));
+      const height = Math.max(52, start.height + (fromTop ? -dy : dy));
+      const areaRatio = (width * height) / Math.max(1, start.width * start.height);
+      const scale = Math.max(0.6, Math.min(2, start.scale * Math.sqrt(areaRatio)));
+      const columns = chooseStatsColumns(width, height, settings.visibleStats.length);
+      const left = fromLeft ? start.left + start.width - width : start.left;
+      const top = fromTop ? start.top + start.height - height : start.top;
+
+      setSettings({
+        statsScale: Math.round(scale * 100) / 100,
+        statsLayout: 'auto',
+        statsColumns: columns,
+        statsPosition: {
+          x: Math.max(0, Math.min(0.98, left / containerRect.width)),
+          y: Math.max(0, Math.min(0.98, top / containerRect.height)),
+        },
+      });
+    };
+    const onUp = () => {
+      statsResizeStartRef.current = null;
+      setStatsResizeGuide(null);
+      setIsResizingStats(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isResizingStats, setSettings, settings.visibleStats.length]);
 
   useEffect(() => {
     return () => {
@@ -461,18 +620,95 @@ function App() {
               {/* Stats Overlay */}
               {hasTracks && (
                 <div
-                  className="absolute z-10"
+                  className="group absolute z-10"
                   style={{
                     ...statsOverlayStyle,
-                    cursor: isDraggingStats ? 'grabbing' : 'grab',
+                    cursor: isDraggingStats ? 'grabbing' : isResizingStats ? 'default' : 'grab',
                     userSelect: 'none',
                   }}
                   onMouseDown={handleStatsDragStart}
                 >
-                  <StatsOverlay
-                    layout={statsShouldUseNarrowLayout ? 'narrow' : 'default'}
-                    variant={activeExportCropMetrics ? 'export' : 'default'}
-                  />
+                  <div
+                    ref={statsScaleWrapperRef}
+                    data-stats-scale-wrapper
+                    style={{
+                      position: 'relative',
+                      width: 'fit-content',
+                      transform: `scale(${settings.statsScale})`,
+                      outline: isResizingStats ? '1px dashed rgba(255,255,255,0.8)' : undefined,
+                      outlineOffset: isResizingStats ? '4px' : undefined,
+                      transformOrigin: settings.statsPosition || !statsShouldUseNarrowLayout
+                        ? 'top left'
+                        : 'top center',
+                    }}
+                  >
+                    {isResizingStats && (
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-0 top-[-42px] z-30 flex w-max max-w-[min(90vw,520px)] gap-1 rounded-lg border border-white/20 bg-[rgba(9,14,19,0.94)] p-1 shadow-lg"
+                      >
+                        {previewColumnOptions.map((columns) => {
+                          const rows = Math.ceil(previewStatCount / columns);
+                          const active = columns === previewColumns;
+                          return (
+                            <div
+                              key={columns}
+                              className={`whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                                active ? 'bg-[var(--evergreen)] text-[var(--canvas)]' : 'text-white/65'
+                              }`}
+                            >
+                              {columns} × {rows}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <StatsOverlay
+                      layout={resolvedStatsLayout}
+                      variant={activeExportCropMetrics ? 'export' : 'default'}
+                    />
+                    {!isExporting && (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((corner) => {
+                      const vertical = corner.startsWith('top') ? 'top-[-5px]' : 'bottom-[-5px]';
+                      const horizontal = corner.endsWith('left') ? 'left-[-5px]' : 'right-[-5px]';
+                      const cursor = corner === 'top-left' || corner === 'bottom-right'
+                        ? 'cursor-nwse-resize'
+                        : 'cursor-nesw-resize';
+                      return (
+                        <button
+                          key={corner}
+                          type="button"
+                          aria-label="Resize stats"
+                          className={`absolute ${vertical} ${horizontal} ${cursor} z-20 h-3 w-3 rounded-full border-2 border-white bg-[var(--evergreen)] shadow-md transition-opacity ${
+                            isResizingStats ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                          }`}
+                          onMouseDown={(event) => handleStatsResizeStart(event, corner)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {isResizingStats && statsResizeGuide && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
+                  {resizeGuideTargets.map((target) => (
+                    <div
+                      key={`${target.columns}-${target.rows}`}
+                      className={`absolute flex items-center justify-center rounded-lg border-2 border-dashed text-[10px] font-semibold uppercase tracking-wide shadow-lg transition-colors ${
+                        target.columns === previewColumns
+                          ? 'border-[var(--evergreen)] bg-[var(--evergreen)]/20 text-white'
+                          : 'border-white/30 bg-white/[0.03] text-white/65'
+                      }`}
+                      style={{
+                        left: target.left,
+                        top: target.top,
+                        width: target.width,
+                        height: target.height,
+                      }}
+                    >
+                      {target.columns} × {target.rows}
+                    </div>
+                  ))}
                 </div>
               )}
 

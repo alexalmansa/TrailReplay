@@ -56,6 +56,9 @@ export function createDefaultSettings(): AppSettings {
     visibleStats: ['duration', 'distance', 'pace', 'elevation'] as import('@/types').StatId[],
     journeyStatsMode: 'cumulative',
     statsPosition: null,
+    statsScale: 1,
+    statsLayout: 'auto',
+    statsColumns: null,
     paceMode: 'per-km' as const,
     showElevationProfile: true,
   };
