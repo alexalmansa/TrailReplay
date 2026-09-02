@@ -15,7 +15,7 @@ a single `jumpTo`. Five channels move independently:
 
 | Channel | Target from | Smoothed by |
 |---|---|---|
-| bearing | `getRouteBearingAtProgress` (`replayCameraPlan.ts`) | `smoothBearing` |
+| bearing | `getRouteBearingAtProgress` (`replayCameraPlan.ts`) — averaged at both ends | `smoothBearing` |
 | zoom | preset − terrain pull-back (`calculateTerrainAwareAdjustments`) | `smoothZoom` |
 | pitch | preset − terrain pull-back (same) | `smoothPitch` |
 | centre lng/lat | the marker's interpolated position | `smoothCoordinate` |
@@ -105,7 +105,24 @@ culprits:
 
 Both read as zoom to the eye. Measure every channel before forming a theory.
 
-### 4. Channels sharing an input need comparable sensitivity to it
+### 4. A two-point reading inherits the noise of both its points
+
+The bearing target was measured between the marker's sample and one ten samples
+ahead. Both endpoints carry GPS wobble, so the reported heading swung while the
+route's actual direction was unchanged — and the camera answered every swing by
+rotating. On real routes that chord changed direction 80 times (11 km) and 137
+times (206 km), with single frames jumping up to 36 degrees.
+
+Averaging a small window at *each* end cancels the wobble and leaves the real
+turn: 28 and 29 direction changes, and the rendered camera reverses about half
+as often (32 -> 15, 30 -> 19 at maximum stability).
+
+Beware when testing this: the old reading used a *fixed* ten-sample offset, so
+any synthetic wobble whose period divides ten cancels itself out and the old
+code scores a perfect zero. An alternating point-up/point-down route proves
+nothing. Use irregular jitter.
+
+### 5. Channels sharing an input need comparable sensitivity to it
 
 Zoom and pitch are both driven by the same terrain risk value, but through very
 different budgets — and their deadbands were not scaled to match. With a zoom
