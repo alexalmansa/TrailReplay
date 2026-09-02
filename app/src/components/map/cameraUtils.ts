@@ -281,7 +281,21 @@ export function smoothCoordinate(
 export const TERRAIN_CAMERA_SETTINGS = {
   ELEVATION_RISK_METERS: 1200,
   STEEPNESS_RISK_FACTOR: 18,
-  LOOK_AHEAD_PROGRESS: 0.05,
+  /**
+   * Half-width of the terrain window, as a fraction of playback progress.
+   *
+   * This is what sets how fast the zoom target may change, so it is the knob
+   * that decides whether the framing reads as settled. It is deliberately wide:
+   * on a rolling 11 km route a narrower window let the target reverse direction
+   * 17 times a minute, and the only thing hiding that was the widened deadband
+   * at the most stable slider position — at the default position the camera
+   * visibly pumped. Sizing the window so the *target* is calm fixes it for
+   * every slider position instead of relying on the smoothing to mask it.
+   *
+   * Being a fraction of progress, this is also a duration: a camera move takes
+   * a comparable slice of the video whatever the route's length.
+   */
+  LOOK_AHEAD_PROGRESS: 0.15,
   /**
    * Sustained gradient (metres climbed per metre travelled) that justifies the
    * full pull-back. A replay camera loses its subject on *steep* ground, and
@@ -304,7 +318,16 @@ export const TERRAIN_CAMERA_SETTINGS = {
    * into valleys and climbs back out doesn't re-frame on every col.
    */
   ELEVATION_RISK_WEIGHT: 0.5,
-  MAX_ZOOM_OUT: 1.2,
+  /**
+   * Total zoom the terrain protection may spend.
+   *
+   * Kept small because this is not the mechanism that keeps the marker framed —
+   * the playback camera pins its centre to the terrain surface, and the pitch
+   * allowance below does the anti-occlusion work. What a large budget mostly
+   * buys is a visible change of framing partway through a replay, which reads
+   * as the camera pumping even when it moves monotonically.
+   */
+  MAX_ZOOM_OUT: 0.8,
   MAX_PITCH_REDUCE: 15,
   MIN_ZOOM: 8,
   MAX_ZOOM: 14,

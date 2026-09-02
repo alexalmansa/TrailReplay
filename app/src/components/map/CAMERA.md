@@ -173,6 +173,33 @@ Averages hide everything. These are the ones that caught real defects:
 - **High-frequency jitter**: RMS deviation of the marker position from its own
   ~15-frame moving average, which separates fast shake from slow drift.
 
+### Measure at the DEFAULT slider position, not just at max stable
+
+This one cost a round trip with a user. A fix was verified entirely at maximum
+stability, looked perfect, and shipped — then the same replay on a fresh page
+pumped visibly, because a fresh page uses `cameraStability: 0.5` and the
+verification had never covered it. The widened deadband at the stable end was
+hiding a target that still reversed 17 times a minute.
+
+Two rules follow:
+
+- **Sweep the stability range.** A change is not verified until it has been
+  measured at 0, 0.5 and 1. Cheap offline — feed the target series through
+  `smoothZoom` at each `cameraReactivityFromStability` value.
+- **Fix the target, not the filter.** If a channel only looks calm because a
+  deadband is swallowing it, it is not calm — it will surface at any slider
+  position where that deadband is narrower. Size the terrain window so the
+  *target* is calm, and let smoothing be a refinement rather than a mask.
+
+### Isolating the steady replay in a capture
+
+Intro fly-in and outro `fitBounds` move the camera far more than playback ever
+does, and leaving them in a capture makes every range and swing meaningless. The
+clean way to slice: **keep only frames where `.tr-marker` exists in the DOM.**
+The marker is mounted only while `animationPhase === 'playing'`, so that filter
+lands exactly on the steady replay — on a 60 s video it returns 60.0 s of frames.
+Slicing by frame percentage does not work; it silently leaves fly-in frames in.
+
 ### Reference numbers
 
 Pedals de Foc, 60 s, follow-behind, stability at max stable, before this work

@@ -64,7 +64,7 @@ describe('replay camera plan', () => {
       cameraMode: 'follow-behind',
       elevationData,
       progress: 1,
-    })).toMatchObject({ zoom: 14.8, pitch: 40 });
+    })).toMatchObject({ zoom: 15.2, pitch: 40 });
   });
 
   it('adds an incoming-bearing warmup pose around a turn', () => {
