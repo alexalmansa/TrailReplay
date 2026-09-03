@@ -122,7 +122,27 @@ any synthetic wobble whose period divides ten cancels itself out and the old
 code scores a perfect zero. An alternating point-up/point-down route proves
 nothing. Use irregular jitter.
 
-### 5. Channels sharing an input need comparable sensitivity to it
+### 5. A resampled path read per frame is a staircase
+
+`cameraPathCoordinates` is a fixed 601 samples, but a 60s clip at 60fps is 3600
+frames. Rounding progress to the nearest sample therefore makes *everything*
+derived from it hold still for six frames and then jump — a ten-per-second train
+of impulses, each of which the pose smoothing answers with a small lurch. That
+is what "the camera trembles" turned out to be. Measured before the fix, the
+bearing target was unchanged on 83.3% of frames and then stepped a median of
+2.2 degrees (p90 5-7).
+
+Read the path at a **fractional** index and interpolate between the two
+neighbouring samples. Afterwards the target changes on every frame, by a median
+of 0.35-0.39 degrees. The same applied to the terrain sampling window, which
+slid a whole sample at a time and stepped the look-at height on the same
+ten-per-second beat.
+
+Anything indexed by `Math.round(progress * (n - 1))` is suspect. Check for it
+before reaching for more smoothing: smoothing a staircase does not remove the
+staircase, it just blurs each step.
+
+### 6. Channels sharing an input need comparable sensitivity to it
 
 Zoom and pitch are both driven by the same terrain risk value, but through very
 different budgets — and their deadbands were not scaled to match. With a zoom

@@ -27,15 +27,50 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+/**
+ * Position at a fractional point between two route samples.
+ *
+ * The camera path is resampled to a fixed number of points, but playback
+ * progress is continuous, so rounding progress to the nearest sample makes
+ * every value derived from it a staircase. Measured on a 60s clip at 60fps
+ * there are 601 samples against 3600 frames: the index advances once every six
+ * frames, so anything read this way holds still for six frames and then jumps —
+ * a ten-per-second train of impulses that the pose smoothing answers with a
+ * little lurch each time. That reads as the camera trembling. Interpolating
+ * between the two neighbouring samples makes the reading continuous, and there
+ * is nothing left to lurch at.
+ */
+export function getInterpolatedRouteCoordinate(
+  coordinates: number[][],
+  fractionalIndex: number,
+): [number, number] | null {
+  const last = coordinates.length - 1;
+  if (last < 0) return null;
+
+  const clamped = clamp(fractionalIndex, 0, last);
+  const lowerIndex = Math.floor(clamped);
+  const upperIndex = Math.min(last, lowerIndex + 1);
+  const lower = coordinates[lowerIndex];
+  const upper = coordinates[upperIndex];
+  if (!lower || !upper) return null;
+
+  const fraction = clamped - lowerIndex;
+  return [
+    lower[0] + (upper[0] - lower[0]) * fraction,
+    lower[1] + (upper[1] - lower[1]) * fraction,
+  ];
+}
+
 export function getRouteCoordinateAtProgress(
   coordinates: number[][],
   progress: number,
 ): [number, number] | null {
   if (coordinates.length === 0) return null;
 
-  const index = Math.round(clamp(progress, 0, 1) * (coordinates.length - 1));
-  const coordinate = coordinates[index];
-  return coordinate ? [coordinate[0], coordinate[1]] : null;
+  return getInterpolatedRouteCoordinate(
+    coordinates,
+    clamp(progress, 0, 1) * (coordinates.length - 1),
+  );
 }
 
 /** How far ahead the camera looks to decide which way the route is going. */
@@ -60,8 +95,8 @@ function bearingBetween(from: number[], to: number[]): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-/** Mean position of the samples around `centre`, clamped to the route's ends. */
-function localCentroid(coordinates: number[][], centre: number, halfWindow: number): number[] {
+/** Mean position of the samples around a whole-numbered `centre`. */
+function centroidAtSample(coordinates: number[][], centre: number, halfWindow: number): number[] {
   const last = coordinates.length - 1;
   const middle = Math.max(0, Math.min(last, centre));
   let lon = 0;
@@ -77,6 +112,31 @@ function localCentroid(coordinates: number[][], centre: number, halfWindow: numb
   }
 
   return count > 0 ? [lon / count, lat / count] : coordinates[middle];
+}
+
+/**
+ * Mean position around a fractional point on the route.
+ *
+ * Blends the windows either side of it rather than snapping to one, for the
+ * same reason `getInterpolatedRouteCoordinate` exists: a window that jumps a
+ * whole sample at a time hands the camera a step to react to six frames apart.
+ * A centroid is linear in its samples, so interpolating between the two
+ * neighbouring centroids is the same as sliding the window continuously.
+ */
+function localCentroid(coordinates: number[][], centre: number, halfWindow: number): number[] {
+  const last = coordinates.length - 1;
+  const clamped = Math.max(0, Math.min(last, centre));
+  const lowerIndex = Math.floor(clamped);
+  const fraction = clamped - lowerIndex;
+
+  const lower = centroidAtSample(coordinates, lowerIndex, halfWindow);
+  if (fraction === 0) return lower;
+
+  const upper = centroidAtSample(coordinates, Math.min(last, lowerIndex + 1), halfWindow);
+  return [
+    lower[0] + (upper[0] - lower[0]) * fraction,
+    lower[1] + (upper[1] - lower[1]) * fraction,
+  ];
 }
 
 /**
@@ -104,7 +164,8 @@ export function getRouteBearingAtProgress(
   if (coordinates.length < 2) return 0;
 
   const last = coordinates.length - 1;
-  const index = Math.round(clamp(progress, 0, 1) * last);
+  // Fractional, not rounded: see getInterpolatedRouteCoordinate for why.
+  const index = clamp(progress, 0, 1) * last;
   const aheadIndex = Math.min(index + BEARING_LOOK_AHEAD_SAMPLES, last);
 
   const from = localCentroid(coordinates, index, BEARING_SMOOTHING_HALF_WINDOW);
@@ -114,8 +175,8 @@ export function getRouteBearingAtProgress(
   // Near the end of the route the two windows overlap enough to collapse onto
   // the same point; fall back to the plain chord so the heading stays defined.
   if (from[0] === to[0] && from[1] === to[1]) {
-    const current = coordinates[index];
-    const lookAhead = coordinates[aheadIndex];
+    const current = getInterpolatedRouteCoordinate(coordinates, index);
+    const lookAhead = getInterpolatedRouteCoordinate(coordinates, aheadIndex);
     if (!current || !lookAhead) return 0;
     if (current[0] === lookAhead[0] && current[1] === lookAhead[1]) return 0;
     return bearingBetween(current, lookAhead);

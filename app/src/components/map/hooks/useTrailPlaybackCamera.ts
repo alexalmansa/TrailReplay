@@ -21,7 +21,11 @@ import {
   smoothZoom,
   smoothZoomTarget,
 } from '@/components/map/cameraUtils';
-import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
+import {
+  getInterpolatedRouteCoordinate,
+  getIntroCameraPose,
+  getPlaybackCameraPose,
+} from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
   activeTrack: { color: string; points: Array<{ heartRate: number | null }> } | null | undefined;
@@ -411,15 +415,17 @@ export function useTrailPlaybackCamera({
       // symmetrically leaves constant gradient untouched, so this costs no
       // accuracy on a climb — see cameraUtils' TERRAIN_SAMPLE_INDEX_OFFSETS for
       // why a time-based lag is the wrong tool here.
-      const sampleBaseIndex = Math.round(
-        Math.max(0, Math.min(1, playbackProgress)) * Math.max(0, cameraCoordinates.length - 1),
-      );
+      // Fractional base index, and interpolated sample positions with it: this
+      // window is read every frame but the route only has a sample every sixth
+      // one, so rounding here would slide it a whole sample at a time and step
+      // the averaged height ten times a second.
+      const sampleBaseIndex = Math.max(0, Math.min(1, playbackProgress))
+        * Math.max(0, cameraCoordinates.length - 1);
       let elevationSum = 0;
       let elevationSamples = 0;
 
       for (const offset of TERRAIN_SAMPLE_INDEX_OFFSETS) {
-        const index = Math.max(0, Math.min(cameraCoordinates.length - 1, sampleBaseIndex + offset));
-        const coordinate = cameraCoordinates[index];
+        const coordinate = getInterpolatedRouteCoordinate(cameraCoordinates, sampleBaseIndex + offset);
         if (!coordinate) continue;
 
         const sampled = mapRef.current.queryTerrainElevation([coordinate[0], coordinate[1]]);

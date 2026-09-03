@@ -5,6 +5,7 @@ import {
   getPredictivePlaybackPoses,
   getPlaybackCameraPose,
   getRouteBearingAtProgress,
+  getRouteCoordinateAtProgress,
 } from './replayCameraPlan';
 
 const coordinates = [[0, 0], [0.01, 0], [0.02, 0]];
@@ -62,6 +63,40 @@ describe('replay camera plan', () => {
 
     expect(spread).toBeLessThan(0.75);
     headings.forEach((heading) => expect(heading).toBeCloseTo(90, 0));
+  });
+
+  it('reads the route continuously rather than snapping to the nearest sample', () => {
+    // The camera path has far fewer samples than a clip has frames, so rounding
+    // progress to a sample makes everything derived from it hold still for
+    // several frames and then jump. Halfway between two samples must land
+    // halfway between their positions.
+    const line = [[0, 0], [1, 0], [2, 0]];
+    expect(getRouteCoordinateAtProgress(line, 0.25)).toEqual([0.5, 0]);
+    expect(getRouteCoordinateAtProgress(line, 0.5)).toEqual([1, 0]);
+    expect(getRouteCoordinateAtProgress(line, 0.75)).toEqual([1.5, 0]);
+  });
+
+  it('turns the heading a little every frame instead of in periodic jumps', () => {
+    // A steady curve, sampled at the rate a 60s clip is rendered at. With the
+    // reading snapped to a sample the heading was unchanged on 83% of frames
+    // and then stepped a couple of degrees, ten times a second — a train of
+    // impulses the smoothing answered with a lurch each time, which is what
+    // trembling looked like.
+    const curve = Array.from({ length: 601 }, (_, i) => {
+      const angle = (i / 600) * (Math.PI / 2);
+      return [Math.sin(angle) * 0.5, (1 - Math.cos(angle)) * 0.5];
+    });
+
+    const frames = 600;
+    const headings = Array.from({ length: frames }, (_, i) =>
+      getRouteBearingAtProgress(curve, (i / (frames - 1)) * 0.8));
+
+    let unchanged = 0;
+    for (let i = 1; i < headings.length; i++) {
+      if (headings[i] === headings[i - 1]) unchanged++;
+    }
+
+    expect(unchanged / headings.length).toBeLessThan(0.05);
   });
 
   it('still turns for a real change of direction', () => {
