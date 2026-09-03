@@ -68,6 +68,8 @@ Key types in `app/src/types/index.ts`:
 
 The map ref is exposed via `app/src/utils/mapRef.ts` for access outside the component tree (used during video export).
 
+**Before changing how the replay camera moves, read `app/src/components/map/CAMERA.md`.** It covers the camera's invariants (the marker must stay framed, live preview and export must stay identical, behaviour must not depend on route length), how to measure the camera per frame instead of eyeballing it, and the traps that make browser measurements silently wrong.
+
 ### Playback engine (`app/src/components/playback/`)
 
 `PlaybackProvider` drives the animation loop using `requestAnimationFrame`. It reads the current `playback` state from the store and calls `setPlayback` each frame. The stats overlay (`StatsOverlay`) computes live stats from the `useComputedJourney` hook at the current progress position.

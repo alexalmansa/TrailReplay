@@ -12,13 +12,20 @@ import {
   cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
   frameTimeMultiplierFromDeltaMs,
+  limitRateOfChange,
+  MAX_CENTER_ELEVATION_RATE_M_PER_S,
+  TERRAIN_SAMPLE_INDEX_OFFSETS,
   smoothBearing,
   smoothCoordinate,
   smoothPitch,
   smoothZoom,
   smoothZoomTarget,
 } from '@/components/map/cameraUtils';
-import { getIntroCameraPose, getPlaybackCameraPose } from '@/utils/replayCameraPlan';
+import {
+  getInterpolatedRouteCoordinate,
+  getIntroCameraPose,
+  getPlaybackCameraPose,
+} from '@/utils/replayCameraPlan';
 
 interface UseTrailPlaybackCameraParams {
   activeTrack: { color: string; points: Array<{ heartRate: number | null }> } | null | undefined;
@@ -152,6 +159,7 @@ export function useTrailPlaybackCamera({
 }: UseTrailPlaybackCameraParams) {
   const lastCameraFrameTimeRef = useRef<number | null>(null);
   const smoothedCenterRef = useRef<[number, number] | null>(null);
+  const smoothedElevationRef = useRef<number | null>(null);
   const smoothedZoomTargetRef = useRef<number | null>(null);
 
   // Explicit distance/mode changes should take effect immediately instead of
@@ -399,17 +407,48 @@ export function useTrailPlaybackCamera({
       // explicitly with the rest of the pose. `queryTerrainElevation` already
       // includes the terrain exaggeration and returns null when terrain is
       // off, in which case we leave the elevation alone.
-      const terrainElevation = mapRef.current.queryTerrainElevation([
-        currentPosition.lon,
-        currentPosition.lat,
-      ]);
-      const centerElevation = typeof terrainElevation === 'number' && Number.isFinite(terrainElevation)
-        ? { elevation: terrainElevation }
-        : {};
+      //
+      // Read that height as an average over a span of route rather than from
+      // the single point under the marker: at this compression one frame covers
+      // tens of metres of ground, so sampling one point tracked every hummock
+      // in the terrain mesh and the view bobbed constantly. Averaging
+      // symmetrically leaves constant gradient untouched, so this costs no
+      // accuracy on a climb — see cameraUtils' TERRAIN_SAMPLE_INDEX_OFFSETS for
+      // why a time-based lag is the wrong tool here.
+      // Fractional base index, and interpolated sample positions with it: this
+      // window is read every frame but the route only has a sample every sixth
+      // one, so rounding here would slide it a whole sample at a time and step
+      // the averaged height ten times a second.
+      const sampleBaseIndex = Math.max(0, Math.min(1, playbackProgress))
+        * Math.max(0, cameraCoordinates.length - 1);
+      let elevationSum = 0;
+      let elevationSamples = 0;
 
-      if (centerElevation.elevation !== undefined
-        && Math.abs(mapRef.current.transform.elevation - centerElevation.elevation) > 0.25) {
-        mapRef.current.setCenterElevation(centerElevation.elevation);
+      for (const offset of TERRAIN_SAMPLE_INDEX_OFFSETS) {
+        const coordinate = getInterpolatedRouteCoordinate(cameraCoordinates, sampleBaseIndex + offset);
+        if (!coordinate) continue;
+
+        const sampled = mapRef.current.queryTerrainElevation([coordinate[0], coordinate[1]]);
+        if (typeof sampled === 'number' && Number.isFinite(sampled)) {
+          elevationSum += sampled;
+          elevationSamples++;
+        }
+      }
+
+      let centerElevation: { elevation?: number } = {};
+
+      if (elevationSamples > 0) {
+        const averaged = elevationSum / elevationSamples;
+        const previousElevation = smoothedElevationRef.current;
+        const settled = previousElevation === null || deltaMs === null
+          ? averaged
+          : limitRateOfChange(previousElevation, averaged, deltaMs, MAX_CENTER_ELEVATION_RATE_M_PER_S);
+
+        smoothedElevationRef.current = settled;
+        centerElevation = { elevation: settled };
+        mapRef.current.setCenterElevation(settled);
+      } else {
+        smoothedElevationRef.current = null;
       }
 
       // Apply the already-smoothed pose with `jumpTo` rather than `easeTo` in

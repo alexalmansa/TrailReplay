@@ -4,12 +4,13 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
+import { useSuggestedFollowBehindDistance } from '@/components/map/hooks/useSuggestedFollowBehindDistance';
 import { MapElevationProfile } from './MapElevationProfile';
 import { useI18n } from '@/i18n/useI18n';
 import { MAP_LAYERS } from './mapStyle';
 import {
-  getFollowBehindCameraTarget,
-  getFollowBehindZoomLevelFromZoom,
+  getFollowBehindLevelForStopIndex,
+  getFollowBehindStopIndexForLevel,
   getNearestFollowBehindPreset,
 } from '@/utils/followBehindCamera';
 import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
@@ -36,7 +37,6 @@ interface TrailMapProps {
 }
 
 const ZOOM_BUTTON_HINT_STORAGE_KEY = 'trailreplay-follow-behind-zoom-buttons-hint-seen';
-const ZOOM_BUTTON_STEP = 1;
 
 export function TrailMap(_props: TrailMapProps) {
   const { t } = useI18n();
@@ -95,6 +95,7 @@ export function TrailMap(_props: TrailMapProps) {
     elevationData,
     activeTrack,
     computedJourney,
+    totalDistance,
   } = useComputedJourney();
 
   // Derive the current track name for the label
@@ -103,6 +104,14 @@ export function TrailMap(_props: TrailMapProps) {
     : activeTrack?.name;
   const cameraMode = cameraSettings.mode;
   const followBehindZoomLevel = cameraSettings.followBehindZoomLevel;
+
+  useSuggestedFollowBehindDistance({
+    allCoordinates,
+    followBehindZoomLevel,
+    setCameraSettings,
+    totalDistanceMeters: totalDistance,
+    totalDurationMs: playback.totalDuration,
+  });
   const handleMapLoadedChange = useCallback((isLoaded: boolean) => {
     setIsMapLoaded(isLoaded);
     if (!isLoaded) {
@@ -281,14 +290,13 @@ export function TrailMap(_props: TrailMapProps) {
       event.stopPropagation();
       event.stopImmediatePropagation?.();
 
-      // Use the saved distance preset, not the map's live zoom. Terrain safety
-      // can temporarily zoom the camera out, and deriving from that value made
-      // a button press appear to do nothing or jump to the wrong distance.
-      const currentZoom = getFollowBehindCameraTarget(followBehindZoomLevel, 'playback').zoom;
-      const nextLevel = getFollowBehindZoomLevelFromZoom(
-        currentZoom + (direction * ZOOM_BUTTON_STEP),
-        'playback',
-      );
+      // Step through the distance stops the slider exposes, from the saved
+      // level rather than the map's live zoom: terrain safety can temporarily
+      // zoom the camera out, and deriving from that made a button press appear
+      // to do nothing or jump to the wrong distance.
+      const currentIndex = getFollowBehindStopIndexForLevel(followBehindZoomLevel);
+      const nextLevel = getFollowBehindLevelForStopIndex(currentIndex + direction);
+      if (nextLevel === followBehindZoomLevel) return true;
 
       setCameraSettings({
         followBehindPreset: getNearestFollowBehindPreset(nextLevel),

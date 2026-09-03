@@ -5,7 +5,8 @@ export const FOLLOW_BEHIND_ZOOM_MIN = 0;
 export const FOLLOW_BEHIND_ZOOM_MAX = 100;
 
 type FollowBehindCameraAnchor = {
-  id: CameraSettings['followBehindPreset'];
+  /** Only the four anchors that back a named preset carry an id. */
+  id?: CameraSettings['followBehindPreset'];
   level: number;
   pitch: number;
   zoom: number;
@@ -13,19 +14,79 @@ type FollowBehindCameraAnchor = {
 
 type FollowBehindCameraProfile = 'intro' | 'playback';
 
+/**
+ * The distance stops the slider and the map's +/- buttons step through.
+ *
+ * The whole ladder sits closer than it used to. The old widest stop (zoom 11)
+ * was wide enough that the marker read as a dot on a map rather than a subject
+ * being followed, so the second-widest becomes the new limit and a stop closer
+ * than the old `very-close` is added at the other end. Every position is nearer
+ * than the one that shared its place before.
+ *
+ * The four named presets keep their levels (0 / 33 / 66 / 100) so stored
+ * settings and saved projects still land on a valid stop, but the framing each
+ * one describes has moved in with everything else. The stops between them exist
+ * because the old `far`-to-`medium` gap was three whole zoom levels, far too
+ * coarse when the right framing lands in the middle.
+ */
 const PLAYBACK_CAMERA_ANCHORS: FollowBehindCameraAnchor[] = [
-  { id: 'far', level: 0, zoom: 11, pitch: 30 },
-  { id: 'medium', level: 33, zoom: 14, pitch: 35 },
-  { id: 'close', level: 66, zoom: 15, pitch: 45 },
-  { id: 'very-close', level: 100, zoom: 16, pitch: 55 },
+  { id: 'far', level: 0, zoom: 12, pitch: 32 },
+  { level: 11, zoom: 12.8, pitch: 34 },
+  { level: 22, zoom: 13.6, pitch: 36 },
+  { id: 'medium', level: 33, zoom: 14.5, pitch: 40 },
+  { level: 49.5, zoom: 15, pitch: 44 },
+  { id: 'close', level: 66, zoom: 15.5, pitch: 48 },
+  { level: 83, zoom: 16, pitch: 52 },
+  { id: 'very-close', level: 100, zoom: 16.5, pitch: 56 },
 ];
 
+/**
+ * Same stops, on the wider pose a cinematic fly-in would finish at.
+ *
+ * Currently unused — `getIntroCameraPose` deliberately targets the playback
+ * pose so the fly-in lands exactly where playback begins, rather than arriving
+ * somewhere wider and then zooming again. Kept in step with the playback ladder
+ * so it stays coherent if that changes.
+ */
 const INTRO_CAMERA_ANCHORS: FollowBehindCameraAnchor[] = [
-  { id: 'far', level: 0, zoom: 14, pitch: 45 },
-  { id: 'medium', level: 33, zoom: 15, pitch: 50 },
-  { id: 'close', level: 66, zoom: 16, pitch: 55 },
-  { id: 'very-close', level: 100, zoom: 17, pitch: 60 },
+  { id: 'far', level: 0, zoom: 13, pitch: 47 },
+  { level: 11, zoom: 13.8, pitch: 48.5 },
+  { level: 22, zoom: 14.6, pitch: 50 },
+  { id: 'medium', level: 33, zoom: 15.5, pitch: 52 },
+  { level: 49.5, zoom: 16, pitch: 54 },
+  { id: 'close', level: 66, zoom: 16.5, pitch: 56 },
+  { level: 83, zoom: 17, pitch: 58 },
+  { id: 'very-close', level: 100, zoom: 17.5, pitch: 60 },
 ];
+
+/** Levels of each stop, in order from furthest to closest. */
+export const FOLLOW_BEHIND_STOP_LEVELS: readonly number[] = PLAYBACK_CAMERA_ANCHORS
+  .map((anchor) => anchor.level);
+
+export const FOLLOW_BEHIND_STOP_COUNT = FOLLOW_BEHIND_STOP_LEVELS.length;
+
+/** Level for a stop index, clamped to the ends of the slider. */
+export function getFollowBehindLevelForStopIndex(index: number): number {
+  const clamped = Math.max(0, Math.min(FOLLOW_BEHIND_STOP_COUNT - 1, Math.round(index)));
+  return FOLLOW_BEHIND_STOP_LEVELS[clamped];
+}
+
+/** Stop index a stored level sits on (nearest, for levels saved before the extra stops existed). */
+export function getFollowBehindStopIndexForLevel(level: number): number {
+  const clampedLevel = clampFollowBehindZoomLevel(level);
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  FOLLOW_BEHIND_STOP_LEVELS.forEach((stopLevel, index) => {
+    const distance = Math.abs(stopLevel - clampedLevel);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
 
 function getFollowBehindCameraAnchors(profile: FollowBehindCameraProfile): FollowBehindCameraAnchor[] {
   return profile === 'intro' ? INTRO_CAMERA_ANCHORS : PLAYBACK_CAMERA_ANCHORS;
@@ -64,19 +125,21 @@ export function getFollowBehindZoomLevelForPreset(
   preset: CameraSettings['followBehindPreset'],
 ): number {
   const anchor = PLAYBACK_CAMERA_ANCHORS.find((candidate) => candidate.id === preset);
-  return anchor?.level ?? PLAYBACK_CAMERA_ANCHORS[1].level;
+  return anchor?.level ?? 33;
 }
 
 export function getNearestFollowBehindPreset(
   level: number,
 ): CameraSettings['followBehindPreset'] {
   const clampedLevel = clampFollowBehindZoomLevel(level);
+  // Only the named anchors are candidates; the in-between stops have no name.
+  const namedAnchors = PLAYBACK_CAMERA_ANCHORS.filter((anchor) => anchor.id !== undefined);
 
-  return PLAYBACK_CAMERA_ANCHORS.reduce((closest, anchor) => {
+  return namedAnchors.reduce((closest, anchor) => {
     const currentDistance = Math.abs(anchor.level - clampedLevel);
     const closestDistance = Math.abs(closest.level - clampedLevel);
     return currentDistance < closestDistance ? anchor : closest;
-  }, PLAYBACK_CAMERA_ANCHORS[0]).id;
+  }, namedAnchors[0]).id as CameraSettings['followBehindPreset'];
 }
 
 export function getFollowBehindZoomLevelFromZoom(
@@ -108,4 +171,93 @@ export function getFollowBehindCameraTarget(
     level,
     getFollowBehindCameraAnchors(profile),
   );
+}
+
+/**
+ * Ground covered by one pixel at zoom 0. MapLibre's zoom is defined against
+ * 512px tiles, so the world is 512 * 2^zoom pixels wide.
+ */
+const METERS_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
+
+/**
+ * Viewport width the starting distance is reasoned about in. A fixed reference
+ * rather than the real canvas width, so the suggestion is a property of the
+ * replay: it must not depend on the window size, and it has to mean the same
+ * thing for an export at any resolution.
+ */
+const REFERENCE_VIEWPORT_WIDTH_PX = 1280;
+
+/**
+ * How long the ground should take to travel one viewport width, in seconds of
+ * video. This is the knob that decides what "sensible starting framing" means:
+ * lower pulls the camera in and makes the replay feel faster, higher pushes it
+ * out and calms it down.
+ *
+ * Tightened from 20s so a freshly loaded route starts closer, on top of the
+ * whole stop ladder having moved in. Both were needed: shifting the ladder
+ * alone left several routes snapping to the same absolute zoom as before,
+ * because the target they were snapping to had not moved.
+ */
+const SECONDS_TO_CROSS_VIEWPORT = 13;
+
+/**
+ * The distance stop to start a freshly loaded route on.
+ *
+ * The useful notion of speed here is not the athlete's — it is how much ground
+ * the replay covers per second of *video*, which is route length divided by
+ * clip length. That ratio varies enormously: a 206 km ride as a 60 s clip
+ * travels 3.4 km per second of video, while an 11 km run in the same 60 s
+ * travels 185 m. Eighteen times the speed across the frame, which is why one
+ * fixed starting preset looks calm on one route and frantic on the other.
+ *
+ * So pick the stop that puts a consistent amount of *time* on screen: the
+ * distance at which the ground takes a set number of seconds to cross the
+ * frame. Speed cancels out, and short routes start close while long ones start
+ * back.
+ *
+ * This only chooses where the slider starts. Everything after that is the
+ * user's, and nothing here moves it again.
+ */
+export function getSuggestedFollowBehindZoomLevel({
+  totalDistanceMeters,
+  videoDurationSeconds,
+  latitudeDeg,
+}: {
+  totalDistanceMeters: number;
+  videoDurationSeconds: number;
+  latitudeDeg: number;
+}): number {
+  const fallback = getFollowBehindZoomLevelForPreset(DEFAULT_FOLLOW_BEHIND_PRESET);
+
+  if (!Number.isFinite(totalDistanceMeters) || totalDistanceMeters <= 0) return fallback;
+  if (!Number.isFinite(videoDurationSeconds) || videoDurationSeconds <= 0) return fallback;
+  if (!Number.isFinite(latitudeDeg)) return fallback;
+
+  const desiredVisibleWidthMeters =
+    (totalDistanceMeters / videoDurationSeconds) * SECONDS_TO_CROSS_VIEWPORT;
+  if (desiredVisibleWidthMeters <= 0) return fallback;
+
+  // Web Mercator scales by latitude, so the same zoom shows less ground far
+  // from the equator. Clamped short of the poles to keep the cosine sane.
+  const safeLatitude = Math.max(-85, Math.min(85, latitudeDeg));
+  const metersPerPixelAtZoom0 =
+    METERS_PER_PIXEL_AT_ZOOM_0 * Math.cos((safeLatitude * Math.PI) / 180);
+  const desiredZoom = Math.log2(
+    (metersPerPixelAtZoom0 * REFERENCE_VIEWPORT_WIDTH_PX) / desiredVisibleWidthMeters,
+  );
+  if (!Number.isFinite(desiredZoom)) return fallback;
+
+  // Snap to whichever stop frames it closest, so the slider always lands on a
+  // real position the user can then step away from.
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  PLAYBACK_CAMERA_ANCHORS.forEach((anchor, index) => {
+    const distance = Math.abs(anchor.zoom - desiredZoom);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  return getFollowBehindLevelForStopIndex(bestIndex);
 }
