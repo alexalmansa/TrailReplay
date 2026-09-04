@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
 import { usePictureRouteSync } from '@/hooks/usePictureRouteSync';
+import { installFocusModalityTracking } from '@/utils/focusModality';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
 import { CropPreviewBars } from '@/components/app/CropPreviewBars';
@@ -99,6 +100,10 @@ function App() {
   const pendingQueuedPictureOpenRef = useRef<number | null>(null);
 
   const { parseFiles } = useGPX();
+  // Installed once for the whole page, not per panel: the click that moves
+  // focus routinely lands before the component that needs to know about it
+  // exists. Keyboard shortcuts on Space and Enter depend on it.
+  installFocusModalityTracking();
   useUnsavedWorkGuard();
   // Keeps photo placement on the route current when the timing mode is
   // switched after import, or when a saved project brings an older value.

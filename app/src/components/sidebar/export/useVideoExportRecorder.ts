@@ -574,8 +574,13 @@ export function useVideoExportRecorder() {
     if (!map || cameraSettings.mode === 'overview' || cameraPathCoordinates.length === 0) return;
 
     const routeDurationMs = useAppStore.getState().playback.totalDuration || 60_000;
+    // Tile prefetch has no cinematic-specific pose logic yet — approximate
+    // with follow-behind, which sits at a similar zoom/pitch. The actual
+    // export render loop (useTrailPlaybackCamera) does use the real
+    // cinematic poses, so this only affects which tiles get warmed early.
+    const poseCameraMode = cameraSettings.mode === 'cinematic' ? 'follow-behind' : cameraSettings.mode;
     const introPose = getIntroCameraPose({
-      cameraMode: cameraSettings.mode,
+      cameraMode: poseCameraMode,
       coordinates: cameraPathCoordinates,
       elevationData,
       followBehindZoomLevel: cameraSettings.followBehindZoomLevel,
@@ -588,7 +593,7 @@ export function useVideoExportRecorder() {
         EXPORT_OPENING_WINDOW_MS,
         EXPORT_OPENING_SAMPLE_COUNT,
       ).map((progress) => getPlaybackCameraPose({
-        cameraMode: cameraSettings.mode,
+        cameraMode: poseCameraMode,
         coordinates: cameraPathCoordinates,
         elevationData,
         followBehindZoomLevel: cameraSettings.followBehindZoomLevel,
@@ -1040,6 +1045,9 @@ export function useVideoExportRecorder() {
       journey_segment_count: journeySegments.length,
       camera_mode: cameraSettings.mode,
       camera_preset: cameraSettings.mode === 'follow-behind' ? cameraSettings.followBehindPreset : 'not_applicable',
+      // How much of the cinematic camera was actually authored, so exports
+      // can be told apart from ones that only visited the mode.
+      cinematic_keyframe_count: useAppStore.getState().cinematicCameraKeyframes.length,
       transport_segment_count: journeySegments.filter((segment) => segment.type === 'transport').length,
       map_style: mapStyle,
       terrain_3d_enabled: show3DTerrain,

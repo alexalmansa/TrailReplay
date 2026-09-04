@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
+import { usePreparedCinematicCameraKeyframes } from '@/hooks/useCinematicCameraKeyframes';
 import { useSuggestedFollowBehindDistance } from '@/components/map/hooks/useSuggestedFollowBehindDistance';
 import { MapElevationProfile } from './MapElevationProfile';
 import { useI18n } from '@/i18n/useI18n';
@@ -104,6 +105,7 @@ export function TrailMap(_props: TrailMapProps) {
     : activeTrack?.name;
   const cameraMode = cameraSettings.mode;
   const followBehindZoomLevel = cameraSettings.followBehindZoomLevel;
+  const cinematicKeyframes = usePreparedCinematicCameraKeyframes(cameraPathCoordinates);
 
   useSuggestedFollowBehindDistance({
     allCoordinates,
@@ -201,6 +203,7 @@ export function TrailMap(_props: TrailMapProps) {
     animationPhase,
     cameraMode,
     cameraStability: cameraSettings.cameraStability,
+    cinematicKeyframes,
     completedCoordinates,
     computedJourney,
     currentIcon,
@@ -221,6 +224,7 @@ export function TrailMap(_props: TrailMapProps) {
     setCameraPosition,
     smoothBearingRef,
     targetBearingRef,
+    totalDurationMs: playback.totalDuration,
     trailStyle: {
       colorMode: trailStyle.colorMode,
       colorZones: trailStyle.colorZones,

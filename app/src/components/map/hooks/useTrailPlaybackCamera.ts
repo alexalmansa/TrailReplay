@@ -11,6 +11,8 @@ import type { TrailColorZone } from '@/types';
 import {
   cameraCenterChaseDurationFromStability,
   cameraReactivityFromStability,
+  cinematicAnchorSmoothingHalfWindow,
+  cinematicHeadingBaselineHalfWidth,
   frameTimeMultiplierFromDeltaMs,
   limitRateOfChange,
   MAX_CENTER_ELEVATION_RATE_M_PER_S,
@@ -25,16 +27,30 @@ import {
   getInterpolatedRouteCoordinate,
   getIntroCameraPose,
   getPlaybackCameraPose,
+  getRouteBearingAtProgress,
 } from '@/utils/replayCameraPlan';
+import { getCinematicCameraPose } from '@/utils/cinematicCameraPlan';
+import type { PreparedCinematicKeyframe } from '@/utils/cinematicCameraPlan';
+import {
+  getSmoothedCameraAnchor,
+  getSmoothedRouteHeadingDeg,
+} from '@/utils/cinematicCameraAnchor';
 
 interface UseTrailPlaybackCameraParams {
   activeTrack: { color: string; points: Array<{ heartRate: number | null }> } | null | undefined;
   allCoordinates: number[][];
   cameraCoordinates: number[][];
   animationPhase: 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'ended';
-  cameraMode: 'overview' | 'follow' | 'follow-behind';
+  cameraMode: 'overview' | 'follow' | 'follow-behind' | 'cinematic';
   /** 0 = maximally stable/smooth camera, 1 = maximally reactive/tight tracking. */
   cameraStability: number;
+  /**
+   * Cinematic mode keyframes, already sorted and progress-derived (see
+   * `prepareCinematicKeyframeTrack`). Not reachable from the app's camera
+   * mode setting yet — CINEMATIC_CAMERA_PLAN.md Phase 1 wires this in for a
+   * test fixture to drive, ahead of any authoring UI.
+   */
+  cinematicKeyframes?: PreparedCinematicKeyframe[];
   currentTimeMs: number;
   completedCoordinates: number[][];
   computedJourney: { coordinates: Array<{ heartRate: number | null }> } | null;
@@ -72,6 +88,8 @@ interface UseTrailPlaybackCameraParams {
     pitch: number;
     bearing: number;
   }) => void;
+  /** Clip length. Cinematic anchor smoothing is measured in seconds of video, so it needs to know how long the video is. */
+  totalDurationMs: number;
   smoothBearingRef: React.MutableRefObject<number>;
   targetBearingRef: React.MutableRefObject<number>;
   isExporting: boolean;
@@ -135,6 +153,7 @@ export function useTrailPlaybackCamera({
   animationPhase,
   cameraMode,
   cameraStability,
+  cinematicKeyframes,
   completedCoordinates,
   computedJourney,
   currentIcon,
@@ -155,6 +174,7 @@ export function useTrailPlaybackCamera({
   setCameraPosition,
   smoothBearingRef,
   targetBearingRef,
+  totalDurationMs,
   trailStyle,
 }: UseTrailPlaybackCameraParams) {
   const lastCameraFrameTimeRef = useRef<number | null>(null);
@@ -326,14 +346,75 @@ export function useTrailPlaybackCamera({
     }
 
     if (animationPhase === 'playing' && cameraMode !== 'overview') {
-      const targetPose = getPlaybackCameraPose({
-        cameraMode,
-        coordinates: cameraCoordinates,
-        elevationData,
-        followBehindZoomLevel,
-        progress: playbackProgress,
-      });
+      // The one dial cinematic mode has, in fractions of the whole replay.
+      const anchorSmoothingHalfWindow = cinematicAnchorSmoothingHalfWindow(
+        cameraStability,
+        totalDurationMs / 1000,
+      );
+
+      // A cinematic shot follows the line the route takes over several
+      // seconds of video, not the tangent at this instant — otherwise it
+      // turns with every switchback, which is the shake this mode exists to
+      // remove. Measured on a 206 km route as a 60 s clip, this reduces total
+      // camera turning from 1780 degrees to 286, with no direction reversals
+      // at all, against follow-behind's smoothed 921 degrees and 19.
+      const cinematicHeadingDeg = cameraMode === 'cinematic'
+        ? getSmoothedRouteHeadingDeg({
+            coordinates: cameraCoordinates,
+            progress: playbackProgress,
+            smoothingHalfWindow: anchorSmoothingHalfWindow,
+            baselineHalfWidth: cinematicHeadingBaselineHalfWidth(anchorSmoothingHalfWindow),
+          }) ?? getRouteBearingAtProgress(cameraCoordinates, playbackProgress)
+        : 0;
+
+      // Cinematic mode has no procedural input to derive a pose from: it
+      // splines through authored keyframes instead (CINEMATIC_CAMERA_PLAN.md
+      // section 1). With no keyframes yet it falls back to follow-behind's
+      // framing (section 7) so switching modes never produces a broken
+      // camera — but it takes its *heading* from the long-baseline reading
+      // above rather than follow-behind's.
+      //
+      // That distinction was a real bug: the whole smoothing chain is
+      // bypassed in this mode (`usesRawPose`, on the grounds that an authored
+      // spline needs no filtering), so borrowing follow-behind's pose whole
+      // meant borrowing its raw per-frame heading with the smoothing that
+      // makes it usable switched off. Cinematic-with-no-keyframes was
+      // therefore *shakier* than follow-behind, which is the opposite of what
+      // the mode is for.
+      const cinematicFallbackPose = () => {
+        const followBehindPose = getPlaybackCameraPose({
+          cameraMode: 'follow-behind',
+          coordinates: cameraCoordinates,
+          elevationData,
+          followBehindZoomLevel,
+          progress: playbackProgress,
+        });
+        return followBehindPose && { ...followBehindPose, bearing: cinematicHeadingDeg };
+      };
+
+      const targetPose = cameraMode === 'cinematic'
+        ? getCinematicCameraPose({
+            keyframes: cinematicKeyframes ?? [],
+            coordinates: cameraCoordinates,
+            progress: playbackProgress,
+            routeHeadingDeg: cinematicHeadingDeg,
+          }) ?? cinematicFallbackPose()
+        : getPlaybackCameraPose({
+            cameraMode,
+            coordinates: cameraCoordinates,
+            elevationData,
+            followBehindZoomLevel,
+            progress: playbackProgress,
+          });
       if (!targetPose) return;
+
+      // Cinematic mode's pose is already smooth by construction (it comes
+      // from a spline through authored keyframes, not a noisy input) — the
+      // smoothing/deadband/rate-limiting machinery below exists to reject
+      // noise this mode doesn't have, and would turn an authored move into a
+      // stepped or laggy one. Bypass it the same way 'follow' already does.
+      // CINEMATIC_CAMERA_PLAN.md section 5.
+      const usesRawPose = cameraMode === 'follow' || cameraMode === 'cinematic';
 
       // Follow the replay plan's evenly sampled forward heading. Raw GPX
       // bearings can jump at uneven samples and make tight turns feel abrupt.
@@ -392,9 +473,31 @@ export function useTrailPlaybackCamera({
       // paths land on the same rendered position.
       const targetCenter: [number, number] = [currentPosition.lon, currentPosition.lat];
       const centerChaseDuration = cameraCenterChaseDurationFromStability(cameraStability);
-      const smoothedCenter = smoothedCenterRef.current === null || deltaMs === null
+      const chasedCenter = smoothedCenterRef.current === null || deltaMs === null
         ? targetCenter
         : smoothCoordinate(smoothedCenterRef.current, targetCenter, deltaMs, centerChaseDuration);
+      // Cinematic mode does not chase the marker at all. A chase is a lag
+      // filter, and a lagged centre falls out of step with a pose that jumps
+      // straight to its spline value — that mismatch is what made the marker
+      // appear to slide off the track. It also cannot help with the real
+      // problem: welded to the marker or trailing behind it, the camera still
+      // reproduces every switchback, because the path it is following is the
+      // one with the switchbacks in it.
+      //
+      // Smooth the *path* instead, symmetrically, using route that is still
+      // to come as well as route already travelled — which a live camera
+      // could never do, and which costs no lag precisely because it is
+      // symmetric. The marker stays exactly on its trace and weaves inside
+      // the frame; the frame itself glides. See cinematicCameraAnchor.ts.
+      const smoothedCenter = cameraMode === 'cinematic'
+        ? getSmoothedCameraAnchor({
+            coordinates: cameraCoordinates,
+            progress: playbackProgress,
+            smoothingHalfWindow: anchorSmoothingHalfWindow,
+            markerPosition: targetCenter,
+            zoom: targetPose.zoom,
+          })
+        : chasedCenter;
       smoothedCenterRef.current = smoothedCenter;
 
       // With 3D terrain the marker is drawn on the terrain surface, while the
@@ -424,14 +527,37 @@ export function useTrailPlaybackCamera({
       let elevationSum = 0;
       let elevationSamples = 0;
 
-      for (const offset of TERRAIN_SAMPLE_INDEX_OFFSETS) {
-        const coordinate = getInterpolatedRouteCoordinate(cameraCoordinates, sampleBaseIndex + offset);
-        if (!coordinate) continue;
-
-        const sampled = mapRef.current.queryTerrainElevation([coordinate[0], coordinate[1]]);
+      // Cinematic keyframes can sit far closer and steeper than follow-behind
+      // ever allows itself (it widens/flattens on risky terrain; cinematic
+      // has no such guard yet — see CINEMATIC_CAMERA_PLAN.md section 6). At
+      // that distance a window built for follow-behind's typical framing
+      // spans enough real ground, on rough terrain, to average across a
+      // genuine climb and descend, not just mesh noise — and the rate cap
+      // below then throttles catching up to it. Both read as the look-at
+      // point moving at the wrong pace relative to the marker's real
+      // elevation. Read the single point under the marker instead: cinematic
+      // has no noisy procedural input driving this pose, so there is nothing
+      // here that needs smoothing in the first place.
+      if (usesRawPose) {
+        // Sampled at the point the camera actually looks at, which in
+        // cinematic mode is the smoothed anchor rather than the marker. A
+        // height read from somewhere the camera is not aiming is the same
+        // mismatch that made the ground appear to move at its own pace.
+        const sampled = mapRef.current.queryTerrainElevation([smoothedCenter[0], smoothedCenter[1]]);
         if (typeof sampled === 'number' && Number.isFinite(sampled)) {
-          elevationSum += sampled;
-          elevationSamples++;
+          elevationSum = sampled;
+          elevationSamples = 1;
+        }
+      } else {
+        for (const offset of TERRAIN_SAMPLE_INDEX_OFFSETS) {
+          const coordinate = getInterpolatedRouteCoordinate(cameraCoordinates, sampleBaseIndex + offset);
+          if (!coordinate) continue;
+
+          const sampled = mapRef.current.queryTerrainElevation([coordinate[0], coordinate[1]]);
+          if (typeof sampled === 'number' && Number.isFinite(sampled)) {
+            elevationSum += sampled;
+            elevationSamples++;
+          }
         }
       }
 
@@ -440,7 +566,7 @@ export function useTrailPlaybackCamera({
       if (elevationSamples > 0) {
         const averaged = elevationSum / elevationSamples;
         const previousElevation = smoothedElevationRef.current;
-        const settled = previousElevation === null || deltaMs === null
+        const settled = usesRawPose || previousElevation === null || deltaMs === null
           ? averaged
           : limitRateOfChange(previousElevation, averaged, deltaMs, MAX_CENTER_ELEVATION_RATE_M_PER_S);
 
@@ -463,9 +589,9 @@ export function useTrailPlaybackCamera({
         ...targetPose,
         ...centerElevation,
         center: smoothedCenter,
-        zoom: cameraMode === 'follow' ? targetPose.zoom : newZoom,
-        pitch: cameraMode === 'follow' ? targetPose.pitch : newPitch,
-        bearing: cameraMode === 'follow' ? targetPose.bearing : smoothBearingRef.current,
+        zoom: usesRawPose ? targetPose.zoom : newZoom,
+        pitch: usesRawPose ? targetPose.pitch : newPitch,
+        bearing: usesRawPose ? targetPose.bearing : smoothBearingRef.current,
       });
     } else {
       // Playback is paused/idle or a new export is starting: don't let a gap
@@ -489,6 +615,7 @@ export function useTrailPlaybackCamera({
     cameraMode,
     cameraStability,
     cameraCoordinates,
+    cinematicKeyframes,
     completedCoordinates,
     computedJourney,
     currentIcon,
@@ -508,6 +635,7 @@ export function useTrailPlaybackCamera({
     setCameraPosition,
     smoothBearingRef,
     targetBearingRef,
+    totalDurationMs,
     trailStyle,
   ]);
 
@@ -524,13 +652,30 @@ export function useTrailPlaybackCamera({
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
 
-    const introPose = getIntroCameraPose({
-      cameraMode,
-      coordinates: cameraCoordinates,
-      elevationData,
-      followBehindZoomLevel,
-      progress: 0,
-    });
+    // The fly-in must finish on the same pose used by the first playback
+    // frame (see getIntroCameraPose's own comment on this), so cinematic
+    // mode targets its first keyframe's pose here rather than the
+    // follow-behind intro target.
+    const introPose = cameraMode === 'cinematic'
+      ? getCinematicCameraPose({
+          keyframes: cinematicKeyframes ?? [],
+          coordinates: cameraCoordinates,
+          progress: 0,
+          routeHeadingDeg: getRouteBearingAtProgress(cameraCoordinates, 0),
+        }) ?? getIntroCameraPose({
+          cameraMode: 'follow-behind',
+          coordinates: cameraCoordinates,
+          elevationData,
+          followBehindZoomLevel,
+          progress: 0,
+        })
+      : getIntroCameraPose({
+          cameraMode,
+          coordinates: cameraCoordinates,
+          elevationData,
+          followBehindZoomLevel,
+          progress: 0,
+        });
 
     if (animationPhase === 'intro' && introPose) {
       mapRef.current.flyTo({
@@ -554,7 +699,12 @@ export function useTrailPlaybackCamera({
         duration: OUTRO_DURATION,
         easing: (value) => 1 - Math.pow(1 - value, 2),
       } as maplibregl.FitBoundsOptions);
-    } else if (animationPhase === 'idle' && !isExporting && allCoordinates.length > 0) {
+    } else if (animationPhase === 'idle' && !isExporting && cameraMode !== 'cinematic' && allCoordinates.length > 0) {
+      // Cinematic authoring happens while paused: the whole point is to pose
+      // a precise shot and capture it. Snapping back to the full-route
+      // overview every time this effect re-runs (e.g. a keyframe is added,
+      // changing `cinematicKeyframes`) would yank away the framing the user
+      // just composed.
       const bounds = new maplibregl.LngLatBounds();
       allCoordinates.forEach((coordinate) => bounds.extend(coordinate as [number, number]));
       mapRef.current.fitBounds(bounds, { padding: 100, duration: 1000 });
@@ -564,6 +714,7 @@ export function useTrailPlaybackCamera({
     animationPhase,
     cameraMode,
     cameraCoordinates,
+    cinematicKeyframes,
     elevationData,
     followBehindZoomLevel,
     isExporting,

@@ -1,7 +1,7 @@
 import type { RouteLandmark } from '@/types/landmarks';
 
 export interface LandmarkVisibilityInput {
-  mode: 'overview' | 'follow' | 'follow-behind';
+  mode: 'overview' | 'follow' | 'follow-behind' | 'cinematic';
   preset?: 'very-close' | 'close' | 'medium' | 'far';
   progress: number;
   totalDistanceMeters: number;

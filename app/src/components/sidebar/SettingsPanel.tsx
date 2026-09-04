@@ -11,6 +11,7 @@ import {
 import { trackEvent } from '@/utils/analytics';
 import { RouteLandmarksEditor } from './RouteLandmarksEditor';
 import { MapNavigationGuide } from './MapNavigationGuide';
+import { CinematicCameraEditor } from './CinematicCameraEditor';
 import {
   Map as MapIcon,
   Video,
@@ -40,6 +41,7 @@ const CAMERA_MODES: { id: CameraMode; nameKey: string; descriptionKey: string }[
   { id: 'overview', nameKey: 'settings.cameraModes.overview', descriptionKey: 'settings.cameraModes.overviewDesc' },
   { id: 'follow', nameKey: 'settings.cameraModes.follow', descriptionKey: 'settings.cameraModes.followDesc' },
   { id: 'follow-behind', nameKey: 'settings.cameraModes.followBehind', descriptionKey: 'settings.cameraModes.followBehindDesc' },
+  { id: 'cinematic', nameKey: 'settings.cameraModes.cinematic', descriptionKey: 'settings.cameraModes.cinematicDesc' },
 ];
 
 /** Label shown for the distance the slider currently sits nearest to. */
@@ -157,6 +159,14 @@ export function SettingsPanel() {
     if (cameraSettings.mode === mode) return;
     setCameraMode(mode);
     trackEvent('settings_changed', { setting_name: 'camera_mode', setting_value: mode });
+
+    // Also reported on its own, so adoption of the cinematic camera can be
+    // counted directly rather than filtered out of every settings change.
+    if (mode === 'cinematic') {
+      trackEvent('cinematic_mode_entered', {
+        existing_keyframe_count: useAppStore.getState().cinematicCameraKeyframes.length,
+      });
+    }
   };
 
   return (
@@ -389,6 +399,9 @@ export function SettingsPanel() {
             </div>
           </div>
         )}
+
+        {/* Cinematic keyframes */}
+        {cameraSettings.mode === 'cinematic' && <CinematicCameraEditor />}
 
         {/* Camera Stability */}
         {cameraSettings.mode !== 'overview' && (

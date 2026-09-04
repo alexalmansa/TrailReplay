@@ -11,6 +11,66 @@ export function cameraReactivityFromStability(cameraStability: number): number {
 }
 
 /**
+ * Widest the cinematic anchor smoothing window goes, in seconds of video
+ * either side. Deliberately generous: a window this wide would lose the
+ * marker on its own, and is only safe because the anchor is bounded against
+ * the marker afterwards (see cinematicCameraAnchor.ts). The bound is what
+ * lets the stable end of the slider be genuinely stable.
+ */
+const MAX_ANCHOR_SMOOTHING_SECONDS = 5;
+
+/**
+ * Narrowest it goes. Not zero: even at the reactive end a little smoothing
+ * costs nothing on a straight run (a symmetric average of a straight line is
+ * that line) while still taking the edge off single-sample GPS noise.
+ */
+const MIN_ANCHOR_SMOOTHING_SECONDS = 0.12;
+
+/**
+ * Half-width of the cinematic camera's anchor smoothing window, as a fraction
+ * of the whole replay.
+ *
+ * This is the one dial cinematic mode has. The window is set in seconds of
+ * *video* rather than metres of route, because that is what decides whether a
+ * switchback is a shake or a move: the same 200 m hairpin is a fifth of a
+ * second on a 206 km clip and eight seconds on a 1.7 km one, and only the
+ * first should be smoothed away. `cameraPathCoordinates` is resampled evenly
+ * in replay time, so seconds convert straight into a fraction of it.
+ *
+ * The stable half of the slider ramps in faster than linearly, so most of the
+ * travel is spent in the range where the difference is visible rather than
+ * crawling toward a window nobody uses.
+ */
+export function cinematicAnchorSmoothingHalfWindow(
+  cameraStability: number,
+  clipDurationSeconds: number,
+): number {
+  if (!Number.isFinite(clipDurationSeconds) || clipDurationSeconds <= 0) return 0;
+
+  const safeValue = Number.isFinite(cameraStability) ? cameraStability : 0.5;
+  const stability = 1 - Math.max(0, Math.min(1, safeValue));
+  const seconds =
+    MIN_ANCHOR_SMOOTHING_SECONDS +
+    (MAX_ANCHOR_SMOOTHING_SECONDS - MIN_ANCHOR_SMOOTHING_SECONDS) * Math.pow(stability, 1.5);
+
+  return seconds / clipDurationSeconds;
+}
+
+/**
+ * Half the separation between the two readings a route-framed shot takes its
+ * heading from, as a fraction of the whole replay.
+ *
+ * Wider than the smoothing window on purpose. Smoothing decides how much of a
+ * hairpin survives in the *position*; this decides how much of it survives in
+ * the *direction*, and a heading is far more sensitive — a chord across half a
+ * switchback points somewhere the route never goes. Measuring across several
+ * seconds of video reports the line of the valley instead.
+ */
+export function cinematicHeadingBaselineHalfWidth(smoothingHalfWindow: number): number {
+  return Math.max(smoothingHalfWindow * 2, 0);
+}
+
+/**
  * Controls how closely the camera centre chases the moving route marker.
  *
  * The middle of the slider preserves the original 100ms follow camera. Moving
