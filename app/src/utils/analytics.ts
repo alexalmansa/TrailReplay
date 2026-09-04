@@ -14,7 +14,8 @@ export type AnalyticsPageType =
   | 'garmin_to_video'
   | 'gpx_animation'
   | 'cycling_route_animation'
-  | 'running_route_animation';
+  | 'running_route_animation'
+  | 'cinematic_camera';
 export type AnalyticsPageGroup = 'product' | 'help' | 'seo';
 
 export interface AnalyticsPageContext {

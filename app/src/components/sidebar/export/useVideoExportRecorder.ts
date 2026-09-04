@@ -1045,6 +1045,9 @@ export function useVideoExportRecorder() {
       journey_segment_count: journeySegments.length,
       camera_mode: cameraSettings.mode,
       camera_preset: cameraSettings.mode === 'follow-behind' ? cameraSettings.followBehindPreset : 'not_applicable',
+      // How much of the cinematic camera was actually authored, so exports
+      // can be told apart from ones that only visited the mode.
+      cinematic_keyframe_count: useAppStore.getState().cinematicCameraKeyframes.length,
       transport_segment_count: journeySegments.filter((segment) => segment.type === 'transport').length,
       map_style: mapStyle,
       terrain_3d_enabled: show3DTerrain,

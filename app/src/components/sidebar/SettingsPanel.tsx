@@ -159,6 +159,14 @@ export function SettingsPanel() {
     if (cameraSettings.mode === mode) return;
     setCameraMode(mode);
     trackEvent('settings_changed', { setting_name: 'camera_mode', setting_value: mode });
+
+    // Also reported on its own, so adoption of the cinematic camera can be
+    // counted directly rather than filtered out of every settings change.
+    if (mode === 'cinematic') {
+      trackEvent('cinematic_mode_entered', {
+        existing_keyframe_count: useAppStore.getState().cinematicCameraKeyframes.length,
+      });
+    }
   };
 
   return (

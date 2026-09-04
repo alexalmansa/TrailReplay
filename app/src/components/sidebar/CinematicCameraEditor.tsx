@@ -171,7 +171,7 @@ export function CinematicCameraEditor() {
       // the focused control did not mean to receive it.
       if (shouldHandleEnterAsPrimaryAction(event, { focusedViaPointer: isFocusedViaPointer() })) {
         event.preventDefault();
-        captureRef.current();
+        captureRef.current('keyboard');
         return;
       }
 
@@ -206,7 +206,7 @@ export function CinematicCameraEditor() {
 
   const canCapture = !!computedJourney && !!currentPosition && !!currentSegment;
 
-  const handleCapture = () => {
+  const handleCapture = (source: 'button' | 'keyboard') => {
     if (!currentPosition || !currentSegment) return;
 
     const existingId = computedJourney
@@ -245,10 +245,15 @@ export function CinematicCameraEditor() {
         easing: 'smooth',
       });
     }
-    trackEvent('feature_enabled', {
-      feature_name: 'cinematic_camera_keyframe',
-      feature_state: existingId ? 'updated' : 'added',
-      feature_context: 'settings',
+    // A dedicated event rather than the generic `feature_enabled`, because
+    // the question this has to answer is "is anyone actually authoring
+    // shots", which needs the depth (how many keyframes) and the route in
+    // (button or the keyboard-only flow), not just that the feature was
+    // touched once.
+    trackEvent('cinematic_keyframe_saved', {
+      keyframe_action: existingId ? 'updated' : 'added',
+      capture_source: source,
+      keyframe_count: existingId ? keyframes.length : keyframes.length + 1,
     });
   };
 
@@ -359,7 +364,7 @@ export function CinematicCameraEditor() {
 
       <button
         type="button"
-        onClick={handleCapture}
+        onClick={() => handleCapture('button')}
         disabled={!canCapture}
         className="w-full flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 border-[var(--trail-orange)] bg-[var(--trail-orange-15)] text-sm font-medium text-[var(--evergreen)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--trail-orange)]/20 transition-colors"
       >
@@ -383,7 +388,12 @@ export function CinematicCameraEditor() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => removeCinematicCameraKeyframe(keyframe.id)}
+                  onClick={() => {
+                    removeCinematicCameraKeyframe(keyframe.id);
+                    trackEvent('cinematic_keyframe_removed', {
+                      keyframe_count: Math.max(0, keyframes.length - 1),
+                    });
+                  }}
                   aria-label={t('settings.cinematicCamera.delete')}
                   className="p-1 rounded text-[var(--evergreen-60)] hover:text-red-600"
                 >
