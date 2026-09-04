@@ -12,6 +12,8 @@ import {
 import { useI18n } from '@/i18n/useI18n';
 import { formatDuration } from '@/utils/units';
 import { getProgressBucket, trackEvent } from '@/utils/analytics';
+import { usePlaybackToggle } from '@/hooks/usePlaybackToggle';
+import { usePlayPauseShortcut } from '@/hooks/usePlayPauseShortcut';
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4, 8];
 
@@ -20,7 +22,6 @@ export function PlaybackControls() {
   const isMobile = useIsMobile();
   const playback = useAppStore((state) => state.playback);
   const play = useAppStore((state) => state.play);
-  const pause = useAppStore((state) => state.pause);
   const seekToProgress = useAppStore((state) => state.seekToProgress);
   const setSpeed = useAppStore((state) => state.setSpeed);
   const tracks = useAppStore((state) => state.tracks);
@@ -72,27 +73,10 @@ export function PlaybackControls() {
     });
   };
 
-  const togglePlayback = () => {
-    if (playback.isPlaying) {
-      pause();
-      trackEvent('playback_paused', {
-        playback_progress_bucket: getProgressBucket(playback.progress * 100),
-      });
-      return;
-    }
+  const togglePlayback = usePlaybackToggle();
 
-    play();
-    trackEvent('playback_started', {
-      playback_source: 'play_button',
-      has_pictures: pictures.length > 0,
-      has_annotations: textAnnotations.length > 0,
-      track_count: tracks.length,
-      camera_mode: cameraSettings.mode,
-      camera_preset: cameraSettings.mode === 'follow-behind' ? cameraSettings.followBehindPreset : 'not_applicable',
-      map_style: mapStyle,
-      terrain_3d_enabled: show3DTerrain,
-    });
-  };
+  // Space does the same thing from anywhere on the page.
+  usePlayPauseShortcut();
 
   return (
     <div className="h-full flex items-center gap-2 sm:gap-4 px-2 sm:px-4 min-w-0">
@@ -162,7 +146,7 @@ export function PlaybackControls() {
         
         {/* Play/Pause */}
         <button
-          onClick={togglePlayback}
+          onClick={() => togglePlayback('play_button')}
           className="tr-playback-btn shrink-0"
           style={isMobile ? { width: '48px', height: '48px' } : undefined}
           aria-label={playback.isPlaying ? t('playback.pause') : t('playback.play')}

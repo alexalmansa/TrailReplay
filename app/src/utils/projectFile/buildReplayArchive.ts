@@ -108,6 +108,7 @@ export async function buildReplayArchive(state: AppState): Promise<Blob> {
     videos: state.videos.map(serializeVideo),
     iconChanges: state.iconChanges,
     textAnnotations: state.textAnnotations,
+    cinematicCameraKeyframes: state.cinematicCameraKeyframes,
     userLandmarks: state.userLandmarks,
     enabledLandmarkGroups: state.enabledLandmarkGroups,
     nearbyPlaceTypes: state.nearbyPlaceTypes,

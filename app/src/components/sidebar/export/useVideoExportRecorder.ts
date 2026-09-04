@@ -574,8 +574,13 @@ export function useVideoExportRecorder() {
     if (!map || cameraSettings.mode === 'overview' || cameraPathCoordinates.length === 0) return;
 
     const routeDurationMs = useAppStore.getState().playback.totalDuration || 60_000;
+    // Tile prefetch has no cinematic-specific pose logic yet — approximate
+    // with follow-behind, which sits at a similar zoom/pitch. The actual
+    // export render loop (useTrailPlaybackCamera) does use the real
+    // cinematic poses, so this only affects which tiles get warmed early.
+    const poseCameraMode = cameraSettings.mode === 'cinematic' ? 'follow-behind' : cameraSettings.mode;
     const introPose = getIntroCameraPose({
-      cameraMode: cameraSettings.mode,
+      cameraMode: poseCameraMode,
       coordinates: cameraPathCoordinates,
       elevationData,
       followBehindZoomLevel: cameraSettings.followBehindZoomLevel,
@@ -588,7 +593,7 @@ export function useVideoExportRecorder() {
         EXPORT_OPENING_WINDOW_MS,
         EXPORT_OPENING_SAMPLE_COUNT,
       ).map((progress) => getPlaybackCameraPose({
-        cameraMode: cameraSettings.mode,
+        cameraMode: poseCameraMode,
         coordinates: cameraPathCoordinates,
         elevationData,
         followBehindZoomLevel: cameraSettings.followBehindZoomLevel,

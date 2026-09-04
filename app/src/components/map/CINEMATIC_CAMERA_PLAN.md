@@ -250,6 +250,64 @@ symmetric window. Symmetric, so it introduces no lag on a straight run (CAMERA.m
 failure mode #2). Expose the window width as the mode's single "smoothing"
 control, defaulting high.
 
+**Implemented, in `cinematicCameraAnchor.ts`.** Three things turned out to
+matter more than this section anticipated, all of them measured on a synthetic
+switchback fixture (`cinematicCameraAnchor.test.ts`):
+
+- **It is the dominant problem, not a finishing touch.** Once the pose comes
+  from a spline, essentially all remaining shake is the anchor translating the
+  frame. A world-framed shot has a constant bearing and still looked like it
+  was chasing every switchback.
+- **The kernel's shape decides how well it works.** A plain centroid is a
+  boxcar, whose sidelobes let some switchback frequencies through untouched. A
+  raised cosine was much better but left a small ripple that never settled.
+  Blackman removed it: peak frame-to-frame anchor acceleration on the fixture
+  fell from **21.5 m to 0.91 m**, and lateral swing by ~60x, against no lag at
+  all on a straight run.
+- **Narrow the window until it fits; never smooth wide and clamp back.** This
+  one was got wrong first and shipped, and it made things *worse* than no
+  smoothing. Clamping a distant smoothed point back toward the marker keeps
+  the offset's direction, that direction swings as the marker weaves, and the
+  camera ends up pinned to a circle around the marker being swung around by
+  exactly the motion it was meant to ignore. Measured on the 206 km sample as
+  a 60 s clip at the stable end: the raw smoothed point sat a mean of 837 m
+  from the marker against a 495 m allowance, so the clamp was active on
+  **70% of frames**. Narrowing the window instead means the anchor is always a
+  genuinely smoothed position.
+- **On a fast route there is very little room to smooth position at all.**
+  3.4 km of ground per second of video against a frame ~2 km wide leaves
+  almost nothing the anchor can absorb, and that is a geometric fact, not a
+  tuning problem. Position smoothing earns its keep on slow routes, where a
+  hairpin is a large fraction of the frame. Wanting more of it on a fast one
+  is a reason to pull the camera back.
+
+### What actually makes a fast route feel calm: the heading
+
+The camera's *direction* matters far more than its position, and it is where
+this mode can beat follow-behind outright. Reading the heading between two
+smoothed points several seconds of video apart, rather than from the local
+tangent, measured on the same 206 km clip:
+
+| | total turning | direction reversals |
+|---|---|---|
+| raw route heading | 1780° | 43 |
+| follow-behind, as rendered | 921° | 19 |
+| cinematic, default slider | ~600° | 17 |
+| cinematic, stable end | 286° | 0 |
+
+The trap here was that **cinematic with no keyframes was worse than
+follow-behind**, not better. The mode bypasses the whole smoothing chain on
+the grounds that an authored spline needs no filtering — but the no-keyframe
+fallback borrowed follow-behind's *pose*, which meant borrowing its raw
+per-frame heading with the smoothing that makes it usable switched off. The
+fallback now keeps follow-behind's framing and takes its heading from the
+long-baseline reading above.
+
+Route-framed keyframes needed the same treatment applied to *direction*: the
+heading is read between two smoothed points seconds apart, not from the local
+tangent. On the same fixture that took total heading change over the clip from
+about 4800 degrees to under a quarter of it.
+
 ---
 
 ## 6. Terrain collision: a new problem this mode creates

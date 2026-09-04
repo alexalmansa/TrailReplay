@@ -6,6 +6,7 @@ type JourneySlice = Pick<
   AppState,
   | 'journey'
   | 'journeySegments'
+  | 'cinematicCameraKeyframes'
   | 'createJourney'
   | 'updateJourneyName'
   | 'addJourneySegment'
@@ -14,11 +15,18 @@ type JourneySlice = Pick<
   | 'updateJourneySegmentDuration'
   | 'addTransportSegment'
   | 'clearJourney'
+  | 'addCinematicCameraKeyframe'
+  | 'updateCinematicCameraKeyframe'
+  | 'removeCinematicCameraKeyframe'
 >;
 
 export const createJourneySlice: AppSliceCreator<JourneySlice> = (set) => ({
   journey: null,
   journeySegments: [],
+  // Cinematic keyframes are journey data, not settings: they reference a
+  // segment anchor and are meaningless without the route they were captured
+  // on. See CINEMATIC_CAMERA_PLAN.md section 3.4.
+  cinematicCameraKeyframes: [],
 
   createJourney: (name) =>
     set((state) => {
@@ -74,5 +82,21 @@ export const createJourneySlice: AppSliceCreator<JourneySlice> = (set) => ({
     set((state) => {
       state.journey = null;
       state.journeySegments = [];
+    }),
+
+  addCinematicCameraKeyframe: (keyframe) =>
+    set((state) => {
+      state.cinematicCameraKeyframes.push(keyframe);
+    }),
+
+  updateCinematicCameraKeyframe: (keyframeId, updates) =>
+    set((state) => {
+      const keyframe = state.cinematicCameraKeyframes.find((entry) => entry.id === keyframeId);
+      if (keyframe) Object.assign(keyframe, updates);
+    }),
+
+  removeCinematicCameraKeyframe: (keyframeId) =>
+    set((state) => {
+      state.cinematicCameraKeyframes = state.cinematicCameraKeyframes.filter((entry) => entry.id !== keyframeId);
     }),
 });

@@ -34,6 +34,7 @@ export function createAppStore() {
           state.comparisonTracks = [];
           state.journey = null;
           state.journeySegments = [];
+          state.cinematicCameraKeyframes = [];
           state.pictures = [];
           state.pendingPicturePlacements = [];
           state.videos = [];

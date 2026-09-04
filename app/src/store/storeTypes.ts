@@ -20,6 +20,7 @@ import type {
   TrailStyleSettings,
 } from '@/types';
 import type { LandmarkType, NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
+import type { CinematicCameraKeyframe } from '@/utils/cinematicCameraPlan';
 
 export interface AppState {
   tracks: GPXTrack[];
@@ -27,6 +28,7 @@ export interface AppState {
   comparisonTracks: ComparisonTrack[];
   journey: Journey | null;
   journeySegments: JourneySegment[];
+  cinematicCameraKeyframes: CinematicCameraKeyframe[];
   pictures: PictureAnnotation[];
   pendingPicturePlacements: PendingPicturePlacement[];
   videos: VideoAnnotation[];
@@ -86,6 +88,9 @@ export interface AppState {
   updateJourneySegmentDuration: (segmentId: string, duration: number) => void;
   addTransportSegment: (from: { lat: number; lon: number }, to: { lat: number; lon: number }, mode: TransportMode) => void;
   clearJourney: () => void;
+  addCinematicCameraKeyframe: (keyframe: CinematicCameraKeyframe) => void;
+  updateCinematicCameraKeyframe: (keyframeId: string, updates: Partial<CinematicCameraKeyframe>) => void;
+  removeCinematicCameraKeyframe: (keyframeId: string) => void;
   addPicture: (picture: PictureAnnotation) => void;
   queuePendingPicturePlacement: (picture: PendingPicturePlacement) => void;
   removePendingPicturePlacement: (pictureId: string) => void;

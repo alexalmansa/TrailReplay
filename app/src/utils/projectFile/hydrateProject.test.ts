@@ -181,3 +181,58 @@ describe('hydrateProject', () => {
     expect(legacyStore.getState().settings.statsColumns).toBeNull();
   });
 });
+
+describe('cinematic camera keyframes in a saved project', () => {
+  it('survives a save and reload, so an authored sequence is not lost', async () => {
+    const sourceStore = createAppStore();
+    const track = parseGPX(sampleGpx, 'ridge-loop.gpx');
+    sourceStore.getState().addTrack(track);
+    const segmentId = sourceStore.getState().journeySegments[0].id;
+
+    sourceStore.getState().addCinematicCameraKeyframe({
+      id: 'keyframe-1',
+      anchor: { routeSegmentId: segmentId, routeSegmentDistance: 120 },
+      bearingDeg: 275,
+      pitchDeg: 62,
+      zoom: 15.5,
+      frame: 'world',
+      easing: 'smooth',
+    });
+    sourceStore.getState().addCinematicCameraKeyframe({
+      id: 'keyframe-2',
+      anchor: { routeSegmentId: segmentId, routeSegmentDistance: 340 },
+      bearingDeg: 40,
+      pitchDeg: 30,
+      zoom: 12,
+      frame: 'route',
+      easing: 'hold',
+    });
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    // Every field matters: a keyframe that came back with the wrong anchor,
+    // frame or easing would silently point the camera somewhere else.
+    expect(targetStore.getState().cinematicCameraKeyframes).toEqual(
+      sourceStore.getState().cinematicCameraKeyframes,
+    );
+  });
+
+  it('opens a project saved before cinematic mode existed', async () => {
+    const sourceStore = createAppStore();
+    sourceStore.getState().addTrack(parseGPX(sampleGpx, 'ridge-loop.gpx'));
+
+    const blob = await buildReplayArchive(sourceStore.getState());
+    const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
+    // An older file simply has no such key.
+    delete (parsed.project as { cinematicCameraKeyframes?: unknown }).cinematicCameraKeyframes;
+
+    const targetStore = createAppStore();
+    hydrateProject(parsed, targetStore.getState());
+
+    expect(targetStore.getState().cinematicCameraKeyframes).toEqual([]);
+  });
+});
