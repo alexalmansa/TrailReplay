@@ -21,8 +21,10 @@ function validate(layers: unknown[]) {
 }
 
 describe('landmark layers', () => {
-  it('produces a valid icon layer', () => {
-    expect(validate([landmarkIconLayer()])).toEqual([]);
+  it('produces a valid icon layer at every landmark size', () => {
+    expect(validate([landmarkIconLayer(1)])).toEqual([]);
+    expect(validate([landmarkIconLayer(1.8)])).toEqual([]);
+    expect(validate([landmarkIconLayer(0.7)])).toEqual([]);
   });
 
   it('produces a valid label layer at every label size and fade setting', () => {
@@ -32,7 +34,7 @@ describe('landmark layers', () => {
   });
 
   it('catches a zoom curve nested inside another expression', () => {
-    const broken = landmarkIconLayer();
+    const broken = landmarkIconLayer(1);
     // The shape that shipped once and blanked every icon.
     (broken.layout as Record<string, unknown>)['icon-size'] = [
       '*', 1.35, ['interpolate', ['linear'], ['zoom'], 7, 0.52, 15, 0.92],
@@ -42,7 +44,7 @@ describe('landmark layers', () => {
   });
 
   it('draws every icon rather than dropping colliding ones', () => {
-    const layout = landmarkIconLayer().layout as Record<string, unknown>;
+    const layout = landmarkIconLayer(1).layout as Record<string, unknown>;
     expect(layout['icon-allow-overlap']).toBe(true);
   });
 });

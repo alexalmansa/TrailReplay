@@ -315,8 +315,8 @@ export interface AppSettings {
   statsColumns: number | null;
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;
-  /** Multiplier applied to landmark label text size. */
-  landmarkLabelScale: number;
+  /** Multiplier applied to landmark pins and their labels together. */
+  landmarkScale: number;
   /** Fade landmark labels in with zoom instead of popping them in. */
   landmarkLabelFade: boolean;
 }

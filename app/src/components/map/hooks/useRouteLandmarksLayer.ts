@@ -3,10 +3,11 @@ import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import type { RouteLandmark } from '@/types/landmarks';
 import {
+  landmarkIconSizeExpression,
   landmarkTextHaloWidth,
   landmarkTextOpacityExpression,
   landmarkTextSizeExpression,
-} from '@/components/map/landmarkLabelStyle';
+} from '@/components/map/landmarkSymbolStyle';
 import {
   LANDMARK_ICON_LAYER_ID,
   LANDMARK_IMAGE_PREFIX,
@@ -54,7 +55,8 @@ function glyphImage(kind: string) {
 interface UseRouteLandmarksLayerParams {
   isMapLoaded: boolean;
   labelFade?: boolean;
-  labelScale?: number;
+  /** One control sizes both the pin and its label. */
+  scale?: number;
   landmarks: RouteLandmark[];
   mapRef: MutableRefObject<maplibregl.Map | null>;
   /** Called when a landmark icon or label is clicked on the map. */
@@ -65,7 +67,7 @@ interface UseRouteLandmarksLayerParams {
 export function useRouteLandmarksLayer({
   isMapLoaded,
   labelFade = true,
-  labelScale = 1,
+  scale = 1,
   landmarks,
   mapRef,
   onSelectLandmark,
@@ -78,19 +80,24 @@ export function useRouteLandmarksLayer({
       if (!map.hasImage(imageId)) map.addImage(imageId, glyphImage(kind), { sdf: true });
     });
     if (!map.getSource(SOURCE)) map.addSource(SOURCE, { type: 'geojson', data: data([], null) });
-    if (!map.getLayer(ICON)) map.addLayer(landmarkIconLayer());
-    if (!map.getLayer(LABEL)) map.addLayer(landmarkLabelLayer(labelScale, labelFade));
+    if (!map.getLayer(ICON)) map.addLayer(landmarkIconLayer(scale));
+    if (!map.getLayer(LABEL)) map.addLayer(landmarkLabelLayer(scale, labelFade));
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data(landmarks, selectedLandmarkId));
-  }, [isMapLoaded, labelFade, labelScale, landmarks, mapRef, selectedLandmarkId]);
+  }, [isMapLoaded, labelFade, landmarks, mapRef, scale, selectedLandmarkId]);
 
-  // The layer is only added once, so size and fade changes have to be pushed
-  // onto the existing layer rather than waiting for a re-add.
+  // The layers are only added once, so size and fade changes have to be pushed
+  // onto the existing layers rather than waiting for a re-add.
   useEffect(() => {
-    const map = mapRef.current; if (!map || !isMapLoaded || !map.getLayer(LABEL)) return;
-    map.setLayoutProperty(LABEL, 'text-size', landmarkTextSizeExpression(labelScale));
-    map.setPaintProperty(LABEL, 'text-halo-width', landmarkTextHaloWidth(labelScale));
-    map.setPaintProperty(LABEL, 'text-opacity', landmarkTextOpacityExpression(labelFade));
-  }, [isMapLoaded, labelFade, labelScale, mapRef]);
+    const map = mapRef.current; if (!map || !isMapLoaded) return;
+    if (map.getLayer(ICON)) {
+      map.setLayoutProperty(ICON, 'icon-size', landmarkIconSizeExpression(scale));
+    }
+    if (map.getLayer(LABEL)) {
+      map.setLayoutProperty(LABEL, 'text-size', landmarkTextSizeExpression(scale));
+      map.setPaintProperty(LABEL, 'text-halo-width', landmarkTextHaloWidth(scale));
+      map.setPaintProperty(LABEL, 'text-opacity', landmarkTextOpacityExpression(labelFade));
+    }
+  }, [isMapLoaded, labelFade, mapRef, scale]);
 
   useEffect(() => {
     const map = mapRef.current;

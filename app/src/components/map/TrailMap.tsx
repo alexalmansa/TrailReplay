@@ -174,7 +174,7 @@ export function TrailMap(_props: TrailMapProps) {
   useRouteLandmarksLayer({
     isMapLoaded,
     labelFade: settings.landmarkLabelFade,
-    labelScale: settings.landmarkLabelScale,
+    scale: settings.landmarkScale,
     landmarks,
     mapRef: map,
     onSelectLandmark: handleSelectLandmark,

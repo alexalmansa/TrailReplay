@@ -5,10 +5,10 @@ import type { LandmarkType } from '@/types/landmarks';
 import { trackEvent } from '@/utils/analytics';
 import { RouteLandmarkList } from './RouteLandmarkList';
 import {
-  MAX_LANDMARK_LABEL_SCALE,
-  MIN_LANDMARK_LABEL_SCALE,
-  clampLandmarkLabelScale,
-} from '@/components/map/landmarkLabelStyle';
+  MAX_LANDMARK_SCALE,
+  MIN_LANDMARK_SCALE,
+  clampLandmarkScale,
+} from '@/components/map/landmarkSymbolStyle';
 
 function labelForType(type: LandmarkType) {
   return type.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -25,7 +25,7 @@ export function RouteLandmarksEditor() {
   const setShowAutomaticLandmarks = useAppStore((state) => state.setShowAutomaticLandmarks);
   const setNearbyPlacesEnabled = useAppStore((state) => state.setNearbyPlacesEnabled);
   const setNearbyPlaceTypes = useAppStore((state) => state.setNearbyPlaceTypes);
-  const labelScale = useAppStore((state) => state.settings.landmarkLabelScale);
+  const landmarkScale = useAppStore((state) => state.settings.landmarkScale);
   const labelFade = useAppStore((state) => state.settings.landmarkLabelFade);
   const setSettings = useAppStore((state) => state.setSettings);
 
@@ -53,8 +53,8 @@ export function RouteLandmarksEditor() {
     {nearbyPlacesCoverage?.complete && <p className="text-[11px] text-[var(--evergreen-60)]">Complete coverage around this route · {nearbyPlacesCoverage.source === 'landmark-database' ? 'TrailReplay landmark database' : nearbyPlacesCoverage.cacheHits === nearbyPlacesCoverage.tiles ? 'shared cache' : `${nearbyPlacesCoverage.fetchedTiles} area${nearbyPlacesCoverage.fetchedTiles === 1 ? '' : 's'} added to shared cache`}</p>}
     <RouteLandmarkList />
     <div className="space-y-2 rounded-lg bg-[var(--canvas)]/60 p-2.5">
-      <div className="flex items-baseline justify-between"><span className="text-xs font-medium text-[var(--evergreen)]">Label size</span><span className="text-[11px] text-[var(--evergreen-60)]">{Math.round(clampLandmarkLabelScale(labelScale) * 100)}%</span></div>
-      <input type="range" min={MIN_LANDMARK_LABEL_SCALE} max={MAX_LANDMARK_LABEL_SCALE} step={0.1} value={clampLandmarkLabelScale(labelScale)} onChange={(event) => { const scale = Number(event.target.value); setSettings({ landmarkLabelScale: scale }); trackEvent('settings_changed', { setting_name: 'landmark_label_scale', setting_value: scale }); }} className="w-full accent-[var(--trail-orange)]" />
+      <div className="flex items-baseline justify-between"><span className="text-xs font-medium text-[var(--evergreen)]">Landmark size</span><span className="text-[11px] text-[var(--evergreen-60)]">{Math.round(clampLandmarkScale(landmarkScale) * 100)}%</span></div>
+      <input type="range" min={MIN_LANDMARK_SCALE} max={MAX_LANDMARK_SCALE} step={0.1} value={clampLandmarkScale(landmarkScale)} onChange={(event) => { const scale = Number(event.target.value); setSettings({ landmarkScale: scale }); trackEvent('settings_changed', { setting_name: 'landmark_scale', setting_value: scale }); }} className="w-full accent-[var(--trail-orange)]" />
       <label className="flex items-start justify-between gap-3"><span><span className="block text-xs font-medium text-[var(--evergreen)]">Fade labels in</span><span className="block pt-0.5 text-[11px] text-[var(--evergreen-60)]">Labels ease in as you zoom in instead of popping into place.</span></span><input type="checkbox" checked={labelFade} onChange={(event) => { const enabled = event.target.checked; setSettings({ landmarkLabelFade: enabled }); trackEvent('feature_enabled', { feature_name: 'landmark_label_fade', feature_state: enabled ? 'enabled' : 'disabled', feature_context: 'landmarks' }); }} /></label>
     </div>
     {nearbyPlacesEnabled && <p className="text-[11px] text-[var(--evergreen-60)]">Nearby-place data © <a className="underline hover:text-[var(--trail-orange)]" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, available under ODbL.</p>}
