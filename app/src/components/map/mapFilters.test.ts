@@ -56,4 +56,13 @@ describe('applyBasemapFilter', () => {
       expect(paint['raster-saturation']).toBeGreaterThanOrEqual(-1);
     });
   });
+
+  it('only darkens the imagery for noir, so the others keep the original tones', () => {
+    (['none', 'muted', 'mono'] as const).forEach((filter) => {
+      expect(BASEMAP_FILTER_PAINT[filter]['raster-contrast']).toBe(0);
+      expect(BASEMAP_FILTER_PAINT[filter]['raster-brightness-max']).toBe(1);
+    });
+
+    expect(BASEMAP_FILTER_PAINT.noir['raster-brightness-max']).toBeLessThan(1);
+  });
 });

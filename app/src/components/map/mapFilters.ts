@@ -11,14 +11,15 @@ export interface BasemapFilterPaint {
   'raster-brightness-max': number;
 }
 
-// Applied to the imagery only (see MapFilter). Values are deliberately gentle:
-// the point is to push the basemap back so the route reads first, not to make
-// the terrain unreadable.
+// Applied to the imagery only (see MapFilter). Each preset drains color and
+// nothing else, so the map keeps the tonal range of the original photography:
+// contrast and brightness stay untouched everywhere except Noir, which is
+// meant to read as a deliberately dark treatment.
 export const BASEMAP_FILTER_PAINT: Record<MapFilter, BasemapFilterPaint> = {
   none: { 'raster-saturation': 0, 'raster-contrast': 0, 'raster-brightness-max': 1 },
-  muted: { 'raster-saturation': -0.55, 'raster-contrast': 0, 'raster-brightness-max': 0.92 },
-  mono: { 'raster-saturation': -1, 'raster-contrast': 0.1, 'raster-brightness-max': 1 },
-  noir: { 'raster-saturation': -1, 'raster-contrast': 0.35, 'raster-brightness-max': 0.7 },
+  muted: { 'raster-saturation': -0.5, 'raster-contrast': 0, 'raster-brightness-max': 1 },
+  mono: { 'raster-saturation': -1, 'raster-contrast': 0, 'raster-brightness-max': 1 },
+  noir: { 'raster-saturation': -1, 'raster-contrast': 0.3, 'raster-brightness-max': 0.75 },
 };
 
 /** Every raster basemap layer the filter has to stay in sync with. */
