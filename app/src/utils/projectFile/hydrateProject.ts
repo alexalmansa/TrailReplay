@@ -84,6 +84,9 @@ export function hydrateProject(parsed: ParsedProject, store: AppState): void {
     // Predates cinematic mode in older projects.
     cinematicCameraKeyframes: project.cinematicCameraKeyframes ?? [],
     userLandmarks: project.userLandmarks,
+    hiddenLandmarkIds: project.hiddenLandmarkIds ?? [],
+    selectedLandmarkId: null,
+    isPlacingLandmark: false,
     enabledLandmarkGroups: project.enabledLandmarkGroups,
     nearbyPlaceTypes: project.nearbyPlaceTypes,
     showAutomaticLandmarks: project.showAutomaticLandmarks,

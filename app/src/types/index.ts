@@ -169,6 +169,12 @@ export interface PlaybackState {
 }
 
 export type MapStyle = 'satellite' | 'topo' | 'street' | 'outdoor' | 'esri-clarity' | 'wayback' | 'mapbox-streets';
+/**
+ * Color treatment applied to the basemap imagery only. The route, markers and
+ * landmark labels keep their own colors so they stand out against a muted or
+ * black-and-white map (issue #99).
+ */
+export type MapFilter = 'none' | 'muted' | 'mono' | 'noir';
 export type LanguageCode = 'en' | 'es' | 'ca' | 'de' | 'fr';
 export type RouteTimingMode = 'recorded' | 'uniform';
 export type JourneyStatsMode = 'cumulative' | 'per-track';
@@ -291,6 +297,7 @@ export interface AppSettings {
   unitSystem: UnitSystem;
   language: LanguageCode;
   mapStyle: MapStyle;
+  mapFilter: MapFilter;
   mapOverlays: MapOverlays;
   show3DTerrain: boolean;
   showHeartRate: boolean;
@@ -308,6 +315,10 @@ export interface AppSettings {
   statsColumns: number | null;
   paceMode: 'cumulative' | 'per-km';
   showElevationProfile: boolean;
+  /** Multiplier applied to landmark pins and their labels together. */
+  landmarkScale: number;
+  /** Fade landmark labels in with zoom instead of popping them in. */
+  landmarkLabelFade: boolean;
 }
 
 export interface LiveStats {

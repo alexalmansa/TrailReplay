@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import type { MapStyle, CameraMode, MapOverlays, CameraSettings } from '@/types';
+import type { MapStyle, MapFilter, CameraMode, MapOverlays, CameraSettings } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
 import {
   FOLLOW_BEHIND_STOP_COUNT,
@@ -16,6 +16,7 @@ import {
   Map as MapIcon,
   Video,
   Mountain,
+  Palette,
 } from 'lucide-react';
 
 const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
@@ -28,6 +29,15 @@ const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
   ...(import.meta.env.VITE_MAPBOX_TOKEN
     ? [{ id: 'mapbox-streets' as MapStyle, nameKey: 'settings.mapStyles.mapboxStreets', icon: '🗺️' }]
     : []),
+];
+
+// Imagery-only color treatments, so a busy satellite basemap can be pushed
+// back until the route reads first (issue #99).
+const MAP_FILTERS: { id: MapFilter; nameKey: string }[] = [
+  { id: 'none', nameKey: 'settings.mapFilters.none' },
+  { id: 'muted', nameKey: 'settings.mapFilters.muted' },
+  { id: 'mono', nameKey: 'settings.mapFilters.mono' },
+  { id: 'noir', nameKey: 'settings.mapFilters.noir' },
 ];
 
 const MAP_OVERLAYS: { id: string; nameKey: string; icon: string; descriptionKey: string }[] = [
@@ -153,6 +163,12 @@ export function SettingsPanel() {
     if (settings.mapStyle === style) return;
     setMapStyle(style);
     trackEvent('settings_changed', { setting_name: 'map_style', setting_value: style });
+  };
+
+  const selectMapFilter = (filter: MapFilter) => {
+    if ((settings.mapFilter ?? 'none') === filter) return;
+    setSettings({ mapFilter: filter });
+    trackEvent('settings_changed', { setting_name: 'map_filter', setting_value: filter });
   };
 
   const selectCameraMode = (mode: CameraMode) => {
@@ -454,6 +470,32 @@ export function SettingsPanel() {
             className="w-5 h-5 accent-[var(--trail-orange)]"
           />
         </label>
+      </div>
+
+      {/* Map filter — last, since it restyles everything chosen above */}
+      <div>
+        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
+          <Palette className="w-4 h-4" />
+          {t('settings.mapFilterTitle')}
+        </h3>
+        <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.mapFilterHint')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {MAP_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => selectMapFilter(filter.id)}
+              className={`
+                p-2 rounded-lg border-2 transition-colors text-left text-sm font-medium text-[var(--evergreen)]
+                ${(settings.mapFilter ?? 'none') === filter.id
+                  ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
+                  : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
+                }
+              `}
+            >
+              {t(filter.nameKey)}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
