@@ -101,6 +101,11 @@ export interface ReplayProjectFile {
    */
   cinematicCameraKeyframes?: CinematicCameraKeyframe[];
   userLandmarks: RouteLandmark[];
+  /**
+   * Derived landmarks the user removed. Absent in projects saved before
+   * landmarks could be removed, which is read as "nothing removed".
+   */
+  hiddenLandmarkIds?: string[];
   enabledLandmarkGroups: LandmarkType[];
   nearbyPlaceTypes: LandmarkType[] | null;
   showAutomaticLandmarks: boolean;

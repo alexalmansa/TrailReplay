@@ -36,6 +36,11 @@ export interface AppState {
   textAnnotations: TextAnnotation[];
   userLandmarks: RouteLandmark[];
   enrichedLandmarks: RouteLandmark[];
+  /** Ids of derived landmarks the user removed from the replay. */
+  hiddenLandmarkIds: string[];
+  selectedLandmarkId: string | null;
+  /** True while the next map click drops a new landmark. */
+  isPlacingLandmark: boolean;
   showAutomaticLandmarks: boolean;
   enabledLandmarkGroups: LandmarkType[];
   nearbyPlaceTypes: LandmarkType[] | null;
@@ -112,6 +117,12 @@ export interface AppState {
   updateTextAnnotation: (annotationId: string, updates: Partial<TextAnnotation>) => void;
   removeTextAnnotation: (annotationId: string) => void;
   addLandmark: (landmark: RouteLandmark) => void;
+  hideLandmark: (landmarkId: string) => void;
+  restoreHiddenLandmarks: () => void;
+  selectLandmark: (landmarkId: string | null) => void;
+  setIsPlacingLandmark: (isPlacing: boolean) => void;
+  /** Turns a derived landmark into an editable copy owned by the user. */
+  adoptLandmark: (landmark: RouteLandmark) => string;
   updateLandmark: (landmarkId: string, updates: Partial<RouteLandmark>) => void;
   removeLandmark: (landmarkId: string) => void;
   setShowAutomaticLandmarks: (show: boolean) => void;

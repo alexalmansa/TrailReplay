@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { analyzeRouteLandmarks } from '@/utils/routeLandmarks';
-import { resolveRouteLandmarks } from '@/utils/resolveRouteLandmarks';
 import { selectVisibleLandmarks } from '@/utils/landmarkVisibility';
+import { useAllRouteLandmarks } from '@/hooks/useAllRouteLandmarks';
 import type { GPXTrack } from '@/types';
 import type { NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
 import { projectCoordinateToTrack } from '@/utils/routeProjection';
@@ -91,11 +90,7 @@ function projectCachedPlaces(
 }
 
 export function useRouteLandmarks(): RouteLandmark[] {
-  const userLandmarks = useAppStore((state) => state.userLandmarks);
-  const showAutomaticLandmarks = useAppStore((state) => state.showAutomaticLandmarks);
-  const enrichedLandmarks = useAppStore((state) => state.enrichedLandmarks);
   const nearbyPlacesEnabled = useAppStore((state) => state.nearbyPlacesEnabled);
-  const nearbyPlaceTypes = useAppStore((state) => state.nearbyPlaceTypes);
   const setEnrichedLandmarks = useAppStore((state) => state.setEnrichedLandmarks);
   const setNearbyPlacesStatus = useAppStore((state) => state.setNearbyPlacesStatus);
   const playback = useAppStore((state) => state.playback);
@@ -105,6 +100,7 @@ export function useRouteLandmarks(): RouteLandmark[] {
   const isExporting = useAppStore((state) => state.isExporting);
   const { computedJourney, activeTrack, routeDistance, totalDistance } = useComputedJourney();
   const lookupCacheRef = useRef(new Map<string, LandmarkTrackCache>());
+  const allLandmarks = useAllRouteLandmarks();
 
   const lookupTracks = useMemo(() => {
     const journeyTrackIds = journeySegments
@@ -211,25 +207,11 @@ export function useRouteLandmarks(): RouteLandmark[] {
     };
   }, [computedJourney, isExporting, lookupTracks, nearbyPlacesEnabled, setEnrichedLandmarks, setNearbyPlacesStatus]);
 
-  const automatic = useMemo(() => analyzeRouteLandmarks(
-    computedJourney?.coordinates ?? activeTrack?.points ?? [],
-  ), [activeTrack?.points, computedJourney?.coordinates]);
-
-  return useMemo(() => {
-    const visibleNearbyPlaces = nearbyPlaceTypes === null
-      ? enrichedLandmarks
-      : enrichedLandmarks.filter((landmark) => nearbyPlaceTypes.includes(landmark.type));
-    const merged = resolveRouteLandmarks([
-      ...(showAutomaticLandmarks ? automatic : []),
-      ...visibleNearbyPlaces,
-      ...userLandmarks,
-    ]);
-    return selectVisibleLandmarks(merged, {
-      mode: cameraSettings.mode,
-      preset: cameraSettings.followBehindPreset,
-      progress: playback.progress,
-      totalDistanceMeters: totalDistance,
-      currentDistanceMeters: routeDistance,
-    });
-  }, [automatic, cameraSettings.followBehindPreset, cameraSettings.mode, enrichedLandmarks, nearbyPlaceTypes, playback.progress, routeDistance, showAutomaticLandmarks, totalDistance, userLandmarks]);
+  return useMemo(() => selectVisibleLandmarks(allLandmarks, {
+    mode: cameraSettings.mode,
+    preset: cameraSettings.followBehindPreset,
+    progress: playback.progress,
+    totalDistanceMeters: totalDistance,
+    currentDistanceMeters: routeDistance,
+  }), [allLandmarks, cameraSettings.followBehindPreset, cameraSettings.mode, playback.progress, routeDistance, totalDistance]);
 }

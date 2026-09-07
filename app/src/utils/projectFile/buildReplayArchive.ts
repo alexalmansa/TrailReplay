@@ -110,6 +110,7 @@ export async function buildReplayArchive(state: AppState): Promise<Blob> {
     textAnnotations: state.textAnnotations,
     cinematicCameraKeyframes: state.cinematicCameraKeyframes,
     userLandmarks: state.userLandmarks,
+    hiddenLandmarkIds: state.hiddenLandmarkIds,
     enabledLandmarkGroups: state.enabledLandmarkGroups,
     nearbyPlaceTypes: state.nearbyPlaceTypes,
     showAutomaticLandmarks: state.showAutomaticLandmarks,

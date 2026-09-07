@@ -3,6 +3,7 @@ import { Flag } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { LandmarkType } from '@/types/landmarks';
 import { trackEvent } from '@/utils/analytics';
+import { RouteLandmarkList } from './RouteLandmarkList';
 import {
   MAX_LANDMARK_LABEL_SCALE,
   MIN_LANDMARK_LABEL_SCALE,
@@ -50,6 +51,7 @@ export function RouteLandmarksEditor() {
     {nearbyPlacesEnabled && !nearbyPlacesLoading && !nearbyPlacesError && placeTypes.length > 0 && <div className="space-y-2 rounded-lg bg-[var(--canvas)]/60 p-2.5"><p className="text-xs font-medium text-[var(--evergreen)]">Show place types</p>{placeTypes.map(([type, count]) => <label key={type} className="flex items-center justify-between gap-3 text-xs text-[var(--evergreen)]"><span className="flex items-center gap-2"><input type="checkbox" checked={nearbyPlaceTypes === null || nearbyPlaceTypes.includes(type)} onChange={() => togglePlaceType(type)} />{labelForType(type)}</span><span className="text-[var(--evergreen-60)]">{count}</span></label>)}</div>}
     {nearbyPlacesEnabled && !nearbyPlacesLoading && !nearbyPlacesError && <p className="text-xs text-[var(--evergreen-60)]">{enrichedLandmarks.length > 0 ? `${enrichedLandmarks.length} named places loaded.` : 'Nearby places load when you open a route.'}</p>}
     {nearbyPlacesCoverage?.complete && <p className="text-[11px] text-[var(--evergreen-60)]">Complete coverage around this route · {nearbyPlacesCoverage.source === 'landmark-database' ? 'TrailReplay landmark database' : nearbyPlacesCoverage.cacheHits === nearbyPlacesCoverage.tiles ? 'shared cache' : `${nearbyPlacesCoverage.fetchedTiles} area${nearbyPlacesCoverage.fetchedTiles === 1 ? '' : 's'} added to shared cache`}</p>}
+    <RouteLandmarkList />
     <div className="space-y-2 rounded-lg bg-[var(--canvas)]/60 p-2.5">
       <div className="flex items-baseline justify-between"><span className="text-xs font-medium text-[var(--evergreen)]">Label size</span><span className="text-[11px] text-[var(--evergreen-60)]">{Math.round(clampLandmarkLabelScale(labelScale) * 100)}%</span></div>
       <input type="range" min={MIN_LANDMARK_LABEL_SCALE} max={MAX_LANDMARK_LABEL_SCALE} step={0.1} value={clampLandmarkLabelScale(labelScale)} onChange={(event) => { const scale = Number(event.target.value); setSettings({ landmarkLabelScale: scale }); trackEvent('settings_changed', { setting_name: 'landmark_label_scale', setting_value: scale }); }} className="w-full accent-[var(--trail-orange)]" />

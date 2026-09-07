@@ -18,6 +18,7 @@ import { useManualPicturePlacement } from './hooks/useManualPicturePlacement';
 import { usePictureMarkers } from './hooks/usePictureMarkers';
 import { useTextAnnotationsLayer } from './hooks/useTextAnnotationsLayer';
 import { useRouteLandmarksLayer } from './hooks/useRouteLandmarksLayer';
+import { useLandmarkPlacement } from './hooks/useLandmarkPlacement';
 import { useRouteLandmarks } from '@/hooks/useRouteLandmarks';
 import { useComparisonTrackLayers } from './hooks/useComparisonTrackLayers';
 import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
@@ -71,6 +72,10 @@ export function TrailMap(_props: TrailMapProps) {
   const removePendingPicturePlacement = useAppStore((state) => state.removePendingPicturePlacement);
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
   const landmarks = useRouteLandmarks();
+  const selectedLandmarkId = useAppStore((state) => state.selectedLandmarkId);
+  const isPlacingLandmark = useAppStore((state) => state.isPlacingLandmark);
+  const selectLandmark = useAppStore((state) => state.selectLandmark);
+  const setActivePanel = useAppStore((state) => state.setActivePanel);
 
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [showZoomButtonsHint, setShowZoomButtonsHint] = useState(false);
@@ -159,11 +164,27 @@ export function TrailMap(_props: TrailMapProps) {
     unitSystem: settings.unitSystem,
   });
 
+  const handleSelectLandmark = useCallback((landmarkId: string) => {
+    selectLandmark(landmarkId);
+    // Reveal the editor the selection drives, so clicking a pin on the map has
+    // a visible effect even when another panel is open.
+    setActivePanel('settings');
+  }, [selectLandmark, setActivePanel]);
+
   useRouteLandmarksLayer({
     isMapLoaded,
     labelFade: settings.landmarkLabelFade,
     labelScale: settings.landmarkLabelScale,
     landmarks,
+    mapRef: map,
+    onSelectLandmark: handleSelectLandmark,
+    selectedLandmarkId,
+  });
+
+  useLandmarkPlacement({
+    findNearestRoutePoint,
+    isMapLoaded,
+    isPlacingLandmark,
     mapRef: map,
   });
 
