@@ -19,7 +19,7 @@ type AnimationPhase = 'idle' | 'preloading' | 'intro' | 'playing' | 'outro' | 'e
 interface UseTilePreloadParams {
   allCoordinates: number[][];
   animationPhase: AnimationPhase;
-  cameraMode: ReplayCameraMode;
+  cameraMode: ReplayCameraMode | 'cinematic';
   elevationData: Array<{ elevation: number; progress?: number }>;
   followBehindZoomLevel: number;
   isMapLoaded: boolean;
@@ -97,8 +97,12 @@ export function useTilePreload({
       pitch: map.getPitch(),
       bearing: map.getBearing(),
     };
+    // Tile prefetch has no cinematic-specific pose logic yet — approximate
+    // with follow-behind, which sits at a similar zoom/pitch, rather than
+    // skipping prefetch for the mode entirely.
+    const poseCameraMode = cameraMode === 'cinematic' ? 'follow-behind' : cameraMode;
     const introPose = getIntroCameraPose({
-      cameraMode,
+      cameraMode: poseCameraMode,
       coordinates: allCoordinates,
       elevationData,
       followBehindZoomLevel,
@@ -109,7 +113,7 @@ export function useTilePreload({
       OPENING_WINDOW_MS,
       OPENING_SAMPLE_COUNT,
     ).map((progress) => getPlaybackCameraPose({
-      cameraMode,
+      cameraMode: poseCameraMode,
       coordinates: allCoordinates,
       elevationData,
       followBehindZoomLevel,

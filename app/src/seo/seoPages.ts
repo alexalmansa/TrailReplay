@@ -1,6 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  Compass,
+  Film,
+  Keyboard,
+  Orbit,
   Bike,
   ChartNoAxesCombined,
   Download,
@@ -20,7 +24,8 @@ export type SeoLandingSlug =
   | 'garmin-to-video'
   | 'gpx-animation'
   | 'cycling-route-animation'
-  | 'running-route-animation';
+  | 'running-route-animation'
+  | 'cinematic-camera';
 
 interface SeoStep {
   title: string;
@@ -35,7 +40,7 @@ interface SeoFeature {
 
 export interface SeoLandingPageConfig {
   slug: SeoLandingSlug;
-  analyticsPageType: 'strava_to_video' | 'garmin_to_video' | 'gpx_animation' | 'cycling_route_animation' | 'running_route_animation';
+  analyticsPageType: 'strava_to_video' | 'garmin_to_video' | 'gpx_animation' | 'cycling_route_animation' | 'running_route_animation' | 'cinematic_camera';
   eyebrow: string;
   title: string;
   description: string;
@@ -52,6 +57,43 @@ export interface SeoLandingPageConfig {
 }
 
 export const SEO_LANDING_PAGES: Record<SeoLandingSlug, SeoLandingPageConfig> = {
+  'cinematic-camera': {
+    slug: 'cinematic-camera',
+    analyticsPageType: 'cinematic_camera',
+    eyebrow: 'Cinematic camera',
+    title: 'Direct the Camera on Your Own Route Video',
+    description: 'Place camera keyframes along the timeline and TrailReplay glides between them — a shot you chose, not a camera that just trails the marker.',
+    proof: 'The camera follows the line of the route, not every switchback in it.',
+    heroMedia: 'product-video',
+    stepsTitle: 'Four keys and a ball',
+    stepsIntro: 'Cinematic mode lives in Map & Camera. Every step below also works from the keyboard, so you can shoot a whole route without touching the mouse.',
+    steps: [
+      { title: 'Pause where you want a shot', body: 'Press Space to pause the replay at the moment you want to frame. The marker stays put while you compose.' },
+      { title: 'Aim the camera', body: 'Drag the orbit ball, or press A and D to swing around the marker, W and S to raise or lower the camera, R and F to move closer or further away.' },
+      { title: 'Save the shot', body: 'Press Enter, or the Set camera keyframe button. Press Enter again at the same moment to update that shot rather than adding a second one.' },
+      { title: 'Move on and repeat', body: 'Scrub to the next moment and frame it. Between two keyframes the camera glides smoothly from one to the other.' },
+    ],
+    featuresTitle: 'Why it looks calmer than a camera that follows',
+    features: [
+      { icon: Film, title: 'Shots you chose', body: 'Between keyframes the pose comes from a spline through your own values, so it is smooth by construction rather than smoothed after the fact.' },
+      { icon: Compass, title: 'Steady through switchbacks', body: 'The camera reads the direction the route takes over several seconds, so hairpins and GPS wander do not turn into camera shake.' },
+      { icon: Orbit, title: 'A subject-locked orbit', body: 'The ball only changes the angle, height and distance around your marker, so the subject cannot slide out of the shot while you frame it.' },
+      { icon: Keyboard, title: 'Keyboard-first', body: 'Space, A/D, W/S, R/F and Enter cover the whole loop — pause, aim, save, move on.' },
+    ],
+    detailTitle: 'What a cinematic camera changes',
+    detailParagraphs: [
+      'A camera that follows a marker has to answer every move the marker makes. On a mountain route that means every switchback, and on a compressed replay a switchback lasts a fraction of a second — so the picture shakes even though the route is simply turning.',
+      'Placing keyframes inverts that. You decide where the camera sits at a handful of moments, and the motion in between is interpolated rather than reacted. The result is a shot that holds still when you want it to and moves when you asked it to.',
+      'Keyframes are saved inside your .replay project file and are anchored to a point on the route rather than to a timestamp, so changing the clip length or reordering journey segments keeps every shot on the piece of route you framed it for.',
+    ],
+    faq: [
+      { question: 'Do I need to place a keyframe for the whole route?', answer: 'No. With no keyframes the camera behaves like Follow Behind, and a single keyframe holds one locked-off shot for the entire replay. Add more only where you want the shot to change.' },
+      { question: 'What happens between two keyframes?', answer: 'The camera eases from one to the next. You can also set a keyframe to hold the previous shot until it is reached, or to move at a constant rate instead of easing.' },
+      { question: 'Can the camera keep pointing the same way as the route?', answer: 'Yes. Each keyframe is either locked to the compass or held relative to the route, so a shot can stay over-the-shoulder as the trail turns.' },
+      { question: 'Does the exported video match the preview?', answer: 'Yes. The exported frames use the same camera evaluation as the live preview, so what you framed is what gets recorded.' },
+      { question: 'My camera still moves more than I want. What should I change?', answer: 'Pull the Camera Stability slider toward Cinematic. It widens the window the camera smooths its path over. Pulling the camera further back also helps, because a wider shot can absorb more of the route wander.' },
+    ],
+  },
   'strava-to-video': {
     slug: 'strava-to-video',
     analyticsPageType: 'strava_to_video',

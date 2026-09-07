@@ -10,6 +10,7 @@ import type {
   VideoExportSettings,
 } from '@/types';
 import type { LandmarkType, RouteLandmark } from '@/types/landmarks';
+import type { CinematicCameraKeyframe } from '@/utils/cinematicCameraPlan';
 
 export const CURRENT_FORMAT_VERSION = 1;
 export const SUPPORTED_FORMAT_VERSIONS = [1];
@@ -94,6 +95,11 @@ export interface ReplayProjectFile {
   videos: SerializedVideo[];
   iconChanges: IconChange[];
   textAnnotations: TextAnnotation[];
+  /**
+   * Absent in projects saved before cinematic mode existed; hydration treats
+   * that as an empty list.
+   */
+  cinematicCameraKeyframes?: CinematicCameraKeyframe[];
   userLandmarks: RouteLandmark[];
   enabledLandmarkGroups: LandmarkType[];
   nearbyPlaceTypes: LandmarkType[] | null;

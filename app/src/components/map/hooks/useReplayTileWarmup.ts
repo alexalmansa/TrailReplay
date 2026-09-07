@@ -33,7 +33,7 @@ const CLOSE_3D_SAMPLE_COUNT = 36;
 interface UseReplayTileWarmupParams {
   allCoordinates: number[][];
   animationPhase: 'preloading' | 'intro' | 'playing' | 'idle' | 'outro' | 'ended';
-  cameraMode: ReplayCameraMode;
+  cameraMode: ReplayCameraMode | 'cinematic';
   elevationData: Array<{ elevation: number; progress?: number }>;
   followBehindZoomLevel: number;
   isMapLoaded: boolean;
@@ -191,13 +191,17 @@ export function useReplayTileWarmup(params: UseReplayTileWarmupParams) {
 
       isWarming = true;
 
-      const isClose3D = current.cameraMode === 'follow-behind' && current.followBehindZoomLevel >= 66;
+      // No cinematic-specific prediction yet — approximate with
+      // follow-behind, which sits at a similar zoom/pitch, rather than
+      // skipping predictive warmup for the mode entirely.
+      const poseCameraMode = current.cameraMode === 'cinematic' ? 'follow-behind' : current.cameraMode;
+      const isClose3D = poseCameraMode === 'follow-behind' && current.followBehindZoomLevel >= 66;
       const poses = deduplicatePoses(getPredictivePlaybackPoses({
         currentProgress: current.playbackProgress,
         horizonMs: (isClose3D ? CLOSE_3D_HORIZON_MS : NORMAL_HORIZON_MS)
           * Math.max(0.25, current.playbackSpeed),
         options: {
-          cameraMode: current.cameraMode,
+          cameraMode: poseCameraMode,
           coordinates: current.allCoordinates,
           elevationData: current.elevationData,
           followBehindZoomLevel: current.followBehindZoomLevel,

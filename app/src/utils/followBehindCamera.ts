@@ -177,7 +177,7 @@ export function getFollowBehindCameraTarget(
  * Ground covered by one pixel at zoom 0. MapLibre's zoom is defined against
  * 512px tiles, so the world is 512 * 2^zoom pixels wide.
  */
-const METERS_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
+export const METERS_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
 
 /**
  * Viewport width the starting distance is reasoned about in. A fixed reference
@@ -185,7 +185,7 @@ const METERS_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
  * replay: it must not depend on the window size, and it has to mean the same
  * thing for an export at any resolution.
  */
-const REFERENCE_VIEWPORT_WIDTH_PX = 1280;
+export const REFERENCE_VIEWPORT_WIDTH_PX = 1280;
 
 /**
  * How long the ground should take to travel one viewport width, in seconds of

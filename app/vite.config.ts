@@ -46,6 +46,7 @@ export default defineConfig(({ command, mode }) => {
         gpxAnimation: path.resolve(__dirname, 'gpx-animation.html'),
         cyclingRouteAnimation: path.resolve(__dirname, 'cycling-route-animation.html'),
         runningRouteAnimation: path.resolve(__dirname, 'running-route-animation.html'),
+        cinematicCamera: path.resolve(__dirname, 'cinematic-camera.html'),
       },
       output: {
         manualChunks(id) {

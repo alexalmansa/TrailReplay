@@ -303,6 +303,15 @@ Every one of these produced a confidently wrong measurement at least once:
   click on 0.25× or a different distance preset invalidates a comparison. Assert
   the settings you think you are measuring.
 
+## A cinematic, keyframed mode
+
+There is a design plan for a fourth camera mode in which the pose is authored as
+keyframes rather than derived per frame:
+[CINEMATIC_CAMERA_PLAN.md](./CINEMATIC_CAMERA_PLAN.md). It leans heavily on the
+failure modes above — in particular, its stability comes from *not* consulting
+the route heading or the terrain-risk model at all, rather than from filtering
+them harder.
+
 ## Tuning surface
 
 Everything lives in `cameraUtils.ts`:
