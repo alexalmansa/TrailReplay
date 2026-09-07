@@ -24,6 +24,7 @@ import { useBaseMapPresentation } from './hooks/useBaseMapPresentation';
 import { useMapInitialization } from './hooks/useMapInitialization';
 import { useTrailLayerData } from './hooks/useTrailLayerData';
 import { useTrailPlaybackCamera } from './hooks/useTrailPlaybackCamera';
+import { useCameraTerrainClearance } from './hooks/useCameraTerrainClearance';
 import { useTilePreload } from './hooks/useTilePreload';
 import { useReplayTileWarmup } from './hooks/useReplayTileWarmup';
 import { useTilePreloadDiagnostics } from './hooks/useTilePreloadDiagnostics';
@@ -237,6 +238,14 @@ export function TrailMap(_props: TrailMapProps) {
       showTrackLabels: trailStyle.showTrackLabels,
       trailColor: trailStyle.trailColor,
     },
+  });
+
+  // Applies in every camera mode, and to manual navigation as much as to the
+  // replay: whatever moves the camera, it does not end up underground.
+  useCameraTerrainClearance({
+    isMapLoaded,
+    mapRef: map,
+    show3DTerrain: settings.show3DTerrain,
   });
 
   useTilePreload({
