@@ -16,6 +16,7 @@ import {
   Map as MapIcon,
   Video,
   Mountain,
+  Palette,
 } from 'lucide-react';
 
 const MAP_STYLES: { id: MapStyle; nameKey: string; icon: string }[] = [
@@ -258,29 +259,6 @@ export function SettingsPanel() {
           </div>
         )}
 
-        {/* Map filter */}
-        <div className="mt-4">
-          <p className="text-xs font-medium text-[var(--evergreen)] mb-1">{t('settings.mapFilterTitle')}</p>
-          <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.mapFilterHint')}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {MAP_FILTERS.map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => selectMapFilter(filter.id)}
-                className={`
-                  p-2 rounded-lg border-2 transition-colors text-left text-sm font-medium text-[var(--evergreen)]
-                  ${(settings.mapFilter ?? 'none') === filter.id
-                    ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
-                    : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
-                  }
-                `}
-              >
-                {t(filter.nameKey)}
-              </button>
-            ))}
-          </div>
-        </div>
-
       </div>
 
       <RouteLandmarksEditor />
@@ -492,6 +470,32 @@ export function SettingsPanel() {
             className="w-5 h-5 accent-[var(--trail-orange)]"
           />
         </label>
+      </div>
+
+      {/* Map filter — last, since it restyles everything chosen above */}
+      <div>
+        <h3 className="text-sm font-bold text-[var(--evergreen)] mb-3 uppercase tracking-wide flex items-center gap-2">
+          <Palette className="w-4 h-4" />
+          {t('settings.mapFilterTitle')}
+        </h3>
+        <p className="text-xs text-[var(--evergreen-60)] mb-2">{t('settings.mapFilterHint')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {MAP_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => selectMapFilter(filter.id)}
+              className={`
+                p-2 rounded-lg border-2 transition-colors text-left text-sm font-medium text-[var(--evergreen)]
+                ${(settings.mapFilter ?? 'none') === filter.id
+                  ? 'border-[var(--trail-orange)] bg-[var(--trail-orange-15)]'
+                  : 'border-[var(--evergreen)]/20 hover:border-[var(--trail-orange)]/50'
+                }
+              `}
+            >
+              {t(filter.nameKey)}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
