@@ -24,6 +24,7 @@ export function createDefaultSettings(): AppSettings {
     language: getInitialLanguage(),
     unitSystem: 'metric',
     mapStyle: 'esri-clarity',
+    mapFilter: 'none',
     show3DTerrain: true,
     showHeartRate: false,
     showPictures: true,
@@ -61,6 +62,8 @@ export function createDefaultSettings(): AppSettings {
     statsColumns: null,
     paceMode: 'per-km' as const,
     showElevationProfile: true,
+    landmarkLabelScale: 1,
+    landmarkLabelFade: true,
   };
 }
 

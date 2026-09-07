@@ -159,7 +159,13 @@ export function TrailMap(_props: TrailMapProps) {
     unitSystem: settings.unitSystem,
   });
 
-  useRouteLandmarksLayer({ isMapLoaded, landmarks, mapRef: map });
+  useRouteLandmarksLayer({
+    isMapLoaded,
+    labelFade: settings.landmarkLabelFade,
+    labelScale: settings.landmarkLabelScale,
+    landmarks,
+    mapRef: map,
+  });
 
   useComparisonTrackLayers({
     comparisonTracks,

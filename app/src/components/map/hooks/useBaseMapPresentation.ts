@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { AppSettings, TrailStyleSettings } from '@/types';
+import { applyBasemapFilter } from '@/components/map/mapFilters';
 import {
   BASEMAP_FALLBACK_MAX_ZOOM,
   BASEMAP_PRESENTATIONS,
@@ -118,6 +119,15 @@ export function useBaseMapPresentation({
       'carto-labels'
     );
   }, [isMapLoaded, mapRef, settings.mapStyle, settings.waybackItemURL]);
+
+  // Declared after the wayback effect so it also paints the layers that effect
+  // re-creates: swapping the wayback date rebuilds them with default paint.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded) return;
+
+    applyBasemapFilter(map, settings.mapFilter ?? 'none');
+  }, [isMapLoaded, mapRef, settings.mapFilter, settings.mapStyle, settings.waybackItemURL]);
 
   useEffect(() => {
     const map = mapRef.current;

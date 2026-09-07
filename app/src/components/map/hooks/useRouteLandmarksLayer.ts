@@ -2,6 +2,11 @@ import { useEffect, type MutableRefObject } from 'react';
 import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import type { RouteLandmark } from '@/types/landmarks';
+import {
+  landmarkTextHaloWidth,
+  landmarkTextOpacityExpression,
+  landmarkTextSizeExpression,
+} from '@/components/map/landmarkLabelStyle';
 
 const SOURCE = 'route-landmarks';
 const ICON = 'route-landmarks-icon';
@@ -70,7 +75,7 @@ function glyphImage(kind: string) {
   return context.getImageData(0, 0, 36, 36);
 }
 
-export function useRouteLandmarksLayer({ landmarks, isMapLoaded, mapRef }: { landmarks: RouteLandmark[]; isMapLoaded: boolean; mapRef: MutableRefObject<maplibregl.Map | null> }) {
+export function useRouteLandmarksLayer({ landmarks, isMapLoaded, labelScale = 1, labelFade = true, mapRef }: { landmarks: RouteLandmark[]; isMapLoaded: boolean; labelScale?: number; labelFade?: boolean; mapRef: MutableRefObject<maplibregl.Map | null> }) {
   useEffect(() => {
     const map = mapRef.current; if (!map || !isMapLoaded) return;
     ['summit', 'waypoint', 'town', 'water', 'waterfall', 'shelter', 'camp', 'viewpoint', 'pin'].forEach((kind) => {
@@ -82,8 +87,17 @@ export function useRouteLandmarksLayer({ landmarks, isMapLoaded, mapRef }: { lan
       'icon-image': ['concat', IMAGE_PREFIX, ['get', 'icon']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.52, 9, 0.62, 15, 0.92], 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'symbol-sort-key': ['get', 'importance'],
     }, paint: { 'icon-color': ['get', 'color'], 'icon-opacity': ['get', 'opacity'] } });
     if (!map.getLayer(LABEL)) map.addLayer({ id: LABEL, type: 'symbol', source: SOURCE, layout: {
-      'text-field': ['get', 'title'], 'text-font': ['Open Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 9, 9, 10, 11, 12, 15, 13], 'text-max-width': 11, 'text-offset': [0, 1.7], 'text-anchor': 'top', 'text-optional': true, 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['get', 'importance'],
-    }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#030506', 'text-halo-width': 3.5, 'text-halo-blur': 0.6, 'text-opacity': ['get', 'opacity'] } });
+      'text-field': ['get', 'title'], 'text-font': ['Open Sans Bold'], 'text-size': landmarkTextSizeExpression(labelScale), 'text-max-width': 11, 'text-offset': [0, 1.7], 'text-anchor': 'top', 'text-optional': true, 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['get', 'importance'],
+    }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#030506', 'text-halo-width': landmarkTextHaloWidth(labelScale), 'text-halo-blur': 0.6, 'text-opacity': landmarkTextOpacityExpression(labelFade) } });
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data(landmarks));
-  }, [isMapLoaded, landmarks, mapRef]);
+  }, [isMapLoaded, labelFade, labelScale, landmarks, mapRef]);
+
+  // The layer is only added once, so size and fade changes have to be pushed
+  // onto the existing layer rather than waiting for a re-add.
+  useEffect(() => {
+    const map = mapRef.current; if (!map || !isMapLoaded || !map.getLayer(LABEL)) return;
+    map.setLayoutProperty(LABEL, 'text-size', landmarkTextSizeExpression(labelScale));
+    map.setPaintProperty(LABEL, 'text-halo-width', landmarkTextHaloWidth(labelScale));
+    map.setPaintProperty(LABEL, 'text-opacity', landmarkTextOpacityExpression(labelFade));
+  }, [isMapLoaded, labelFade, labelScale, mapRef]);
 }

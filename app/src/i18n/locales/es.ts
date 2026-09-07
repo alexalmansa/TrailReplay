@@ -85,6 +85,14 @@ export const es = {
     showPictures: 'Mostrar imágenes',
     heartRateZones: 'Zonas de frecuencia cardiaca',
     heartRateZone: 'Zona {index}',
+    mapFilterTitle: 'Filtro del mapa',
+    mapFilterHint: 'Se aplica solo a la imagen del mapa, la ruta mantiene su color.',
+    mapFilters: {
+      none: 'Original',
+      muted: 'Apagado',
+      mono: 'Blanco y negro',
+      noir: 'Noir',
+    },
     mapStyles: {
       satellite: 'Satélite',
       topo: 'Topográfico',
