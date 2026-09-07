@@ -8,16 +8,24 @@ import {
   landmarkTextSizeExpression,
 } from '@/components/map/landmarkLabelStyle';
 import {
+  LANDMARK_ICON_LAYER_ID,
+  LANDMARK_IMAGE_PREFIX,
+  LANDMARK_LABEL_LAYER_ID,
+  LANDMARK_SOURCE_ID,
+  landmarkIconLayer,
+  landmarkLabelLayer,
+} from '@/components/map/landmarkLayers';
+import {
   LANDMARK_GLYPH_KEYS,
   PINHEAD_PATHS,
   colorForLandmark,
   glyphForLandmark,
 } from '@/components/map/landmarkGlyphs';
 
-const SOURCE = 'route-landmarks';
-const ICON = 'route-landmarks-icon';
-const LABEL = 'route-landmarks-label';
-const IMAGE_PREFIX = 'route-landmark-glyph-';
+const SOURCE = LANDMARK_SOURCE_ID;
+const ICON = LANDMARK_ICON_LAYER_ID;
+const LABEL = LANDMARK_LABEL_LAYER_ID;
+const IMAGE_PREFIX = LANDMARK_IMAGE_PREFIX;
 
 function data(landmarks: RouteLandmark[], selectedId: string | null): FeatureCollection<Point> {
   return { type: 'FeatureCollection', features: landmarks.map((landmark) => ({
@@ -70,14 +78,8 @@ export function useRouteLandmarksLayer({
       if (!map.hasImage(imageId)) map.addImage(imageId, glyphImage(kind), { sdf: true });
     });
     if (!map.getSource(SOURCE)) map.addSource(SOURCE, { type: 'geojson', data: data([], null) });
-    if (!map.getLayer(ICON)) map.addLayer({ id: ICON, type: 'symbol', source: SOURCE, layout: {
-      // The selected landmark draws larger and always wins placement, so the
-      // one being edited stays visible while its fields change.
-      'icon-image': ['concat', IMAGE_PREFIX, ['get', 'icon']], 'icon-size': ['*', ['case', ['boolean', ['get', 'selected'], false], 1.35, 1], ['interpolate', ['linear'], ['zoom'], 7, 0.52, 9, 0.62, 15, 0.92]], 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': ['boolean', ['get', 'selected'], false], 'symbol-sort-key': ['get', 'importance'],
-    }, paint: { 'icon-color': ['get', 'color'], 'icon-opacity': ['get', 'opacity'] } });
-    if (!map.getLayer(LABEL)) map.addLayer({ id: LABEL, type: 'symbol', source: SOURCE, layout: {
-      'text-field': ['get', 'title'], 'text-font': ['Open Sans Bold'], 'text-size': landmarkTextSizeExpression(labelScale), 'text-max-width': 11, 'text-offset': [0, 1.7], 'text-anchor': 'top', 'text-optional': true, 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['get', 'importance'],
-    }, paint: { 'text-color': '#ffffff', 'text-halo-color': '#030506', 'text-halo-width': landmarkTextHaloWidth(labelScale), 'text-halo-blur': 0.6, 'text-opacity': landmarkTextOpacityExpression(labelFade) } });
+    if (!map.getLayer(ICON)) map.addLayer(landmarkIconLayer());
+    if (!map.getLayer(LABEL)) map.addLayer(landmarkLabelLayer(labelScale, labelFade));
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data(landmarks, selectedLandmarkId));
   }, [isMapLoaded, labelFade, labelScale, landmarks, mapRef, selectedLandmarkId]);
 

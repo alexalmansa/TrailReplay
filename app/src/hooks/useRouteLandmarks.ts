@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
-import { selectVisibleLandmarks } from '@/utils/landmarkVisibility';
 import { useAllRouteLandmarks } from '@/hooks/useAllRouteLandmarks';
 import type { GPXTrack } from '@/types';
 import type { NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
@@ -93,12 +92,10 @@ export function useRouteLandmarks(): RouteLandmark[] {
   const nearbyPlacesEnabled = useAppStore((state) => state.nearbyPlacesEnabled);
   const setEnrichedLandmarks = useAppStore((state) => state.setEnrichedLandmarks);
   const setNearbyPlacesStatus = useAppStore((state) => state.setNearbyPlacesStatus);
-  const playback = useAppStore((state) => state.playback);
-  const cameraSettings = useAppStore((state) => state.cameraSettings);
   const tracks = useAppStore((state) => state.tracks);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const isExporting = useAppStore((state) => state.isExporting);
-  const { computedJourney, activeTrack, routeDistance, totalDistance } = useComputedJourney();
+  const { computedJourney, activeTrack } = useComputedJourney();
   const lookupCacheRef = useRef(new Map<string, LandmarkTrackCache>());
   const allLandmarks = useAllRouteLandmarks();
 
@@ -207,11 +204,9 @@ export function useRouteLandmarks(): RouteLandmark[] {
     };
   }, [computedJourney, isExporting, lookupTracks, nearbyPlacesEnabled, setEnrichedLandmarks, setNearbyPlacesStatus]);
 
-  return useMemo(() => selectVisibleLandmarks(allLandmarks, {
-    mode: cameraSettings.mode,
-    preset: cameraSettings.followBehindPreset,
-    progress: playback.progress,
-    totalDistanceMeters: totalDistance,
-    currentDistanceMeters: routeDistance,
-  }), [allLandmarks, cameraSettings.followBehindPreset, cameraSettings.mode, playback.progress, routeDistance, totalDistance]);
+  // Every landmark stays on the map for the whole replay. Landmarks used to be
+  // ranked by importance and culled to the ones near the marker, which made
+  // pins appear and vanish as the replay moved; the set is now exactly what the
+  // sidebar list shows.
+  return allLandmarks;
 }
