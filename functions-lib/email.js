@@ -41,7 +41,17 @@ export async function sendEmail(env, message) {
   };
 
   if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_EMAIL_API_TOKEN) {
-    return sendViaCloudflare(env, payload);
+    try {
+      return await sendViaCloudflare(env, payload);
+    } catch (error) {
+      // Authentication failures happen before Cloudflare accepts a message,
+      // so retrying through the configured fallback cannot double-deliver it.
+      // Do not fall back for ambiguous provider/network failures.
+      if (env.RESEND_API_KEY && error instanceof CloudflareEmailError && error.authenticationFailure) {
+        return sendViaResend(env, payload);
+      }
+      throw error;
+    }
   }
 
   if (env.RESEND_API_KEY) {
@@ -49,6 +59,14 @@ export async function sendEmail(env, message) {
   }
 
   throw new EmailNotConfiguredError();
+}
+
+class CloudflareEmailError extends Error {
+  constructor(detail, authenticationFailure) {
+    super(`Cloudflare Email Sending rejected the message: ${detail}`.slice(0, 400));
+    this.name = 'CloudflareEmailError';
+    this.authenticationFailure = authenticationFailure;
+  }
 }
 
 async function sendViaCloudflare(env, payload) {
@@ -68,7 +86,10 @@ async function sendViaCloudflare(env, payload) {
   if (!response.ok || result?.success === false) {
     const detail = result?.errors?.map((error) => error.message).join('; ')
       || `HTTP ${response.status}`;
-    throw new Error(`Cloudflare Email Sending rejected the message: ${detail}`.slice(0, 400));
+    const authenticationFailure = response.status === 401
+      || response.status === 403
+      || /authenticat|invalid.*token|token.*invalid/i.test(detail);
+    throw new CloudflareEmailError(detail, authenticationFailure);
   }
 
   return { provider: 'cloudflare', messageId: result?.result?.message_id ?? null };

@@ -53,6 +53,25 @@ describe('sendEmail', () => {
     }, message)).rejects.toThrow('Sender domain not verified');
   });
 
+  it('falls back to Resend when Cloudflare rejects its credentials', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({
+        success: false,
+        errors: [{ message: 'Authentication error' }],
+      }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: 'resend-message-2' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendEmail({
+      CLOUDFLARE_ACCOUNT_ID: 'account-id',
+      CLOUDFLARE_EMAIL_API_TOKEN: 'invalid-email-token',
+      RESEND_API_KEY: 'fallback-token',
+    }, message)).resolves.toEqual({ provider: 'resend', messageId: 'resend-message-2' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://api.resend.com/emails');
+  });
+
   it('uses Resend when Cloudflare Email Sending is not configured', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ id: 'resend-message-1' })));
 
