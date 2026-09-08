@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitText, wrapText, type TextMeasurer } from './annotationCardText';
+import { cardLayoutForMapWidth, fitText, wrapText, type TextMeasurer } from './annotationCardText';
 
 /** Width proportional to length, which is all the layout maths needs. */
 function measurer(pixelsPerChar = 16): TextMeasurer {
@@ -62,5 +62,40 @@ describe('fitText', () => {
     const trimmed = fitText(measurer(), 'a very long piece of text indeed', 100);
     expect(trimmed.endsWith('…')).toBe(true);
     expect(trimmed.length).toBeLessThan('a very long piece of text indeed'.length);
+  });
+});
+
+describe('cardLayoutForMapWidth', () => {
+  it('shrinks the type as the map narrows', () => {
+    const phone = cardLayoutForMapWidth(420);
+    const tablet = cardLayoutForMapWidth(800);
+    const desktop = cardLayoutForMapWidth(1440);
+
+    expect(phone.titleSize).toBeLessThan(tablet.titleSize);
+    expect(tablet.titleSize).toBeLessThan(desktop.titleSize);
+    expect(phone.detailSize).toBeLessThan(desktop.detailSize);
+    expect(phone.maxWidth).toBeLessThan(desktop.maxWidth);
+  });
+
+  it('keeps line height above the type size at every width', () => {
+    for (const width of [320, 420, 700, 1024, 1920]) {
+      const layout = cardLayoutForMapWidth(width);
+      expect(layout.titleLineHeight).toBeGreaterThan(layout.titleSize);
+      expect(layout.detailLineHeight).toBeGreaterThan(layout.detailSize);
+    }
+  });
+
+  // The point of shrinking the type: more of the sentence survives, rather than
+  // the card ending at the second item on the list.
+  it('fits more of a long subtitle on a narrow map than large type would', () => {
+    const subtitle = 'Km 25 · Aigua · Cola · Isotònic · Llaminadures · Fruita · Entrepans dolços';
+    const phone = cardLayoutForMapWidth(420);
+
+    const charsPerLine = (size: number, width: number) =>
+      wrapText(measurer(size * 0.55), subtitle, width - phone.padding * 2, 2).join(' ').length;
+
+    // Same card width, smaller type, more characters shown.
+    expect(charsPerLine(phone.detailSize, phone.maxWidth))
+      .toBeGreaterThan(charsPerLine(cardLayoutForMapWidth(1440).detailSize, phone.maxWidth));
   });
 });

@@ -1,9 +1,14 @@
-import { useEffect, type MutableRefObject } from 'react';
+import { useEffect, useState, type MutableRefObject } from 'react';
 import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import type { TextAnnotation, UnitSystem } from '@/types';
 import { convertElevation } from '@/utils/units';
-import { wrapText } from '@/components/map/annotationCardText';
+import {
+  CARD_MIN_WIDTH,
+  cardLayoutForMapWidth,
+  wrapText,
+  type CardLayout,
+} from '@/components/map/annotationCardText';
 
 const SOURCE_ID = 'route-annotations';
 const ACTIVE_SOURCE_ID = 'route-annotations-active';
@@ -79,28 +84,25 @@ function buildActiveAnnotationFeatureCollection(annotation: TextAnnotation | nul
   };
 }
 
-const CARD_MIN_WIDTH = 320;
 /**
- * Cards are drawn as a map icon, so a very wide one covers the route it is
- * pointing at. This is the width past which the text wraps instead of growing.
- */
-const CARD_MAX_WIDTH = 520;
-const CARD_PADDING = 36;
-const TITLE_FONT = '800 30px Inter, sans-serif';
-const DETAIL_FONT = '700 20px Inter, sans-serif';
-
-/**
- * A card sized to what it has to say.
+ * A card sized to what it has to say, on the map it has to say it on.
  *
  * The card used to be a fixed 320x116 with everything past its width replaced
  * by an ellipsis. That is fine for a title someone types into a box while
- * looking at it, and wrong for one taken from a source — "Avituallament 1 —
+ * watching it fit, and wrong for one taken from a source — "Avituallament 1 —
  * Collet de Barraques" and its list of contents both vanished into "…", which
- * is how an annotation can be in exactly the right place and still be unreadable.
+ * is how an annotation can be in exactly the right place and still unreadable.
  */
-function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitSystem) {
+function createAnnotationCardImage(
+  annotation: TextAnnotation,
+  unitSystem: UnitSystem,
+  layout: CardLayout,
+) {
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) return null;
+
+  const titleFont = `800 ${layout.titleSize}px Inter, sans-serif`;
+  const detailFont = `700 ${layout.detailSize}px Inter, sans-serif`;
 
   const title = annotation.title.trim() || 'Annotation';
   const detail = annotation.subtitle?.trim()
@@ -108,29 +110,27 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
       ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
       : `${Math.round(annotation.progress * 100)}%`);
 
-  measure.font = TITLE_FONT;
+  measure.font = titleFont;
   const titleWidth = measure.measureText(title).width;
-  measure.font = DETAIL_FONT;
+  measure.font = detailFont;
   const detailWidth = measure.measureText(detail).width;
 
   const width = Math.round(Math.max(
     CARD_MIN_WIDTH,
-    Math.min(CARD_MAX_WIDTH, Math.max(titleWidth, detailWidth) + CARD_PADDING * 2),
+    Math.min(layout.maxWidth, Math.max(titleWidth, detailWidth) + layout.padding * 2),
   ));
-  const textWidth = width - CARD_PADDING * 2;
+  const textWidth = width - layout.padding * 2;
 
-  measure.font = TITLE_FONT;
+  measure.font = titleFont;
   const titleLines = wrapText(measure, title, textWidth, 2);
-  measure.font = DETAIL_FONT;
+  measure.font = detailFont;
   const detailLines = detail ? wrapText(measure, detail, textWidth, 2) : [];
 
-  const titleTop = 34;
-  const titleLineHeight = 34;
-  const detailLineHeight = 26;
+  const titleTop = layout.titleLineHeight;
   const bodyHeight = titleTop
-    + titleLines.length * titleLineHeight
-    + (detailLines.length > 0 ? 6 + detailLines.length * detailLineHeight : 0)
-    + 18;
+    + titleLines.length * layout.titleLineHeight
+    + (detailLines.length > 0 ? 6 + detailLines.length * layout.detailLineHeight : 0)
+    + 14;
   const height = Math.round(bodyHeight + 12);
 
   const scale = 2;
@@ -144,13 +144,11 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.clearRect(0, 0, width, height);
 
   const radius = 20;
-  const shadowBlur = 24;
-  const shadowY = 16;
 
   context.save();
   context.shadowColor = 'rgba(0, 0, 0, 0.36)';
-  context.shadowBlur = shadowBlur;
-  context.shadowOffsetY = shadowY;
+  context.shadowBlur = 24;
+  context.shadowOffsetY = 16;
   context.fillStyle = 'rgba(11, 15, 17, 0.96)';
   roundRect(context, 0, 0, width, height - 12, radius);
   context.fill();
@@ -177,16 +175,16 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.textBaseline = 'middle';
 
   context.fillStyle = '#ffffff';
-  context.font = TITLE_FONT;
+  context.font = titleFont;
   titleLines.forEach((line, index) => {
-    context.fillText(line, width / 2, titleTop + index * titleLineHeight);
+    context.fillText(line, width / 2, titleTop + index * layout.titleLineHeight);
   });
 
   context.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  context.font = DETAIL_FONT;
-  const detailTop = titleTop + titleLines.length * titleLineHeight + 6;
+  context.font = detailFont;
+  const detailTop = titleTop + titleLines.length * layout.titleLineHeight + 6;
   detailLines.forEach((line, index) => {
-    context.fillText(line, width / 2, detailTop + index * detailLineHeight);
+    context.fillText(line, width / 2, detailTop + index * layout.detailLineHeight);
   });
 
   return context.getImageData(0, 0, canvas.width, canvas.height);
@@ -228,6 +226,19 @@ export function useTextAnnotationsLayer({
   mapRef,
   unitSystem,
 }: UseTextAnnotationsLayerParams) {
+  // The card is sized for the map it sits on, so a resize has to redraw it.
+  const [mapWidth, setMapWidth] = useState(0);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded) return;
+
+    const readWidth = () => setMapWidth(map.getCanvas().clientWidth);
+    readWidth();
+    map.on('resize', readWidth);
+    return () => { map.off('resize', readWidth); };
+  }, [isMapLoaded, mapRef]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -317,7 +328,8 @@ export function useTextAnnotationsLayer({
     activeSource?.setData(buildActiveAnnotationFeatureCollection(activeAnnotation));
 
     if (activeAnnotation) {
-      const imageData = createAnnotationCardImage(activeAnnotation, unitSystem);
+      const layout = cardLayoutForMapWidth(mapWidth || map.getCanvas().clientWidth);
+      const imageData = createAnnotationCardImage(activeAnnotation, unitSystem, layout);
       if (imageData) {
         // Cards are sized to their text, so consecutive ones differ. updateImage
         // only accepts identical dimensions, so a resize has to replace the
@@ -343,6 +355,7 @@ export function useTextAnnotationsLayer({
     annotations,
     isMapLoaded,
     mapRef,
+    mapWidth,
     unitSystem,
   ]);
 }

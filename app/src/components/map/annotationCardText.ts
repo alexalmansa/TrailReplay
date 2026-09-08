@@ -70,3 +70,61 @@ export function wrapText(
   lines.push(lines.length === maxLines - 1 ? fitText(measurer, line, maxWidth) : line);
   return lines;
 }
+
+export interface CardLayout {
+  /** Widest the card may be drawn, in card-space pixels. */
+  maxWidth: number;
+  titleSize: number;
+  detailSize: number;
+  titleLineHeight: number;
+  detailLineHeight: number;
+  padding: number;
+}
+
+/**
+ * How big to draw a card, given the width of the map it will sit on.
+ *
+ * The card is a map icon: it is drawn at these dimensions and then scaled by
+ * `icon-size` for the current zoom, so on a narrow map a full-size card covers
+ * the route it points at, and the text inside it shrinks with the whole card
+ * until only a few words survive.
+ *
+ * Dropping the type size on a narrow map is what lets more of the sentence
+ * through. The card gets no wider, but each line holds more, so a feed station's
+ * contents stay readable instead of ending at the second item.
+ */
+export function cardLayoutForMapWidth(mapWidth: number): CardLayout {
+  if (mapWidth < 640) {
+    return {
+      maxWidth: 400,
+      titleSize: 23,
+      detailSize: 16,
+      titleLineHeight: 27,
+      detailLineHeight: 21,
+      padding: 26,
+    };
+  }
+
+  if (mapWidth < 1024) {
+    return {
+      maxWidth: 470,
+      titleSize: 27,
+      detailSize: 18,
+      titleLineHeight: 31,
+      detailLineHeight: 24,
+      padding: 32,
+    };
+  }
+
+  return {
+    maxWidth: 520,
+    titleSize: 30,
+    detailSize: 20,
+    titleLineHeight: 34,
+    detailLineHeight: 26,
+    padding: 36,
+  };
+}
+
+/** Card widths never drop below this, so a two-word title still looks like a card. */
+export const CARD_MIN_WIDTH = 300;
