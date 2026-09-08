@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { useProjectFile } from '@/hooks/useProjectFile';
 import { ExportSettingsModal } from './export/ExportSettingsModal';
 import { QUALITY_OPTIONS } from './export/exportConfig';
 import { useVideoExportRecorder } from './export/useVideoExportRecorder';
+import { isValidDeliveryEmail } from './export/studioDelivery';
 import { SocialSharePanel } from './export/SocialSharePanel';
-import { Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, X } from 'lucide-react';
+import { AlertTriangle, Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, X } from 'lucide-react';
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -20,7 +21,35 @@ export function ExportPanel() {
   const journeyName = useAppStore((state) => state.journey?.name);
   const updateJourneyName = useAppStore((state) => state.updateJourneyName);
   const [showSettings, setShowSettings] = useState(false);
+  const [studioDeliveryEmail, setStudioDeliveryEmail] = useState('');
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [consentDefaultsLoaded, setConsentDefaultsLoaded] = useState(false);
+  const consentTouchedRef = useRef(false);
   const { saveProject, isSaving } = useProjectFile();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    fetch('/api/consent-defaults', { signal: controller.signal })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((body: unknown) => {
+        if (!consentTouchedRef.current && body && typeof body === 'object') {
+          const defaults = body as { marketingPreTicked?: unknown };
+          setMarketingConsent(defaults.marketingPreTicked === true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        // Consent defaults fail closed: the optional box remains unticked.
+      })
+      .finally(() => {
+        if (active) setConsentDefaultsLoaded(true);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
 
   const {
     actualFormat,
@@ -34,7 +63,16 @@ export function ExportPanel() {
     isExporting,
     mp4Supported,
     resetExportResult,
-  } = useVideoExportRecorder();
+    studioDeliveryError,
+    studioDeliveryStatus,
+    studioSupported,
+  } = useVideoExportRecorder({
+    studioDelivery: {
+      email: studioDeliveryEmail,
+      marketingConsent,
+    },
+  });
+  const studioEmailValid = isValidDeliveryEmail(studioDeliveryEmail);
 
   // The Instagram share prompt used to be a small card buried in the
   // scrollable sidebar (easy to miss). Surface it as a centered overlay
@@ -136,6 +174,11 @@ export function ExportPanel() {
                 <span className="opacity-70">{t('export.quality')}:</span>
                 <span className="ml-2 font-bold">
                   {QUALITY_OPTIONS.find((option) => option.value === videoExportSettings.quality)?.label} · {videoExportSettings.fps}fps
+                  {videoExportSettings.qualityMode === 'studio' && (
+                    <span className="ml-1.5 rounded bg-[var(--trail-orange)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                      {t('export.qualityModeStudio')}
+                    </span>
+                  )}
                 </span>
               </div>
               <div>
@@ -154,7 +197,8 @@ export function ExportPanel() {
           {!isExporting && !exportedBlob && (
             <button
               onClick={handleStartExport}
-              disabled={playback.totalDuration === 0}
+              disabled={playback.totalDuration === 0
+                || (videoExportSettings.qualityMode === 'studio' && !studioEmailValid)}
               className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Film className="w-5 h-5" />
@@ -166,6 +210,19 @@ export function ExportPanel() {
             <p className="text-xs text-center text-[var(--evergreen-60)]">
               {t('export.needsJourney')}
             </p>
+          )}
+
+          {videoExportSettings.qualityMode === 'studio' && !studioEmailValid && !isExporting && (
+            <p className="text-xs text-center text-red-700">
+              {t('export.studioEmailRequired')}
+            </p>
+          )}
+
+          {!exportedBlob && studioDeliveryStatus === 'failed' && !isExporting && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <strong>{t('export.deliverySetupFailed')}</strong>
+              {studioDeliveryError && <span className="mt-1 block text-xs">{studioDeliveryError}</span>}
+            </div>
           )}
 
           {isExporting && (
@@ -184,6 +241,13 @@ export function ExportPanel() {
                 {t('export.recordingInProgress')}
               </div>
 
+              {videoExportSettings.qualityMode === 'studio' && (
+                <div className="mb-4 flex items-start gap-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-xs text-yellow-800">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                  {t('export.studioTabWarning')}
+                </div>
+              )}
+
               <button
                 onClick={handleCancelExport}
                 className="w-full tr-btn tr-btn-secondary flex items-center justify-center gap-2"
@@ -200,6 +264,18 @@ export function ExportPanel() {
                 <Check className="w-5 h-5" />
                 <span className="font-medium">{t('export.complete')}</span>
               </div>
+
+              {studioDeliveryStatus === 'sent' && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                  {t('export.deliverySent', { email: studioDeliveryEmail.trim() })}
+                </div>
+              )}
+              {studioDeliveryStatus === 'failed' && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                  <strong>{t('export.deliveryFailed')}</strong>
+                  {studioDeliveryError && <span className="mt-1 block text-xs">{studioDeliveryError}</span>}
+                </div>
+              )}
 
               <button
                 onClick={handleDownload}
@@ -219,8 +295,17 @@ export function ExportPanel() {
             estimatedSize={estimatedSize}
             isOpen={showSettings}
             mp4Supported={mp4Supported}
+            studioSupported={studioSupported}
             onClose={() => setShowSettings(false)}
+            consentDefaultsLoaded={consentDefaultsLoaded}
+            marketingConsent={marketingConsent}
+            onMarketingConsentChange={(checked) => {
+              consentTouchedRef.current = true;
+              setMarketingConsent(checked);
+            }}
+            onStudioDeliveryEmailChange={setStudioDeliveryEmail}
             setVideoExportSettings={setVideoExportSettings}
+            studioDeliveryEmail={studioDeliveryEmail}
             t={t}
             videoExportSettings={videoExportSettings}
           />
