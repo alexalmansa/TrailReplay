@@ -43,6 +43,21 @@ export function calculateElevationGain(
   return elevationGain;
 }
 
+/**
+ * The last point at or before `distance` along a leg.
+ *
+ * Coordinates carry the distance from their own track's start, so this is the
+ * marker's position expressed as an index into the leg — the same anchor the
+ * distance stat uses, which is what keeps the two from drifting apart.
+ */
+function pointIndexAtDistance(points: Array<{ distance: number }>, distance: number): number {
+  if (points.length === 0) return 0;
+  for (let index = 0; index < points.length; index += 1) {
+    if (points[index].distance > distance) return Math.max(0, index - 1);
+  }
+  return points.length - 1;
+}
+
 function localProgressFor(timing: SegmentTiming, playbackProgress: number): number {
   const span = timing.progressEndRatio - timing.progressStartRatio;
   if (span <= 0) return 0;
@@ -193,18 +208,32 @@ export function calculateCurrentLiveStats({
 
   let elevationGain = 0;
   if (computedJourney && segmentTimings.length > 0) {
+    // Which leg we are on, and how far into it, comes from the marker rather
+    // than from the progress ratios.
+    //
+    // The ratios are shares of the video's duration. Under Constant Pace the
+    // marker advances by distance instead, so on legs whose durations are not
+    // proportional to their lengths the two disagree: with three equal 30 s legs
+    // of 32/24/14 km, progress 0.4 is a third of the way into leg 2 by duration
+    // and still 28 km into leg 1 by distance. Elevation counted from the ratios
+    // therefore added a whole leg's climb while the distance beside it still
+    // read leg 1 — and once distance did reset to zero, elevation was already a
+    // thousand metres into the leg.
     for (const timing of segmentTimings) {
       if (timing.type !== 'track') continue;
       const segment = computedJourney.coordinates.slice(timing.startCoordIndex, timing.endCoordIndex + 1);
-      if (playbackProgress >= timing.progressEndRatio) {
-        if (!resetThisSegment || timing.segmentIndex === currentPosition.segmentIndex) {
-          elevationGain += calculateElevationGain(segment, segment.length - 1);
-        }
-      } else if (playbackProgress > timing.progressStartRatio) {
-        const upToIndex = Math.floor(localProgressFor(timing, playbackProgress) * (segment.length - 1));
-        elevationGain += calculateElevationGain(segment, upToIndex);
+
+      if (timing.segmentIndex < currentPosition.segmentIndex) {
+        if (!resetThisSegment) elevationGain += calculateElevationGain(segment, segment.length - 1);
+        continue;
+      }
+
+      if (timing.segmentIndex === currentPosition.segmentIndex) {
+        elevationGain += calculateElevationGain(segment, pointIndexAtDistance(segment, currentPosition.distance ?? 0));
         break;
       }
+
+      break;
     }
   } else if (activeTrack) {
     const targetDistance = activeTrack.totalDistance * playbackProgress;
