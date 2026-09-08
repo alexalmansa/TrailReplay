@@ -148,3 +148,93 @@ export function getGpxTips(t: Translate) {
     t('help.gpxGuide.tips.tip4'),
   ];
 }
+
+export interface AgentStep {
+  title: string;
+  body: string;
+}
+
+export function getAgentSteps(t: Translate): AgentStep[] {
+  return [
+    { title: t('help.agents.steps.ask.title'), body: t('help.agents.steps.ask.body') },
+    { title: t('help.agents.steps.write.title'), body: t('help.agents.steps.write.body') },
+    { title: t('help.agents.steps.drop.title'), body: t('help.agents.steps.drop.body') },
+  ];
+}
+
+export interface AgentExample {
+  badge: string;
+  title: string;
+  problem: string;
+  recipe: string;
+  result: string;
+}
+
+/**
+ * The recipes are real and runnable, not illustrations. The aid stations are the
+ * published ones for that race; the trip example is the shape that turns a
+ * folder of days into an ordered journey.
+ */
+export function getAgentExamples(t: Translate): AgentExample[] {
+  return [
+    {
+      badge: t('help.agents.examples.race.badge'),
+      title: t('help.agents.examples.race.title'),
+      problem: t('help.agents.examples.race.problem'),
+      result: t('help.agents.examples.race.result'),
+      recipe: `{
+  "name": "Valls del Freser XTREM 32K",
+  "tracks": [{ "file": "xtrem.gpx", "color": "#E86F51" }],
+  "landmarks": [
+    { "auto": "start-finish", "type": "trailhead", "icon": "town" }
+  ],
+  "annotations": [
+    { "km": 6.5,  "title": "Avituallament 1 — Collet de Barraques" },
+    { "km": 13,   "title": "Avituallament 2 — Torrent Gros" },
+    { "km": 17,   "title": "Avituallament 3 — Dòrria" },
+    { "km": 25,   "title": "Avituallament 4 — Les Casetes" }
+  ]
+}`,
+    },
+    {
+      badge: t('help.agents.examples.trip.badge'),
+      title: t('help.agents.examples.trip.title'),
+      problem: t('help.agents.examples.trip.problem'),
+      result: t('help.agents.examples.trip.result'),
+      recipe: `{
+  "name": "Ten days across the Pyrenees",
+  "tracks": { "files": "*.gpx", "order": "chronological" },
+  "landmarks": [
+    { "auto": "start-finish", "type": "trailhead" },
+    { "auto": "overnight-stops", "type": "hut", "icon": "shelter" }
+  ]
+}`,
+    },
+  ];
+}
+
+export interface AgentResource {
+  href: string;
+  title: string;
+  description: string;
+}
+
+export function getAgentResources(t: Translate): AgentResource[] {
+  return [
+    {
+      href: '/llms.txt',
+      title: 'llms.txt',
+      description: t('help.agents.resources.llms'),
+    },
+    {
+      href: '/replay-file.md',
+      title: 'replay-file.md',
+      description: t('help.agents.resources.spec'),
+    },
+    {
+      href: '/example-recipe.json',
+      title: 'example-recipe.json',
+      description: t('help.agents.resources.example'),
+    },
+  ];
+}

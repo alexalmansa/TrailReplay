@@ -595,6 +595,66 @@ export const ca = {
     generateDescription: 'Tria una sortida i crea el vídeo final.',
   },
   help: {
+    agents: {
+        eyebrow: 'Agents',
+        title: 'Deixa que un agent munti la repetició. Tu només deixes anar la carpeta.',
+        description: 'Marcar vint avituallaments a mà, o ordenar deu dies de fitxers GPX i ajustar la durada de cadascun, és una hora de clics. Descriu-ho a un agent d’IA: escriu una recepta al costat de les teves rutes, tu deixes anar la carpeta aquí i el mapa fa la resta.',
+        headerAction: 'Tutorial manual',
+        stepLabel: 'Pas {number}',
+        copy: 'Copia',
+        copied: 'Copiat',
+        steps: {
+            ask: {
+                title: 'Demana-ho a l’agent',
+                body: 'Digues-li amb les teves paraules què vols: els avituallaments del web de la cursa, els refugis on vas dormir, l’ordre dels teus dies. Envia’l a trailreplay.com/llms.txt perquè conegui el format.',
+            },
+            write: {
+                title: 'Escriu una recepta',
+                body: 'Un JSON curt desat al costat dels teus GPX. Descriu els llocs per quilòmetre — “l’avituallament del km 6,5” — mai per coordenades, perquè el mapa ja les calcula.',
+            },
+            drop: {
+                title: 'Deixes anar la carpeta',
+                body: 'Selecciona la recepta i els GPX alhora i deixa’ls anar a TrailReplay. Rutes, ordre, temps, marcadors i textos arriben de cop, a punt per reproduir.',
+            },
+        },
+        prompt: {
+            badge: 'Copia això',
+            title: 'Què dir-li al teu agent',
+            intro: 'Serveix qualsevol agent que sàpiga llegir un web i escriure un fitxer. Amb això ja et torna una recepta que funciona.',
+            label: 'Instrucció',
+            body: 'Llegeix https://trailreplay.com/llms.txt i l’especificació del format que enllaça. Després escriu un recipe.json en aquesta carpeta per als GPX que hi ha aquí, seguint el que et descric a sota. No calculis coordenades: ancora-ho tot per quilòmetre i deixa que l’app ho resolgui.',
+            note: 'Després digues-li què vols de debò: els avituallaments del web de la cursa, els refugis on vas dormir, un text a la pujada llarga.',
+        },
+        examples: {
+            title: 'Dues coses que val la pena delegar',
+            intro: 'Les dues receptes de sota són reals i funcionen. Cap no conté ni una sola coordenada.',
+            race: {
+                badge: 'Una cursa amb avituallaments',
+                title: 'Cada avituallament, al seu quilòmetre',
+                problem: 'El web de la cursa llista els avituallaments per quilòmetre. Col·locar-los a mà vol dir buscar cada punt al mapa, afegir una nota i teclejar el contingut quatre vegades. Un agent llegeix la pàgina i els escriu tots.',
+                result: 'Cada avituallament és una targeta que apareix en acostar-s’hi i s’esvaeix en passar: es llegeix com una cosa que trobes, no com una xinxeta fixa al mapa.',
+            },
+            trip: {
+                badge: 'Un viatge de deu dies',
+                title: 'Deu fitxers, en ordre i amb la durada correcta',
+                problem: 'Deu dies caminant són deu GPX desordenats i deu decisions sobre quant ha de durar cadascun en pantalla. A mà, una etapa de 35 km acaba durant el mateix que una de 8 km.',
+                result: 'Fitxers ordenats per les seves pròpies marques de temps, temps en pantalla repartit per distància i un marcador a cada lloc on vas dormir, deduït d’on acaba un dia i comença el següent.',
+            },
+        },
+        check: {
+            badge: 'Comprova la feina',
+            title: 'No t’has de refiar de l’agent',
+            body: 'En deixar anar la carpeta, TrailReplay llista tot el que ha col·locat: el quilòmetre de la seva ruta, els segons que és a pantalla i a quina distància és el marcador de cada lloc en el moment en què apareix.',
+            note: 'Aquest últim número hauria de ser de metres. Més que això vol dir que l’element està sincronitzat amb la part equivocada de la repetició, i l’app t’ho diu abans de donar-li al play.',
+        },
+        resources: {
+            title: 'Per al teu agent',
+            intro: 'Envia’l aquí. Tot el que necessita és al mateix domini i res no requereix instal·lar res ni crear un compte.',
+            llms: 'El punt d’entrada. Què és TrailReplay i què construir en comptes de fer clics.',
+            spec: 'El format complet de la recepta, els conjunts derivats i els errors que espatllen una repetició sense avisar.',
+            example: 'Una recepta completa d’una cursa real, de cap a cap.',
+        },
+    },
     common: {
       backToApp: 'Tornar a l’app',
       builtBy: 'Creat per Bresca',
@@ -612,6 +672,7 @@ export const ca = {
       title: 'Aprèn TrailReplay des del flux real',
       description: 'Aquesta guia se centra en l’experiència actual de TrailReplay: importar rutes, donar forma al viatge, afegir mèdia, previsualitzar el retall d’exportació i gravar un replay polit.',
       headerAction: 'Guia GPX',
+      agentsAction: 'Per a agents',
       quickStart: {
         badge: 'Inici ràpid',
         step1: 'Obre TrailReplay i puja una de les rutes de mostra o el teu propi fitxer GPX/KML.',

@@ -595,6 +595,66 @@ export const en = {
     generateDescription: 'Choose an output and create the finished video.',
   },
   help: {
+    agents: {
+        eyebrow: 'Agents',
+        title: 'Let an agent build the replay. You just drop the folder.',
+        description: 'Marking twenty aid stations by hand, or ordering ten days of GPX files and sizing each one, is an hour of clicking. Describe it to an AI agent instead: it writes a small recipe next to your routes, you drop the folder here, and the map does the rest.',
+        headerAction: 'Manual tutorial',
+        stepLabel: 'Step {number}',
+        copy: 'Copy',
+        copied: 'Copied',
+        steps: {
+            ask: {
+                title: 'Ask your agent',
+                body: 'Tell it what you want in plain words — the aid stations from a race page, the huts you slept in, the order of your days. Point it at trailreplay.com/llms.txt so it knows the format.',
+            },
+            write: {
+                title: 'It writes a recipe',
+                body: 'A short JSON file saved next to your GPX files. It describes places by kilometre — “the aid station at km 6.5” — never coordinates, because the map works those out itself.',
+            },
+            drop: {
+                title: 'You drop the folder',
+                body: 'Select the recipe and the GPX files together and drop them on TrailReplay. Routes, order, timing, pins and captions all arrive at once, ready to play.',
+            },
+        },
+        prompt: {
+            badge: 'Copy this',
+            title: 'What to say to your agent',
+            intro: 'Any coding agent that can read a web page and write a file will do. This is enough to get a working recipe back.',
+            label: 'Prompt',
+            body: 'Read https://trailreplay.com/llms.txt and the format spec it links to. Then write a recipe.json in this folder for the GPX files here, following what I describe below. Do not compute coordinates — anchor everything by kilometre and let the app resolve it.',
+            note: 'Then say what you actually want: the aid stations off a race page, the huts you stayed in, a caption at the big climb.',
+        },
+        examples: {
+            title: 'Two things worth handing over',
+            intro: 'Both recipes below are real and runnable. Neither contains a single coordinate.',
+            race: {
+                badge: 'A race with aid stations',
+                title: 'Every avituallament, at the right kilometre',
+                problem: 'A race page lists its feed stations by kilometre. Placing them by hand means finding each point on the map, adding a note, and typing the contents four times over. An agent reads the page and writes them all.',
+                result: 'Each station becomes a card that rises as the runner approaches it and fades once past — so it reads as something met, not a pin left on the map.',
+            },
+            trip: {
+                badge: 'A ten-day trip',
+                title: 'Ten files, in order, correctly sized',
+                problem: 'Ten days of walking is ten GPX files, out of order, and ten decisions about how long each should last on screen. Do it by hand and a 35 km day gets the same seconds as an 8 km one.',
+                result: 'Files ordered by their own timestamps, screen time shared by distance, and a pin at every place you slept — worked out from where one day ends and the next begins.',
+            },
+        },
+        check: {
+            badge: 'It checks the work',
+            title: 'You do not have to take the agent’s word for it',
+            body: 'When the folder lands, TrailReplay lists everything it placed: the kilometre along its route, the seconds it is on screen, and how far the moving marker is from each place at the moment it appears.',
+            note: 'That last number should be metres. Anything more means the entry is timed to the wrong part of the replay, and the app says so before you ever press play.',
+        },
+        resources: {
+            title: 'For your agent',
+            intro: 'Send it here. Everything it needs is on one origin, and none of it requires an install or an account.',
+            llms: 'The entry point. What TrailReplay is, and what to build instead of clicking.',
+            spec: 'The full recipe format, the derived sets, and the mistakes that quietly spoil a replay.',
+            example: 'A complete recipe for a real race, start to finish.',
+        },
+    },
     common: {
       backToApp: 'Back to app',
       builtBy: 'Built by Bresca',
@@ -612,6 +672,7 @@ export const en = {
       title: 'Learn TrailReplay from the real workflow',
       description: 'This guide focuses on the current TrailReplay experience: importing tracks, shaping a journey, adding media, previewing the export crop, and recording a polished replay.',
       headerAction: 'GPX guide',
+      agentsAction: 'For agents',
       quickStart: {
         badge: 'Quick start',
         step1: 'Open TrailReplay and upload one of the sample races or your own GPX/KML file.',

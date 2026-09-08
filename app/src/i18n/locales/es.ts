@@ -595,6 +595,66 @@ export const es = {
     generateDescription: 'Elige una salida y crea el vídeo final.',
   },
   help: {
+    agents: {
+        eyebrow: 'Agentes',
+        title: 'Deja que un agente monte la repetición. Tú solo sueltas la carpeta.',
+        description: 'Marcar veinte avituallamientos a mano, u ordenar diez días de archivos GPX y ajustar la duración de cada uno, es una hora de clics. Descríbeselo a un agente de IA: escribe una receta junto a tus rutas, tú sueltas la carpeta aquí y el mapa hace el resto.',
+        headerAction: 'Tutorial manual',
+        stepLabel: 'Paso {number}',
+        copy: 'Copiar',
+        copied: 'Copiado',
+        steps: {
+            ask: {
+                title: 'Pídeselo al agente',
+                body: 'Dile con tus palabras qué quieres: los avituallamientos de la web de la carrera, los refugios donde dormiste, el orden de tus días. Envíalo a trailreplay.com/llms.txt para que conozca el formato.',
+            },
+            write: {
+                title: 'Escribe una receta',
+                body: 'Un JSON corto guardado junto a tus GPX. Describe los lugares por kilómetro — “el avituallamiento del km 6,5” — nunca por coordenadas, porque el mapa las calcula solo.',
+            },
+            drop: {
+                title: 'Sueltas la carpeta',
+                body: 'Selecciona la receta y los GPX juntos y suéltalos en TrailReplay. Rutas, orden, tiempos, marcadores y textos llegan de una vez, listos para reproducir.',
+            },
+        },
+        prompt: {
+            badge: 'Copia esto',
+            title: 'Qué decirle a tu agente',
+            intro: 'Sirve cualquier agente que sepa leer una web y escribir un archivo. Con esto ya devuelve una receta que funciona.',
+            label: 'Instrucción',
+            body: 'Lee https://trailreplay.com/llms.txt y la especificación del formato que enlaza. Después escribe un recipe.json en esta carpeta para los GPX que hay aquí, siguiendo lo que te describo abajo. No calcules coordenadas: ancla todo por kilómetro y deja que la app lo resuelva.',
+            note: 'Después dile qué quieres de verdad: los avituallamientos de la web de la carrera, los refugios donde dormiste, un texto en la subida larga.',
+        },
+        examples: {
+            title: 'Dos cosas que merece la pena delegar',
+            intro: 'Las dos recetas de abajo son reales y funcionan. Ninguna contiene una sola coordenada.',
+            race: {
+                badge: 'Una carrera con avituallamientos',
+                title: 'Cada avituallamiento, en su kilómetro',
+                problem: 'La web de la carrera lista los avituallamientos por kilómetro. Colocarlos a mano implica buscar cada punto en el mapa, añadir una nota y teclear el contenido cuatro veces. Un agente lee la página y los escribe todos.',
+                result: 'Cada avituallamiento es una tarjeta que aparece al acercarse y se desvanece al pasar: se lee como algo que encuentras, no como una chincheta fija en el mapa.',
+            },
+            trip: {
+                badge: 'Un viaje de diez días',
+                title: 'Diez archivos, en orden y con la duración correcta',
+                problem: 'Diez días caminando son diez GPX desordenados y diez decisiones sobre cuánto debe durar cada uno en pantalla. A mano, una etapa de 35 km acaba durando lo mismo que una de 8 km.',
+                result: 'Archivos ordenados por sus propias marcas de tiempo, tiempo en pantalla repartido por distancia y un marcador en cada sitio donde dormiste, deducido de dónde acaba un día y empieza el siguiente.',
+            },
+        },
+        check: {
+            badge: 'Comprueba el trabajo',
+            title: 'No tienes que fiarte del agente',
+            body: 'Al soltar la carpeta, TrailReplay lista todo lo que ha colocado: el kilómetro de su ruta, los segundos que está en pantalla y a qué distancia está el marcador de cada lugar en el momento en que aparece.',
+            note: 'Ese último número debería ser de metros. Más que eso significa que el elemento está sincronizado con la parte equivocada de la repetición, y la app te lo dice antes de darle al play.',
+        },
+        resources: {
+            title: 'Para tu agente',
+            intro: 'Mándalo aquí. Todo lo que necesita está en el mismo dominio y nada requiere instalar nada ni crear una cuenta.',
+            llms: 'El punto de entrada. Qué es TrailReplay y qué construir en lugar de hacer clics.',
+            spec: 'El formato completo de la receta, los conjuntos derivados y los errores que estropean una repetición sin avisar.',
+            example: 'Una receta completa de una carrera real, de principio a fin.',
+        },
+    },
     common: {
       backToApp: 'Volver a la app',
       builtBy: 'Creado por Bresca',
@@ -612,6 +672,7 @@ export const es = {
       title: 'Aprende TrailReplay desde el flujo real',
       description: 'Esta guía se centra en la experiencia actual de TrailReplay: importar rutas, dar forma al recorrido, añadir medios, previsualizar el recorte de exportación y grabar un replay pulido.',
       headerAction: 'Guía GPX',
+      agentsAction: 'Para agentes',
       quickStart: {
         badge: 'Inicio rápido',
         step1: 'Abre TrailReplay y sube una de las rutas de ejemplo o tu propio archivo GPX/KML.',

@@ -595,6 +595,66 @@ export const de = {
     generateDescription: 'Ausgabe wählen und das fertige Video erstellen.',
   },
   help: {
+    agents: {
+        eyebrow: 'Agenten',
+        title: 'Lass einen Agenten das Replay bauen. Du legst nur den Ordner ab.',
+        description: 'Zwanzig Verpflegungsstellen von Hand zu setzen oder zehn Tage GPX-Dateien zu sortieren und einzeln zu takten, kostet eine Stunde Klicks. Beschreib es stattdessen einem KI-Agenten: Er schreibt ein kleines Rezept neben deine Routen, du legst den Ordner hier ab, und die Karte erledigt den Rest.',
+        headerAction: 'Manuelles Tutorial',
+        stepLabel: 'Schritt {number}',
+        copy: 'Kopieren',
+        copied: 'Kopiert',
+        steps: {
+            ask: {
+                title: 'Frag deinen Agenten',
+                body: 'Sag ihm in eigenen Worten, was du willst: die Verpflegungsstellen von einer Rennseite, die Hütten, in denen du geschlafen hast, die Reihenfolge deiner Tage. Schick ihn auf trailreplay.com/llms.txt, damit er das Format kennt.',
+            },
+            write: {
+                title: 'Er schreibt ein Rezept',
+                body: 'Eine kurze JSON-Datei neben deinen GPX-Dateien. Sie beschreibt Orte über Kilometer — „die Verpflegungsstelle bei km 6,5“ — nie über Koordinaten, denn die rechnet die Karte selbst aus.',
+            },
+            drop: {
+                title: 'Du legst den Ordner ab',
+                body: 'Wähle das Rezept und die GPX-Dateien zusammen aus und lege sie auf TrailReplay ab. Routen, Reihenfolge, Timing, Marker und Texte kommen auf einmal an, bereit zum Abspielen.',
+            },
+        },
+        prompt: {
+            badge: 'Das hier kopieren',
+            title: 'Was du deinem Agenten sagst',
+            intro: 'Jeder Agent, der eine Webseite lesen und eine Datei schreiben kann, reicht. Damit kommt ein funktionierendes Rezept zurück.',
+            label: 'Anweisung',
+            body: 'Lies https://trailreplay.com/llms.txt und die dort verlinkte Formatspezifikation. Schreib dann eine recipe.json in diesen Ordner für die GPX-Dateien hier, nach dem, was ich unten beschreibe. Berechne keine Koordinaten — verankere alles über Kilometer und lass die App es auflösen.',
+            note: 'Sag ihm dann, was du wirklich willst: die Verpflegungsstellen von der Rennseite, die Hütten, einen Text am langen Anstieg.',
+        },
+        examples: {
+            title: 'Zwei Dinge, die sich abzugeben lohnen',
+            intro: 'Beide Rezepte unten sind echt und lauffähig. Keines enthält eine einzige Koordinate.',
+            race: {
+                badge: 'Ein Rennen mit Verpflegungsstellen',
+                title: 'Jede Verpflegungsstelle am richtigen Kilometer',
+                problem: 'Die Rennseite listet ihre Verpflegungsstellen nach Kilometer. Von Hand heißt das: jeden Punkt auf der Karte suchen, eine Notiz anlegen und den Inhalt viermal tippen. Ein Agent liest die Seite und schreibt alle.',
+                result: 'Jede Stelle wird zu einer Karte, die beim Näherkommen erscheint und nach dem Passieren verschwindet — sie liest sich als etwas, dem man begegnet, nicht als Nadel auf der Karte.',
+            },
+            trip: {
+                badge: 'Eine Zehn-Tage-Tour',
+                title: 'Zehn Dateien, sortiert und richtig getaktet',
+                problem: 'Zehn Wandertage sind zehn unsortierte GPX-Dateien und zehn Entscheidungen darüber, wie lange jede auf dem Bildschirm laufen soll. Von Hand bekommt ein 35-km-Tag genauso viele Sekunden wie ein 8-km-Tag.',
+                result: 'Dateien nach ihren eigenen Zeitstempeln sortiert, Bildschirmzeit nach Distanz verteilt, und ein Marker an jedem Ort, an dem du geschlafen hast — abgeleitet daraus, wo ein Tag endet und der nächste beginnt.',
+            },
+        },
+        check: {
+            badge: 'Sie prüft die Arbeit',
+            title: 'Du musst dem Agenten nicht glauben',
+            body: 'Sobald der Ordner ankommt, listet TrailReplay alles Platzierte auf: den Kilometer entlang seiner Route, die Sekunden auf dem Bildschirm und wie weit der bewegte Marker in dem Moment von jedem Ort entfernt ist.',
+            note: 'Die letzte Zahl sollte in Metern stehen. Alles darüber heißt, der Eintrag ist auf den falschen Teil des Replays getaktet — und die App sagt es, bevor du auf Play drückst.',
+        },
+        resources: {
+            title: 'Für deinen Agenten',
+            intro: 'Schick ihn hierher. Alles Nötige liegt auf derselben Domain, ohne Installation und ohne Konto.',
+            llms: 'Der Einstieg. Was TrailReplay ist und was statt Klicken zu bauen ist.',
+            spec: 'Das vollständige Rezeptformat, die abgeleiteten Sätze und die Fehler, die ein Replay still ruinieren.',
+            example: 'Ein vollständiges Rezept für ein echtes Rennen, von Anfang bis Ende.',
+        },
+    },
     common: {
       backToApp: 'Zurück zur App',
       builtBy: 'Erstellt von Bresca',
@@ -612,6 +672,7 @@ export const de = {
       title: 'Lernen Sie TrailReplay anhand des realen Arbeitsablaufs',
       description: 'Dieser Leitfaden zeigt den aktuellen TrailReplay-Workflow: Routen importieren, eine Tour gestalten, Medien hinzufügen, den Exportausschnitt prüfen und eine hochwertige Wiedergabe aufzeichnen.',
       headerAction: 'GPX-Anleitung',
+      agentsAction: 'Für Agenten',
       quickStart: {
         badge: 'Schnellstart',
         step1: 'Öffnen Sie TrailReplay und laden Sie eines der Beispielrennen oder Ihre eigene GPX/KML-Datei hoch.',

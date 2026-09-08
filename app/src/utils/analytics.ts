@@ -15,7 +15,8 @@ export type AnalyticsPageType =
   | 'gpx_animation'
   | 'cycling_route_animation'
   | 'running_route_animation'
-  | 'cinematic_camera';
+  | 'cinematic_camera'
+  | 'agents';
 export type AnalyticsPageGroup = 'product' | 'help' | 'seo';
 
 export interface AnalyticsPageContext {
