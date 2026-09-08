@@ -114,6 +114,26 @@ the finished video (pins inside the map's 80 m collapse radius, cards that
 overlap on screen, days that do not join up). **New checks belong there** —
 an agent cannot see the render, so the report is its only feedback.
 
+### Measuring a replay (`scripts/probe-replay.mjs`)
+
+Nothing in the unit tests can tell you what the *rendered* replay did — the
+smoothing chain, MapLibre and the terrain queries all sit in between, which is
+what `components/map/CAMERA.md` is about. The probe plays a replay in headless
+Chromium and reports CAMERA.md's metrics: marker framing, direction reversals,
+freeze runs, per-second change percentiles, jitter, tile coverage, plus the
+recipe's own warnings and any page error.
+
+- `scripts/replay-metrics.mjs` — the pure metrics, unit-tested from
+  `app/src/utils/replayMetrics.test.ts` (shapes in `types/replay-metrics.d.ts`)
+- `app/src/utils/probeBridge.ts` — `window.__trailreplay`, installed only when
+  the page is opened with `?probe=1`. Prefer it over CAMERA.md's React-fiber
+  walk, which breaks silently on a React upgrade.
+
+Software WebGL runs at a few frames per second, so the camera channels are not
+representative of a real viewer; the probe says so rather than letting the
+numbers look authoritative. Marker framing, tiles, warnings and errors are
+unaffected by frame rate.
+
 ### Project files (`.replay`) and agent authoring
 
 `app/src/utils/projectFile/` reads and writes `.replay` archives (a zip of

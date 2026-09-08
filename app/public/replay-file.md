@@ -168,6 +168,23 @@ The panel also warns about pins close enough to collapse into one, cards that
 would overlap on screen, days that do not join up, and variants of one route
 stitched as if they were consecutive legs.
 
+### Checking it yourself
+
+If you can run Node and a browser, you do not have to rely on someone reading
+the panel back. `scripts/probe-replay.mjs` in the repo plays the replay headless
+and measures it:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+node scripts/probe-replay.mjs ./my-replay-folder --url https://trailreplay.com
+```
+
+Point it at a folder holding one recipe and its routes. It reports whether the
+marker stayed in frame, how much of the basemap ever loaded, how the camera
+moved, every recipe warning, and any page error — and exits non-zero if the
+marker left the canvas or the page threw. The page only exposes what it needs
+for this when opened with `?probe=1`, which the script adds itself.
+
 ## 3. Getting it right
 
 The app now catches the mechanical mistakes and reports them — colliding pins,

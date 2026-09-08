@@ -9,7 +9,8 @@
     "build": "npm --prefix app ci && npm --prefix app run build && npm run check:pages-assets",
     "lint": "npm --prefix app run lint",
     "test": "npm --prefix app run test:run",
-    "preview": "npm --prefix app run preview"
+    "preview": "npm --prefix app run preview",
+    "probe": "node ./scripts/probe-replay.mjs"
   },
   "keywords": [
     "gpx",
@@ -21,5 +22,8 @@
     "video-export"
   ],
   "author": "Alex Almansa",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
 }
