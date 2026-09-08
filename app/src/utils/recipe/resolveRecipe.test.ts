@@ -262,4 +262,28 @@ describe('resolveRecipe', () => {
     expect(resolved.userLandmarks).toHaveLength(1);
     expect(resolved.userLandmarks[0].title).toBe('Start / Finish');
   });
+
+  it('does not warn about cards on courses that never play together', () => {
+    const races = tracksFrom([
+      { name: 'long.gpx', gpx: leg({ name: 'Long', startLat: 42, points: 201 }) },
+      { name: 'short.gpx', gpx: leg({ name: 'Short', startLat: 42, points: 101 }) },
+    ]);
+
+    const resolved = resolveRecipe(
+      {
+        mode: 'alternatives',
+        tracks: [{ file: 'long.gpx' }, { file: 'short.gpx' }],
+        totalDuration: 60_000,
+        // Adjacent in progress, but on different courses — only one ever plays.
+        annotations: [
+          { track: 'Long', km: 10, title: 'On the long course' },
+          { track: 'Short', km: 5.1, title: 'On the short course' },
+        ],
+      },
+      races.tracks,
+      races.names,
+    );
+
+    expect(resolved.report.warnings).toEqual([]);
+  });
 });

@@ -43,6 +43,7 @@ export const ca = {
     dismiss: 'Descarta',
     errors: {
       failed: 'No s’ha pogut aplicar la recepta.',
+      multiple: 'Deixa una recepta cada cop: s’han rebut {files}.',
     },
   },
   projectFile: {

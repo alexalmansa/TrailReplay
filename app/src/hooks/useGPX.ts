@@ -92,9 +92,19 @@ export function useGPX() {
     }
 
     // A recipe describes a whole replay in terms of the routes dropped with it.
-    const recipeFile = fileArray.find(isRecipeFile);
-    if (recipeFile) {
-      return applyRecipeFiles(recipeFile, fileArray, routeInputMethod);
+    const recipeFiles = fileArray.filter(isRecipeFile);
+    if (recipeFiles.length > 0) {
+      // Silently picking one of several would produce a replay nobody asked
+      // for, and the difference between two recipes is the whole point of them.
+      if (recipeFiles.length > 1) {
+        const message = t('recipe.errors.multiple', {
+          files: recipeFiles.map((file) => file.name).join(', '),
+        });
+        setParseError(message);
+        setError(message);
+        return undefined;
+      }
+      return applyRecipeFiles(recipeFiles[0], fileArray, routeInputMethod);
     }
 
     setIsParsing(true);

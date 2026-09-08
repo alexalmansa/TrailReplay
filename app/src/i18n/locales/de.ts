@@ -43,6 +43,7 @@ export const de = {
     dismiss: 'Schließen',
     errors: {
       failed: 'Dieses Rezept konnte nicht angewendet werden.',
+      multiple: 'Bitte nur ein Rezept auf einmal — erhalten: {files}.',
     },
   },
   projectFile: {

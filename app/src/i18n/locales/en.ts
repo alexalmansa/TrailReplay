@@ -43,6 +43,7 @@ export const en = {
     dismiss: 'Dismiss',
     errors: {
       failed: 'That recipe could not be applied.',
+      multiple: 'Drop one recipe at a time — got {files}.',
     },
   },
   projectFile: {

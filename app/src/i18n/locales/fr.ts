@@ -43,6 +43,7 @@ export const fr = {
     dismiss: 'Fermer',
     errors: {
       failed: 'Cette recette n’a pas pu être appliquée.',
+      multiple: 'Déposez une seule recette à la fois — reçu {files}.',
     },
   },
   projectFile: {

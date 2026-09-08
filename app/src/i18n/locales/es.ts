@@ -43,6 +43,7 @@ export const es = {
     dismiss: 'Descartar',
     errors: {
       failed: 'No se ha podido aplicar la receta.',
+      multiple: 'Suelta una receta cada vez: se han recibido {files}.',
     },
   },
   projectFile: {

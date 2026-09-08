@@ -184,6 +184,7 @@ export function resolveRecipe(
 
   const annotations: TextAnnotation[] = [];
   const annotationEntries: RecipeResolvedEntry[] = [];
+  const annotationLegs: string[] = [];
   (recipe.annotations ?? []).forEach((spec, index) => {
     const label = `annotations[${index}]${spec.title ? ` "${spec.title}"` : ''}`;
     if (spec.auto) {
@@ -192,6 +193,7 @@ export function resolveRecipe(
         const title = spec.title ? `${spec.title} ${autoIndex + 1}` : derived.title;
         annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title));
         annotationEntries.push(entry(title, at, true));
+        annotationLegs.push(at.leg.name);
       }
       return;
     }
@@ -199,6 +201,7 @@ export function resolveRecipe(
     const title = spec.title ?? '';
     annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title));
     annotationEntries.push(entry(title, at));
+    annotationLegs.push(at.leg.name);
   });
 
   const iconChanges: IconChange[] = [];
@@ -217,7 +220,11 @@ export function resolveRecipe(
   });
 
   warnings.push(...collidingPins(landmarks));
-  warnings.push(...overlappingCards(annotations, recipe.totalDuration ?? DEFAULT_TOTAL_DURATION_MS));
+  warnings.push(...overlappingCards(
+    annotations.map((card, index) => ({ card, legName: annotationLegs[index] })),
+    recipe.totalDuration ?? DEFAULT_TOTAL_DURATION_MS,
+    stitched,
+  ));
 
   const activeIndex = typeof recipe.activeTrack === 'number'
     ? recipe.activeTrack
@@ -275,20 +282,37 @@ function collidingPins(landmarks: RouteLandmark[]): string[] {
   return warnings;
 }
 
-/** Two cards whose on-screen windows overlap fight for the same corner. */
-function overlappingCards(annotations: TextAnnotation[], totalDuration: number): string[] {
-  const sorted = [...annotations].sort((left, right) => left.progress - right.progress);
+/**
+ * Two cards whose on-screen windows overlap fight for the same corner.
+ *
+ * Only cards that can actually be on screen together are compared: when the
+ * routes are alternatives rather than legs, a card on one course never shares a
+ * timeline with a card on another, however close their progress values look.
+ */
+function overlappingCards(
+  cards: Array<{ card: TextAnnotation; legName: string }>,
+  totalDuration: number,
+  stitched: boolean,
+): string[] {
+  const groups = stitched
+    ? [cards]
+    : [...new Map(cards.map((entry) => [entry.legName, entry.legName])).keys()]
+      .map((legName) => cards.filter((entry) => entry.legName === legName));
+
   const warnings: string[] = [];
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1];
-    const current = sorted[index];
-    const gapMs = (current.progress - previous.progress) * totalDuration;
-    if (gapMs < current.displayDuration) {
-      warnings.push(
-        `"${previous.title}" and "${current.title}" are ${Math.round(gapMs / 1000)} s apart but the `
-        + `second shows for ${Math.round(current.displayDuration / 1000)} s, so they overlap. `
-        + 'Shorten displayDuration or lengthen the replay.',
-      );
+  for (const group of groups) {
+    const sorted = [...group].sort((left, right) => left.card.progress - right.card.progress);
+    for (let index = 1; index < sorted.length; index += 1) {
+      const previous = sorted[index - 1].card;
+      const current = sorted[index].card;
+      const gapMs = (current.progress - previous.progress) * totalDuration;
+      if (gapMs < current.displayDuration) {
+        warnings.push(
+          `"${previous.title}" and "${current.title}" are ${Math.round(gapMs / 1000)} s apart but `
+          + `the second shows for ${Math.round(current.displayDuration / 1000)} s, so they overlap. `
+          + 'Shorten displayDuration or lengthen the replay.',
+        );
+      }
     }
   }
   return warnings;
