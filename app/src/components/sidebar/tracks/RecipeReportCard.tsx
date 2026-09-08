@@ -24,6 +24,10 @@ export function RecipeReportCard() {
   const renderEntry = (entry: RecipeResolvedEntry, index: number) => (
     <li key={`${entry.title}-${index}`} className="recipe-report__entry">
       <span className="recipe-report__km">{entry.km.toFixed(1)} km</span>
+      {/* Two different numbers: the km is along its own route, the percentage
+          is of the whole replay. Showing only the first is what made a card in
+          a multi-route project look correctly placed when it was not. */}
+      <span className="recipe-report__at">{Math.round(entry.progress * 100)}%</span>
       <span className="recipe-report__title" title={entry.title}>{entry.title}</span>
       {showTrackName && <span className="recipe-report__track">{entry.trackName}</span>}
       {entry.derived && <span className="recipe-report__tag">{t('recipe.derived')}</span>}
@@ -53,6 +57,8 @@ export function RecipeReportCard() {
         {t('recipe.routes', { count: String(report.trackCount) })}
         {' · '}
         {(report.totalDistanceMeters / 1000).toFixed(1)} km
+        {' · '}
+        {t('recipe.percentHint')}
         {report.trackCount > 1 && (
           <> · {t(report.stitched ? 'recipe.stitched' : 'recipe.alternatives')}</>
         )}

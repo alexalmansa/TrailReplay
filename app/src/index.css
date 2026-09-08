@@ -604,3 +604,11 @@ html, body {
 .recipe-report__warnings li + li {
   margin-top: 0.3rem;
 }
+
+.recipe-report__at {
+  flex: 0 0 auto;
+  min-width: 2.6em;
+  text-align: right;
+  color: var(--trail-orange);
+  font-variant-numeric: tabular-nums;
+}

@@ -349,4 +349,36 @@ describe('resolveRecipe', () => {
       expect(card.progress).toBeCloseTo(app, 6);
     }
   });
+
+  // Three courses of one race stitched into a journey visits Ribes de Freser
+  // three times; a card can only mark one of those, so it fires while the
+  // marker is on a different lap.
+  it('warns when variants of one route are stitched as legs', () => {
+    const loop = (name: string, points: number) => ({
+      name: `${name}.gpx`,
+      gpx: leg({ name, startLat: 42, points }),
+    });
+    const races = tracksFrom([loop('Long', 201), loop('Short', 101)]);
+
+    const resolved = resolveRecipe(
+      { mode: 'stitch', tracks: [{ file: 'Long.gpx' }, { file: 'Short.gpx' }] },
+      races.tracks,
+      races.names,
+    );
+
+    expect(resolved.report.warnings.some((w) => w.includes('variants of one route')))
+      .toBe(true);
+  });
+
+  it('does not mistake consecutive days for variants', () => {
+    const week = tracksFrom([
+      { name: 'a.gpx', gpx: leg({ name: 'A', startLat: 42, points: 101 }) },
+      { name: 'b.gpx', gpx: leg({ name: 'B', startLat: 43, points: 101 }) },
+    ]);
+
+    const resolved = resolveRecipe({ tracks: { files: '*.gpx' } }, week.tracks, week.names);
+
+    expect(resolved.report.warnings.some((w) => w.includes('variants of one route')))
+      .toBe(false);
+  });
 });

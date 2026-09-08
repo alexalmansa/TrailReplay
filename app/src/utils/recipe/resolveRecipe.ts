@@ -5,6 +5,7 @@ import { createId } from '@/utils/id';
 import { anchorOnRoute, buildLegs, type RouteAnchor, type RouteLeg } from './anchorOnRoute';
 import { matchTrackFiles } from './matchTrackFiles';
 import { deriveOvernightStops, describeStop } from './overnightStops';
+import { calculateDistance } from '@/utils/gpx/trackStats';
 import {
   RecipeError,
   type Recipe,
@@ -284,6 +285,7 @@ export function resolveRecipe(
     iconEntries.push(entry(spec.label ?? spec.icon, at, progress));
   });
 
+  if (stitched) warnings.push(...variantsStitchedAsLegs(legs));
   warnings.push(...collidingPins(landmarks));
   warnings.push(...overlappingCards(
     annotations.map((card, index) => ({ card, legName: annotationLegs[index] })),
@@ -308,6 +310,34 @@ export function resolveRecipe(
       warnings,
     },
   };
+}
+
+/** Legs whose starts coincide are the same route again, not the next one. */
+const SAME_START_METERS = 500;
+
+/**
+ * Stitching variants of one route makes a journey that visits every place
+ * several times. A card can only be bound to one of those visits, so it fires
+ * while the marker is somewhere else entirely — the marker passes the spot
+ * early on one lap and the card appears on another, which reads as a card
+ * arriving long after the place it names.
+ */
+function variantsStitchedAsLegs(legs: RouteLeg[]): string[] {
+  const warnings: string[] = [];
+  for (let index = 1; index < legs.length; index += 1) {
+    const first = legs[0].track.points[0];
+    const current = legs[index].track.points[0];
+    if (!first || !current) continue;
+    if (calculateDistance(first.lat, first.lon, current.lat, current.lon) < SAME_START_METERS) {
+      warnings.push(
+        `"${legs[index].name}" starts where "${legs[0].name}" does, so these look like variants `
+        + 'of one route rather than consecutive legs. Stitched, the replay visits every place '
+        + 'once per variant and a card can only mark one of them, so cards appear far from where '
+        + 'the marker is. Give each variant its own recipe.',
+      );
+    }
+  }
+  return warnings;
 }
 
 /**

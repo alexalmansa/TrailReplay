@@ -32,6 +32,7 @@ export const en = {
   recipe: {
     applied: 'Recipe applied — {tracks} route(s), {placed} placed.',
     reportTitle: 'From the recipe',
+    percentHint: '% is of the whole replay',
     routes: '{count} route(s)',
     stitched: 'played as one journey',
     alternatives: 'alternatives — only the active route plays',

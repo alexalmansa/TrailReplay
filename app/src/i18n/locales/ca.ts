@@ -32,6 +32,7 @@ export const ca = {
   recipe: {
     applied: 'Recepta aplicada: {tracks} ruta(es), {placed} col·locats.',
     reportTitle: 'De la recepta',
+    percentHint: 'el % és del total de la reproducció',
     routes: '{count} ruta(es)',
     stitched: 'reproduïdes com un sol viatge',
     alternatives: 'alternatives: només es reprodueix la ruta activa',
