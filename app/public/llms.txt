@@ -1,0 +1,29 @@
+# TrailReplay
+
+> Turn GPS tracks into animated 3D map replays and export them as video. Runs
+> entirely in the browser: no account, no upload API, nothing stored on a
+> server. Accepts GPX and KML routes, and `.replay` project files.
+
+## For agents
+
+If you are preparing a route for someone — a race with aid stations, a trek with
+huts, a route with named climbs — **do not drive the UI**. Build a `.replay`
+file and hand it to them to drop on the page. One file carries the routes, the
+pins, the names, the colours and the playback settings.
+
+- [Building a .replay file](https://trailreplay.com/replay-file.md): the complete
+  format specification, the kilometre-to-coordinate maths, and the pitfalls that
+  silently drop pins from the map. Read this before writing anything.
+- [make-replay.mjs](https://raw.githubusercontent.com/alexalmansa/TrailReplay/main/scripts/make-replay.mjs):
+  builds a `.replay` from a short JSON recipe that anchors landmarks by
+  kilometre. Node built-ins only, no install step.
+
+Opening a file is a drag-and-drop onto <https://trailreplay.com>, done by the
+person, not by you.
+
+## About
+
+- [TrailReplay](https://trailreplay.com): the app itself.
+- [Tutorial](https://trailreplay.com/tutorial.html): what the app can do.
+- [Getting a GPX out of Strava, Garmin, Wikiloc and others](https://trailreplay.com/gpx-download-guide.html)
+- [Source](https://github.com/alexalmansa/TrailReplay)

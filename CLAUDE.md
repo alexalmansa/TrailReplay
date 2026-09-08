@@ -88,6 +88,25 @@ Parsing is split across dedicated modules:
 
 Entry point: `app/src/utils/gpxParser.ts` (`parseGPX`, `parseKML`, `parseGPXFiles`). The `useGPX` hook wraps this for file input handling.
 
+### Project files (`.replay`) and agent authoring
+
+`app/src/utils/projectFile/` reads and writes `.replay` archives (a zip of
+`project.json` + `routes/*.gpx`, plus a `manifest.json` the app writes but does
+not require). Only `formatVersion` and `tracks` are required to open one —
+`hydrateProject` backfills everything else from `store/defaults.ts`, so a
+project can be authored by hand or by a script rather than only by the app.
+
+That path is public and documented for agents:
+
+- `app/public/replay-file.md` — the format spec, served at
+  `https://trailreplay.com/replay-file.md`
+- `app/public/llms.txt` — the agent entry point for the site
+- `scripts/make-replay.mjs` — builds a `.replay` from a JSON recipe that anchors
+  landmarks by kilometre; Node built-ins only
+
+**Keep new `ReplayProjectFile` fields optional**, and update
+`app/public/replay-file.md` when the format gains something an author would set.
+
 ### i18n
 
 Translations live in `app/src/i18n/locales/` (en, es, ca, fr). Access via the `useI18n()` hook, which returns a `t()` function. Language is stored in `AppSettings.language`.

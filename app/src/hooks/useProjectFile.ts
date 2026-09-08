@@ -55,8 +55,8 @@ export function useProjectFile() {
       trackEvent('project_open_completed', {
         format_version: parsed.manifest.formatVersion,
         track_count: parsed.tracks.length,
-        picture_count: parsed.project.pictures.length,
-        video_count: parsed.project.videos.length,
+        picture_count: parsed.project.pictures?.length ?? 0,
+        video_count: parsed.project.videos?.length ?? 0,
       });
       toast.success(t('projectFile.opened'));
     } catch (error) {

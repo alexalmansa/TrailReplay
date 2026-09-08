@@ -1,0 +1,53 @@
+{
+  "name": "Valls del Freser XTREM 32K",
+  "output": "valls-del-freser-xtrem.replay",
+  "activityIcon": "🏃",
+  "tracks": [
+    {
+      "file": "./valls-del-freser-xtrem.gpx",
+      "name": "Valls del Freser XTREM 32K",
+      "color": "#E86F51"
+    }
+  ],
+  "landmarks": [
+    {
+      "km": 0,
+      "title": "Sortida i arribada — Ribes de Freser",
+      "type": "trailhead",
+      "subtitle": "1800 m D+ · Sortida 08:00 h · Ribes de Freser",
+      "icon": "town"
+    },
+    {
+      "km": 6.5,
+      "title": "Avituallament 1 — Collet de Barraques",
+      "type": "aid-station",
+      "subtitle": "Km 6,5 · Aigua · Cola · Isotònic · Llaminadures · Fruita · Entrepans dolços · Fruits secs",
+      "icon": "water",
+      "color": "#3C9DCC"
+    },
+    {
+      "km": 13,
+      "title": "Avituallament 2 — Torrent Gros",
+      "type": "aid-station",
+      "subtitle": "Km 13 · Aigua · Cola · Isotònic · Llaminadures · Fruita · Entrepans dolços · Fruits secs",
+      "icon": "water",
+      "color": "#3C9DCC"
+    },
+    {
+      "km": 17,
+      "title": "Avituallament 3 — Dòrria",
+      "type": "aid-station",
+      "subtitle": "Km 17 · Aigua · Cola · Isotònic · Llaminadures · Fruita · Entrepans dolços · Fruits secs",
+      "icon": "water",
+      "color": "#3C9DCC"
+    },
+    {
+      "km": 25,
+      "title": "Avituallament 4 — Les Casetes",
+      "type": "aid-station",
+      "subtitle": "Km 25 · Aigua · Cola · Isotònic · Llaminadures · Fruita · Entrepans dolços · Fruits secs",
+      "icon": "water",
+      "color": "#3C9DCC"
+    }
+  ]
+}

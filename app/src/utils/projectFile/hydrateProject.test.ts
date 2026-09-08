@@ -171,9 +171,9 @@ describe('hydrateProject', () => {
     expect(scaledStore.getState().settings.statsLayout).toBe('vertical');
     expect(scaledStore.getState().settings.statsColumns).toBe(2);
 
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsScale;
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsLayout;
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsColumns;
+    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsScale;
+    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsLayout;
+    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsColumns;
     const legacyStore = createAppStore();
     hydrateProject(parsed, legacyStore.getState());
     expect(legacyStore.getState().settings.statsScale).toBe(1);
@@ -234,5 +234,52 @@ describe('cinematic camera keyframes in a saved project', () => {
     hydrateProject(parsed, targetStore.getState());
 
     expect(targetStore.getState().cinematicCameraKeyframes).toEqual([]);
+  });
+
+  // The counterpart to the parser test: a project written by hand or by
+  // scripts/make-replay.mjs supplies only routes and landmarks, and everything
+  // else has to land on the same defaults a fresh session starts from.
+  it('backfills defaults for a minimal hand-authored project', () => {
+    const store = createAppStore();
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Race',
+        createdAt: '', savedAt: '', trackCount: 1, pictureCount: 0, videoCount: 0,
+      },
+      project: {
+        formatVersion: 1,
+        tracks: [{ routeFile: 'routes/ridge-loop.gpx', name: 'Stage 1' }],
+        userLandmarks: [{
+          id: 'aid-1', type: 'aid-station', source: 'user', display: 'highlight',
+          lat: 42.1005, lon: 1.2005, progress: 0.5, title: 'Aid 1', importance: 5,
+        }],
+        settings: { trailStyle: { trailColor: '#123456' } as never },
+      },
+      tracks: [{ meta: { routeFile: 'routes/ridge-loop.gpx', name: 'Stage 1' }, gpxText: sampleGpx }],
+      comparisonTracks: [],
+    }, store.getState());
+
+    const state = store.getState();
+    expect(state.tracks).toHaveLength(1);
+    // The authored name wins over the GPX's own <name>.
+    expect(state.tracks[0].name).toBe('Stage 1');
+    expect(state.activeTrackId).toBe(state.tracks[0].id);
+    expect(state.userLandmarks).toHaveLength(1);
+    expect(state.userLandmarks[0].title).toBe('Aid 1');
+
+    // Omitted collections come back empty rather than undefined.
+    expect(state.pictures).toEqual([]);
+    expect(state.videos).toEqual([]);
+    expect(state.textAnnotations).toEqual([]);
+    expect(state.journeySegments).toEqual([]);
+
+    // A partial trailStyle keeps the rest of the defaults.
+    expect(state.settings.trailStyle.trailColor).toBe('#123456');
+    expect(state.settings.trailStyle.markerType).toBe('dot');
+    expect(state.settings.unitSystem).toBe('metric');
+    expect(state.videoExportSettings.fps).toBe(30);
+    expect(state.socialShareSettings.aspectRatio).toBe('4:5');
+    expect(state.playback.routeTimingMode).toBe('recorded');
   });
 });

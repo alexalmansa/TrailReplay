@@ -32,21 +32,26 @@ export interface ReplayManifest {
   videoCount: number;
 }
 
+/**
+ * Only `routeFile` is structural. The rest is presentation the app can supply
+ * itself, so a hand-authored project (see docs/AGENT_REPLAY_FILE.md) can name a
+ * route file and nothing else.
+ */
 export interface ReplayTrackMeta {
-  id: string;
-  name: string;
-  activityIcon: string;
-  color: string;
-  visible: boolean;
+  id?: string;
+  name?: string;
+  activityIcon?: string;
+  color?: string;
+  visible?: boolean;
   routeFile: string;
 }
 
 export interface ReplayComparisonTrackMeta {
-  id: string;
-  name: string;
-  color: string;
-  visible: boolean;
-  offset: number;
+  id?: string;
+  name?: string;
+  color?: string;
+  visible?: boolean;
+  offset?: number;
   routeFile: string;
 }
 
@@ -84,36 +89,46 @@ export interface SerializedVideo {
   description?: string;
 }
 
+/**
+ * `project.json` inside a `.replay` archive.
+ *
+ * The app always writes every field, but only `formatVersion` and `tracks` are
+ * required to read one back: hydration backfills everything else from the same
+ * `createDefault*()` factories a fresh session starts from. That is what lets a
+ * project be written by hand or by a script rather than only by the app — see
+ * `docs/AGENT_REPLAY_FILE.md`. Keep new fields optional for the same reason.
+ */
 export interface ReplayProjectFile {
   formatVersion: number;
   tracks: ReplayTrackMeta[];
-  activeTrackId: string | null;
-  comparisonTracks: ReplayComparisonTrackMeta[];
-  journey: Journey | null;
-  journeySegments: JourneySegment[];
-  pictures: SerializedPicture[];
-  videos: SerializedVideo[];
-  iconChanges: IconChange[];
-  textAnnotations: TextAnnotation[];
+  /** Defaults to the first track, which is what a plain GPX upload does. */
+  activeTrackId?: string | null;
+  comparisonTracks?: ReplayComparisonTrackMeta[];
+  journey?: Journey | null;
+  journeySegments?: JourneySegment[];
+  pictures?: SerializedPicture[];
+  videos?: SerializedVideo[];
+  iconChanges?: IconChange[];
+  textAnnotations?: TextAnnotation[];
   /**
    * Absent in projects saved before cinematic mode existed; hydration treats
    * that as an empty list.
    */
   cinematicCameraKeyframes?: CinematicCameraKeyframe[];
-  userLandmarks: RouteLandmark[];
+  userLandmarks?: RouteLandmark[];
   /**
    * Derived landmarks the user removed. Absent in projects saved before
    * landmarks could be removed, which is read as "nothing removed".
    */
   hiddenLandmarkIds?: string[];
-  enabledLandmarkGroups: LandmarkType[];
-  nearbyPlaceTypes: LandmarkType[] | null;
-  showAutomaticLandmarks: boolean;
-  routeTimingMode: RouteTimingMode;
-  settings: AppSettings;
-  cameraSettings: CameraSettings;
-  videoExportSettings: VideoExportSettings;
-  socialShareSettings: SocialShareSettings;
+  enabledLandmarkGroups?: LandmarkType[];
+  nearbyPlaceTypes?: LandmarkType[] | null;
+  showAutomaticLandmarks?: boolean;
+  routeTimingMode?: RouteTimingMode;
+  settings?: Partial<AppSettings>;
+  cameraSettings?: Partial<CameraSettings>;
+  videoExportSettings?: Partial<VideoExportSettings>;
+  socialShareSettings?: Partial<SocialShareSettings>;
 }
 
 export interface ParsedProject {

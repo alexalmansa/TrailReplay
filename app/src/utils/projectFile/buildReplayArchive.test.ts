@@ -48,12 +48,12 @@ describe('buildReplayArchive', () => {
     expect(project.tracks).toHaveLength(1);
     expect(project.tracks[0].id).toBe(track.id);
     expect(project.pictures).toHaveLength(1);
-    expect(project.pictures[0]).toMatchObject({
+    expect(project.pictures![0]).toMatchObject({
       id: 'picture-1',
       originalFileName: 'summit.jpg',
       progress: 0.4,
     });
-    expect((project.pictures[0] as unknown as { file?: unknown }).file).toBeUndefined();
+    expect((project.pictures![0] as unknown as { file?: unknown }).file).toBeUndefined();
 
     const routeFile = project.tracks[0].routeFile;
     expect(files[routeFile]).toBeDefined();
