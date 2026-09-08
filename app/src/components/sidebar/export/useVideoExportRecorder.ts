@@ -8,8 +8,8 @@ import { useI18n } from '@/i18n/useI18n';
 import { getCropRegion } from '@/utils/crop';
 import {
   getBlobSizeBucket,
-  getDurationBucket,
   getProgressBucket,
+  getVideoExportAnalyticsParams,
   trackEvent,
 } from '@/utils/analytics';
 import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
@@ -885,10 +885,9 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
           : t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
+          ...getVideoExportAnalyticsParams(videoExportSettings, 'mp4', playback.totalDuration),
           export_blob_size_bucket: getBlobSizeBucket(blob.size),
-          export_format: 'mp4',
           export_encoder_path: 'webcodecs',
-          export_duration_bucket: getDurationBucket(playback.totalDuration),
           export_quality_mode: wasStudioQuality ? 'studio' : 'standard',
           export_studio_timed_out_frames: studioStats.timedOutFrames,
         });
@@ -956,7 +955,7 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
       // Restore an idle, replayable timeline once the file has been finalized.
       resetPlayback();
     }
-  }, [playback.totalDuration, resetPlayback, restoreStudioMapSettings, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t]);
+  }, [playback.totalDuration, resetPlayback, restoreStudioMapSettings, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t, videoExportSettings]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -1187,10 +1186,9 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
         setExportStage(t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
+          ...getVideoExportAnalyticsParams(videoExportSettings, extension, playback.totalDuration),
           export_blob_size_bucket: getBlobSizeBucket(blob.size),
-          export_format: extension,
           export_encoder_path: 'mediarecorder',
-          export_duration_bucket: getDurationBucket(playback.totalDuration),
         });
 
         const url = URL.createObjectURL(blob);
@@ -1271,13 +1269,9 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
     mp4EncoderRef.current = null;
     resetOverlayCapture();
     trackEvent('export_started', {
-      export_format: actualFormat,
-      export_quality: videoExportSettings.quality,
-      export_fps: videoExportSettings.fps,
-      export_aspect_ratio: videoExportSettings.aspectRatio,
+      ...getVideoExportAnalyticsParams(videoExportSettings, actualFormat, playback.totalDuration),
       export_include_stats: includeStats,
       export_include_elevation: includeElevation,
-      export_duration_bucket: getDurationBucket(playback.totalDuration),
       track_count: tracks.length,
       picture_count: pictures.length,
       journey_segment_count: journeySegments.length,

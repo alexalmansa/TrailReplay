@@ -1,4 +1,5 @@
 import { GA4_DEBUG_MODE, GA4_MEASUREMENT_ID, shouldEnableAnalytics } from '@/config/analytics';
+import type { VideoExportSettings, VideoFormat } from '@/types';
 
 let isInitialized = false;
 let pendingInitialization = false;
@@ -77,6 +78,28 @@ export function getDurationBucket(durationSeconds: number) {
   if (durationSeconds < 30) return 'short';
   if (durationSeconds <= 90) return 'medium';
   return 'long';
+}
+
+export function getVideoExportAnalyticsParams(
+  settings: VideoExportSettings,
+  actualFormat: VideoFormat,
+  durationMs: number,
+) {
+  const durationSeconds = Math.max(0, durationMs) / 1000;
+
+  return {
+    export_format: actualFormat,
+    export_requested_format: settings.format,
+    export_quality: settings.quality,
+    export_quality_mode: settings.qualityMode,
+    export_fps: settings.fps,
+    export_aspect_ratio: settings.aspectRatio,
+    export_resolution: `${settings.resolution.width}x${settings.resolution.height}`,
+    export_width: settings.resolution.width,
+    export_height: settings.resolution.height,
+    export_duration_seconds: durationSeconds,
+    export_duration_bucket: getDurationBucket(durationSeconds),
+  };
 }
 
 export function getBlobSizeBucket(sizeBytes: number) {
