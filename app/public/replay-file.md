@@ -226,27 +226,42 @@ pins are the point.
 
 ## 4. The `.replay` file
 
-Everything above is the recipe, which is all you need. A **`.replay`** file is
-the other half of the format: a saved project, produced by the app's own Save
-button, and the thing to read if you are handed one or want to build an archive
-directly rather than let the app resolve a recipe.
+A `.replay` is a **ZIP archive** holding a recipe, a resolved project, or both.
+Standard deflate, under 200 MB.
 
-It is a **ZIP archive**, standard deflate, under 200 MB:
+What you produce is the first kind — the recipe and its routes, nothing
+resolved:
 
 ```
 my-race.replay
-├── project.json          ← required
+├── recipe.json
 └── routes/
-    └── some-route.gpx    ← one per track, referenced by `routeFile`
+    ├── day-1.gpx
+    └── day-2.gpx
 ```
 
-`manifest.json` also appears in files the app saves. It is diagnostic metadata;
-**you do not need to write it** and the app regenerates it when absent.
+The app resolves it on open, exactly as it would a dropped folder. Routes are
+matched on file name, so the `routes/` prefix does not matter.
 
-The app rejects an archive for exactly two reasons, both with a clear message:
-`project.json` must exist, parse, and hold a `tracks` array; and every
-`routeFile` must match a zip entry name exactly. A leading `./` is the usual
-mistake.
+What the app's Save button writes is both:
+
+```
+saved.replay
+├── recipe.json           ← the source, when there was one
+├── project.json          ← what it resolved to, plus every hand edit
+├── manifest.json         ← diagnostic metadata; never write it yourself
+└── routes/…
+```
+
+Keeping the recipe means a saved project still says where it came from, so you
+can read one, change a kilometre, and rebuild — rather than being handed a wall
+of resolved coordinates. `project.json` is the format's other half, specified in
+§5; you rarely need to write it, because everything it holds that intent can
+express is reachable from a recipe.
+
+The app rejects an archive that has neither `recipe.json` nor `project.json`, a
+recipe with none of its routes, or a `project.json` whose `routeFile` does not
+match a zip entry. A leading `./` is the usual mistake.
 
 GPX bytes are stored verbatim, so elevation, timestamps, heart rate, cadence and
 power all reach the app untouched. Never rewrite a GPX you were given.

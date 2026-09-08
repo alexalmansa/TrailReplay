@@ -139,6 +139,11 @@ export async function buildReplayArchive(state: AppState): Promise<Blob> {
     ...comparisonFiles,
     'manifest.json': encoder.encode(JSON.stringify(manifest, null, 2)),
     'project.json': encoder.encode(JSON.stringify(project, null, 2)),
+    // The source, when there was one. A project saved from a recipe can then be
+    // reopened, edited as a recipe, and rebuilt, rather than being a dead end.
+    ...(state.sourceRecipe
+      ? { 'recipe.json': encoder.encode(JSON.stringify(state.sourceRecipe, null, 2)) }
+      : {}),
   };
 
   const zipped = await new Promise<Uint8Array>((resolve, reject) => {

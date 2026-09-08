@@ -50,6 +50,8 @@ export function applyRecipe(recipe: Recipe, resolved: ResolvedRecipe, store: App
     ?? resolved.tracks[0];
 
   store.hydrateState({
+    // Kept so saving preserves where this came from, not only what it became.
+    sourceRecipe: recipe,
     activeTrackId: resolved.activeTrackId,
     journey: {
       id: 'recipe-journey',

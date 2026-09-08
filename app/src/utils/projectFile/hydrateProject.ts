@@ -8,7 +8,10 @@ import {
   createDefaultVideoExportSettings,
 } from '@/store/defaults';
 import type { AppSettings, ComparisonTrack, PictureAnnotation, VideoAnnotation } from '@/types';
-import type { ParsedProject, SerializedPicture, SerializedVideo } from './types';
+import type { ParsedProject, ReplayProjectFile, SerializedPicture, SerializedVideo } from './types';
+
+/** Hydration is only reachable once a resolved project is known to be present. */
+export type ResolvedParsedProject = ParsedProject & { project: ReplayProjectFile };
 
 function hydratePicture(serialized: SerializedPicture): PictureAnnotation {
   return {
@@ -53,7 +56,7 @@ function nameFromRouteFile(routeFile: string): string {
   return routeFile.split('/').pop()?.replace(/\.(gpx|kml)$/i, '') || 'Route';
 }
 
-function mergeSettings(saved: ParsedProject['project']['settings']): AppSettings {
+function mergeSettings(saved: ReplayProjectFile['settings']): AppSettings {
   const defaults = createDefaultSettings();
   return {
     ...defaults,
@@ -63,7 +66,7 @@ function mergeSettings(saved: ParsedProject['project']['settings']): AppSettings
   };
 }
 
-export function hydrateProject(parsed: ParsedProject, store: AppState): void {
+export function hydrateProject(parsed: ResolvedParsedProject, store: AppState): void {
   store.reset();
 
   const trackIds: string[] = [];

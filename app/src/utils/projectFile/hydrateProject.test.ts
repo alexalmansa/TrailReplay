@@ -45,7 +45,7 @@ describe('hydrateProject', () => {
     // Pre-existing content should be fully replaced by hydration.
     targetStore.getState().addTrack(parseGPX(sampleGpx, 'stale.gpx'));
 
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     const state = targetStore.getState();
     expect(state.tracks).toHaveLength(1);
@@ -94,7 +94,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().pictures[0]).toMatchObject({
       routeDistance: 1234,
@@ -120,7 +120,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().pictures[0].routeDistance).toBeUndefined();
   });
@@ -135,7 +135,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     const state = targetStore.getState();
     expect(state.cameraSettings.cameraStability).toBe(0.9);
@@ -152,7 +152,7 @@ describe('hydrateProject', () => {
     delete (parsed.project as { routeTimingMode?: unknown }).routeTimingMode;
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
   });
@@ -166,16 +166,16 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const scaledStore = createAppStore();
-    hydrateProject(parsed, scaledStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, scaledStore.getState());
     expect(scaledStore.getState().settings.statsScale).toBe(1.6);
     expect(scaledStore.getState().settings.statsLayout).toBe('vertical');
     expect(scaledStore.getState().settings.statsColumns).toBe(2);
 
-    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsScale;
-    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsLayout;
-    delete (parsed.project.settings as Partial<NonNullable<typeof parsed.project.settings>>).statsColumns;
+    delete (parsed.project!.settings as Record<string, unknown>).statsScale;
+    delete (parsed.project!.settings as Record<string, unknown>).statsLayout;
+    delete (parsed.project!.settings as Record<string, unknown>).statsColumns;
     const legacyStore = createAppStore();
-    hydrateProject(parsed, legacyStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, legacyStore.getState());
     expect(legacyStore.getState().settings.statsScale).toBe(1);
     expect(legacyStore.getState().settings.statsLayout).toBe('auto');
     expect(legacyStore.getState().settings.statsColumns).toBeNull();
@@ -212,7 +212,7 @@ describe('cinematic camera keyframes in a saved project', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     // Every field matters: a keyframe that came back with the wrong anchor,
     // frame or easing would silently point the camera somewhere else.
@@ -231,7 +231,7 @@ describe('cinematic camera keyframes in a saved project', () => {
     delete (parsed.project as { cinematicCameraKeyframes?: unknown }).cinematicCameraKeyframes;
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().cinematicCameraKeyframes).toEqual([]);
   });
@@ -258,6 +258,8 @@ describe('cinematic camera keyframes in a saved project', () => {
       },
       tracks: [{ meta: { routeFile: 'routes/ridge-loop.gpx', name: 'Stage 1' }, gpxText: sampleGpx }],
       comparisonTracks: [],
+      recipe: null,
+      routes: [],
     }, store.getState());
 
     const state = store.getState();
@@ -299,6 +301,8 @@ describe('cinematic camera keyframes in a saved project', () => {
       project: { formatVersion: 1, tracks: [meta(1), meta(2), meta(3)] },
       tracks: [1, 2, 3].map((n) => ({ meta: meta(n), gpxText: sampleGpx })),
       comparisonTracks: [],
+      recipe: null,
+      routes: [],
     }, store.getState());
 
     const state = store.getState();
@@ -320,6 +324,8 @@ describe('cinematic camera keyframes in a saved project', () => {
       project: { formatVersion: 1, tracks: [meta], journeySegments: [] },
       tracks: [{ meta, gpxText: sampleGpx }],
       comparisonTracks: [],
+      recipe: null,
+      routes: [],
     }, store.getState());
 
     expect(store.getState().journeySegments).toEqual([]);

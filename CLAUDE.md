@@ -136,11 +136,18 @@ unaffected by frame rate.
 
 ### Project files (`.replay`) and agent authoring
 
-`app/src/utils/projectFile/` reads and writes `.replay` archives (a zip of
-`project.json` + `routes/*.gpx`, plus a `manifest.json` the app writes but does
-not require). Only `formatVersion` and `tracks` are required to open one —
-`hydrateProject` backfills everything else from `store/defaults.ts`, so a
-project can be authored by hand or by a script rather than only by the app.
+`app/src/utils/projectFile/` reads and writes `.replay` archives. One archive
+holds a recipe, a resolved project, or both:
+
+- **recipe only** — what `make-replay.mjs` and agents produce. `useProjectFile`
+  routes it through `resolveRecipe`, the same path as a dropped folder, so there
+  is one resolver and it lives in the app.
+- **both** — what Save writes. `sourceRecipe` in the store carries the recipe
+  through, so a saved project still says where it came from and can be edited as
+  a recipe rather than as resolved coordinates.
+
+Only `formatVersion` and `tracks` are required to open a `project.json` —
+`hydrateProject` backfills everything else from `store/defaults.ts`.
 
 The agent-facing surface all lives in `app/public/`, so it is served from the
 site on the same origin rather than only existing in the repo:

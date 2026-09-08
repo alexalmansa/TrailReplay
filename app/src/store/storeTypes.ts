@@ -21,7 +21,7 @@ import type {
 } from '@/types';
 import type { LandmarkType, NearbyPlacesCoverage, RouteLandmark } from '@/types/landmarks';
 import type { CinematicCameraKeyframe } from '@/utils/cinematicCameraPlan';
-import type { RecipeReport } from '@/utils/recipe/types';
+import type { Recipe, RecipeReport } from '@/utils/recipe/types';
 
 export interface AppState {
   tracks: GPXTrack[];
@@ -171,5 +171,11 @@ export interface AppState {
   /** What the last dropped recipe resolved to, shown so a person can check it. */
   recipeReport: RecipeReport | null;
   setRecipeReport: (report: RecipeReport | null) => void;
+  /**
+   * The recipe this project was built from, kept so that saving preserves the
+   * source rather than only what it resolved to.
+   */
+  sourceRecipe: Recipe | null;
+  setSourceRecipe: (recipe: Recipe | null) => void;
   hydrateState: (partial: Partial<AppState>) => void;
 }

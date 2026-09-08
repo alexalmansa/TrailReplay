@@ -17,9 +17,10 @@ it placed.
 - [Giving TrailReplay a route](https://trailreplay.com/replay-file.md): the
   recipe format, the derived sets (`overnight-stops`, `start-finish`), and the
   `.replay` project format. Read this before writing anything.
-- [make-replay.mjs](https://trailreplay.com/make-replay.mjs): optional. Builds a
-  `.replay` project offline from the same recipe, when a single file suits
-  better than a recipe plus routes. Node built-ins only.
+- [make-replay.mjs](https://trailreplay.com/make-replay.mjs): optional. Packs a
+  recipe and its routes into one `.replay` file, when a single file suits better
+  than a folder. It only zips — the app still does the resolving. Node built-ins
+  only.
 - [example-recipe.json](https://trailreplay.com/example-recipe.json): a real
   race, start to finish, as a recipe.
 

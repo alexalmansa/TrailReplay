@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import type { LandmarkType, RouteLandmark } from '@/types/landmarks';
 import type { CinematicCameraKeyframe } from '@/utils/cinematicCameraPlan';
+import type { Recipe } from '@/utils/recipe/types';
 
 export const CURRENT_FORMAT_VERSION = 1;
 export const SUPPORTED_FORMAT_VERSIONS = [1];
@@ -131,9 +132,25 @@ export interface ReplayProjectFile {
   socialShareSettings?: Partial<SocialShareSettings>;
 }
 
+/**
+ * A `.replay` archive holds a recipe, a resolved project, or both.
+ *
+ * The recipe is the source: intent, no coordinates. The project is what that
+ * resolved to, plus everything a person changed afterwards that intent cannot
+ * express — a photo placed on the route, a stats panel dragged, a colour picked
+ * by hand. Saving keeps both, so a file says where it came from and an agent can
+ * edit the recipe inside it and hand it back.
+ */
 export interface ParsedProject {
   manifest: ReplayManifest;
-  project: ReplayProjectFile;
+  /**
+   * Absent when the archive is a recipe and its routes and nothing else, which
+   * is what a script or an agent produces — resolving belongs to the app.
+   */
+  project: ReplayProjectFile | null;
+  recipe: Recipe | null;
+  /** Every route in the archive, whether or not a project references it. */
+  routes: Array<{ fileName: string; gpxText: string }>;
   tracks: Array<{ meta: ReplayTrackMeta; gpxText: string }>;
   comparisonTracks: Array<{ meta: ReplayComparisonTrackMeta; gpxText: string }>;
 }

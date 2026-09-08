@@ -32,6 +32,7 @@ export function createAppStore() {
           state.tracks = [];
           state.activeTrackId = null;
           state.recipeReport = null;
+          state.sourceRecipe = null;
           state.comparisonTracks = [];
           state.journey = null;
           state.journeySegments = [];

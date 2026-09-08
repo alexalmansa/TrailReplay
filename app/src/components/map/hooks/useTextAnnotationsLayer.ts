@@ -3,6 +3,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import type { TextAnnotation, UnitSystem } from '@/types';
 import { convertElevation } from '@/utils/units';
+import { wrapText } from '@/components/map/annotationCardText';
 
 const SOURCE_ID = 'route-annotations';
 const ACTIVE_SOURCE_ID = 'route-annotations-active';
@@ -78,10 +79,61 @@ function buildActiveAnnotationFeatureCollection(annotation: TextAnnotation | nul
   };
 }
 
+const CARD_MIN_WIDTH = 320;
+/**
+ * Cards are drawn as a map icon, so a very wide one covers the route it is
+ * pointing at. This is the width past which the text wraps instead of growing.
+ */
+const CARD_MAX_WIDTH = 520;
+const CARD_PADDING = 36;
+const TITLE_FONT = '800 30px Inter, sans-serif';
+const DETAIL_FONT = '700 20px Inter, sans-serif';
+
+/**
+ * A card sized to what it has to say.
+ *
+ * The card used to be a fixed 320x116 with everything past its width replaced
+ * by an ellipsis. That is fine for a title someone types into a box while
+ * looking at it, and wrong for one taken from a source — "Avituallament 1 —
+ * Collet de Barraques" and its list of contents both vanished into "…", which
+ * is how an annotation can be in exactly the right place and still be unreadable.
+ */
 function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitSystem) {
+  const measure = document.createElement('canvas').getContext('2d');
+  if (!measure) return null;
+
+  const title = annotation.title.trim() || 'Annotation';
+  const detail = annotation.subtitle?.trim()
+    || (annotation.elevation !== undefined
+      ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
+      : `${Math.round(annotation.progress * 100)}%`);
+
+  measure.font = TITLE_FONT;
+  const titleWidth = measure.measureText(title).width;
+  measure.font = DETAIL_FONT;
+  const detailWidth = measure.measureText(detail).width;
+
+  const width = Math.round(Math.max(
+    CARD_MIN_WIDTH,
+    Math.min(CARD_MAX_WIDTH, Math.max(titleWidth, detailWidth) + CARD_PADDING * 2),
+  ));
+  const textWidth = width - CARD_PADDING * 2;
+
+  measure.font = TITLE_FONT;
+  const titleLines = wrapText(measure, title, textWidth, 2);
+  measure.font = DETAIL_FONT;
+  const detailLines = detail ? wrapText(measure, detail, textWidth, 2) : [];
+
+  const titleTop = 34;
+  const titleLineHeight = 34;
+  const detailLineHeight = 26;
+  const bodyHeight = titleTop
+    + titleLines.length * titleLineHeight
+    + (detailLines.length > 0 ? 6 + detailLines.length * detailLineHeight : 0)
+    + 18;
+  const height = Math.round(bodyHeight + 12);
+
   const scale = 2;
-  const width = 320;
-  const height = 116;
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -121,36 +173,23 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.fill();
   context.restore();
 
-  const title = annotation.title.trim() || 'Annotation';
-  const detail = annotation.subtitle?.trim()
-    || (annotation.elevation !== undefined
-      ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
-      : `${Math.round(annotation.progress * 100)}%`);
-
   context.textAlign = 'center';
-  context.fillStyle = '#ffffff';
-  context.font = '800 30px Inter, sans-serif';
   context.textBaseline = 'middle';
-  context.fillText(fitText(context, title, width - 36), width / 2, 48);
+
+  context.fillStyle = '#ffffff';
+  context.font = TITLE_FONT;
+  titleLines.forEach((line, index) => {
+    context.fillText(line, width / 2, titleTop + index * titleLineHeight);
+  });
 
   context.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  context.font = '700 20px Inter, sans-serif';
-  context.fillText(fitText(context, detail, width - 36), width / 2, 78);
+  context.font = DETAIL_FONT;
+  const detailTop = titleTop + titleLines.length * titleLineHeight + 6;
+  detailLines.forEach((line, index) => {
+    context.fillText(line, width / 2, detailTop + index * detailLineHeight);
+  });
 
   return context.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
-  if (context.measureText(text).width <= maxWidth) {
-    return text;
-  }
-
-  let trimmed = text;
-  while (trimmed.length > 0 && context.measureText(`${trimmed}…`).width > maxWidth) {
-    trimmed = trimmed.slice(0, -1);
-  }
-
-  return `${trimmed}…`;
 }
 
 function roundRect(
@@ -280,9 +319,18 @@ export function useTextAnnotationsLayer({
     if (activeAnnotation) {
       const imageData = createAnnotationCardImage(activeAnnotation, unitSystem);
       if (imageData) {
-        if (map.hasImage(CARD_IMAGE_ID)) {
+        // Cards are sized to their text, so consecutive ones differ. updateImage
+        // only accepts identical dimensions, so a resize has to replace the
+        // image rather than update it.
+        const existing = map.getImage(CARD_IMAGE_ID);
+        const sameSize = existing
+          && existing.data.width === imageData.width
+          && existing.data.height === imageData.height;
+
+        if (sameSize) {
           map.updateImage(CARD_IMAGE_ID, imageData);
         } else {
+          if (existing) map.removeImage(CARD_IMAGE_ID);
           map.addImage(CARD_IMAGE_ID, imageData);
         }
       }
