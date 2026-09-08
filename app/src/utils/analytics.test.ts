@@ -67,4 +67,30 @@ describe('analytics', () => {
     expect(getBlobSizeBucket(250 * 1024 * 1024)).toBe('xlarge');
     expect(getProgressBucket(75)).toBe('75_100');
   });
+
+  it('normalizes video export settings and milliseconds for reporting', async () => {
+    const { getVideoExportAnalyticsParams } = await import('./analytics');
+
+    expect(getVideoExportAnalyticsParams({
+      format: 'mp4',
+      quality: 'ultra',
+      qualityMode: 'studio',
+      fps: 60,
+      resolution: { width: 2160, height: 3840 },
+      aspectRatio: '9:16',
+      includeAudio: false,
+    }, 'webm', 90_000)).toEqual({
+      export_format: 'webm',
+      export_requested_format: 'mp4',
+      export_quality: 'ultra',
+      export_quality_mode: 'studio',
+      export_fps: 60,
+      export_aspect_ratio: '9:16',
+      export_resolution: '2160x3840',
+      export_width: 2160,
+      export_height: 3840,
+      export_duration_seconds: 90,
+      export_duration_bucket: 'medium',
+    });
+  });
 });

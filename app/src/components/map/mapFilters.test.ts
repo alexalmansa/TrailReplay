@@ -8,31 +8,36 @@ import {
 
 function fakeMap(existingLayerIds: string[]) {
   const setPaintProperty = vi.fn();
+  const triggerRepaint = vi.fn();
   return {
     map: {
       getLayer: (id: string) => (existingLayerIds.includes(id) ? { id } : undefined),
       setPaintProperty,
+      triggerRepaint,
     } as unknown as maplibregl.Map,
     setPaintProperty,
+    triggerRepaint,
   };
 }
 
 describe('applyBasemapFilter', () => {
   it('desaturates every basemap layer that exists', () => {
-    const { map, setPaintProperty } = fakeMap(['background', 'fallback-satellite']);
+    const { map, setPaintProperty, triggerRepaint } = fakeMap(['background', 'fallback-satellite']);
 
     applyBasemapFilter(map, 'mono');
 
     expect(setPaintProperty).toHaveBeenCalledWith('background', 'raster-saturation', -1);
     expect(setPaintProperty).toHaveBeenCalledWith('fallback-satellite', 'raster-saturation', -1);
+    expect(triggerRepaint).toHaveBeenCalledTimes(1);
   });
 
   it('skips layers the current style has not added', () => {
-    const { map, setPaintProperty } = fakeMap([]);
+    const { map, setPaintProperty, triggerRepaint } = fakeMap([]);
 
     applyBasemapFilter(map, 'noir');
 
     expect(setPaintProperty).not.toHaveBeenCalled();
+    expect(triggerRepaint).not.toHaveBeenCalled();
   });
 
   it('restores neutral paint for the "none" filter', () => {

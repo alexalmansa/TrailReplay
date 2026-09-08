@@ -8,8 +8,9 @@
     "dev": "npm --prefix app run dev",
     "build": "npm --prefix app ci && npm --prefix app run build && npm run check:pages-assets",
     "lint": "npm --prefix app run lint",
-    "test": "npm --prefix app run test:run",
-    "preview": "npm --prefix app run preview"
+    "test": "npm --prefix app run test:run && npm run test:functions",
+    "preview": "npm --prefix app run preview",
+    "test:functions": "npm --prefix app exec -- vitest run --config vitest.functions.config.js"
   },
   "keywords": [
     "gpx",

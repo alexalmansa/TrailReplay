@@ -83,6 +83,7 @@ export function createDefaultVideoExportSettings(): VideoExportSettings {
   return {
     format: 'mp4',
     quality: 'high',
+    qualityMode: 'standard',
     fps: 30,
     resolution: { width: 1920, height: 1080 },
     aspectRatio: '16:9',
