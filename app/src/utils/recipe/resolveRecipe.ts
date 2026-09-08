@@ -1,4 +1,5 @@
-import type { GPXTrack, IconChange, JourneySegment, TextAnnotation } from '@/types';
+import type { GPXTrack, IconChange, JourneySegment, RouteTimingMode, TextAnnotation } from '@/types';
+import { buildComputedJourney, progressForRouteDistance } from '@/utils/journeyUtils';
 import type { RouteLandmark } from '@/types/landmarks';
 import { createId } from '@/utils/id';
 import { anchorOnRoute, buildLegs, type RouteAnchor, type RouteLeg } from './anchorOnRoute';
@@ -27,12 +28,17 @@ export interface ResolvedRecipe {
   report: RecipeReport;
 }
 
-function entry(title: string, at: RouteAnchor, derived?: boolean): RecipeResolvedEntry {
+function entry(
+  title: string,
+  at: RouteAnchor,
+  progress: number,
+  derived?: boolean,
+): RecipeResolvedEntry {
   return {
     title,
     trackName: at.leg.name,
     km: at.trackMeters / 1000,
-    progress: at.progress,
+    progress,
     ...(at.offRouteMeters !== undefined ? { offRouteMeters: Math.round(at.offRouteMeters) } : {}),
     ...(derived ? { derived: true } : {}),
   };
@@ -44,6 +50,7 @@ function landmarkFrom(
   id: string,
   title: string,
   derived: boolean,
+  progress: number,
 ): RouteLandmark {
   return {
     id,
@@ -52,7 +59,7 @@ function landmarkFrom(
     display: spec.display ?? 'highlight',
     lat: at.lat,
     lon: at.lon,
-    progress: at.progress,
+    progress,
     ...(at.elevation !== undefined ? { elevation: Math.round(at.elevation) } : {}),
     title,
     ...(spec.subtitle ? { subtitle: spec.subtitle } : {}),
@@ -71,10 +78,11 @@ function annotationFrom(
   at: RouteAnchor,
   id: string,
   title: string,
+  progress: number,
 ): TextAnnotation {
   return {
     id,
-    progress: at.progress,
+    progress,
     lat: at.lat,
     lon: at.lon,
     title,
@@ -168,7 +176,52 @@ export function resolveRecipe(
       : 0;
   const activeTrack = resolvedTracks[activeIndex] ?? resolvedTracks[0];
 
+  const journeySegments: JourneySegment[] = (stitched ? resolvedTracks : [activeTrack])
+    .map((track) => ({
+      id: createId(`segment-${track.id}`),
+      type: 'track' as const,
+      trackId: track.id,
+      duration: stitched
+        ? durations[resolvedTracks.indexOf(track)]
+        : (recipe.totalDuration ?? DEFAULT_TOTAL_DURATION_MS),
+    }));
+
+  const timingMode: RouteTimingMode = recipe.routeTimingMode ?? 'recorded';
+  const computedJourney = buildComputedJourney(journeySegments, resolvedTracks);
+  const journeyTrackIds = new Set(
+    journeySegments
+      .filter((segment): segment is Extract<JourneySegment, { type: 'track' }> => segment.type === 'track')
+      .map((segment) => segment.trackId),
+  );
+
   const warnings: string[] = [];
+
+  /**
+   * The progress the app itself would give this position.
+   *
+   * Under `recorded` the replay advances by measurement point, not by distance,
+   * so a distance ratio only approximates it. Asking the app's own map keeps a
+   * recipe exact rather than close.
+   */
+  const progressAt = (at: RouteAnchor, label: string): number => {
+    if (!journeyTrackIds.has(at.leg.track.id)) {
+      // Its route is loaded but not in the timeline, so this has no moment in
+      // the replay at all and would fire wherever its number happens to land.
+      warnings.push(
+        `"${label}" is on "${at.leg.name}", which is not the route being played. `
+        + 'It will appear at a meaningless point. Give each route its own recipe, '
+        + 'or make this one the active route.',
+      );
+      return at.progress;
+    }
+    if (!computedJourney) return at.progress;
+    return progressForRouteDistance(
+      computedJourney.coordinates,
+      computedJourney.segmentTimings,
+      at.routeDistanceMeters,
+      timingMode,
+    ) ?? at.progress;
+  };
 
   const landmarks: RouteLandmark[] = [];
   const landmarkEntries: RecipeResolvedEntry[] = [];
@@ -178,15 +231,17 @@ export function resolveRecipe(
       for (const [autoIndex, derived] of expandAuto(spec.auto, legs, warnings).entries()) {
         const at = anchorOnRoute({ track: derived.track, km: derived.km }, legs, label);
         const title = spec.title ? `${spec.title} ${autoIndex + 1}` : derived.title;
-        landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, true));
-        landmarkEntries.push(entry(title, at, true));
+        const progress = progressAt(at, title);
+        landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, true, progress));
+        landmarkEntries.push(entry(title, at, progress, true));
       }
       return;
     }
     const at = anchorOnRoute(spec, legs, label);
     const title = spec.title ?? `Landmark ${index + 1}`;
-    landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, false));
-    landmarkEntries.push(entry(title, at));
+    const progress = progressAt(at, title);
+    landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, false, progress));
+    landmarkEntries.push(entry(title, at, progress));
   });
 
   const annotations: TextAnnotation[] = [];
@@ -198,16 +253,18 @@ export function resolveRecipe(
       for (const [autoIndex, derived] of expandAuto(spec.auto, legs, warnings).entries()) {
         const at = anchorOnRoute({ track: derived.track, km: derived.km }, legs, label);
         const title = spec.title ? `${spec.title} ${autoIndex + 1}` : derived.title;
-        annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title));
-        annotationEntries.push(entry(title, at, true));
+        const progress = progressAt(at, title);
+        annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title, progress));
+        annotationEntries.push(entry(title, at, progress, true));
         annotationLegs.push(at.leg.name);
       }
       return;
     }
     const at = anchorOnRoute(spec, legs, label);
     const title = spec.title ?? '';
-    annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title));
-    annotationEntries.push(entry(title, at));
+    const progress = progressAt(at, title);
+    annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title, progress));
+    annotationEntries.push(entry(title, at, progress));
     annotationLegs.push(at.leg.name);
   });
 
@@ -217,13 +274,14 @@ export function resolveRecipe(
     const label = `iconChanges[${index}]`;
     if (!spec.icon) throw new RecipeError(`${label}: "icon" is required`);
     const at = anchorOnRoute(spec, legs, label);
+    const progress = progressAt(at, spec.label ?? spec.icon);
     iconChanges.push({
       id: spec.id ?? createId('recipe-icon'),
-      progress: at.progress,
+      progress,
       icon: spec.icon,
       ...(spec.label ? { label: spec.label } : {}),
     });
-    iconEntries.push(entry(spec.label ?? spec.icon, at));
+    iconEntries.push(entry(spec.label ?? spec.icon, at, progress));
   });
 
   warnings.push(...collidingPins(landmarks));
@@ -236,17 +294,7 @@ export function resolveRecipe(
   return {
     tracks: resolvedTracks,
     activeTrackId: activeTrack.id,
-    // Alternatives still need the active route in the journey. An empty one
-    // leaves every route loaded but nothing to play and no elevation profile to
-    // draw, with no way back except adding a route by hand in the timeline.
-    journeySegments: (stitched ? resolvedTracks : [activeTrack]).map((track) => ({
-      id: createId(`segment-${track.id}`),
-      type: 'track' as const,
-      trackId: track.id,
-      duration: stitched
-        ? durations[resolvedTracks.indexOf(track)]
-        : (recipe.totalDuration ?? DEFAULT_TOTAL_DURATION_MS),
-    })),
+    journeySegments,
     userLandmarks: landmarks,
     textAnnotations: annotations,
     iconChanges,

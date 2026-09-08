@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseGPX } from '@/utils/gpxParser';
+import { buildComputedJourney, progressForRouteDistance } from '@/utils/journeyUtils';
 import { resolveRecipe } from './resolveRecipe';
 import { RecipeError } from './types';
 
@@ -267,6 +268,29 @@ describe('resolveRecipe', () => {
     expect(resolved.userLandmarks[0].title).toBe('Start / Finish');
   });
 
+  it('warns when a card is on a route that is not the one being played', () => {
+    const races = tracksFrom([
+      { name: 'long.gpx', gpx: leg({ name: 'Long', startLat: 42, points: 201 }) },
+      { name: 'short.gpx', gpx: leg({ name: 'Short', startLat: 42, points: 101 }) },
+    ]);
+
+    const resolved = resolveRecipe(
+      {
+        mode: 'alternatives',
+        tracks: [{ file: 'long.gpx' }, { file: 'short.gpx' }],
+        // Anchored to the course that is not playing: its progress means
+        // nothing in the active route's timeline, which is how an aid station
+        // ends up seconds away from the place it names.
+        annotations: [{ track: 'Short', km: 5, title: 'On the short course' }],
+      },
+      races.tracks,
+      races.names,
+    );
+
+    expect(resolved.report.warnings.some((w) => w.includes('not the route being played')))
+      .toBe(true);
+  });
+
   it('does not warn about cards on courses that never play together', () => {
     const races = tracksFrom([
       { name: 'long.gpx', gpx: leg({ name: 'Long', startLat: 42, points: 201 }) },
@@ -288,6 +312,41 @@ describe('resolveRecipe', () => {
       races.names,
     );
 
-    expect(resolved.report.warnings).toEqual([]);
+    expect(resolved.report.warnings.some((w) => w.includes('overlap'))).toBe(false);
+  });
+
+  // The promise of resolving in the app is that a recipe agrees with playback
+  // exactly. Recorded pace advances by measurement point, not by distance, so a
+  // distance ratio is only ever close — which is how a card ends up firing
+  // seconds away from the place it names.
+  it('gives every placement the progress the replay will actually use', () => {
+    const week = tracksFrom([
+      { name: 'a.gpx', gpx: leg({ name: 'A', startLat: 42, points: 101, start: '2026-05-01T08:00:00Z' }) },
+      { name: 'b.gpx', gpx: leg({ name: 'B', startLat: 43, points: 201, start: '2026-05-02T08:00:00Z' }) },
+    ]);
+
+    const resolved = resolveRecipe(
+      {
+        tracks: { files: '*.gpx' },
+        totalDuration: 60_000,
+        annotations: [
+          { track: 'A', km: 3, title: 'On A' },
+          { track: 'B', km: 12, title: 'On B' },
+        ],
+      },
+      week.tracks,
+      week.names,
+    );
+
+    const journey = buildComputedJourney(resolved.journeySegments, resolved.tracks)!;
+    for (const [index, card] of resolved.textAnnotations.entries()) {
+      const leg = index === 0 ? 0 : 1;
+      const km = index === 0 ? 3 : 12;
+      const routeMeters = journey.segmentTimings[leg].startDistance + km * 1000;
+      const app = progressForRouteDistance(
+        journey.coordinates, journey.segmentTimings, routeMeters, 'recorded',
+      )!;
+      expect(card.progress).toBeCloseTo(app, 6);
+    }
   });
 });
