@@ -5,6 +5,7 @@ import {
   createStudioDeliveryJob,
   deliverStudioExport,
   isValidDeliveryEmail,
+  shouldAutoDownloadVideo,
   type StudioDeliveryJob,
 } from './studioDelivery';
 
@@ -21,6 +22,13 @@ describe('isValidDeliveryEmail', () => {
     expect(isValidDeliveryEmail('alex+studio@example.com')).toBe(true);
     expect(isValidDeliveryEmail('not-an-email')).toBe(false);
     expect(isValidDeliveryEmail('a@b')).toBe(false);
+  });
+});
+
+describe('shouldAutoDownloadVideo', () => {
+  it('downloads standard exports but leaves Studio exports to email delivery', () => {
+    expect(shouldAutoDownloadVideo('standard')).toBe(true);
+    expect(shouldAutoDownloadVideo('studio')).toBe(false);
   });
 });
 

@@ -10,7 +10,7 @@
 // Every lead stores the version it agreed to, which is what makes a consent
 // claim evidenceable rather than assertable.
 
-export const CONSENT_TEXT_VERSION = 'v1-2026-09';
+export const CONSENT_TEXT_VERSION = 'v2-2026-09';
 
 const EU_EEA_UK = new Set([
   // EU

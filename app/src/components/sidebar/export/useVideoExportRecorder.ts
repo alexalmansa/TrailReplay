@@ -48,6 +48,7 @@ import {
   createStudioDeliveryJob,
   deliverStudioExport,
   isValidDeliveryEmail,
+  shouldAutoDownloadVideo,
   type StudioDeliveryJob,
   type StudioDeliveryRequest,
 } from './studioDelivery';
@@ -853,7 +854,8 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
     }
   }, [captureFrame, encodeWebCodecsFrame, updateOverlayAsync, videoExportSettings.fps, videoExportSettings.resolution]);
 
-  // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
+  // Flush the WebCodecs-encoded MP4 once recording has stopped. Standard
+  // exports download immediately; Studio exports are delivered by email.
   const finalizeWebCodecsExport = useCallback(async () => {
     const encoder = mp4EncoderRef.current;
     if (!encoder) return;
@@ -891,12 +893,14 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
           export_studio_timed_out_frames: studioStats.timedOutFrames,
         });
 
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `trail-replay-${Date.now()}.mp4`;
-        anchor.click();
-        URL.revokeObjectURL(url);
+        if (shouldAutoDownloadVideo(wasStudioQuality ? 'studio' : 'standard')) {
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = `trail-replay-${Date.now()}.mp4`;
+          anchor.click();
+          URL.revokeObjectURL(url);
+        }
 
         const deliveryJob = studioDeliveryJobRef.current;
         if (wasStudioQuality && deliveryJob) {

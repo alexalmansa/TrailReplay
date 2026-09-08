@@ -1,4 +1,4 @@
-import type { VideoExportSettings } from '@/types';
+import type { VideoExportSettings, VideoQualityMode } from '@/types';
 
 export const MAX_STUDIO_DELIVERY_BYTES = 95 * 1024 * 1024;
 
@@ -39,6 +39,15 @@ export function isValidDeliveryEmail(value: string): boolean {
   return normalized.length > 0
     && normalized.length <= 254
     && /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(normalized);
+}
+
+/**
+ * Standard exports are saved to the device as soon as they finish. Studio
+ * exports use email delivery instead, avoiding a second large-file transfer
+ * to the user's device after the upload completes.
+ */
+export function shouldAutoDownloadVideo(qualityMode: VideoQualityMode): boolean {
+  return qualityMode === 'standard';
 }
 
 export async function createStudioDeliveryJob(

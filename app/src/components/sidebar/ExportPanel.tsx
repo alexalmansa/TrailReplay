@@ -7,7 +7,7 @@ import { QUALITY_OPTIONS } from './export/exportConfig';
 import { useVideoExportRecorder } from './export/useVideoExportRecorder';
 import { isValidDeliveryEmail } from './export/studioDelivery';
 import { SocialSharePanel } from './export/SocialSharePanel';
-import { AlertTriangle, Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, X } from 'lucide-react';
+import { AlertTriangle, Check, Download, Film, ImageIcon, Instagram, Loader2, Save, Settings, Sparkles, X } from 'lucide-react';
 
 export function ExportPanel() {
   const { t } = useI18n();
@@ -87,7 +87,10 @@ export function ExportPanel() {
     setAcknowledgedBlob(exportedBlob);
     setShareModalDismissed(false);
   }
-  const showShareModal = Boolean(exportedBlob) && !isExporting && !shareModalDismissed;
+  const showShareModal = Boolean(exportedBlob)
+    && !isExporting
+    && studioDeliveryStatus === 'idle'
+    && !shareModalDismissed;
 
   return (
     <div className="space-y-4">
@@ -150,11 +153,26 @@ export function ExportPanel() {
               <h3 className="font-bold text-sm uppercase tracking-wide">{t('export.title')}</h3>
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-1.5 hover:bg-white/10 rounded"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded border border-white/20 px-2 py-1.5 text-[11px] font-semibold hover:bg-white/10"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-3.5 h-3.5" />
+                {t('export.openSettings')}
               </button>
             </div>
+
+            {videoExportSettings.qualityMode === 'studio' && (
+              <div className="mb-3 flex items-start gap-2 rounded-lg border border-[var(--trail-orange)] bg-white/10 p-2.5">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--trail-orange)]" aria-hidden="true" />
+                <div>
+                  <p className="text-xs font-bold text-[var(--canvas)]">
+                    {t('export.qualityModeStudio')}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-[var(--canvas)]/70">
+                    {t('export.studioSidebarSummary')}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -277,13 +295,17 @@ export function ExportPanel() {
                 </div>
               )}
 
-              <button
-                onClick={handleDownload}
-                className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                {t('export.downloadAgain')}
-              </button>
+              {(studioDeliveryStatus === 'idle' || studioDeliveryStatus === 'failed') && (
+                <button
+                  onClick={handleDownload}
+                  className="w-full tr-btn tr-btn-primary flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  {studioDeliveryStatus === 'failed'
+                    ? t('export.downloadRecovery')
+                    : t('export.downloadAgain')}
+                </button>
+              )}
 
               <button onClick={resetExportResult} className="w-full tr-btn tr-btn-secondary">
                 {t('export.newExport')}

@@ -1,4 +1,4 @@
-import { AlertTriangle, Monitor } from 'lucide-react';
+import { AlertTriangle, Monitor, Sparkles } from 'lucide-react';
 import type { VideoExportSettings, VideoQuality } from '@/types';
 import {
   ASPECT_RATIO_OPTIONS,
@@ -148,26 +148,47 @@ export function ExportSettingsModal({
           <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
             {t('export.qualityMode')}
           </label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {(['standard', 'studio'] as const).map((mode) => {
               // Studio pacing only exists on the deterministic MP4 encoder.
               const isDisabled = mode === 'studio'
                 && (!studioSupported || videoExportSettings.format !== 'mp4');
+              const isSelected = videoExportSettings.qualityMode === mode && !isDisabled;
+              const isStudio = mode === 'studio';
               return (
                 <button
                   key={mode}
+                  type="button"
+                  aria-pressed={isSelected}
                   disabled={isDisabled}
                   onClick={() => setVideoExportSettings({ qualityMode: mode })}
                   className={`
-                    flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors
+                    relative min-h-24 rounded-lg border-2 px-3 py-3 text-left transition-colors
                     disabled:opacity-40 disabled:cursor-not-allowed
-                    ${videoExportSettings.qualityMode === mode && !isDisabled
-                      ? 'bg-[var(--trail-orange)] text-[var(--canvas)]'
-                      : 'bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
+                    ${isSelected
+                      ? isStudio
+                        ? 'border-[var(--trail-orange)] bg-[var(--trail-orange)] text-[var(--canvas)]'
+                        : 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                      : isStudio
+                        ? 'border-[var(--trail-orange)]/60 bg-[var(--trail-orange-15)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]'
+                        : 'border-transparent bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
                     }
                   `}
                 >
-                  {mode === 'studio' ? t('export.qualityModeStudio') : t('export.qualityModeStandard')}
+                  <span className="flex items-center gap-1.5 text-sm font-bold">
+                    {isStudio && <Sparkles className="h-4 w-4" aria-hidden="true" />}
+                    {isStudio ? t('export.qualityModeStudio') : t('export.qualityModeStandard')}
+                  </span>
+                  {isStudio && (
+                    <span className={`mt-1 inline-block text-[10px] font-bold uppercase tracking-[0.06em] ${isSelected ? 'text-[var(--canvas)]' : 'text-[var(--trail-orange)]'}`}>
+                      {t('export.qualityModeStudioBadge')}
+                    </span>
+                  )}
+                  <span className={`mt-1.5 block text-[11px] leading-4 ${isSelected ? 'opacity-80' : 'text-[var(--evergreen-60)]'}`}>
+                    {isStudio
+                      ? t('export.qualityModeStudioSummary')
+                      : t('export.qualityModeStandardSummary')}
+                  </span>
                 </button>
               );
             })}
@@ -217,6 +238,9 @@ export function ExportSettingsModal({
               />
               <span>{t('export.marketingConsent')}</span>
             </label>
+            <p className="ml-6 mt-1 text-[11px] text-[var(--evergreen-60)]">
+              {t('export.marketingConsentHint')}
+            </p>
           </div>
         )}
 
