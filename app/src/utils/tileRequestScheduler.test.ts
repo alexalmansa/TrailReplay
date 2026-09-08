@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getTilePriority, getTileRequestUrl, TileRequestScheduler } from './tileRequestScheduler';
+import {
+  getTilePriority,
+  getTileRequestUrl,
+  preloadTileImage,
+  TileRequestScheduler,
+} from './tileRequestScheduler';
 
 describe('TileRequestScheduler', () => {
   it('prioritizes essential tiles and does not duplicate a completed tile', async () => {
@@ -29,5 +34,27 @@ describe('TileRequestScheduler', () => {
   it('prioritizes fallback imagery before detail and terrain tiles', () => {
     expect(getTilePriority('fallback-esri-clarity')).toBeLessThan(getTilePriority('esri-clarity'));
     expect(getTilePriority('esri-clarity')).toBeLessThan(getTilePriority('terrain-dem'));
+  });
+
+  it('preloads tiles in CORS mode so MapLibre can reuse the cached response', async () => {
+    let requestedCrossOrigin: string | null = null;
+
+    class FakeImage {
+      crossOrigin: string | null = null;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      set src(_url: string) {
+        requestedCrossOrigin = this.crossOrigin;
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+
+    vi.stubGlobal('Image', FakeImage);
+
+    await preloadTileImage('https://tiles.example.test/terrain.png');
+
+    expect(requestedCrossOrigin).toBe('anonymous');
+    vi.unstubAllGlobals();
   });
 });
