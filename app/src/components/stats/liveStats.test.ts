@@ -179,4 +179,66 @@ describe('calculateCurrentLiveStats', () => {
     const untimed = track('solo', [100, 120, 140], false);
     expect(elapsedTrackTime([], [], untimed, 0.5, 30)).toBe(15);
   });
+
+  /**
+   * Elevation used to be counted from the duration ratios while distance came
+   * from the marker. Under Constant Pace the marker advances by distance, so on
+   * legs whose durations are not proportional to their lengths the two told
+   * different stories: distance still reading leg 1 while elevation had already
+   * added the whole of it, and elevation a thousand metres up by the time
+   * distance reset to zero.
+   */
+  it('keeps elevation on the same leg as distance when legs are equal in time but not in length', () => {
+    // Three equal 30s legs of very different lengths, which is what dropping
+    // three GPX files gives you.
+    const long = track('long', [0, 500, 1000]);
+    const short = track('short', [0, 100, 200]);
+    // Stretch the first leg so distance and duration cannot agree.
+    long.points = long.points.map((point, index) => ({ ...point, distance: index * 10_000 }));
+    long.totalDistance = 20_000;
+    short.points = short.points.map((point, index) => ({ ...point, distance: index * 1_000 }));
+    short.totalDistance = 2_000;
+
+    const tracks = [long, short];
+    const segments: TrackSegment[] = tracks.map((entry) => ({
+      id: `segment-${entry.id}`, type: 'track', trackId: entry.id, duration: 30_000,
+    }));
+    const computedJourney = buildComputedJourney(segments, tracks)!;
+
+    const statsAt = (segmentIndex: number, distanceIntoLeg: number, progress: number) => {
+      const source = tracks[segmentIndex];
+      const point = source.points.reduce((best, candidate) => (
+        candidate.distance <= distanceIntoLeg ? candidate : best), source.points[0]);
+      return calculateCurrentLiveStats({
+        activeTrack: tracks[0],
+        computedJourney,
+        currentPosition: {
+          ...point,
+          distance: distanceIntoLeg,
+          segmentIndex,
+          segmentType: 'track',
+          trackId: source.id,
+        },
+        playbackProgress: progress,
+        restartPerTrack: true,
+        segmentTimings: computedJourney.segmentTimings,
+        totalDistance: computedJourney.totalDistance,
+        tracks,
+      });
+    };
+
+    // Progress says leg 2; the marker is still most of the way through leg 1.
+    // Elevation must follow the marker, not the clock.
+    const stillOnLegOne = statsAt(0, 15_000, 0.4);
+    expect(stillOnLegOne.distance).toBe(15_000);
+    // Leg 1 climbs 1000 m in total and leg 2 another 200 m. Counting from the
+    // clock would have added all of leg 1 plus part of leg 2.
+    expect(stillOnLegOne.elevationGain).toBeGreaterThan(0);
+    expect(stillOnLegOne.elevationGain).toBeLessThanOrEqual(1000);
+
+    // The moment the marker does cross, both restart together.
+    const justOntoLegTwo = statsAt(1, 0, 0.5);
+    expect(justOntoLegTwo.distance).toBe(0);
+    expect(justOntoLegTwo.elevationGain).toBe(0);
+  });
 });
