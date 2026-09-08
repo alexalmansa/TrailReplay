@@ -161,6 +161,13 @@ export function resolveRecipe(
     return track;
   });
 
+  const activeIndex = typeof recipe.activeTrack === 'number'
+    ? recipe.activeTrack
+    : recipe.activeTrack
+      ? named.findIndex((item) => item.name.toLowerCase() === String(recipe.activeTrack).toLowerCase())
+      : 0;
+  const activeTrack = resolvedTracks[activeIndex] ?? resolvedTracks[0];
+
   const warnings: string[] = [];
 
   const landmarks: RouteLandmark[] = [];
@@ -226,24 +233,20 @@ export function resolveRecipe(
     stitched,
   ));
 
-  const activeIndex = typeof recipe.activeTrack === 'number'
-    ? recipe.activeTrack
-    : recipe.activeTrack
-      ? named.findIndex((item) => item.name.toLowerCase() === String(recipe.activeTrack).toLowerCase())
-      : 0;
-  const activeTrack = resolvedTracks[activeIndex] ?? resolvedTracks[0];
-
   return {
     tracks: resolvedTracks,
     activeTrackId: activeTrack.id,
-    journeySegments: stitched
-      ? resolvedTracks.map((track, index) => ({
-        id: createId(`segment-${track.id}`),
-        type: 'track' as const,
-        trackId: track.id,
-        duration: durations[index],
-      }))
-      : [],
+    // Alternatives still need the active route in the journey. An empty one
+    // leaves every route loaded but nothing to play and no elevation profile to
+    // draw, with no way back except adding a route by hand in the timeline.
+    journeySegments: (stitched ? resolvedTracks : [activeTrack]).map((track) => ({
+      id: createId(`segment-${track.id}`),
+      type: 'track' as const,
+      trackId: track.id,
+      duration: stitched
+        ? durations[resolvedTracks.indexOf(track)]
+        : (recipe.totalDuration ?? DEFAULT_TOTAL_DURATION_MS),
+    })),
     userLandmarks: landmarks,
     textAnnotations: annotations,
     iconChanges,

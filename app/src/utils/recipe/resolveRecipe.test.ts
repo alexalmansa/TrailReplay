@@ -199,7 +199,11 @@ describe('resolveRecipe', () => {
       races.names,
     );
 
-    expect(resolved.journeySegments).toEqual([]);
+    // The active route still has to be in the journey, or nothing plays and
+    // there is no elevation profile.
+    expect(resolved.journeySegments).toHaveLength(1);
+    expect((resolved.journeySegments[0] as { trackId: string }).trackId)
+      .toBe(resolved.activeTrackId);
     expect(resolved.report.stitched).toBe(false);
     // Each is halfway along its own course, not along a combined one.
     expect(resolved.textAnnotations[0].progress).toBeCloseTo(0.5, 2);

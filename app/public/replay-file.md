@@ -73,7 +73,7 @@ screen time in ms, overriding the automatic share).
 
 | Key | Meaning |
 |---|---|
-| `mode` | `stitch` (default) plays them one after another as one journey. `alternatives` loads them all but plays only the active one — what separate courses of the same race are. |
+| `mode` | `stitch` (default) plays them one after another as one journey. `alternatives` loads them all but puts only the active one in the timeline, so the others are there to switch to. |
 | `legDuration` | `by-distance` (default) shares screen time by how far each leg is, so a 35 km day is not given the same seconds as an 8 km one. `equal`, or a number of ms per leg. |
 | `totalDuration` | Total replay length in ms. Default 60000. |
 | `activeTrack` | Which route starts active: index or name. |
@@ -163,8 +163,15 @@ wrong. Aid stations, cut-offs and "the climb starts here" are moments. Summits,
 huts and the village you start in are places. Pinning every feed station leaves
 the map cluttered with markers that mean nothing when the marker is elsewhere.
 
-**Separate courses are not one journey.** Three distances of the same race are
-`mode: "alternatives"`. Three days of a traverse are the default stitch.
+**One replay per course.** A replay plays one journey, and an annotation's
+`progress` is fixed to it, so three distances of the same race belong in three
+recipes — one per course, each listing its own aid stations at its own
+kilometres. That is also the only way every course gets its stops: put them all
+in one project and only the active course's cards fire at the right moment.
+`mode: "alternatives"` is for variants of the *same* route you want to switch
+between, not for courses that each deserve their own video.
+
+Three days of a traverse are the opposite case: one recipe, default stitch.
 
 **Use the source's own words.** If a race page says "Avituallament 2 — Torrent
 Gros (Km 13)", that is the title, in that language. Do not translate it or
