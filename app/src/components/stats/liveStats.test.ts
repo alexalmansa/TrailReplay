@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GPXPoint, GPXTrack, TrackSegment } from '@/types';
+import { createDefaultSettings } from '@/store/defaults';
 import { buildComputedJourney } from '@/utils/journeyUtils';
 import { calculateCurrentLiveStats, elapsedTrackTime } from './liveStats';
 
@@ -45,6 +46,35 @@ function track(id: string, elevations: [number, number, number], hasTime = true)
 }
 
 describe('calculateCurrentLiveStats', () => {
+  it('starts elevation gain at zero when the second route begins with default settings', () => {
+    const tracks = [track('first', [100, 150, 200]), track('second', [300, 320, 310])];
+    const segments: TrackSegment[] = tracks.map((entry) => ({
+      id: `segment-${entry.id}`,
+      type: 'track',
+      trackId: entry.id,
+      duration: 1000,
+    }));
+    const computedJourney = buildComputedJourney(segments, tracks)!;
+
+    const stats = calculateCurrentLiveStats({
+      activeTrack: tracks[0],
+      computedJourney,
+      currentPosition: {
+        ...tracks[1].points[0],
+        segmentIndex: 1,
+        segmentType: 'track',
+        trackId: 'second',
+      },
+      playbackProgress: 0.5001,
+      restartPerTrack: createDefaultSettings().journeyStatsMode === 'per-track',
+      segmentTimings: computedJourney.segmentTimings,
+      totalDistance: computedJourney.totalDistance,
+      tracks,
+    });
+
+    expect(stats.elevationGain).toBe(0);
+  });
+
   it('can restart distance, duration, pace basis, and elevation for each track', () => {
     const tracks = [track('first', [100, 120, 140]), track('second', [50, 70, 60])];
     const segments: TrackSegment[] = tracks.map((entry) => ({
