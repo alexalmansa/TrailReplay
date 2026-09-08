@@ -32,7 +32,8 @@ export const de = {
   recipe: {
     applied: 'Rezept angewendet — {tracks} Route(n), {placed} platziert.',
     reportTitle: 'Aus dem Rezept',
-    percentHint: '% bezieht sich auf die gesamte Wiedergabe',
+    timeHint: 'Zeiten beziehen sich auf die gesamte Wiedergabe',
+    markerAway: 'Marker {distance} entfernt',
     routes: '{count} Route(n)',
     stitched: 'als eine Reise abgespielt',
     alternatives: 'Alternativen — nur die aktive Route wird abgespielt',

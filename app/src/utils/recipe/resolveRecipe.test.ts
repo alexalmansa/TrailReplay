@@ -381,4 +381,51 @@ describe('resolveRecipe', () => {
     expect(resolved.report.warnings.some((w) => w.includes('variants of one route')))
       .toBe(false);
   });
+
+  // The catch-all. Whatever the cause — wrong route, wrong lap, mistimed — if
+  // the marker is not near the place when its card appears, the replay is wrong
+  // in the way people actually notice, and no other check has to name the cause.
+  it('warns when the marker is nowhere near a card as it appears', () => {
+    const races = tracksFrom([
+      { name: 'north.gpx', gpx: leg({ name: 'North', startLat: 42, points: 101 }) },
+      { name: 'south.gpx', gpx: leg({ name: 'South', startLat: 40, points: 101 }) },
+    ]);
+
+    const resolved = resolveRecipe(
+      {
+        mode: 'alternatives',
+        activeTrack: 0,
+        totalDuration: 60_000,
+        tracks: [{ file: 'north.gpx' }, { file: 'south.gpx' }],
+        annotations: [{ track: 'South', km: 5, title: 'Two hundred km away' }],
+      },
+      races.tracks,
+      races.names,
+    );
+
+    const [card] = resolved.report.annotations;
+    expect(card.markerOffMeters).toBeGreaterThan(100_000);
+    expect(resolved.report.warnings.some((w) => w.includes('away from it then'))).toBe(true);
+  });
+
+  it('reports when each entry appears and leaves the marker beside it', () => {
+    const single = tracksFrom([
+      { name: 'race.gpx', gpx: leg({ name: 'Race', startLat: 42, points: 101 }) },
+    ]);
+
+    const resolved = resolveRecipe(
+      {
+        totalDuration: 60_000,
+        annotations: [{ km: 5, title: 'Halfway', displayDuration: 4000 }],
+      },
+      single.tracks,
+      single.names,
+    );
+
+    const [card] = resolved.report.annotations;
+    expect(card.atSeconds).toBeCloseTo(30, 0);
+    expect(card.onScreenFromSeconds).toBeCloseTo(26, 0);
+    expect(card.markerOffMeters).toBeLessThan(50);
+    expect(resolved.report.warnings).toEqual([]);
+  });
 });

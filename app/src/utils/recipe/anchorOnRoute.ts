@@ -18,6 +18,13 @@ export interface RouteLeg {
 export interface RouteAnchor {
   lat: number;
   lon: number;
+  /**
+   * The point on the line itself, which is where the marker will be when the
+   * replay reaches this anchor. `lat`/`lon` may sit off the route deliberately,
+   * so timing has to be judged against this rather than against those.
+   */
+  routeLat: number;
+  routeLon: number;
   elevation?: number;
   /** Metres along the leg's own track. */
   trackMeters: number;
@@ -109,6 +116,8 @@ export function anchorOnRoute(
     // only decides when it appears. A hut 200 m off the trail is still there.
     lat: anchor.lat ?? point.lat,
     lon: anchor.lon ?? point.lon,
+    routeLat: point.lat,
+    routeLon: point.lon,
     elevation: point.elevation,
     trackMeters,
     routeDistanceMeters: leg.journeyStartMeters + trackMeters,

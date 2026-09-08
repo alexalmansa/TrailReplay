@@ -32,7 +32,8 @@ export const es = {
   recipe: {
     applied: 'Receta aplicada: {tracks} ruta(s), {placed} colocados.',
     reportTitle: 'De la receta',
-    percentHint: 'el % es del total de la reproducción',
+    timeHint: 'los tiempos son del total de la reproducción',
+    markerAway: 'marcador a {distance}',
     routes: '{count} ruta(s)',
     stitched: 'reproducidas como un solo viaje',
     alternatives: 'alternativas: solo se reproduce la ruta activa',

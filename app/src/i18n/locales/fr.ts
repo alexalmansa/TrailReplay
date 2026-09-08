@@ -32,7 +32,8 @@ export const fr = {
   recipe: {
     applied: 'Recette appliquée — {tracks} itinéraire(s), {placed} placés.',
     reportTitle: 'De la recette',
-    percentHint: 'le % porte sur toute la lecture',
+    timeHint: 'les temps portent sur toute la lecture',
+    markerAway: 'marqueur à {distance}',
     routes: '{count} itinéraire(s)',
     stitched: 'jouées comme un seul voyage',
     alternatives: 'alternatives — seul l’itinéraire actif est joué',

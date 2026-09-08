@@ -146,11 +146,27 @@ level: `activityIcon`, `routeTimingMode`, `showAutomaticLandmarks`,
 
 ### What you get back
 
-The app shows every placement with its kilometre, its route and its progress,
-plus warnings for the things that would otherwise only show up in the finished
-video: pins close enough to collapse into one, cards that would overlap on
-screen, days that do not join up. Ask the person to read it back to you if you
-want to check your work.
+You cannot watch the replay, so the app measures it for you and reports what it
+found. Ask the person to read the panel back — it is your only feedback.
+
+Each placement is listed with its kilometre **along its own route**, the seconds
+it is on screen **of the whole replay**, and the one number that matters:
+
+```
+ 7.1 km   23–28s   Les Casetes
+25.0 km   42–47s   Les Casetes          marker 4.1 km away
+```
+
+**"marker N away" means the replay is wrong.** It is how far the moving marker
+is from the place a card names at the moment that card appears. It should be
+metres. Anything more means the entry is timed to a different part of the replay
+than the place it names — anchored to a route that is not playing, or to one lap
+of a route the journey walks several times. It catches that whole class without
+you having to work out which cause applies.
+
+The panel also warns about pins close enough to collapse into one, cards that
+would overlap on screen, days that do not join up, and variants of one route
+stitched as if they were consecutive legs.
 
 ## 3. Getting it right
 

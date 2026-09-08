@@ -138,6 +138,17 @@ export interface RecipeResolvedEntry {
   trackName: string;
   km: number;
   progress: number;
+  /** When the replay reaches this, in seconds. */
+  atSeconds: number;
+  /** When a card comes on screen, in seconds. Absent for pins. */
+  onScreenFromSeconds?: number;
+  /**
+   * How far the marker is from this entry's point on the route at the moment it
+   * appears. Anything but ~0 means the entry is timed to a different part of
+   * the replay than the place it names — the one number that catches a card
+   * bound to the wrong route, or to the wrong lap of a repeated one.
+   */
+  markerOffMeters: number;
   /** Set when the entry was anchored by coordinate, so a bad pick is visible. */
   offRouteMeters?: number;
   /** Set when the entry was derived rather than authored. */

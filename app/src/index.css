@@ -612,3 +612,8 @@ html, body {
   color: var(--trail-orange);
   font-variant-numeric: tabular-nums;
 }
+
+.recipe-report__tag--bad {
+  background: rgba(232, 111, 81, 0.22);
+  color: #8A3A22;
+}

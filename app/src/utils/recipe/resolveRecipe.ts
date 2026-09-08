@@ -1,5 +1,11 @@
 import type { GPXTrack, IconChange, JourneySegment, RouteTimingMode, TextAnnotation } from '@/types';
-import { buildComputedJourney, progressForRouteDistance } from '@/utils/journeyUtils';
+import {
+  buildComputedJourney,
+  buildJourneyDistanceProfile,
+  getJourneyPointAtDistance,
+  getJourneyPointAtProgress,
+  progressForRouteDistance,
+} from '@/utils/journeyUtils';
 import type { RouteLandmark } from '@/types/landmarks';
 import { createId } from '@/utils/id';
 import { anchorOnRoute, buildLegs, type RouteAnchor, type RouteLeg } from './anchorOnRoute';
@@ -33,13 +39,22 @@ function entry(
   title: string,
   at: RouteAnchor,
   progress: number,
+  measure: (at: RouteAnchor, progress: number) => number,
+  totalMs: number,
+  displayMs: number | undefined,
   derived?: boolean,
 ): RecipeResolvedEntry {
+  const atSeconds = (progress * totalMs) / 1000;
   return {
     title,
     trackName: at.leg.name,
     km: at.trackMeters / 1000,
     progress,
+    atSeconds,
+    ...(displayMs !== undefined
+      ? { onScreenFromSeconds: Math.max(0, atSeconds - displayMs / 1000) }
+      : {}),
+    markerOffMeters: Math.round(measure(at, progress)),
     ...(at.offRouteMeters !== undefined ? { offRouteMeters: Math.round(at.offRouteMeters) } : {}),
     ...(derived ? { derived: true } : {}),
   };
@@ -224,6 +239,35 @@ export function resolveRecipe(
     ) ?? at.progress;
   };
 
+  const totalMs = journeySegments.reduce((sum, segment) => sum + segment.duration, 0);
+
+  /**
+   * How far the marker is from this place when the replay reaches the entry.
+   *
+   * The whole class of "the card appears nowhere near the thing it names" —
+   * bound to a route that is not playing, bound to one lap of a route the
+   * journey walks several times, or simply mistimed — collapses to this one
+   * number, so it is worth measuring rather than reasoning about.
+   */
+  const distanceProfile = computedJourney
+    ? buildJourneyDistanceProfile(computedJourney.coordinates)
+    : null;
+
+  const markerOffAt = (at: RouteAnchor, progress: number): number => {
+    if (!computedJourney) return 0;
+    // Mirrors useComputedJourney's currentPosition, so this is the marker the
+    // viewer will actually see rather than an approximation of it.
+    const point = timingMode === 'uniform' && distanceProfile
+      ? getJourneyPointAtDistance(distanceProfile, distanceProfile.totalDistance * progress)
+      : getJourneyPointAtProgress(
+        progress,
+        computedJourney.coordinates,
+        computedJourney.segmentTimings,
+      );
+    if (!point) return 0;
+    return calculateDistance(point.lat, point.lon, at.routeLat, at.routeLon);
+  };
+
   const landmarks: RouteLandmark[] = [];
   const landmarkEntries: RecipeResolvedEntry[] = [];
   (recipe.landmarks ?? []).forEach((spec, index) => {
@@ -234,7 +278,7 @@ export function resolveRecipe(
         const title = spec.title ? `${spec.title} ${autoIndex + 1}` : derived.title;
         const progress = progressAt(at, title);
         landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, true, progress));
-        landmarkEntries.push(entry(title, at, progress, true));
+        landmarkEntries.push(entry(title, at, progress, markerOffAt, totalMs, undefined, true));
       }
       return;
     }
@@ -242,7 +286,7 @@ export function resolveRecipe(
     const title = spec.title ?? `Landmark ${index + 1}`;
     const progress = progressAt(at, title);
     landmarks.push(landmarkFrom(spec, at, spec.id ?? createId('recipe-landmark'), title, false, progress));
-    landmarkEntries.push(entry(title, at, progress));
+    landmarkEntries.push(entry(title, at, progress, markerOffAt, totalMs, undefined));
   });
 
   const annotations: TextAnnotation[] = [];
@@ -256,7 +300,10 @@ export function resolveRecipe(
         const title = spec.title ? `${spec.title} ${autoIndex + 1}` : derived.title;
         const progress = progressAt(at, title);
         annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title, progress));
-        annotationEntries.push(entry(title, at, progress, true));
+        annotationEntries.push(entry(
+          title, at, progress, markerOffAt, totalMs,
+          spec.displayDuration ?? DEFAULT_ANNOTATION_MS, true,
+        ));
         annotationLegs.push(at.leg.name);
       }
       return;
@@ -265,7 +312,9 @@ export function resolveRecipe(
     const title = spec.title ?? '';
     const progress = progressAt(at, title);
     annotations.push(annotationFrom(spec, at, spec.id ?? createId('recipe-note'), title, progress));
-    annotationEntries.push(entry(title, at, progress));
+    annotationEntries.push(entry(
+      title, at, progress, markerOffAt, totalMs, spec.displayDuration ?? DEFAULT_ANNOTATION_MS,
+    ));
     annotationLegs.push(at.leg.name);
   });
 
@@ -282,9 +331,10 @@ export function resolveRecipe(
       icon: spec.icon,
       ...(spec.label ? { label: spec.label } : {}),
     });
-    iconEntries.push(entry(spec.label ?? spec.icon, at, progress));
+    iconEntries.push(entry(spec.label ?? spec.icon, at, progress, markerOffAt, totalMs, undefined));
   });
 
+  warnings.push(...markerNowhereNear([...landmarkEntries, ...annotationEntries, ...iconEntries]));
   if (stitched) warnings.push(...variantsStitchedAsLegs(legs));
   warnings.push(...collidingPins(landmarks));
   warnings.push(...overlappingCards(
@@ -310,6 +360,27 @@ export function resolveRecipe(
       warnings,
     },
   };
+}
+
+/**
+ * Beyond this, the marker is visibly somewhere else when the entry appears.
+ * Generous, because recorded pace and a coarse track both move it a little.
+ */
+const MARKER_TOLERANCE_METERS = 150;
+
+/**
+ * The catch-all. Whatever the cause, if the marker is not near the place when
+ * its card appears, the replay is wrong in the way people actually notice.
+ */
+function markerNowhereNear(entries: RecipeResolvedEntry[]): string[] {
+  return entries
+    .filter((item) => item.markerOffMeters > MARKER_TOLERANCE_METERS)
+    .map((item) => (
+      `"${item.title}" appears at ${item.atSeconds.toFixed(1)}s, but the marker is `
+      + `${item.markerOffMeters >= 1000
+        ? `${(item.markerOffMeters / 1000).toFixed(1)} km`
+        : `${item.markerOffMeters} m`} away from it then.`
+    ));
 }
 
 /** Legs whose starts coincide are the same route again, not the next one. */
