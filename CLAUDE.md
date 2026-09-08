@@ -88,6 +88,32 @@ Parsing is split across dedicated modules:
 
 Entry point: `app/src/utils/gpxParser.ts` (`parseGPX`, `parseKML`, `parseGPXFiles`). The `useGPX` hook wraps this for file input handling.
 
+### Recipes (`app/src/utils/recipe/`) — the agent path
+
+A **recipe** is a small JSON file describing a replay in the terms a source
+uses ("the aid station at km 6.5", "the places we slept"), dropped on the page
+*together with* the GPX files it names. `useGPX.parseFiles` routes any `.json`
+in a drop to `resolveRecipe`, which turns intent into positions using
+`track.points[].distance` — the distances the GPX parser already accumulated.
+
+Resolution lives here rather than in a build script on purpose: there are two
+`calculateDistance` functions in this repo with different units (metres in
+`gpx/trackStats.ts`, kilometres in `journeyUtils.ts`), and anything reimplementing
+the maths outside the app will eventually disagree with it.
+
+- `resolveRecipe.ts` — recipe + parsed tracks → landmarks, annotations, journey
+- `anchorOnRoute.ts` — km / lat-lon / progress → position, and the leg layout
+  that shares screen time by distance
+- `overnightStops.ts` — derives where consecutive legs meet
+- `matchTrackFiles.ts` — pairs specs with dropped files; globs and ordering
+- `applyRecipe.ts` — puts the result in the store, replacing what was there
+
+Every resolution is reported back through `state.recipeReport` and rendered by
+`RecipeReportCard`, including warnings for what would otherwise only show up in
+the finished video (pins inside the map's 80 m collapse radius, cards that
+overlap on screen, days that do not join up). **New checks belong there** —
+an agent cannot see the render, so the report is its only feedback.
+
 ### Project files (`.replay`) and agent authoring
 
 `app/src/utils/projectFile/` reads and writes `.replay` archives (a zip of

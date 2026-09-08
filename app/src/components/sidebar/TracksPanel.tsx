@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ComparisonTrackItem } from '@/components/sidebar/tracks/ComparisonTrackItem';
 import { TrackItem } from '@/components/sidebar/tracks/TrackItem';
+import { RecipeReportCard } from '@/components/sidebar/tracks/RecipeReportCard';
 import { COMPARISON_COLORS } from '@/components/sidebar/tracks/constants';
 import { trackEvent } from '@/utils/analytics';
 
@@ -84,9 +85,12 @@ export function TracksPanel() {
     const trailFiles = acceptedFiles.filter(
       (file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
+        // `json` is a recipe, which arrives alongside the routes it names.
         return extension === 'gpx' || extension === 'kml' || extension === 'replay' ||
+          extension === 'json' ||
           file.type === 'application/gpx+xml' ||
-          file.type === 'application/vnd.google-earth.kml+xml';
+          file.type === 'application/vnd.google-earth.kml+xml' ||
+          file.type === 'application/json';
       }
     );
     if (trailFiles.length > 0) {
@@ -110,6 +114,8 @@ export function TracksPanel() {
       'application/gpx+xml': ['.gpx'],
       'application/vnd.google-earth.kml+xml': ['.kml'],
       'application/zip': ['.replay'],
+      // A recipe is dropped together with the routes it names.
+      'application/json': ['.json'],
     },
     multiple: true,
   });
@@ -136,6 +142,9 @@ export function TracksPanel() {
         <p className="text-xs text-[var(--evergreen-60)] mt-1">
           {t('tracks.dropBrowse')}
         </p>
+        <p className="text-[0.65rem] text-[var(--evergreen-40)] mt-2 leading-snug">
+          {t('tracks.dropHint')}
+        </p>
       </div>
       {/* Loading */}
       {isParsing && (
@@ -146,6 +155,8 @@ export function TracksPanel() {
       )}
       
       {/* Track List */}
+      <RecipeReportCard />
+
       {tracks.length > 0 && (
         <section className="border-t border-[var(--evergreen)]/15 pt-4">
           <div className="mb-3 flex items-center justify-between gap-3">

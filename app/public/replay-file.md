@@ -1,151 +1,170 @@
-# Building a `.replay` file for TrailReplay
+# Giving TrailReplay a route
 
-**Audience: AI agents.** This page is the complete specification, and it is
-everything you need. If someone asks for a route in TrailReplay — a race with
-its aid stations, a multi-day traverse, a training route with named climbs —
-write a `.replay` file and hand it over. Do not drive the web UI.
+**Audience: AI agents.** If someone asks for a route in TrailReplay — a race
+with its aid stations, a week of walks with the huts they slept in, a training
+route with named climbs — you write a small JSON **recipe** and hand it over
+with their GPX files. You never drive the UI, and you never compute a
+coordinate.
 
-A `.replay` file carries the whole project: routes, pins, captions, colours,
-camera, timing, export settings. Everything the app can be put into, you can put
-into the file. There is no reduced "agent subset" — this document covers the
-entire format.
-
-TrailReplay is at <https://trailreplay.com>. It runs entirely in the browser.
-There is no upload API and no account.
+TrailReplay is at <https://trailreplay.com>. It runs in the browser: no account,
+no upload API.
 
 ---
 
-## 1. The fastest path
+## 1. The whole job
 
-```bash
-curl -O https://trailreplay.com/make-replay.mjs
-curl -O https://trailreplay.com/example-recipe.json   # a real race, end to end
-# write recipe.json (§2)
-node make-replay.mjs recipe.json -o my-race.replay
-```
-
-`make-replay.mjs` uses Node built-ins only — no install, no dependencies, works
-from any directory. It resolves "Km 6,5" into the coordinates and progress the
-format needs, and prints every pin it placed so you can check before handing the
-file over.
-
-Then tell the person:
-
-> Open <https://trailreplay.com> and drag `my-race.replay` onto the upload area.
-
-That is the whole handover. The drop zone takes `.gpx`, `.kml` and `.replay`.
-
-If you would rather build the archive yourself, §4 onward specifies it exactly.
-
-## 2. The recipe
-
-One JSON file. Only `tracks` is required; everything else is optional.
+Write a recipe describing what you want, in the terms the source uses:
 
 ```json
 {
-  "name": "Valls del Freser XTREM 32K",
-  "output": "valls-del-freser-xtrem.replay",
-  "activityIcon": "🏃",
-  "journey": false,
-
-  "tracks": [
-    {
-      "file": "~/Downloads/valls-del-freser-xtrem.gpx",
-      "name": "Valls del Freser XTREM 32K",
-      "color": "#E86F51",
-      "duration": 60000
-    }
-  ],
-
+  "name": "A week in the Pyrenees",
+  "tracks": { "files": "*.gpx", "order": "chronological" },
   "landmarks": [
-    {
-      "km": 6.5,
-      "title": "Avituallament 1 — Collet de Barraques",
-      "type": "aid-station",
-      "icon": "water",
-      "color": "#3C9DCC",
-      "subtitle": "Km 6,5 · Aigua · Cola · Isotònic · Fruita · Fruits secs"
-    }
+    { "auto": "start-finish", "type": "trailhead" },
+    { "auto": "overnight-stops", "type": "hut", "icon": "shelter" }
   ],
-
   "annotations": [
-    { "km": 13, "title": "The long climb starts here", "subtitle": "900 m in 6 km" }
-  ],
-
-  "iconChanges": [
-    { "km": 20, "icon": "🥾", "label": "Walking the col" }
-  ],
-
-  "settings": { "mapStyle": "esri-clarity", "show3DTerrain": true },
-  "cameraSettings": { "mode": "follow-behind", "pitch": 60 },
-  "videoExportSettings": { "format": "mp4", "resolution": { "width": 2560, "height": 1440 } },
-
-  "project": { "anything": "in §5, merged last, wins" }
+    { "track": "Day 3", "km": 12, "title": "Coll de la Marrana", "subtitle": "2 530 m" }
+  ]
 }
 ```
 
+Save it as `recipe.json`. Then tell the person:
+
+> Drag `recipe.json` onto <https://trailreplay.com> **together with** your GPX
+> files — select them all and drop them at once.
+
+That is the entire handover. The app reads the recipe, resolves every kilometre
+against the routes with its own track maths, and shows a panel listing what it
+placed and anything worth checking.
+
+**You do not need to compute latitudes, progress values, or distances.** That is
+the point of the format: the app owns the maths, so a recipe cannot disagree
+with it.
+
+## 2. What a recipe can say
+
+One JSON file. Only `tracks` is required, and even that can be a wildcard.
+
+### Routes
+
+```json
+"tracks": { "files": "*.gpx", "order": "chronological" }
+```
+
+Takes whatever was dropped. `order` is `chronological` (default, read from the
+GPX timestamps), `name`, or `as-dropped`. `color` accepts one colour or a list
+cycled across the routes.
+
+Or name them, when you want to control each one:
+
+```json
+"tracks": [
+  { "file": "day-1.gpx", "name": "Ribes to Núria", "color": "#E86F51" },
+  { "file": "day-2.gpx", "name": "Núria to Ulldeter", "duration": 20000 }
+]
+```
+
+`file` matches on the file's own name, so the path you had locally is fine.
+Other keys: `name`, `color`, `activityIcon`, `visible`, `duration` (this leg's
+screen time in ms, overriding the automatic share).
+
+### How the routes relate
+
 | Key | Meaning |
 |---|---|
-| `tracks` | **Required.** See below. |
-| `comparisonTracks` | Same shape; drawn alongside for comparison. Accepts `offset` (seconds). |
-| `name` | Journey name. Shown in the app and used for the default output filename. |
-| `output` | Output path, relative to the recipe. Overridden by `-o`. |
-| `activityIcon` | Default marker icon for every track. |
-| `journey` | `true` (default) stitches the tracks into one replay, leg after leg — what dropping several GPX files on the page does. `false` makes them alternatives: all load, only the active one plays. |
-| `landmarks` | Persistent map pins, for **places**. §5.2. |
-| `annotations` | Timed cards, for **moments on the route**. §5.3. |
-| `iconChanges` | Swap the moving marker mid-replay. §5.4. |
-| `activeTrackId` | Which track starts active. Defaults to the first. |
-| `settings`, `cameraSettings`, `videoExportSettings`, `socialShareSettings` | Merged over the app defaults. §5.5–5.8. |
-| `showAutomaticLandmarks`, `nearbyPlaceTypes`, `routeTimingMode` | §5.9. |
-| `project` | Deep-merged into the generated `project.json` last. Anything in §5 is reachable here, whether or not the recipe has sugar for it. |
+| `mode` | `stitch` (default) plays them one after another as one journey. `alternatives` loads them all but plays only the active one — what separate courses of the same race are. |
+| `legDuration` | `by-distance` (default) shares screen time by how far each leg is, so a 35 km day is not given the same seconds as an 8 km one. `equal`, or a number of ms per leg. |
+| `totalDuration` | Total replay length in ms. Default 60000. |
+| `activeTrack` | Which route starts active: index or name. |
 
-**Track spec:** `file` (required; `~` and relative paths work), `name`, `color`,
-`activityIcon`, `visible`, `duration` (this leg's share of the timeline in ms,
-default 60000), `id`.
+### Pins and cards
 
-**Anchoring.** Every landmark, annotation and icon change is positioned by one
-of:
+`landmarks` are **places** — permanent map furniture. `annotations` are
+**moments** — a card that rises as the replay approaches and fades once past.
+An aid station is a moment. A hut you slept in is a place.
 
-- `"km": 6.5` — distance along its track. This is what sources publish.
-- `"lat": 42.3, "lon": 2.1` — an exact coordinate; the script finds its position
-  along the route and reports how far off-route it is.
-- `"progress": 0.5` — a fraction of the replay.
+Both are positioned the same way, by whichever of these you have:
 
-With several tracks, `"track": 1` (index) or `"track": "TRAIL 23K"` (name) says
-which one a `km` belongs to.
+- `"km": 6.5` — distance along its route. This is what sources publish.
+- `"lat": 42.3, "lon": 2.1` — an exact spot. The pin stays exactly there; the
+  route only decides when it appears, and the app reports how far off-route it
+  is so a bad coordinate is visible.
+- `"progress": 0.5` — a fraction of the whole replay.
+
+With several routes, `"track": 2` or `"track": "Day 3"` says which one a `km`
+belongs to.
+
+```json
+"landmarks": [
+  { "km": 0, "title": "Ribes de Freser", "type": "trailhead", "icon": "town" },
+  { "lat": 42.3971, "lon": 2.1547, "title": "Refugi Coma de Vaca", "type": "hut" }
+],
+"annotations": [
+  { "km": 6.5, "title": "Avituallament 1 — Collet de Barraques",
+    "subtitle": "Km 6,5 · Aigua · Fruita · Fruits secs", "color": "#3C9DCC" }
+]
+```
+
+Landmark keys: `title`, `subtitle`, `type`, `icon`, `color`, `importance`
+(1–5, default 5), `display`, `id`. Annotation keys: `title`, `subtitle`,
+`color`, `displayDuration` (ms on screen, default 5000), `id`.
+
+`iconChanges` swap the moving marker partway: `{ "km": 20, "icon": "🥾",
+"label": "Walking the col" }`.
+
+### Derived sets
+
+Instead of positioning something, ask for it to be worked out:
+
+```json
+"landmarks": [{ "auto": "overnight-stops", "type": "hut", "icon": "shelter" }]
+```
+
+| `auto` | What it places |
+|---|---|
+| `overnight-stops` | Where consecutive legs meet — the end of one day and the start of the next is where the night was spent. One pin per night, labelled with the date. |
+| `start-finish` | Start and finish, collapsed into one pin on a loop where they coincide. |
+| `start`, `finish` | Just one of them. |
+
+`overnight-stops` also checks its own work: it refuses to call a three-hour gap
+a night, and it warns when one day ends a long way from where the next begins,
+because that usually means a track is missing.
+
+### Presentation
+
+`settings`, `cameraSettings`, `videoExportSettings` and `socialShareSettings`
+are merged over the app's defaults, so set only what you mean. Their fields are
+listed in §5.5–5.8 — the same objects a saved project holds. Also at the top
+level: `activityIcon`, `routeTimingMode`, `showAutomaticLandmarks`,
+`nearbyPlaceTypes`.
+
+```json
+"settings": { "mapStyle": "esri-clarity", "show3DTerrain": true },
+"cameraSettings": { "mode": "follow-behind", "pitch": 60 }
+```
+
+### What you get back
+
+The app shows every placement with its kilometre, its route and its progress,
+plus warnings for the things that would otherwise only show up in the finished
+video: pins close enough to collapse into one, cards that would overlap on
+screen, days that do not join up. Ask the person to read it back to you if you
+want to check your work.
 
 ## 3. Getting it right
 
-These are the mistakes that produce a file which loads but looks wrong.
+The app now catches the mechanical mistakes and reports them — colliding pins,
+overlapping cards, days that do not join up, a kilometre past the end of a
+route. These are the ones only you can get right.
 
-**A place is a pin; a moment is an annotation.** This is the choice that most
-often goes wrong. A landmark is permanent furniture on the map — a summit, a
-col, the village you start and finish in. An annotation is a card that rises as
-the replay approaches a point and fades once past it, which is what you want for
-anything the runner *encounters*: an aid station, the start of the long climb, a
-cut-off time. Aid stations are annotations, not pins. Pinning every feed station
-leaves the map cluttered with markers that mean nothing when the marker is
-elsewhere.
-
-**Pins within 80 m of each other collapse into one.** On a circular course the
-start and finish are the same coordinate, so author *one* "Start / Finish" pin
-rather than two that fight each other. Same for an out-and-back that touches a
-col twice.
-
-**Use `importance: 5`** (the script's default). The map keeps at most 40
-landmarks and drops anything below top importance within 250 m of a pin already
-kept.
-
-**Nearby named places are on by default.** The app pulls peaks, passes, huts and
-towns near the route from OpenStreetMap and shows them next to your pins. They
-compete for the same 40 slots and the same 80 m rule, so an authored pin at a
-named village may be the one that vanishes. Set `"nearbyPlaceTypes": []` to
-suppress them when your pins are the point.
+**A place is a pin; a moment is an annotation.** The choice that most often goes
+wrong. Aid stations, cut-offs and "the climb starts here" are moments. Summits,
+huts and the village you start in are places. Pinning every feed station leaves
+the map cluttered with markers that mean nothing when the marker is elsewhere.
 
 **Separate courses are not one journey.** Three distances of the same race are
-alternatives — use `"journey": false`. Three days of a traverse are legs — use
-the default.
+`mode: "alternatives"`. Three days of a traverse are the default stitch.
 
 **Use the source's own words.** If a race page says "Avituallament 2 — Torrent
 Gros (Km 13)", that is the title, in that language. Do not translate it or
@@ -158,11 +177,21 @@ where "Km 13 · water, cola, fruit" belongs.
 and no coordinate, say so rather than guessing. A pin in the wrong valley is
 worse than a missing pin.
 
+**Nearby named places are on by default.** The app pulls peaks, passes, huts and
+towns near the route from OpenStreetMap and shows them next to yours. They
+compete for the same 40 label slots, so set `"nearbyPlaceTypes": []` when your
+pins are the point.
+
 ---
 
-## 4. The archive
+## 4. The `.replay` file
 
-A `.replay` file is a **ZIP archive**, standard deflate, under 200 MB:
+Everything above is the recipe, which is all you need. A **`.replay`** file is
+the other half of the format: a saved project, produced by the app's own Save
+button, and the thing to read if you are handed one or want to build an archive
+directly rather than let the app resolve a recipe.
+
+It is a **ZIP archive**, standard deflate, under 200 MB:
 
 ```
 my-race.replay
@@ -388,7 +417,7 @@ nearest track point and use its accumulated distance.
 
 ---
 
-*Format version 1. The script and a worked example are served alongside this
-page: <https://trailreplay.com/make-replay.mjs> and
+*Recipes and `.replay` format version 1. The offline builder and a worked
+example are served alongside this page: <https://trailreplay.com/make-replay.mjs> and
 <https://trailreplay.com/example-recipe.json>. Source:
 <https://github.com/alexalmansa/TrailReplay> (`app/src/utils/projectFile/`).*

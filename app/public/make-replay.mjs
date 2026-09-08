@@ -306,7 +306,11 @@ function buildProject(recipe, recipeDir) {
   // Tracks stitched into one journey, which is what dropping several GPX files
   // on the page produces. `journey: false` keeps them as alternatives instead,
   // so only the active one plays.
-  const stitched = recipe.journey !== false;
+  // `mode` is the in-app recipe's spelling; `journey` is kept for older recipes
+  // so one file works in both places.
+  const stitched = recipe.mode !== undefined
+    ? recipe.mode === 'stitch'
+    : recipe.journey !== false;
   const totalDuration = main.tracks.reduce((sum, track) => sum + track.duration, 0);
   let elapsedDuration = 0;
   let elapsedKm = 0;
@@ -323,6 +327,12 @@ function buildProject(recipe, recipeDir) {
 
   const userLandmarks = (recipe.landmarks ?? []).map((entry, index) => {
     const label = `landmarks[${index}] ${JSON.stringify(entry.title ?? '')}`;
+    if (entry.auto) {
+      throw new Error(
+        `${label}: "auto" sets such as ${entry.auto} are resolved by the app, not this script. `
+        + 'Drop the recipe on trailreplay.com with the GPX files instead.',
+      );
+    }
     const at = anchor(entry, main.tracks, label);
     resolved.push({ kind: 'pin   ', title: entry.title, ...at });
 

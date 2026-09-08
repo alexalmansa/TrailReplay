@@ -9,11 +9,13 @@ type UiSlice = Pick<
   | 'activePanel'
   | 'isLoading'
   | 'error'
+  | 'recipeReport'
   | 'setSidebarOpen'
   | 'setExploreMode'
   | 'setActivePanel'
   | 'setLoading'
   | 'setError'
+  | 'setRecipeReport'
 >;
 
 export const createUiSlice: AppSliceCreator<UiSlice> = (set) => ({
@@ -22,10 +24,16 @@ export const createUiSlice: AppSliceCreator<UiSlice> = (set) => ({
   activePanel: 'tracks',
   isLoading: false,
   error: null,
+  recipeReport: null,
 
   setSidebarOpen: (isOpen) =>
     set((state) => {
       state.isSidebarOpen = isOpen;
+    }),
+
+  setRecipeReport: (report) =>
+    set((state) => {
+      state.recipeReport = report;
     }),
 
   setExploreMode: (enabled) =>
