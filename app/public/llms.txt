@@ -14,9 +14,11 @@ pins, the names, the colours and the playback settings.
 - [Building a .replay file](https://trailreplay.com/replay-file.md): the complete
   format specification, the kilometre-to-coordinate maths, and the pitfalls that
   silently drop pins from the map. Read this before writing anything.
-- [make-replay.mjs](https://raw.githubusercontent.com/alexalmansa/TrailReplay/main/scripts/make-replay.mjs):
-  builds a `.replay` from a short JSON recipe that anchors landmarks by
-  kilometre. Node built-ins only, no install step.
+- [make-replay.mjs](https://trailreplay.com/make-replay.mjs): builds a `.replay`
+  from a short JSON recipe that anchors things by kilometre. Node built-ins
+  only, no install step.
+- [example-recipe.json](https://trailreplay.com/example-recipe.json): a real
+  race, start to finish, as a recipe.
 
 Opening a file is a drag-and-drop onto <https://trailreplay.com>, done by the
 person, not by you.

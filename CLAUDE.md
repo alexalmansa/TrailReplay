@@ -96,13 +96,18 @@ not require). Only `formatVersion` and `tracks` are required to open one —
 `hydrateProject` backfills everything else from `store/defaults.ts`, so a
 project can be authored by hand or by a script rather than only by the app.
 
-That path is public and documented for agents:
+The agent-facing surface all lives in `app/public/`, so it is served from the
+site on the same origin rather than only existing in the repo:
 
-- `app/public/replay-file.md` — the format spec, served at
-  `https://trailreplay.com/replay-file.md`
-- `app/public/llms.txt` — the agent entry point for the site
-- `scripts/make-replay.mjs` — builds a `.replay` from a JSON recipe that anchors
-  landmarks by kilometre; Node built-ins only
+- `replay-file.md` — the format spec, at `https://trailreplay.com/replay-file.md`
+- `llms.txt` — the agent entry point for the site
+- `make-replay.mjs` — builds a `.replay` from a JSON recipe that anchors
+  landmarks and annotations by kilometre; Node built-ins only, so an agent can
+  `curl` and run it with no install
+- `example-recipe.json` — a worked recipe for a real race
+
+`docCoverage.test.ts` fails when a `ReplayProjectFile` field is missing from
+`replay-file.md`, so the spec cannot drift from the type.
 
 **Keep new `ReplayProjectFile` fields optional**, and update
 `app/public/replay-file.md` when the format gains something an author would set.

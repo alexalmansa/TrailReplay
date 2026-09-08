@@ -136,11 +136,21 @@ function readTrack(gpxText, label) {
   return { points, totalKm: total, gpxName: name };
 }
 
-/** Interpolate the point sitting `km` along the route. */
+/**
+ * Interpolate the point sitting `km` along the route.
+ *
+ * A published distance is rounded — a "15K" course measures 14.398 km — so a
+ * small overshoot is snapped to the end rather than rejected. Anything beyond
+ * that is a real mistake and says so.
+ */
 function pointAtKm(track, km) {
-  if (km < 0 || km > track.totalKm + 1e-6) {
-    throw new Error(`km ${km} is outside this route, which is ${track.totalKm.toFixed(2)} km long`);
+  const tolerance = Math.max(0.05, track.totalKm * 0.02);
+  if (km < -tolerance || km > track.totalKm + tolerance) {
+    throw new Error(
+      `km ${km} is outside this route, which is ${track.totalKm.toFixed(2)} km long`,
+    );
   }
+  km = Math.max(0, Math.min(track.totalKm, km));
 
   const { points } = track;
   let index = points.findIndex((point) => point.distance >= km);
@@ -189,83 +199,132 @@ function slugify(value, fallback) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || fallback;
 }
 
-/**
- * Resolve where an annotation sits on the route. A recipe may anchor by `km`
- * (what race pages publish), by `lat`/`lon` (what a map pick gives), or by
- * `progress` directly.
- */
-function anchor(entry, tracks, label) {
-  const track = entry.track === undefined
-    ? tracks[0]
-    : tracks[typeof entry.track === 'number'
-      ? entry.track
-      : tracks.findIndex((candidate) => candidate.name === entry.track)];
-
-  if (!track) throw new Error(`${label}: no track named ${JSON.stringify(entry.track)}`);
-
-  if (entry.km !== undefined) {
-    const point = pointAtKm(track, entry.km);
-    return { ...point, progress: track.totalKm > 0 ? entry.km / track.totalKm : 0 };
+/** Deep-merge b over a. Arrays and scalars replace; plain objects merge. */
+function merge(a, b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return b === undefined ? a : b;
+  const out = { ...a };
+  for (const [key, value] of Object.entries(b)) {
+    out[key] = merge(out[key] && typeof out[key] === 'object' ? out[key] : {}, value);
   }
-
-  if (entry.lat !== undefined && entry.lon !== undefined) {
-    const match = projectToTrack(track, entry.lat, entry.lon);
-    return {
-      lat: entry.lat,
-      lon: entry.lon,
-      km: match.km,
-      offRouteKm: match.offRouteKm,
-      progress: track.totalKm > 0 ? match.km / track.totalKm : 0,
-    };
-  }
-
-  if (entry.progress !== undefined) {
-    const point = pointAtKm(track, entry.progress * track.totalKm);
-    return { ...point, progress: entry.progress };
-  }
-
-  throw new Error(`${label}: needs one of "km", "lat"+"lon", or "progress"`);
+  return out;
 }
 
-function buildProject(recipe, recipeDir) {
+/**
+ * Where an entry sits on the route. A recipe anchors by `km` (what race pages
+ * publish), by `lat`/`lon` (what a map pick gives), or by `progress`.
+ *
+ * With several tracks stitched into a journey, `progress` spans the whole
+ * journey — a landmark on the second of three equal legs sits past 1/3 — while
+ * `km` is always measured along its own track.
+ */
+function anchor(entry, tracks, label) {
+  const index = entry.track === undefined
+    ? 0
+    : typeof entry.track === 'number'
+      ? entry.track
+      : tracks.findIndex((candidate) => candidate.name === entry.track);
+  const track = tracks[index];
+  if (!track) throw new Error(`${label}: no track ${JSON.stringify(entry.track)}`);
+
+  let km;
+  let offRouteKm;
+
+  if (entry.km !== undefined) {
+    km = entry.km;
+  } else if (entry.lat !== undefined && entry.lon !== undefined) {
+    const match = projectToTrack(track, entry.lat, entry.lon);
+    km = match.km;
+    offRouteKm = match.offRouteKm;
+  } else if (entry.progress !== undefined) {
+    // A bare progress on a journey addresses the journey, not the track.
+    const local = (entry.progress - track.progressStart) / track.progressShare;
+    km = Math.max(0, Math.min(1, local)) * track.totalKm;
+  } else {
+    throw new Error(`${label}: needs one of "km", "lat"+"lon", or "progress"`);
+  }
+
+  const point = pointAtKm(track, km);
+  km = point.km;
+  const localFraction = track.totalKm > 0 ? km / track.totalKm : 0;
+
+  return {
+    lat: entry.lat ?? point.lat,
+    lon: entry.lon ?? point.lon,
+    elevation: point.elevation,
+    km,
+    offRouteKm,
+    journeyKm: track.journeyStartKm + km,
+    progress: Math.max(0, Math.min(1, track.progressStart + localFraction * track.progressShare)),
+  };
+}
+
+const DEFAULT_SEGMENT_DURATION_MS = 60_000;
+
+function readTrackSpecs(specs, recipeDir, idPrefix) {
+  const tracks = [];
+  const metas = [];
   const routeFiles = {};
   const usedNames = new Set();
-  const tracks = [];
-  const trackMetas = [];
 
-  for (const [index, spec] of (recipe.tracks ?? []).entries()) {
-    if (!spec.file) throw new Error(`tracks[${index}]: "file" is required`);
+  for (const [index, spec] of specs.entries()) {
+    if (!spec.file) throw new Error(`${idPrefix}[${index}]: "file" is required`);
     const path = expandPath(spec.file, recipeDir);
     const gpxText = readFileSync(path, 'utf8');
     const parsed = readTrack(gpxText, spec.file);
     const name = spec.name ?? parsed.gpxName ?? basename(path).replace(/\.gpx$/i, '');
 
-    let routeFile = `routes/${slugify(name, `route-${index}`)}.gpx`;
-    if (usedNames.has(routeFile)) routeFile = `routes/${slugify(name, 'route')}-${index}.gpx`;
+    let routeFile = `routes/${slugify(name, `${idPrefix}-${index}`)}.gpx`;
+    if (usedNames.has(routeFile)) routeFile = `routes/${slugify(name, idPrefix)}-${index}.gpx`;
     usedNames.add(routeFile);
     routeFiles[routeFile] = gpxText;
 
-    tracks.push({ ...parsed, name });
-    trackMetas.push({
-      id: `track-${index}`,
+    tracks.push({ ...parsed, name, duration: spec.duration ?? DEFAULT_SEGMENT_DURATION_MS });
+    metas.push({
+      id: spec.id ?? `${idPrefix}-${index}`,
       name,
       routeFile,
       ...(spec.color ? { color: spec.color } : {}),
-      ...(spec.activityIcon ?? recipe.activityIcon
-        ? { activityIcon: spec.activityIcon ?? recipe.activityIcon }
-        : {}),
+      ...(spec.activityIcon ? { activityIcon: spec.activityIcon } : {}),
       ...(spec.visible === false ? { visible: false } : {}),
+      ...(spec.offset !== undefined ? { offset: spec.offset } : {}),
     });
   }
 
-  if (tracks.length === 0) throw new Error('recipe has no tracks');
+  return { tracks, metas, routeFiles };
+}
+
+function buildProject(recipe, recipeDir) {
+  const main = readTrackSpecs(recipe.tracks ?? [], recipeDir, 'track');
+  if (main.tracks.length === 0) throw new Error('recipe has no tracks');
+
+  const comparison = readTrackSpecs(recipe.comparisonTracks ?? [], recipeDir, 'comparison');
+
+  for (const meta of main.metas) {
+    if (recipe.activityIcon && !meta.activityIcon) meta.activityIcon = recipe.activityIcon;
+  }
+
+  // Tracks stitched into one journey, which is what dropping several GPX files
+  // on the page produces. `journey: false` keeps them as alternatives instead,
+  // so only the active one plays.
+  const stitched = recipe.journey !== false;
+  const totalDuration = main.tracks.reduce((sum, track) => sum + track.duration, 0);
+  let elapsedDuration = 0;
+  let elapsedKm = 0;
+  for (const track of main.tracks) {
+    track.progressStart = stitched ? elapsedDuration / totalDuration : 0;
+    track.progressShare = stitched ? track.duration / totalDuration : 1;
+    // Alternatives each start their own distance count; legs continue the journey's.
+    track.journeyStartKm = stitched ? elapsedKm : 0;
+    elapsedDuration += track.duration;
+    elapsedKm += track.totalKm;
+  }
 
   const resolved = [];
 
   const userLandmarks = (recipe.landmarks ?? []).map((entry, index) => {
     const label = `landmarks[${index}] ${JSON.stringify(entry.title ?? '')}`;
-    const at = anchor(entry, tracks, label);
-    resolved.push({ kind: 'landmark', title: entry.title, ...at });
+    const at = anchor(entry, main.tracks, label);
+    resolved.push({ kind: 'pin   ', title: entry.title, ...at });
 
     return {
       id: entry.id ?? `recipe-landmark-${index}`,
@@ -282,15 +341,16 @@ function buildProject(recipe, recipeDir) {
       // and its 250 m corridor rule, which only prunes below top importance.
       importance: entry.importance ?? 5,
       ...(entry.icon ? { icon: entry.icon } : {}),
-      routeDistanceMeters: Math.round(at.km * 1000),
+      routeDistanceMeters: Math.round(at.journeyKm * 1000),
       ...(entry.color ? { color: entry.color } : {}),
+      ...(entry.metadata ? { metadata: entry.metadata } : {}),
     };
   });
 
   const textAnnotations = (recipe.annotations ?? []).map((entry, index) => {
     const label = `annotations[${index}] ${JSON.stringify(entry.title ?? '')}`;
-    const at = anchor(entry, tracks, label);
-    resolved.push({ kind: 'annotation', title: entry.title, ...at });
+    const at = anchor(entry, main.tracks, label);
+    resolved.push({ kind: 'note  ', title: entry.title, ...at });
 
     return {
       id: entry.id ?? `recipe-annotation-${index}`,
@@ -305,39 +365,72 @@ function buildProject(recipe, recipeDir) {
     };
   });
 
+  const iconChanges = (recipe.iconChanges ?? []).map((entry, index) => {
+    const label = `iconChanges[${index}] ${JSON.stringify(entry.icon ?? '')}`;
+    const at = anchor(entry, main.tracks, label);
+    resolved.push({ kind: 'icon  ', title: entry.icon, ...at });
+
+    return {
+      id: entry.id ?? `recipe-icon-${index}`,
+      progress: at.progress,
+      icon: entry.icon,
+      ...(entry.label ? { label: entry.label } : {}),
+    };
+  });
+
+  const activeTrackId = recipe.activeTrackId ?? main.metas[0].id;
+  const activeTrack = main.metas.find((meta) => meta.id === activeTrackId) ?? main.metas[0];
+
   const project = {
     formatVersion: FORMAT_VERSION,
-    tracks: trackMetas,
-    activeTrackId: trackMetas[0].id,
+    tracks: main.metas,
+    activeTrackId,
+    ...(comparison.metas.length > 0 ? { comparisonTracks: comparison.metas } : {}),
     journey: {
       id: 'recipe-journey',
-      name: recipe.name ?? trackMetas[0].name,
+      name: recipe.name ?? main.metas[0].name,
       segments: [],
       totalDuration: 0,
       totalDistance: 0,
     },
+    journeySegments: stitched
+      ? main.metas.map((meta, index) => ({
+        id: `recipe-segment-${index}`,
+        type: 'track',
+        trackId: meta.id,
+        duration: main.tracks[index].duration,
+      }))
+      : [],
     userLandmarks,
     textAnnotations,
-    // Authored landmarks are the point of the file; the derived ones would
-    // compete with them for the map's label budget.
+    iconChanges,
+    // Authored landmarks are the point of the file; derived ones would compete
+    // with them for the map's label budget.
     showAutomaticLandmarks: recipe.showAutomaticLandmarks ?? false,
+    ...(recipe.nearbyPlaceTypes !== undefined ? { nearbyPlaceTypes: recipe.nearbyPlaceTypes } : {}),
     ...(recipe.routeTimingMode ? { routeTimingMode: recipe.routeTimingMode } : {}),
-    settings: {
-      ...recipe.settings,
+    settings: merge({
+      // A track colour set in the recipe should also colour the trail, which is
+      // a setting rather than a track field.
       trailStyle: {
-        // A track colour set in the recipe should also colour the trail, which
-        // is a setting rather than a track field.
-        ...(trackMetas[0].color ? { trailColor: trackMetas[0].color, markerColor: trackMetas[0].color } : {}),
-        ...(recipe.activityIcon ? { currentIcon: recipe.activityIcon } : {}),
-        ...recipe.settings?.trailStyle,
+        ...(activeTrack.color ? { trailColor: activeTrack.color, markerColor: activeTrack.color } : {}),
+        ...(activeTrack.activityIcon ? { currentIcon: activeTrack.activityIcon } : {}),
       },
-    },
+    }, recipe.settings ?? {}),
     ...(recipe.cameraSettings ? { cameraSettings: recipe.cameraSettings } : {}),
     ...(recipe.videoExportSettings ? { videoExportSettings: recipe.videoExportSettings } : {}),
     ...(recipe.socialShareSettings ? { socialShareSettings: recipe.socialShareSettings } : {}),
   };
 
-  return { project, routeFiles, tracks, resolved };
+  return {
+    // `project` is merged last and unfiltered, so any field of the format is
+    // reachable from a recipe even if this script grows no sugar for it.
+    project: merge(project, recipe.project ?? {}),
+    routeFiles: { ...main.routeFiles, ...comparison.routeFiles },
+    tracks: main.tracks,
+    resolved,
+    stitched,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -354,7 +447,7 @@ function main() {
 
   const recipeDir = dirname(resolve(recipePath));
   const recipe = JSON.parse(readFileSync(recipePath, 'utf8'));
-  const { project, routeFiles, tracks, resolved } = buildProject(recipe, recipeDir);
+  const { project, routeFiles, tracks, resolved, stitched } = buildProject(recipe, recipeDir);
 
   const outPath = outFlag !== -1
     ? resolve(args[outFlag + 1])
@@ -365,15 +458,20 @@ function main() {
     'project.json': JSON.stringify(project, null, 2),
   }));
 
+  const totalKm = tracks.reduce((sum, track) => sum + track.totalKm, 0);
   for (const track of tracks) {
     console.log(`track  ${track.name} — ${track.totalKm.toFixed(2)} km, ${track.points.length} points`);
   }
+  console.log(stitched
+    ? `       ${tracks.length} stitched into one journey, ${totalKm.toFixed(2)} km total`
+    : `       ${tracks.length} alternative route(s); only the active one plays`);
+
   for (const entry of resolved) {
     const offRoute = entry.offRouteKm !== undefined
       ? `, ${Math.round(entry.offRouteKm * 1000)} m off route`
       : '';
     console.log(
-      `${entry.kind === 'landmark' ? 'pin   ' : 'note  '} km ${entry.km.toFixed(2)}`
+      `${entry.kind} km ${entry.km.toFixed(2)}`
       + ` (${(entry.progress * 100).toFixed(1)}%) ${entry.lat.toFixed(5)},${entry.lon.toFixed(5)}`
       + `${offRoute} — ${entry.title}`,
     );

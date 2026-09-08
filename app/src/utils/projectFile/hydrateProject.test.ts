@@ -272,7 +272,11 @@ describe('cinematic camera keyframes in a saved project', () => {
     expect(state.pictures).toEqual([]);
     expect(state.videos).toEqual([]);
     expect(state.textAnnotations).toEqual([]);
-    expect(state.journeySegments).toEqual([]);
+
+    // An omitted journey means "same as dropping these GPX files on the page",
+    // so addTrack's segment survives and the track actually plays.
+    expect(state.journeySegments).toHaveLength(1);
+    expect(state.journeySegments[0]).toMatchObject({ type: 'track', trackId: state.tracks[0].id });
 
     // A partial trailStyle keeps the rest of the defaults.
     expect(state.settings.trailStyle.trailColor).toBe('#123456');
@@ -281,5 +285,43 @@ describe('cinematic camera keyframes in a saved project', () => {
     expect(state.videoExportSettings.fps).toBe(30);
     expect(state.socialShareSettings.aspectRatio).toBe('4:5');
     expect(state.playback.routeTimingMode).toBe('recorded');
+  });
+
+  it('keeps a segment per track so a multi-track project plays end to end', () => {
+    const store = createAppStore();
+    const meta = (n: number) => ({ routeFile: `routes/leg-${n}.gpx`, name: `Leg ${n}` });
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Traverse',
+        createdAt: '', savedAt: '', trackCount: 3, pictureCount: 0, videoCount: 0,
+      },
+      project: { formatVersion: 1, tracks: [meta(1), meta(2), meta(3)] },
+      tracks: [1, 2, 3].map((n) => ({ meta: meta(n), gpxText: sampleGpx })),
+      comparisonTracks: [],
+    }, store.getState());
+
+    const state = store.getState();
+    expect(state.tracks).toHaveLength(3);
+    expect(state.journeySegments).toHaveLength(3);
+    expect(state.journeySegments.map((s) => (s as { trackId: string }).trackId))
+      .toEqual(state.tracks.map((t) => t.id));
+  });
+
+  it('honours an explicit empty journey', () => {
+    const store = createAppStore();
+    const meta = { routeFile: 'routes/leg.gpx', name: 'Leg' };
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Solo',
+        createdAt: '', savedAt: '', trackCount: 1, pictureCount: 0, videoCount: 0,
+      },
+      project: { formatVersion: 1, tracks: [meta], journeySegments: [] },
+      tracks: [{ meta, gpxText: sampleGpx }],
+      comparisonTracks: [],
+    }, store.getState());
+
+    expect(store.getState().journeySegments).toEqual([]);
   });
 });

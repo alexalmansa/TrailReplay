@@ -108,9 +108,12 @@ export function hydrateProject(parsed: ParsedProject, store: AppState): void {
     // An absent activeTrackId means "whatever a plain GPX upload would pick",
     // which is the first track.
     activeTrackId: project.activeTrackId ?? trackIds[0] ?? null,
-    // addTrack already created a journey; only overwrite it if one was saved.
+    // addTrack already built a journey and one segment per track, which is
+    // exactly what dropping those GPX files on the page produces. Only
+    // overwrite that when the project actually says otherwise — an omitted
+    // field means "same as a plain upload", not "no journey at all".
     ...(project.journey ? { journey: project.journey } : {}),
-    journeySegments: project.journeySegments ?? [],
+    ...(project.journeySegments ? { journeySegments: project.journeySegments } : {}),
     pictures: (project.pictures ?? []).map(hydratePicture),
     videos: (project.videos ?? []).map(hydrateVideo),
     iconChanges: project.iconChanges ?? [],
