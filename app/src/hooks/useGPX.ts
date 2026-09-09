@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react';
-import { parseGPXFiles } from '@/utils/gpxParser';
+import { toast } from 'sonner';
+import { parseGPXFiles, parseRouteFiles } from '@/utils/gpxParser';
+import { isRecipeFile, parseRecipeFile } from '@/utils/recipe/parseRecipeFile';
+import { resolveRecipe } from '@/utils/recipe/resolveRecipe';
+import { applyRecipe } from '@/utils/recipe/applyRecipe';
+import { RecipeError } from '@/utils/recipe/types';
 import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { getDistanceBucket, trackEvent } from '@/utils/analytics';
@@ -15,6 +20,63 @@ export function useGPX() {
   const setError = useAppStore((state) => state.setError);
   const { openProjectFile } = useProjectFile();
 
+  const applyRecipeFiles = useCallback(async (
+    recipeFile: File,
+    fileArray: File[],
+    routeInputMethod: RouteInputMethod,
+  ) => {
+    setIsParsing(true);
+    setParseError(null);
+    trackEvent('recipe_import_started', { route_input_method: routeInputMethod });
+
+    try {
+      const recipe = await parseRecipeFile(recipeFile);
+      const parsed = await parseRouteFiles(fileArray);
+      if (parsed.length === 0) {
+        throw new RecipeError(
+          'Drop the GPX or KML files together with the recipe — it only names them.',
+        );
+      }
+
+      const resolved = resolveRecipe(
+        recipe,
+        parsed.map((entry) => entry.track),
+        parsed.map((entry) => entry.fileName),
+      );
+      applyRecipe(recipe, resolved, useAppStore.getState());
+      useAppStore.getState().setRecipeReport(resolved.report);
+
+      trackEvent('recipe_import_completed', {
+        recipe_track_count: resolved.report.trackCount,
+        recipe_landmark_count: resolved.report.landmarks.length,
+        recipe_annotation_count: resolved.report.annotations.length,
+        recipe_warning_count: resolved.report.warnings.length,
+        recipe_stitched: resolved.report.stitched,
+      });
+
+      const placed = resolved.report.landmarks.length + resolved.report.annotations.length;
+      toast.success(t('recipe.applied', {
+        tracks: String(resolved.report.trackCount),
+        placed: String(placed),
+      }));
+
+      return resolved.tracks;
+    } catch (error) {
+      console.error('Failed to apply recipe:', error);
+      const message = error instanceof RecipeError
+        ? error.message
+        : t('recipe.errors.failed');
+      trackEvent('recipe_import_failed', {
+        recipe_error_type: error instanceof RecipeError ? 'recipe' : 'unknown',
+      });
+      setParseError(message);
+      setError(message);
+      throw error;
+    } finally {
+      setIsParsing(false);
+    }
+  }, [setError, t]);
+
   const parseFiles = useCallback(async (
     files: FileList | File[] | null,
     routeInputMethod: RouteInputMethod = 'file_picker',
@@ -27,6 +89,22 @@ export function useGPX() {
     if (replayFile) {
       await openProjectFile(replayFile);
       return undefined;
+    }
+
+    // A recipe describes a whole replay in terms of the routes dropped with it.
+    const recipeFiles = fileArray.filter(isRecipeFile);
+    if (recipeFiles.length > 0) {
+      // Silently picking one of several would produce a replay nobody asked
+      // for, and the difference between two recipes is the whole point of them.
+      if (recipeFiles.length > 1) {
+        const message = t('recipe.errors.multiple', {
+          files: recipeFiles.map((file) => file.name).join(', '),
+        });
+        setParseError(message);
+        setError(message);
+        return undefined;
+      }
+      return applyRecipeFiles(recipeFiles[0], fileArray, routeInputMethod);
     }
 
     setIsParsing(true);
@@ -76,7 +154,7 @@ export function useGPX() {
     } finally {
       setIsParsing(false);
     }
-  }, [addTrack, openProjectFile, setError, t]);
+  }, [addTrack, applyRecipeFiles, openProjectFile, setError, t]);
 
   return {
     parseFiles,

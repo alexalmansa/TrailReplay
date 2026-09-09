@@ -8,6 +8,10 @@ import { hydrateProject } from '@/utils/projectFile/hydrateProject';
 import { hasUnsavedProjectContent } from '@/utils/projectFile/hasUnsavedWork';
 import { downloadReplayArchive, type SaveProjectSource } from '@/utils/projectFile/downloadReplayArchive';
 import { ReplayArchiveError, type ReplayArchiveErrorCode } from '@/utils/projectFile/validation';
+import { parseGPX } from '@/utils/gpxParser';
+import { resolveRecipe } from '@/utils/recipe/resolveRecipe';
+import { applyRecipe } from '@/utils/recipe/applyRecipe';
+import { RecipeError } from '@/utils/recipe/types';
 
 export function isReplayFile(file: File): boolean {
   return file.name.toLowerCase().endsWith('.replay');
@@ -51,16 +55,39 @@ export function useProjectFile() {
     trackEvent('project_open_started', {});
     try {
       const parsed = await parseReplayArchive(file);
-      hydrateProject(parsed, useAppStore.getState());
+
+      if (parsed.project) {
+        hydrateProject({ ...parsed, project: parsed.project }, useAppStore.getState());
+        useAppStore.getState().setSourceRecipe(parsed.recipe);
+      } else if (parsed.recipe) {
+        // A recipe and its routes, with nothing resolved: the same work as
+        // dropping the folder, so it goes through the same resolver rather than
+        // a second implementation of it.
+        const tracks = parsed.routes.map((route) => parseGPX(route.gpxText, route.fileName));
+        const resolved = resolveRecipe(
+          parsed.recipe,
+          tracks,
+          parsed.routes.map((route) => route.fileName),
+        );
+        applyRecipe(parsed.recipe, resolved, useAppStore.getState());
+        useAppStore.getState().setRecipeReport(resolved.report);
+      }
+
       trackEvent('project_open_completed', {
         format_version: parsed.manifest.formatVersion,
-        track_count: parsed.tracks.length,
-        picture_count: parsed.project.pictures.length,
-        video_count: parsed.project.videos.length,
+        track_count: parsed.tracks.length || parsed.routes.length,
+        picture_count: parsed.project?.pictures?.length ?? 0,
+        video_count: parsed.project?.videos?.length ?? 0,
+        project_from_recipe: parsed.recipe !== null,
       });
       toast.success(t('projectFile.opened'));
     } catch (error) {
       console.error('Failed to open project:', error);
+      if (error instanceof RecipeError) {
+        setError(error.message);
+        trackEvent('project_open_failed', { error_code: 'recipe' });
+        return;
+      }
       const key = error instanceof ReplayArchiveError
         ? errorCodeToTranslationKey(error.code)
         : 'projectFile.errors.corrupt';

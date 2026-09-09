@@ -11,3 +11,19 @@
 
 /ads.txt
   Cache-Control: public, max-age=86400
+
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+/replay-file.md
+  Content-Type: text/markdown; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+/make-replay.mjs
+  Content-Type: text/javascript; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+/example-recipe.json
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: public, max-age=3600

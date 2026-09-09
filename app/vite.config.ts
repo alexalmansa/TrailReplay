@@ -40,6 +40,7 @@ export default defineConfig(({ command, mode }) => {
       input: {
         main: path.resolve(__dirname, 'index.html'),
         tutorial: path.resolve(__dirname, 'tutorial.html'),
+        agents: path.resolve(__dirname, 'agents.html'),
         gpxGuide: path.resolve(__dirname, 'gpx-download-guide.html'),
         stravaToVideo: path.resolve(__dirname, 'strava-to-video.html'),
         garminToVideo: path.resolve(__dirname, 'garmin-to-video.html'),

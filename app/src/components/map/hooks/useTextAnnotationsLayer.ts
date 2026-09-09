@@ -1,8 +1,14 @@
-import { useEffect, type MutableRefObject } from 'react';
+import { useEffect, useState, type MutableRefObject } from 'react';
 import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import type { TextAnnotation, UnitSystem } from '@/types';
 import { convertElevation } from '@/utils/units';
+import {
+  CARD_MIN_WIDTH,
+  cardLayoutForMapWidth,
+  wrapText,
+  type CardLayout,
+} from '@/components/map/annotationCardText';
 
 const SOURCE_ID = 'route-annotations';
 const ACTIVE_SOURCE_ID = 'route-annotations-active';
@@ -10,6 +16,14 @@ const MARKER_LAYER_ID = 'route-annotations-marker';
 const HALO_LAYER_ID = 'route-annotations-halo';
 const CARD_LAYER_ID = 'route-annotations-card';
 const CARD_IMAGE_ID = 'route-annotations-card-image';
+
+/**
+ * Bottom to top, the order the annotation layers must keep.
+ *
+ * An annotation is the one thing on the map someone put there deliberately, so
+ * it outranks anything the basemap or the landmark pins draw in the same place.
+ */
+export const ANNOTATION_LAYER_IDS = [HALO_LAYER_ID, MARKER_LAYER_ID, CARD_LAYER_ID];
 
 function withAlpha(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
@@ -78,10 +92,59 @@ function buildActiveAnnotationFeatureCollection(annotation: TextAnnotation | nul
   };
 }
 
-function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitSystem) {
+/**
+ * A card sized to what it has to say, on the map it has to say it on.
+ *
+ * The card used to be a fixed 320x116 with everything past its width replaced
+ * by an ellipsis. That is fine for a title someone types into a box while
+ * watching it fit, and wrong for one taken from a source — "Avituallament 1 —
+ * Collet de Barraques" and its list of contents both vanished into "…", which
+ * is how an annotation can be in exactly the right place and still unreadable.
+ */
+function createAnnotationCardImage(
+  annotation: TextAnnotation,
+  unitSystem: UnitSystem,
+  layout: CardLayout,
+) {
+  const measure = document.createElement('canvas').getContext('2d');
+  if (!measure) return null;
+
+  const titleFont = `800 ${layout.titleSize}px Inter, sans-serif`;
+  const detailFont = `700 ${layout.detailSize}px Inter, sans-serif`;
+
+  const title = annotation.title.trim() || 'Annotation';
+  const detail = annotation.subtitle?.trim()
+    || (annotation.elevation !== undefined
+      ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
+      : `${Math.round(annotation.progress * 100)}%`);
+
+  measure.font = titleFont;
+  const titleWidth = measure.measureText(title).width;
+  measure.font = detailFont;
+  const detailWidth = measure.measureText(detail).width;
+
+  const width = Math.round(Math.max(
+    CARD_MIN_WIDTH,
+    Math.min(layout.maxWidth, Math.max(titleWidth, detailWidth) + layout.padding * 2),
+  ));
+  const textWidth = width - layout.padding * 2;
+
+  measure.font = titleFont;
+  const titleLines = wrapText(measure, title, textWidth, 2);
+  measure.font = detailFont;
+  const detailLines = detail ? wrapText(measure, detail, textWidth, 2) : [];
+
+  // The header is the coloured band, so it has to be as tall as the title it
+  // holds — a fixed band cuts a two-line title in half, which is what a title
+  // taken from a source usually is.
+  const headerPadding = 14;
+  const detailPadding = 16;
+  const headerHeight = Math.round(headerPadding * 2 + titleLines.length * layout.titleLineHeight);
+  const bodyHeight = Math.round(headerHeight
+    + (detailLines.length > 0 ? detailPadding * 2 + detailLines.length * layout.detailLineHeight : 0));
+  const height = Math.round(bodyHeight + 12);
+
   const scale = 2;
-  const width = 320;
-  const height = 116;
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -92,23 +155,24 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.clearRect(0, 0, width, height);
 
   const radius = 20;
-  const shadowBlur = 24;
-  const shadowY = 16;
 
   context.save();
   context.shadowColor = 'rgba(0, 0, 0, 0.36)';
-  context.shadowBlur = shadowBlur;
-  context.shadowOffsetY = shadowY;
+  context.shadowBlur = 24;
+  context.shadowOffsetY = 16;
   context.fillStyle = 'rgba(11, 15, 17, 0.96)';
-  roundRect(context, 0, 0, width, height - 12, radius);
+  roundRect(context, 0, 0, width, bodyHeight, radius);
   context.fill();
   context.restore();
 
+  // Clipping to the card rather than drawing a second rounded rect keeps the
+  // header's top corners on the card's radius and its bottom edge straight,
+  // whatever height the title needs.
   context.save();
+  roundRect(context, 0, 0, width, bodyHeight, radius);
+  context.clip();
   context.fillStyle = annotation.color;
-  roundRect(context, 0, 0, width, 10 + radius, radius);
-  context.rect(0, 10, width, radius);
-  context.fill();
+  context.fillRect(0, 0, width, headerHeight);
   context.restore();
 
   context.save();
@@ -121,36 +185,24 @@ function createAnnotationCardImage(annotation: TextAnnotation, unitSystem: UnitS
   context.fill();
   context.restore();
 
-  const title = annotation.title.trim() || 'Annotation';
-  const detail = annotation.subtitle?.trim()
-    || (annotation.elevation !== undefined
-      ? `${Math.round(convertElevation(annotation.elevation, unitSystem)).toLocaleString()} ${unitSystem === 'metric' ? 'm' : 'ft'}`
-      : `${Math.round(annotation.progress * 100)}%`);
-
   context.textAlign = 'center';
-  context.fillStyle = '#ffffff';
-  context.font = '800 30px Inter, sans-serif';
   context.textBaseline = 'middle';
-  context.fillText(fitText(context, title, width - 36), width / 2, 48);
+
+  context.fillStyle = '#ffffff';
+  context.font = titleFont;
+  const titleTop = headerPadding + layout.titleLineHeight / 2;
+  titleLines.forEach((line, index) => {
+    context.fillText(line, width / 2, titleTop + index * layout.titleLineHeight);
+  });
 
   context.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  context.font = '700 20px Inter, sans-serif';
-  context.fillText(fitText(context, detail, width - 36), width / 2, 78);
+  context.font = detailFont;
+  const detailTop = headerHeight + detailPadding + layout.detailLineHeight / 2;
+  detailLines.forEach((line, index) => {
+    context.fillText(line, width / 2, detailTop + index * layout.detailLineHeight);
+  });
 
   return context.getImageData(0, 0, canvas.width, canvas.height);
-}
-
-function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
-  if (context.measureText(text).width <= maxWidth) {
-    return text;
-  }
-
-  let trimmed = text;
-  while (trimmed.length > 0 && context.measureText(`${trimmed}…`).width > maxWidth) {
-    trimmed = trimmed.slice(0, -1);
-  }
-
-  return `${trimmed}…`;
 }
 
 function roundRect(
@@ -189,6 +241,19 @@ export function useTextAnnotationsLayer({
   mapRef,
   unitSystem,
 }: UseTextAnnotationsLayerParams) {
+  // The card is sized for the map it sits on, so a resize has to redraw it.
+  const [mapWidth, setMapWidth] = useState(0);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded) return;
+
+    const readWidth = () => setMapWidth(map.getCanvas().clientWidth);
+    readWidth();
+    map.on('resize', readWidth);
+    return () => { map.off('resize', readWidth); };
+  }, [isMapLoaded, mapRef]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -267,6 +332,12 @@ export function useTextAnnotationsLayer({
       });
     }
 
+    // Layers added after these — landmark pins and their labels — would
+    // otherwise draw over the card, so put the annotations back on top.
+    ANNOTATION_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.moveLayer(layerId);
+    });
+
     const markerSource = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     markerSource?.setData(buildAnnotationsFeatureCollection(annotations, activeAnnotationId));
 
@@ -278,11 +349,21 @@ export function useTextAnnotationsLayer({
     activeSource?.setData(buildActiveAnnotationFeatureCollection(activeAnnotation));
 
     if (activeAnnotation) {
-      const imageData = createAnnotationCardImage(activeAnnotation, unitSystem);
+      const layout = cardLayoutForMapWidth(mapWidth || map.getCanvas().clientWidth);
+      const imageData = createAnnotationCardImage(activeAnnotation, unitSystem, layout);
       if (imageData) {
-        if (map.hasImage(CARD_IMAGE_ID)) {
+        // Cards are sized to their text, so consecutive ones differ. updateImage
+        // only accepts identical dimensions, so a resize has to replace the
+        // image rather than update it.
+        const existing = map.getImage(CARD_IMAGE_ID);
+        const sameSize = existing
+          && existing.data.width === imageData.width
+          && existing.data.height === imageData.height;
+
+        if (sameSize) {
           map.updateImage(CARD_IMAGE_ID, imageData);
         } else {
+          if (existing) map.removeImage(CARD_IMAGE_ID);
           map.addImage(CARD_IMAGE_ID, imageData);
         }
       }
@@ -295,6 +376,7 @@ export function useTextAnnotationsLayer({
     annotations,
     isMapLoaded,
     mapRef,
+    mapWidth,
     unitSystem,
   ]);
 }

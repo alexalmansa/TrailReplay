@@ -29,6 +29,25 @@ export const fr = {
     footerGithub: 'Voir sur GitHub',
     saveProject: 'Enregistrer le projet',
   },
+  recipe: {
+    applied: 'Recette appliquée — {tracks} itinéraire(s), {placed} placés.',
+    reportTitle: 'De la recette',
+    timeHint: 'les temps portent sur toute la lecture',
+    markerAway: 'marqueur à {distance}',
+    routes: '{count} itinéraire(s)',
+    stitched: 'jouées comme un seul voyage',
+    alternatives: 'alternatives — seul l’itinéraire actif est joué',
+    pins: 'Repères',
+    cards: 'Cartes',
+    derived: 'dérivé',
+    offRoute: 'à {meters} m de l’itinéraire',
+    warnings: 'À vérifier',
+    dismiss: 'Fermer',
+    errors: {
+      failed: 'Cette recette n’a pas pu être appliquée.',
+      multiple: 'Déposez une seule recette à la fois — reçu {files}.',
+    },
+  },
   projectFile: {
     confirmReplace: 'Ouvrir un projet remplacera votre travail actuel. Continuer ?',
     saving: 'Enregistrement...',
@@ -46,6 +65,7 @@ export const fr = {
     dropTitle: 'Glissez-déposez des fichiers GPX ou KML',
     dropActive: 'Déposez les fichiers GPX/KML ici',
     dropBrowse: 'ou cliquez pour parcourir',
+    dropHint: 'Un projet .replay, ou un recipe.json déposé avec ses itinéraires, fonctionne aussi.',
     languageHint: 'Changez la langue de l\'interface avant d\'importer votre parcours.',
     parsing: 'Analyse des fichiers GPX...',
     loadedTracks: 'Parcours chargés ({count})',
@@ -605,6 +625,89 @@ export const fr = {
     generateDescription: 'Choisissez une sortie et créez la vidéo finale.',
   },
   help: {
+  agents: {
+    eyebrow: 'Agents',
+    title: 'Laissez un agent monter la relecture. Vous déposez juste le dossier.',
+    description: 'Marquer vingt ravitaillements à la main, ou ordonner dix jours de fichiers GPX et régler la durée de chacun, c’est une heure de clics. Décrivez-le plutôt à un agent IA : il écrit une petite recette à côté de vos traces, vous déposez le dossier ici, et la carte fait le reste.',
+    headerAction: 'Tutoriel manuel',
+    stepLabel: 'Étape {number}',
+    copy: 'Copier',
+    copied: 'Copié',
+    steps: {
+      ask: {
+        title: 'Demandez à votre agent',
+        body: 'Dites-lui simplement ce que vous voulez : les ravitaillements d’une page de course, les refuges où vous avez dormi, l’ordre de vos journées. Envoyez-le sur trailreplay.com/llms.txt pour qu’il connaisse le format.',
+      },
+      write: {
+        title: 'Il écrit une recette',
+        body: 'Un court fichier JSON enregistré à côté de vos GPX. Il décrit les lieux par kilomètre — « le ravitaillement du km 6,5 » — jamais par coordonnées, car la carte les calcule elle-même.',
+      },
+      drop: {
+        title: 'Vous déposez le dossier',
+        body: 'Sélectionnez la recette et les GPX ensemble et déposez-les sur TrailReplay. Itinéraires, ordre, minutage, repères et légendes arrivent d’un coup, prêts à jouer.',
+      },
+    },
+    prompt: {
+      badge: 'Copiez ceci',
+      title: 'Quoi dire à votre agent',
+      intro: 'N’importe quel agent capable de lire une page web et d’écrire un fichier fera l’affaire. Ceci suffit à obtenir une recette qui marche.',
+      label: 'Consigne',
+      body: 'Lis https://trailreplay.com/llms.txt et la spécification du format qu’il référence. Puis écris un recipe.json dans ce dossier pour les GPX qui s’y trouvent, en suivant ce que je décris ci-dessous. Ne calcule pas de coordonnées : ancre tout par kilomètre et laisse l’application les résoudre.',
+      note: 'Dites-lui ensuite ce que vous voulez vraiment : les ravitaillements d’une page de course, les refuges, une légende dans la grosse montée.',
+    },
+    examples: {
+      title: 'Deux choses à déléguer',
+      intro: 'Les deux recettes ci-dessous sont réelles et exécutables. Aucune ne contient la moindre coordonnée.',
+      race: {
+        badge: 'Une course avec ravitaillements',
+        title: 'Chaque ravitaillement, au bon kilomètre',
+        problem: 'La page de la course liste ses ravitaillements par kilomètre. Les placer à la main, c’est retrouver chaque point sur la carte, ajouter une note et retaper le contenu quatre fois. Un agent lit la page et les écrit tous.',
+        result: 'Chaque ravitaillement devient une carte qui apparaît à l’approche et s’efface une fois passée : cela se lit comme une rencontre, pas comme une épingle laissée sur la carte.',
+      },
+      trip: {
+        badge: 'Un voyage de dix jours',
+        title: 'Dix fichiers, dans l’ordre et à la bonne durée',
+        problem: 'Dix jours de marche, ce sont dix GPX en désordre et dix décisions sur la durée à l’écran de chacun. À la main, une étape de 35 km dure autant qu’une de 8 km.',
+        result: 'Fichiers ordonnés par leurs propres horodatages, temps d’écran réparti par distance, et un repère à chaque endroit où vous avez dormi, déduit de là où une journée finit et où la suivante commence.',
+      },
+    },
+    check: {
+      badge: 'Elle vérifie le travail',
+      title: 'Vous n’avez pas à croire l’agent sur parole',
+      body: 'À la réception du dossier, TrailReplay liste tout ce qu’il a placé : le kilomètre le long de son itinéraire, les secondes à l’écran, et la distance entre le marqueur mobile et chaque lieu au moment où il apparaît.',
+      note: 'Ce dernier chiffre devrait se compter en mètres. Au-delà, l’élément est calé sur la mauvaise partie de la relecture, et l’application le dit avant même que vous lanciez la lecture.',
+    },
+    sources: {
+      badge: 'Obtenir les fichiers',
+      title: 'Il peut aussi vous aider à récupérer les traces',
+      intro: 'Pas besoin d’avoir les GPX avant de commencer. Demandez, et un bon agent essaiera ceci dans l’ordre : les deux premiers ne vous coûtent rien.',
+      url: {
+        label: 'Un lien public',
+        body: 'Les organisateurs de courses et les clubs publient les GPX sur leur propre site. Nommez la course et l’agent peut souvent le récupérer directement.',
+      },
+      folder: {
+        label: 'Un dossier que vous avez déjà',
+        body: 'Votre dossier de téléchargements, ou celui d’un voyage. Il lit ce qui s’y trouve et ordonne les journées par leurs propres horodatages.',
+      },
+      export: {
+        label: 'Une archive que vous demandez',
+        body: 'Pour tout d’un coup, Strava et Garmin vous envoient votre historique complet par e-mail. Il arrive en mélangeant GPX, FIT et TCX : TrailReplay ne lit que GPX et KML.',
+      },
+      session: {
+        label: 'Votre propre navigateur',
+        body: 'Un agent capable d’utiliser votre navigateur clique sur « Exporter GPX » sur une page où vous êtes déjà connecté. Bien pour quelques activités, pas pour deux cents.',
+      },
+      boundary: 'Ce qu’il ne devrait jamais faire : demander votre mot de passe, contourner un paywall ou un réglage privé, ou aspirer des données derrière une connexion. Si le fournisseur veut que vous cliquiez vous-même, l’agent doit vous dire sur quoi.',
+      guideLink: 'Étapes par plateforme →',
+    },
+    resources: {
+      title: 'Pour votre agent',
+      intro: 'Envoyez-le ici. Tout ce dont il a besoin est sur le même domaine, sans installation ni compte.',
+      llms: 'Le point d’entrée. Ce qu’est TrailReplay, et quoi construire plutôt que de cliquer.',
+      spec: 'Le format complet de la recette, les ensembles dérivés et les erreurs qui gâchent une relecture sans prévenir.',
+      example: 'Une recette complète pour une vraie course, du début à la fin.',
+    },
+  },
   common: {
     backToApp: 'Retour à l\'application',
     builtBy: 'Créé par Bresca',
@@ -622,6 +725,7 @@ export const fr = {
     title: 'Découvrez TrailReplay à travers son utilisation réelle',
     description: 'Ce guide présente l\'expérience TrailReplay actuelle : importation de traces, création d\'un itinéraire, ajout de médias, prévisualisation du cadrage d\'exportation et enregistrement d\'un replay final.',
     headerAction: 'Guide GPX',
+    agentsAction: 'Pour les agents',
     quickStart: {
       badge: 'Démarrage rapide',
       step1: 'Ouvrez TrailReplay puis importez l\'un des parcours d\'exemple ou votre propre fichier GPX/KML.',

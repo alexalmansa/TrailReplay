@@ -488,3 +488,132 @@ html, body {
     padding: 0.55rem 0.6rem;
   }
 }
+
+/* Recipe report — what a dropped recipe resolved to (utils/recipe). */
+.recipe-report {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--trail-orange-40);
+  border-radius: 6px;
+  background: var(--trail-orange-15);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.recipe-report__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.recipe-report__header h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--evergreen);
+}
+
+.recipe-report__dismiss {
+  display: flex;
+  padding: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--evergreen-60);
+  cursor: pointer;
+}
+
+.recipe-report__dismiss:hover {
+  background: var(--trail-orange-40);
+  color: var(--evergreen);
+}
+
+.recipe-report__summary {
+  margin: 0.35rem 0 0;
+  color: var(--evergreen-80);
+}
+
+.recipe-report__subhead {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.6rem 0 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--evergreen-60);
+}
+
+.recipe-report__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-report__entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 1px 0;
+}
+
+.recipe-report__km {
+  flex: 0 0 auto;
+  min-width: 3.4em;
+  text-align: right;
+  color: var(--evergreen-60);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The title is the part worth reading, so it takes the slack and truncates. */
+.recipe-report__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--evergreen);
+}
+
+.recipe-report__track,
+.recipe-report__tag {
+  flex: 0 0 auto;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: rgba(27, 42, 32, 0.08);
+  color: var(--evergreen-60);
+  font-size: 0.62rem;
+}
+
+.recipe-report__warnings {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--trail-orange-40);
+}
+
+.recipe-report__warnings ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--evergreen-80);
+}
+
+.recipe-report__warnings li + li {
+  margin-top: 0.3rem;
+}
+
+.recipe-report__at {
+  flex: 0 0 auto;
+  min-width: 2.6em;
+  text-align: right;
+  color: var(--trail-orange);
+  font-variant-numeric: tabular-nums;
+}
+
+.recipe-report__tag--bad {
+  background: rgba(232, 111, 81, 0.22);
+  color: #8A3A22;
+}

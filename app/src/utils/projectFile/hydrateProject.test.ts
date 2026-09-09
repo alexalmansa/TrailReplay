@@ -45,7 +45,7 @@ describe('hydrateProject', () => {
     // Pre-existing content should be fully replaced by hydration.
     targetStore.getState().addTrack(parseGPX(sampleGpx, 'stale.gpx'));
 
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     const state = targetStore.getState();
     expect(state.tracks).toHaveLength(1);
@@ -94,7 +94,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().pictures[0]).toMatchObject({
       routeDistance: 1234,
@@ -120,7 +120,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().pictures[0].routeDistance).toBeUndefined();
   });
@@ -135,7 +135,7 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     const state = targetStore.getState();
     expect(state.cameraSettings.cameraStability).toBe(0.9);
@@ -152,7 +152,7 @@ describe('hydrateProject', () => {
     delete (parsed.project as { routeTimingMode?: unknown }).routeTimingMode;
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().playback.routeTimingMode).toBe('recorded');
   });
@@ -166,16 +166,16 @@ describe('hydrateProject', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const scaledStore = createAppStore();
-    hydrateProject(parsed, scaledStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, scaledStore.getState());
     expect(scaledStore.getState().settings.statsScale).toBe(1.6);
     expect(scaledStore.getState().settings.statsLayout).toBe('vertical');
     expect(scaledStore.getState().settings.statsColumns).toBe(2);
 
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsScale;
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsLayout;
-    delete (parsed.project.settings as Partial<typeof parsed.project.settings>).statsColumns;
+    delete (parsed.project!.settings as Record<string, unknown>).statsScale;
+    delete (parsed.project!.settings as Record<string, unknown>).statsLayout;
+    delete (parsed.project!.settings as Record<string, unknown>).statsColumns;
     const legacyStore = createAppStore();
-    hydrateProject(parsed, legacyStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, legacyStore.getState());
     expect(legacyStore.getState().settings.statsScale).toBe(1);
     expect(legacyStore.getState().settings.statsLayout).toBe('auto');
     expect(legacyStore.getState().settings.statsColumns).toBeNull();
@@ -212,7 +212,7 @@ describe('cinematic camera keyframes in a saved project', () => {
     const parsed = await parseReplayArchive(new File([blob], 'project.replay'));
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     // Every field matters: a keyframe that came back with the wrong anchor,
     // frame or easing would silently point the camera somewhere else.
@@ -231,8 +231,103 @@ describe('cinematic camera keyframes in a saved project', () => {
     delete (parsed.project as { cinematicCameraKeyframes?: unknown }).cinematicCameraKeyframes;
 
     const targetStore = createAppStore();
-    hydrateProject(parsed, targetStore.getState());
+    hydrateProject({ ...parsed, project: parsed.project! }, targetStore.getState());
 
     expect(targetStore.getState().cinematicCameraKeyframes).toEqual([]);
+  });
+
+  // The counterpart to the parser test: a project written by hand or by
+  // scripts/make-replay.mjs supplies only routes and landmarks, and everything
+  // else has to land on the same defaults a fresh session starts from.
+  it('backfills defaults for a minimal hand-authored project', () => {
+    const store = createAppStore();
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Race',
+        createdAt: '', savedAt: '', trackCount: 1, pictureCount: 0, videoCount: 0,
+      },
+      project: {
+        formatVersion: 1,
+        tracks: [{ routeFile: 'routes/ridge-loop.gpx', name: 'Stage 1' }],
+        userLandmarks: [{
+          id: 'aid-1', type: 'aid-station', source: 'user', display: 'highlight',
+          lat: 42.1005, lon: 1.2005, progress: 0.5, title: 'Aid 1', importance: 5,
+        }],
+        settings: { trailStyle: { trailColor: '#123456' } as never },
+      },
+      tracks: [{ meta: { routeFile: 'routes/ridge-loop.gpx', name: 'Stage 1' }, gpxText: sampleGpx }],
+      comparisonTracks: [],
+      recipe: null,
+      routes: [],
+    }, store.getState());
+
+    const state = store.getState();
+    expect(state.tracks).toHaveLength(1);
+    // The authored name wins over the GPX's own <name>.
+    expect(state.tracks[0].name).toBe('Stage 1');
+    expect(state.activeTrackId).toBe(state.tracks[0].id);
+    expect(state.userLandmarks).toHaveLength(1);
+    expect(state.userLandmarks[0].title).toBe('Aid 1');
+
+    // Omitted collections come back empty rather than undefined.
+    expect(state.pictures).toEqual([]);
+    expect(state.videos).toEqual([]);
+    expect(state.textAnnotations).toEqual([]);
+
+    // An omitted journey means "same as dropping these GPX files on the page",
+    // so addTrack's segment survives and the track actually plays.
+    expect(state.journeySegments).toHaveLength(1);
+    expect(state.journeySegments[0]).toMatchObject({ type: 'track', trackId: state.tracks[0].id });
+
+    // A partial trailStyle keeps the rest of the defaults.
+    expect(state.settings.trailStyle.trailColor).toBe('#123456');
+    expect(state.settings.trailStyle.markerType).toBe('dot');
+    expect(state.settings.unitSystem).toBe('metric');
+    expect(state.videoExportSettings.fps).toBe(30);
+    expect(state.socialShareSettings.aspectRatio).toBe('4:5');
+    expect(state.playback.routeTimingMode).toBe('recorded');
+  });
+
+  it('keeps a segment per track so a multi-track project plays end to end', () => {
+    const store = createAppStore();
+    const meta = (n: number) => ({ routeFile: `routes/leg-${n}.gpx`, name: `Leg ${n}` });
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Traverse',
+        createdAt: '', savedAt: '', trackCount: 3, pictureCount: 0, videoCount: 0,
+      },
+      project: { formatVersion: 1, tracks: [meta(1), meta(2), meta(3)] },
+      tracks: [1, 2, 3].map((n) => ({ meta: meta(n), gpxText: sampleGpx })),
+      comparisonTracks: [],
+      recipe: null,
+      routes: [],
+    }, store.getState());
+
+    const state = store.getState();
+    expect(state.tracks).toHaveLength(3);
+    expect(state.journeySegments).toHaveLength(3);
+    expect(state.journeySegments.map((s) => (s as { trackId: string }).trackId))
+      .toEqual(state.tracks.map((t) => t.id));
+  });
+
+  it('honours an explicit empty journey', () => {
+    const store = createAppStore();
+    const meta = { routeFile: 'routes/leg.gpx', name: 'Leg' };
+
+    hydrateProject({
+      manifest: {
+        formatVersion: 1, appVersion: '0.0.0', projectName: 'Solo',
+        createdAt: '', savedAt: '', trackCount: 1, pictureCount: 0, videoCount: 0,
+      },
+      project: { formatVersion: 1, tracks: [meta], journeySegments: [] },
+      tracks: [{ meta, gpxText: sampleGpx }],
+      comparisonTracks: [],
+      recipe: null,
+      routes: [],
+    }, store.getState());
+
+    expect(store.getState().journeySegments).toEqual([]);
   });
 });

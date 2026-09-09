@@ -1,4 +1,4 @@
-import { BookOpen, Download, Film, ImageIcon, Layers3, Mountain, Route, TimerReset } from 'lucide-react';
+import { Bot, BookOpen, Download, Film, ImageIcon, Layers3, Mountain, Route, TimerReset } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { HelpLayout } from './HelpLayout';
 import { getQuickStartSteps, getSampleTracks, getTutorialFeatures, getTutorialVideos } from './helpContent';
@@ -19,6 +19,12 @@ export function TutorialPage() {
       title={t('help.tutorial.title')}
       description={t('help.tutorial.description')}
       headerActions={[
+        {
+          href: '/agents',
+          icon: <Bot className="h-3.5 w-3.5" />,
+          label: t('help.tutorial.agentsAction'),
+          tone: 'ghost',
+        },
         {
           href: '/gpx-download-guide',
           icon: <Download className="h-3.5 w-3.5" />,

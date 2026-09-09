@@ -30,8 +30,13 @@ export function parseKML(kmlContent: string, fileName: string): GPXTrack {
 }
 
 // Parse multiple GPX/KML files
-export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
-  const tracks: GPXTrack[] = [];
+/**
+ * Parsed tracks paired with the file each came from. A recipe names its routes
+ * by file name, so that pairing has to survive parsing — a file that fails to
+ * parse must not shift the ones after it onto the wrong names.
+ */
+export async function parseRouteFiles(files: File[]): Promise<Array<{ track: GPXTrack; fileName: string }>> {
+  const parsed: Array<{ track: GPXTrack; fileName: string }> = [];
 
   for (const file of files) {
     const extension = getSupportedRouteFileExtension(file.name);
@@ -45,13 +50,17 @@ export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
       const track = isGPX
         ? parseGPX(content, file.name)
         : parseKML(content, file.name);
-      tracks.push(track);
+      parsed.push({ track, fileName: file.name });
     } catch (error) {
       console.error(`Error parsing ${file.name}:`, error);
     }
   }
 
-  return tracks;
+  return parsed;
+}
+
+export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
+  return (await parseRouteFiles(files)).map((entry) => entry.track);
 }
 
 function getSupportedRouteFileExtension(fileName: string): 'gpx' | 'kml' | null {

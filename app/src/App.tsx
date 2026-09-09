@@ -21,6 +21,7 @@ import {
   hasPlaybackProgressRewound,
 } from '@/utils/playbackPictures';
 import { getActivePlaybackAnnotationId } from '@/utils/playbackAnnotations';
+import { installProbeBridge, isProbeEnabled } from '@/utils/probeBridge';
 import { trackEvent } from '@/utils/analytics';
 import { useI18n } from '@/i18n/useI18n';
 
@@ -166,6 +167,13 @@ function App() {
       openNextQueuedPlaybackPicture();
     }, 0);
   }, [clearPendingQueuedPictureOpen, openNextQueuedPlaybackPicture]);
+
+  // Opt-in handle for measuring a replay from outside the browser; see
+  // utils/probeBridge.ts and scripts/probe-replay.mjs.
+  useEffect(() => {
+    if (!isProbeEnabled()) return;
+    return installProbeBridge();
+  }, []);
 
   // Show error toast
   useEffect(() => {
@@ -770,7 +778,7 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,.kml,.replay,application/gpx+xml,application/vnd.google-earth.kml+xml"
+                accept=".gpx,.kml,.replay,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/json"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"

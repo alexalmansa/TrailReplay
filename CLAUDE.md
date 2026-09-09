@@ -88,6 +88,83 @@ Parsing is split across dedicated modules:
 
 Entry point: `app/src/utils/gpxParser.ts` (`parseGPX`, `parseKML`, `parseGPXFiles`). The `useGPX` hook wraps this for file input handling.
 
+### Recipes (`app/src/utils/recipe/`) — the agent path
+
+A **recipe** is a small JSON file describing a replay in the terms a source
+uses ("the aid station at km 6.5", "the places we slept"), dropped on the page
+*together with* the GPX files it names. `useGPX.parseFiles` routes any `.json`
+in a drop to `resolveRecipe`, which turns intent into positions using
+`track.points[].distance` — the distances the GPX parser already accumulated.
+
+Resolution lives here rather than in a build script on purpose: there are two
+`calculateDistance` functions in this repo with different units (metres in
+`gpx/trackStats.ts`, kilometres in `journeyUtils.ts`), and anything reimplementing
+the maths outside the app will eventually disagree with it.
+
+- `resolveRecipe.ts` — recipe + parsed tracks → landmarks, annotations, journey
+- `anchorOnRoute.ts` — km / lat-lon / progress → position, and the leg layout
+  that shares screen time by distance
+- `overnightStops.ts` — derives where consecutive legs meet
+- `matchTrackFiles.ts` — pairs specs with dropped files; globs and ordering
+- `applyRecipe.ts` — puts the result in the store, replacing what was there
+
+Every resolution is reported back through `state.recipeReport` and rendered by
+`RecipeReportCard`, including warnings for what would otherwise only show up in
+the finished video (pins inside the map's 80 m collapse radius, cards that
+overlap on screen, days that do not join up). **New checks belong there** —
+an agent cannot see the render, so the report is its only feedback.
+
+### Measuring a replay (`scripts/probe-replay.mjs`)
+
+Nothing in the unit tests can tell you what the *rendered* replay did — the
+smoothing chain, MapLibre and the terrain queries all sit in between, which is
+what `components/map/CAMERA.md` is about. The probe plays a replay in headless
+Chromium and reports CAMERA.md's metrics: marker framing, direction reversals,
+freeze runs, per-second change percentiles, jitter, tile coverage, plus the
+recipe's own warnings and any page error.
+
+- `scripts/replay-metrics.mjs` — the pure metrics, unit-tested from
+  `app/src/utils/replayMetrics.test.ts` (shapes in `types/replay-metrics.d.ts`)
+- `app/src/utils/probeBridge.ts` — `window.__trailreplay`, installed only when
+  the page is opened with `?probe=1`. Prefer it over CAMERA.md's React-fiber
+  walk, which breaks silently on a React upgrade.
+
+Software WebGL runs at a few frames per second, so the camera channels are not
+representative of a real viewer; the probe says so rather than letting the
+numbers look authoritative. Marker framing, tiles, warnings and errors are
+unaffected by frame rate.
+
+### Project files (`.replay`) and agent authoring
+
+`app/src/utils/projectFile/` reads and writes `.replay` archives. One archive
+holds a recipe, a resolved project, or both:
+
+- **recipe only** — what `make-replay.mjs` and agents produce. `useProjectFile`
+  routes it through `resolveRecipe`, the same path as a dropped folder, so there
+  is one resolver and it lives in the app.
+- **both** — what Save writes. `sourceRecipe` in the store carries the recipe
+  through, so a saved project still says where it came from and can be edited as
+  a recipe rather than as resolved coordinates.
+
+Only `formatVersion` and `tracks` are required to open a `project.json` —
+`hydrateProject` backfills everything else from `store/defaults.ts`.
+
+The agent-facing surface all lives in `app/public/`, so it is served from the
+site on the same origin rather than only existing in the repo:
+
+- `replay-file.md` — the format spec, at `https://trailreplay.com/replay-file.md`
+- `llms.txt` — the agent entry point for the site
+- `make-replay.mjs` — builds a `.replay` from a JSON recipe that anchors
+  landmarks and annotations by kilometre; Node built-ins only, so an agent can
+  `curl` and run it with no install
+- `example-recipe.json` — a worked recipe for a real race
+
+`docCoverage.test.ts` fails when a `ReplayProjectFile` field is missing from
+`replay-file.md`, so the spec cannot drift from the type.
+
+**Keep new `ReplayProjectFile` fields optional**, and update
+`app/public/replay-file.md` when the format gains something an author would set.
+
 ### i18n
 
 Translations live in `app/src/i18n/locales/` (en, es, ca, fr). Access via the `useI18n()` hook, which returns a `t()` function. Language is stored in `AppSettings.language`.

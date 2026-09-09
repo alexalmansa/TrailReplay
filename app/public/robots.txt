@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
 
+# Agents: how to build a .replay project file instead of driving the UI
+# https://trailreplay.com/llms.txt
+
 Sitemap: https://trailreplay.com/sitemap.xml
 Sitemap: https://trailreplay.com/sitemap-video.xml

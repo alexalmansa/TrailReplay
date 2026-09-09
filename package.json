@@ -10,7 +10,8 @@
     "lint": "npm --prefix app run lint",
     "test": "npm --prefix app run test:run && npm run test:functions",
     "preview": "npm --prefix app run preview",
-    "test:functions": "npm --prefix app exec -- vitest run --config vitest.functions.config.js"
+    "test:functions": "npm --prefix app exec -- vitest run --config vitest.functions.config.js",
+    "probe": "node ./scripts/probe-replay.mjs"
   },
   "keywords": [
     "gpx",
@@ -22,5 +23,8 @@
     "video-export"
   ],
   "author": "Alex Almansa",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
 }

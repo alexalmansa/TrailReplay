@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Let an AI Agent Build Your Route Video | TrailReplay</title>
+    <meta
+      name="description"
+      content="Hand a folder of GPX files to an AI agent and get a finished route replay. It writes a small recipe — aid stations by kilometre, days in order, overnight stops — and you drop the folder on TrailReplay."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#C1652F" />
+    <link rel="canonical" href="https://trailreplay.com/agents" />
+
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="Agent guide" />
+    <link rel="alternate" type="text/markdown" href="/replay-file.md" title="How to build a recipe" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://trailreplay.com/agents" />
+    <meta property="og:title" content="Let an AI Agent Build Your Route Video | TrailReplay" />
+    <meta property="og:description" content="Describe the aid stations or the ten days of walking. Your agent writes the recipe, you drop the folder, the map does the rest." />
+    <meta property="og:image" content="https://trailreplay.com/media/images/simplelogo.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Let an AI Agent Build Your Route Video | TrailReplay" />
+    <meta name="twitter:description" content="Your agent writes a recipe next to your GPX files. You drop the folder. TrailReplay resolves every kilometre and checks the result." />
+    <meta name="twitter:image" content="https://trailreplay.com/media/images/simplelogo.png" />
+
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"HowTo","name":"Let an AI agent build a TrailReplay route video","description":"Describe what you want to an AI agent, let it write a recipe next to your GPX files, then drop the folder on TrailReplay.","step":[{"@type":"HowToStep","name":"Ask your agent","text":"Point the agent at https://trailreplay.com/llms.txt and describe what you want marked on the route."},{"@type":"HowToStep","name":"It writes a recipe","text":"The agent saves a small recipe.json next to your GPX files, describing places by kilometre rather than by coordinate."},{"@type":"HowToStep","name":"Drop the folder","text":"Select the recipe and the GPX files together and drop them on TrailReplay, which resolves every position and reports what it placed."}]}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/help/agents-main.tsx"></script>
+  </body>
+</html>

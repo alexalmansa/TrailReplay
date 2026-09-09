@@ -57,11 +57,48 @@ describe('parseReplayArchive', () => {
     await expect(parseReplayArchive(corrupt)).rejects.toMatchObject({ code: 'corrupt' });
   });
 
-  it('rejects an archive missing manifest.json', async () => {
+  it('rejects an archive missing project.json', async () => {
+    const zipped = zipSync({ 'manifest.json': strToU8('{}') });
+    const file = blobToFile(new Blob([zipped as BlobPart]));
+
+    await expect(parseReplayArchive(file)).rejects.toMatchObject({ code: 'corrupt' });
+  });
+
+  it('rejects a project.json with no tracks array', async () => {
     const zipped = zipSync({ 'project.json': strToU8('{}') });
     const file = blobToFile(new Blob([zipped as BlobPart]));
 
     await expect(parseReplayArchive(file)).rejects.toMatchObject({ code: 'corrupt' });
+  });
+
+  // A project written by hand or by scripts/make-replay.mjs carries no manifest
+  // and only the fields it cares about; see docs/AGENT_REPLAY_FILE.md.
+  it('accepts a minimal hand-authored project with no manifest', async () => {
+    const zipped = zipSync({
+      'routes/ridge-loop.gpx': strToU8(sampleGpx),
+      'project.json': strToU8(JSON.stringify({
+        formatVersion: 1,
+        tracks: [{ routeFile: 'routes/ridge-loop.gpx' }],
+      })),
+    });
+
+    const parsed = await parseReplayArchive(blobToFile(new Blob([zipped as BlobPart])));
+
+    expect(parsed.manifest.formatVersion).toBe(1);
+    expect(parsed.manifest.trackCount).toBe(1);
+    expect(parsed.tracks[0].gpxText).toContain('Ridge Loop');
+    expect(parsed.comparisonTracks).toEqual([]);
+  });
+
+  it('treats an omitted formatVersion as the current one', async () => {
+    const zipped = zipSync({
+      'routes/ridge-loop.gpx': strToU8(sampleGpx),
+      'project.json': strToU8(JSON.stringify({ tracks: [{ routeFile: 'routes/ridge-loop.gpx' }] })),
+    });
+
+    const parsed = await parseReplayArchive(blobToFile(new Blob([zipped as BlobPart])));
+
+    expect(parsed.manifest.formatVersion).toBe(1);
   });
 
   it('rejects an unsupported format version', async () => {
