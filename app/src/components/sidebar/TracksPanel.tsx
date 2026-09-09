@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone, type DropEvent } from 'react-dropzone';
 import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
-import { parseGPX, parseKML } from '@/utils/gpxParser';
+import { getSupportedRouteFileExtension, parseFIT, parseGPX, parseKML } from '@/utils/gpxParser';
 import { useI18n } from '@/i18n/useI18n';
 import {
   Upload,
@@ -34,17 +34,24 @@ export function TracksPanel() {
   const comparisonTracks = useAppStore((state) => state.comparisonTracks);
   const addComparisonTrack = useAppStore((state) => state.addComparisonTrack);
   const removeComparisonTrack = useAppStore((state) => state.removeComparisonTrack);
+  const ungroupComparisonTrack = useAppStore((state) => state.ungroupComparisonTrack);
   const updateComparisonTrackName = useAppStore((state) => state.updateComparisonTrackName);
   const [showComparison, setShowComparison] = useState(comparisonTracks.length > 0);
   const [isParsingComparison, setIsParsingComparison] = useState(false);
   const comparisonFileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (comparisonTracks.length > 0) setShowComparison(true);
+    // Only auto-open when a group first appears; the user can still collapse it afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comparisonTracks.length > 0]);
+
   const handleComparisonFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'gpx' && extension !== 'kml') {
+    const extension = getSupportedRouteFileExtension(file.name);
+    if (!extension) {
       setError(t('errors.noValidGpx'));
       e.target.value = '';
       return;
@@ -52,10 +59,14 @@ export function TracksPanel() {
 
     setIsParsingComparison(true);
     try {
-      const content = await file.text();
-      const track = extension === 'gpx'
-        ? parseGPX(content, file.name)
-        : parseKML(content, file.name);
+      let track;
+      if (extension === 'fit') {
+        track = parseFIT(await file.arrayBuffer(), file.name);
+      } else if (extension === 'gpx') {
+        track = parseGPX(await file.text(), file.name);
+      } else {
+        track = parseKML(await file.text(), file.name);
+      }
       const colorIndex = comparisonTracks.length % COMPARISON_COLORS.length;
       addComparisonTrack({
         id: `comparison-${Date.now()}`,
@@ -86,8 +97,8 @@ export function TracksPanel() {
       (file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
         // `json` is a recipe, which arrives alongside the routes it names.
-        return extension === 'gpx' || extension === 'kml' || extension === 'replay' ||
-          extension === 'json' ||
+        return extension === 'gpx' || extension === 'kml' || extension === 'fit' ||
+          extension === 'replay' || extension === 'json' ||
           file.type === 'application/gpx+xml' ||
           file.type === 'application/vnd.google-earth.kml+xml' ||
           file.type === 'application/json';
@@ -113,6 +124,9 @@ export function TracksPanel() {
     accept: {
       'application/gpx+xml': ['.gpx'],
       'application/vnd.google-earth.kml+xml': ['.kml'],
+      // A watch's original recording, which keeps the timestamps a GPX
+      // route export drops.
+      'application/octet-stream': ['.fit'],
       'application/zip': ['.replay'],
       // A recipe is dropped together with the routes it names.
       'application/json': ['.json'],
@@ -217,6 +231,7 @@ export function TracksPanel() {
                   settings={settings}
                   onNameChange={(name) => updateComparisonTrackName(ct.id, name)}
                   onRemove={() => removeComparisonTrack(ct.id)}
+                  onUngroup={() => ungroupComparisonTrack(ct.id)}
                 />
               ))}
 
@@ -225,7 +240,7 @@ export function TracksPanel() {
                 <input
                   ref={comparisonFileRef}
                   type="file"
-                  accept=".gpx,.kml"
+                  accept=".gpx,.kml,.fit"
                   onChange={handleComparisonFile}
                   className="hidden"
                 />

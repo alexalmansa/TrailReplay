@@ -192,7 +192,7 @@ export function TrailMap(_props: TrailMapProps) {
     comparisonTracks,
     isMapLoaded,
     mapRef: map,
-    progress: playback.progress,
+    currentTime: currentPosition?.time ?? null,
   });
 
   useBaseMapPresentation({

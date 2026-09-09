@@ -509,9 +509,9 @@ request it, then handle the folder when it arrives.
 
 **The archive will not be all GPX.** Strava keeps activities in whatever format
 they were uploaded in, so an export is usually a mix of `.gpx`, `.fit` and
-`.tcx`, often gzipped. TrailReplay reads GPX and KML only. Say so before they
-wait hours for an archive you cannot use, and convert or filter rather than
-silently dropping most of it.
+`.tcx`, often gzipped. TrailReplay reads GPX, KML and FIT — `.tcx` still needs
+converting. Say so before they wait hours for an archive, and convert or filter
+rather than silently dropping the rest.
 
 ### 4. Their own browser session — one activity at a time
 
@@ -535,6 +535,20 @@ hundred — use the bulk export for that.
   for activities — only for routes. Telling them to press "Export GPX" takes
   ten seconds.
 
+### Ask for the timestamps, not just the track
+
+Files that belong together are grouped into one replay either way: by
+overlapping recorded time, or failing that by covering the same route. What
+timestamps buy is the animation — a timed track's marker sits where that person
+actually was at each moment, while a file carrying shape alone is drawn and left
+still, since inventing a pace for it would put it somewhere it never was. A
+recorded activity normally keeps a timestamp on every
+point — Strava's *Export Original* always does, as the watch's own `.fit`, along
+with heart rate, cadence, power and temperature, and its *Export GPX* of an
+activity normally keeps them too. A `.gpx` with no `<time>` is a route export,
+or a file some other tool has stripped; ask for *Export Original* instead of
+working with it.
+
 ### What to tell them, by provider
 
 These are instructions to relay, not steps to automate. The full version, with
@@ -542,7 +556,7 @@ the caveats, is at <https://trailreplay.com/gpx-download-guide>.
 
 | Where the route lives | What to tell them |
 |---|---|
-| **Strava** | Open the activity, three-dot menu top right, *Export GPX*. Use *Export Original* only if GPX is missing — it may be a `.fit`. |
+| **Strava** | Open the activity, three-dot menu top right, *Export GPX*. *Export Original* gives the watch's own `.fit`, which the app also reads — ask for that one when the GPX turns out to have no timestamps. |
 | **Strava, many activities** | Settings → My Account → request an archive of your data. Arrives by email, can take hours. |
 | **Wikiloc** | Open the trail, *Download* → *GPX*. Public trails usually work; some need an account. |
 | **Garmin Connect** | Open the activity on the web dashboard, gear icon, *Export to GPX*. |

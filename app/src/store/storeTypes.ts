@@ -82,6 +82,7 @@ export interface AppState {
   reorderTracks: (fromIndex: number, toIndex: number) => void;
   addComparisonTrack: (track: ComparisonTrack) => void;
   removeComparisonTrack: (trackId: string) => void;
+  ungroupComparisonTrack: (trackId: string) => void;
   toggleComparisonTrack: (trackId: string) => void;
   updateComparisonOffset: (trackId: string, offset: number) => void;
   updateComparisonTrackName: (trackId: string, name: string) => void;

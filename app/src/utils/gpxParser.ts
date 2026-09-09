@@ -3,6 +3,7 @@ import { interpolateTrackPoint } from '@/utils/gpx/interpolateTrackPoint';
 import { parseGpxDocument } from '@/utils/gpx/parseGpxDocument';
 import { parseKmlDocument } from '@/utils/gpx/parseKmlDocument';
 import { buildTrackFromRawPoints } from '@/utils/gpx/trackStats';
+import { parseFitDocument } from '@/utils/fit/parseFitFile';
 import { serializeTrackToGpx } from '@/utils/gpx/serializeTrackToGpx';
 
 export { serializeTrackToGpx };
@@ -29,7 +30,18 @@ export function parseKML(kmlContent: string, fileName: string): GPXTrack {
   });
 }
 
-// Parse multiple GPX/KML files
+// Parse a watch's original FIT recording
+export function parseFIT(buffer: ArrayBuffer, fileName: string): GPXTrack {
+  const { name, rawPoints } = parseFitDocument(buffer, fileName);
+
+  return buildTrackFromRawPoints({
+    idPrefix: 'fit',
+    name,
+    rawPoints,
+  });
+}
+
+// Parse multiple GPX/KML/FIT files
 /**
  * Parsed tracks paired with the file each came from. A recipe names its routes
  * by file name, so that pairing has to survive parsing — a file that fails to
@@ -40,16 +52,17 @@ export async function parseRouteFiles(files: File[]): Promise<Array<{ track: GPX
 
   for (const file of files) {
     const extension = getSupportedRouteFileExtension(file.name);
-    const isGPX = extension === 'gpx';
-    const isKML = extension === 'kml';
-
-    if (!isGPX && !isKML) continue;
+    if (!extension) continue;
 
     try {
-      const content = await file.text();
-      const track = isGPX
-        ? parseGPX(content, file.name)
-        : parseKML(content, file.name);
+      let track: GPXTrack;
+      if (extension === 'fit') {
+        track = parseFIT(await file.arrayBuffer(), file.name);
+      } else if (extension === 'gpx') {
+        track = parseGPX(await file.text(), file.name);
+      } else {
+        track = parseKML(await file.text(), file.name);
+      }
       parsed.push({ track, fileName: file.name });
     } catch (error) {
       console.error(`Error parsing ${file.name}:`, error);
@@ -63,9 +76,15 @@ export async function parseGPXFiles(files: File[]): Promise<GPXTrack[]> {
   return (await parseRouteFiles(files)).map((entry) => entry.track);
 }
 
-function getSupportedRouteFileExtension(fileName: string): 'gpx' | 'kml' | null {
+export const ROUTE_FILE_EXTENSIONS = ['gpx', 'kml', 'fit'] as const;
+
+export type RouteFileExtension = (typeof ROUTE_FILE_EXTENSIONS)[number];
+
+export function getSupportedRouteFileExtension(fileName: string): RouteFileExtension | null {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  return extension === 'gpx' || extension === 'kml' ? extension : null;
+  return ROUTE_FILE_EXTENSIONS.includes(extension as RouteFileExtension)
+    ? (extension as RouteFileExtension)
+    : null;
 }
 
 // Get point at a specific distance along the track

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import fixWebmDuration from 'fix-webm-duration';
 import { useAppStore } from '@/store/useAppStore';
+import { getStatAvailability, isStatAvailable } from '@/utils/statAvailability';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
 import { estimateFileSize } from '@/utils/videoExport';
 import { mapGlobalRef } from '@/utils/mapRef';
@@ -117,11 +118,15 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
   const { t, language } = useI18n();
   const { studioDelivery } = options;
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
-  const visibleStats = useAppStore((state) => state.settings.visibleStats);
+  const configuredStats = useAppStore((state) => state.settings.visibleStats);
   const showElevationProfile = useAppStore((state) => state.settings.showElevationProfile);
   const mapStyle = useAppStore((state) => state.settings.mapStyle);
   const show3DTerrain = useAppStore((state) => state.settings.show3DTerrain);
   const tracks = useAppStore((state) => state.tracks);
+  const visibleStats = useMemo(() => {
+    const availability = getStatAvailability(tracks);
+    return configuredStats.filter((id) => isStatAvailable(id, availability));
+  }, [configuredStats, tracks]);
   const pictures = useAppStore((state) => state.pictures);
   const journeySegments = useAppStore((state) => state.journeySegments);
   const trailStyle = useAppStore((state) => state.settings.trailStyle);
@@ -203,7 +208,7 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
     const isInTransport = journeyPosition.segmentType === 'transport';
     const values: Partial<Record<StatId, string>> = {};
 
-    state.settings.visibleStats.forEach((id) => {
+    visibleStats.forEach((id) => {
       switch (id) {
         case 'duration':
           values[id] = formatStatsDuration(currentStats.duration);
@@ -243,7 +248,7 @@ export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = 
     });
 
     return values;
-  }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings, t, totalDistance]);
+  }, [activeTrack, computedJourney, journeyDistanceProfile, segmentTimings, t, totalDistance, visibleStats]);
   const getTrackLabel = useCallback((progress: number): { color: string; text: string } | null => {
     const state = useAppStore.getState();
     if (!state.settings.trailStyle.showTrackLabels) return null;

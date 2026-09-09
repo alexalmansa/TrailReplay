@@ -9,6 +9,11 @@ import { useAppStore } from '@/store/useAppStore';
 import { useI18n } from '@/i18n/useI18n';
 import { getDistanceBucket, trackEvent } from '@/utils/analytics';
 import { isReplayFile, useProjectFile } from '@/hooks/useProjectFile';
+import { getTrackTimeRange, groupTracksByTimeOverlap } from '@/utils/trackTimeOverlap';
+import { groupTracksBySpatialSimilarity } from '@/utils/trackSpatialSimilarity';
+import { COMPARISON_COLORS } from '@/components/sidebar/tracks/constants';
+import { createId } from '@/utils/id';
+import type { GPXTrack } from '@/types';
 
 export type RouteInputMethod = 'file_picker' | 'dropzone';
 
@@ -17,6 +22,7 @@ export function useGPX() {
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const addTrack = useAppStore((state) => state.addTrack);
+  const addComparisonTrack = useAppStore((state) => state.addComparisonTrack);
   const setError = useAppStore((state) => state.setError);
   const { openProjectFile } = useProjectFile();
 
@@ -121,9 +127,75 @@ export function useGPX() {
         throw new Error(t('errors.noValidGpx'));
       }
       
-      tracks.forEach((track) => {
-        addTrack(track);
+      // Files recorded during the same window belong in one replay. Whatever
+      // time cannot speak for gets a second pass on route shape, so people
+      // who ran the same trail still land together — that only puts them in
+      // one replay, and a track with no timestamps still gets no moving
+      // marker rather than one following an invented pace.
+      const timeClusters = groupTracksByTimeOverlap(tracks);
+      const timedClusters: GPXTrack[][] = [];
+      const ungroupedTracks: GPXTrack[] = [];
+      timeClusters.forEach((cluster) => {
+        if (cluster.length === 1) ungroupedTracks.push(cluster[0]);
+        else timedClusters.push(cluster);
       });
+      const spatialClusters = groupTracksBySpatialSimilarity(ungroupedTracks);
+      const timedClusterSet = new Set(timedClusters);
+
+      const trackOrder = new Map(tracks.map((track, index) => [track, index]));
+      const firstIndex = (cluster: GPXTrack[]) =>
+        Math.min(...cluster.map((track) => trackOrder.get(track)!));
+      const clusters = [...timedClusters, ...spatialClusters].sort(
+        (a, b) => firstIndex(a) - firstIndex(b)
+      );
+
+      let groupedByTimeCount = 0;
+      let groupedByRouteCount = 0;
+      let comparisonColorIndex = 0;
+
+      clusters.forEach((cluster) => {
+        if (cluster.length === 1) {
+          addTrack(cluster[0]);
+          return;
+        }
+
+        const isTimedCluster = timedClusterSet.has(cluster);
+        // Earliest start leads, and a track that has a clock leads one that
+        // does not: the replay reads its time from the main track, so putting
+        // a timed track first is what lets any timed marker move at all.
+        const [primary, ...rest] = [...cluster].sort((a, b) => {
+          const rangeA = getTrackTimeRange(a);
+          const rangeB = getTrackTimeRange(b);
+          if (rangeA && rangeB) return rangeA.start.getTime() - rangeB.start.getTime();
+          if (rangeA) return -1;
+          if (rangeB) return 1;
+          return 0;
+        });
+
+        addTrack(primary);
+        rest.forEach((track) => {
+          addComparisonTrack({
+            id: createId('comparison'),
+            name: track.name,
+            color: COMPARISON_COLORS[comparisonColorIndex % COMPARISON_COLORS.length],
+            track,
+            visible: true,
+            offset: 0,
+            groupId: primary.id,
+          });
+          comparisonColorIndex += 1;
+        });
+
+        if (isTimedCluster) groupedByTimeCount += cluster.length;
+        else groupedByRouteCount += cluster.length;
+      });
+
+      if (groupedByTimeCount > 0) {
+        toast.success(t('tracks.autoGroupedToast', { count: String(groupedByTimeCount) }));
+      }
+      if (groupedByRouteCount > 0) {
+        toast.success(t('tracks.autoGroupedRouteToast', { count: String(groupedByRouteCount) }));
+      }
 
       trackEvent('route_import_completed', {
         route_file_count: fileArray.length,
@@ -137,7 +209,16 @@ export function useGPX() {
           track.points.some((point) => point.time !== null)
         ),
       });
-      
+
+      if (groupedByTimeCount > 0 || groupedByRouteCount > 0) {
+        trackEvent('tracks_auto_grouped', {
+          route_grouped_track_count: groupedByTimeCount + groupedByRouteCount,
+          route_group_count: clusters.filter((cluster) => cluster.length > 1).length,
+          route_time_grouped_count: groupedByTimeCount,
+          route_spatial_grouped_count: groupedByRouteCount,
+        });
+      }
+
       return tracks;
     } catch (error) {
       trackEvent('route_import_failed', {
@@ -154,7 +235,7 @@ export function useGPX() {
     } finally {
       setIsParsing(false);
     }
-  }, [addTrack, applyRecipeFiles, openProjectFile, setError, t]);
+  }, [addComparisonTrack, addTrack, applyRecipeFiles, openProjectFile, setError, t]);
 
   return {
     parseFiles,

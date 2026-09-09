@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { useGPX } from '@/hooks/useGPX';
 import { useUnsavedWorkGuard } from '@/hooks/useUnsavedWorkGuard';
 import { usePictureRouteSync } from '@/hooks/usePictureRouteSync';
+import { useAvailableStats } from '@/hooks/useAvailableStats';
 import { installFocusModalityTracking } from '@/utils/focusModality';
 import { AppHeader } from '@/components/app/AppHeader';
 import { AppLoadingOverlay } from '@/components/app/AppLoadingOverlay';
@@ -121,6 +122,7 @@ function App() {
   const textAnnotations = useAppStore((state) => state.textAnnotations);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
+  const { visibleStats: availableStats } = useAvailableStats();
   const setSettings = useAppStore((state) => state.setSettings);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
@@ -261,7 +263,7 @@ function App() {
     : settings.statsLayout === 'auto'
     ? statsShouldUseNarrowLayout ? 'narrow' : 'default'
     : settings.statsLayout;
-  const previewStatCount = Math.max(1, settings.visibleStats.length);
+  const previewStatCount = Math.max(1, availableStats.length);
   const previewColumns = settings.statsColumns !== null
     ? Math.max(1, Math.min(previewStatCount, Math.round(settings.statsColumns)))
     : settings.statsLayout === 'vertical'
@@ -435,7 +437,7 @@ function App() {
       const height = Math.max(52, start.height + (fromTop ? -dy : dy));
       const areaRatio = (width * height) / Math.max(1, start.width * start.height);
       const scale = Math.max(0.6, Math.min(2, start.scale * Math.sqrt(areaRatio)));
-      const columns = chooseStatsColumns(width, height, settings.visibleStats.length);
+      const columns = chooseStatsColumns(width, height, availableStats.length);
       const left = fromLeft ? start.left + start.width - width : start.left;
       const top = fromTop ? start.top + start.height - height : start.top;
 
@@ -460,7 +462,7 @@ function App() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [isResizingStats, setSettings, settings.visibleStats.length]);
+  }, [availableStats.length, isResizingStats, setSettings]);
 
   useEffect(() => {
     return () => {
@@ -778,7 +780,7 @@ function App() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx,.kml,.replay,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/json"
+                accept=".gpx,.kml,.fit,.replay,.json,application/gpx+xml,application/vnd.google-earth.kml+xml,application/json"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"
