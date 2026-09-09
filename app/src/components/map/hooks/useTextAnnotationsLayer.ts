@@ -17,6 +17,14 @@ const HALO_LAYER_ID = 'route-annotations-halo';
 const CARD_LAYER_ID = 'route-annotations-card';
 const CARD_IMAGE_ID = 'route-annotations-card-image';
 
+/**
+ * Bottom to top, the order the annotation layers must keep.
+ *
+ * An annotation is the one thing on the map someone put there deliberately, so
+ * it outranks anything the basemap or the landmark pins draw in the same place.
+ */
+export const ANNOTATION_LAYER_IDS = [HALO_LAYER_ID, MARKER_LAYER_ID, CARD_LAYER_ID];
+
 function withAlpha(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
   const expanded = normalized.length === 3
@@ -126,11 +134,14 @@ function createAnnotationCardImage(
   measure.font = detailFont;
   const detailLines = detail ? wrapText(measure, detail, textWidth, 2) : [];
 
-  const titleTop = layout.titleLineHeight;
-  const bodyHeight = titleTop
-    + titleLines.length * layout.titleLineHeight
-    + (detailLines.length > 0 ? 6 + detailLines.length * layout.detailLineHeight : 0)
-    + 14;
+  // The header is the coloured band, so it has to be as tall as the title it
+  // holds — a fixed band cuts a two-line title in half, which is what a title
+  // taken from a source usually is.
+  const headerPadding = 14;
+  const detailPadding = 16;
+  const headerHeight = Math.round(headerPadding * 2 + titleLines.length * layout.titleLineHeight);
+  const bodyHeight = Math.round(headerHeight
+    + (detailLines.length > 0 ? detailPadding * 2 + detailLines.length * layout.detailLineHeight : 0));
   const height = Math.round(bodyHeight + 12);
 
   const scale = 2;
@@ -150,15 +161,18 @@ function createAnnotationCardImage(
   context.shadowBlur = 24;
   context.shadowOffsetY = 16;
   context.fillStyle = 'rgba(11, 15, 17, 0.96)';
-  roundRect(context, 0, 0, width, height - 12, radius);
+  roundRect(context, 0, 0, width, bodyHeight, radius);
   context.fill();
   context.restore();
 
+  // Clipping to the card rather than drawing a second rounded rect keeps the
+  // header's top corners on the card's radius and its bottom edge straight,
+  // whatever height the title needs.
   context.save();
+  roundRect(context, 0, 0, width, bodyHeight, radius);
+  context.clip();
   context.fillStyle = annotation.color;
-  roundRect(context, 0, 0, width, 10 + radius, radius);
-  context.rect(0, 10, width, radius);
-  context.fill();
+  context.fillRect(0, 0, width, headerHeight);
   context.restore();
 
   context.save();
@@ -176,13 +190,14 @@ function createAnnotationCardImage(
 
   context.fillStyle = '#ffffff';
   context.font = titleFont;
+  const titleTop = headerPadding + layout.titleLineHeight / 2;
   titleLines.forEach((line, index) => {
     context.fillText(line, width / 2, titleTop + index * layout.titleLineHeight);
   });
 
   context.fillStyle = 'rgba(255, 255, 255, 0.92)';
   context.font = detailFont;
-  const detailTop = titleTop + titleLines.length * layout.titleLineHeight + 6;
+  const detailTop = headerHeight + detailPadding + layout.detailLineHeight / 2;
   detailLines.forEach((line, index) => {
     context.fillText(line, width / 2, detailTop + index * layout.detailLineHeight);
   });
@@ -316,6 +331,12 @@ export function useTextAnnotationsLayer({
         },
       });
     }
+
+    // Layers added after these — landmark pins and their labels — would
+    // otherwise draw over the card, so put the annotations back on top.
+    ANNOTATION_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.moveLayer(layerId);
+    });
 
     const markerSource = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     markerSource?.setData(buildAnnotationsFeatureCollection(annotations, activeAnnotationId));

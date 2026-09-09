@@ -22,6 +22,7 @@ import {
   colorForLandmark,
   glyphForLandmark,
 } from '@/components/map/landmarkGlyphs';
+import { ANNOTATION_LAYER_IDS } from '@/components/map/hooks/useTextAnnotationsLayer';
 
 const SOURCE = LANDMARK_SOURCE_ID;
 const ICON = LANDMARK_ICON_LAYER_ID;
@@ -80,8 +81,11 @@ export function useRouteLandmarksLayer({
       if (!map.hasImage(imageId)) map.addImage(imageId, glyphImage(kind), { sdf: true });
     });
     if (!map.getSource(SOURCE)) map.addSource(SOURCE, { type: 'geojson', data: data([], null) });
-    if (!map.getLayer(ICON)) map.addLayer(landmarkIconLayer(scale));
-    if (!map.getLayer(LABEL)) map.addLayer(landmarkLabelLayer(scale, labelFade));
+    // Pins go under the annotation card: a town name drawn over an annotation
+    // hides the one label the viewer was meant to read.
+    const beforeAnnotations = ANNOTATION_LAYER_IDS.find((layerId) => map.getLayer(layerId));
+    if (!map.getLayer(ICON)) map.addLayer(landmarkIconLayer(scale), beforeAnnotations);
+    if (!map.getLayer(LABEL)) map.addLayer(landmarkLabelLayer(scale, labelFade), beforeAnnotations);
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data(landmarks, selectedLandmarkId));
   }, [isMapLoaded, labelFade, landmarks, mapRef, scale, selectedLandmarkId]);
 
