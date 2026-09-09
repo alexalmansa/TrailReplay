@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { ACTIVITY_ICONS, isSvgActivityIcon, renderActivityIcon } from '@/utils/activityIcons';
 import { createId } from '@/utils/id';
 import { trackEvent } from '@/utils/analytics';
+import { TIME_DEPENDENT_STATS, isStatAvailable } from '@/utils/statAvailability';
+import { useAvailableStats } from '@/hooks/useAvailableStats';
 import { RouteAnnotationsEditor } from './RouteAnnotationsEditor';
 import { Trash2 } from 'lucide-react';
 
@@ -196,6 +198,7 @@ export function AnnotationsPanel() {
   const setTrailStyle = useAppStore((state) => state.setTrailStyle);
 
   const tracks = useAppStore((state) => state.tracks);
+  const { availability, visibleStats: availableStats } = useAvailableStats();
   const activeTrackId = useAppStore((state) => state.activeTrackId);
   const updateTrackColor = useAppStore((state) => state.updateTrackColor);
   const updateTrackIcon = useAppStore((state) => state.updateTrackIcon);
@@ -504,11 +507,17 @@ export function AnnotationsPanel() {
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {(['distance', 'duration', 'pace', 'elevation', 'heartRate', 'speed', 'altitude'] as const).map((id) => {
-            const checked = settings.visibleStats.includes(id);
+            const unavailable = !isStatAvailable(id, availability);
+            const reason = TIME_DEPENDENT_STATS.includes(id)
+              ? t('annotations.statsNeedTiming')
+              : t('annotations.statsNeedHeartRate');
+            const checked = availableStats.includes(id);
             return (
               <button
                 key={id}
                 type="button"
+                disabled={unavailable}
+                title={unavailable ? reason : undefined}
                 onClick={() => {
                   const next = checked
                     ? settings.visibleStats.filter((s) => s !== id)
@@ -516,9 +525,11 @@ export function AnnotationsPanel() {
                   setSettings({ visibleStats: next });
                 }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors text-left ${
-                  checked
-                    ? 'border-[var(--evergreen)] bg-[var(--evergreen)]/10 text-[var(--evergreen)]'
-                    : 'border-[var(--evergreen)]/20 text-[var(--evergreen-60)] hover:border-[var(--evergreen)]/40'
+                  unavailable
+                    ? 'border-[var(--evergreen)]/10 text-[var(--evergreen-40)] opacity-50 cursor-not-allowed'
+                    : checked
+                      ? 'border-[var(--evergreen)] bg-[var(--evergreen)]/10 text-[var(--evergreen)]'
+                      : 'border-[var(--evergreen)]/20 text-[var(--evergreen-60)] hover:border-[var(--evergreen)]/40'
                 }`}
               >
                 <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center ${
@@ -531,7 +542,17 @@ export function AnnotationsPanel() {
             );
           })}
         </div>
-        {settings.visibleStats.includes('pace') && (
+        {tracks.length > 0 && !availability.hasRecordedTime && (
+          <p className="text-xs text-[var(--evergreen-60)] leading-snug">
+            {t('annotations.statsNeedTiming')}
+          </p>
+        )}
+        {tracks.length > 0 && !availability.hasHeartRate && (
+          <p className="text-xs text-[var(--evergreen-60)] leading-snug">
+            {t('annotations.statsNeedHeartRate')}
+          </p>
+        )}
+        {availableStats.includes('pace') && (
           <div className="space-y-1.5">
             <Label className="text-xs text-[var(--evergreen-60)] uppercase tracking-wide">
               {t('annotations.paceMode')}

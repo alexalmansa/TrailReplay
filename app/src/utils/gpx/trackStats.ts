@@ -25,12 +25,12 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return earthRadius * angularDistance;
 }
 
-export function createTrackId(prefix: 'track' | 'kml') {
+export function createTrackId(prefix: 'track' | 'kml' | 'fit') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export function buildTrackFromRawPoints(params: {
-  idPrefix: 'track' | 'kml';
+  idPrefix: 'track' | 'kml' | 'fit';
   name: string;
   rawPoints: RawTrackPoint[];
 }): GPXTrack {

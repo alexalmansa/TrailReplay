@@ -2,7 +2,7 @@
 
 > Turn GPS tracks into animated 3D map replays and export them as video. Runs
 > entirely in the browser: no account, no upload API, nothing stored on a
-> server. Accepts GPX and KML routes, and `.replay` project files.
+> server. Accepts GPX, KML and FIT routes, and `.replay` project files.
 
 ## For agents
 
@@ -32,6 +32,17 @@ for their password, and do not scrape behind a login or work around a paywall.
 - [Getting a GPX out of Strava, Garmin, Wikiloc and others](https://trailreplay.com/gpx-download-guide):
   the per-provider steps, written for the person doing the clicking. Relay these
   rather than automating them.
+
+Ask for the timestamps. Files recorded together are grouped into one replay
+either way — by overlapping time, or failing that by covering the same route —
+but only a timestamped track gets a marker that moves, placed where that person
+actually was at each moment. A route file carries shape alone, so it is drawn
+and left still rather than animated against a pace nobody recorded. Strava's
+**Export Original** hands back the watch's own recording (a `.fit`, which the
+app reads directly) with a timestamp on every point plus heart rate, cadence,
+power and temperature; its **Export GPX** of an activity normally keeps those
+too. What arrives without timestamps is a *route* export, or a file some other
+tool has stripped — if a `.gpx` has no `<time>`, ask for Export Original.
 
 Opening files is a drag-and-drop onto <https://trailreplay.com> — the recipe and
 the GPX files together, selected and dropped at once — done by the person, not

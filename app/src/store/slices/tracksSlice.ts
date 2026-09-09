@@ -3,6 +3,8 @@ import { trackColors } from '@/store/defaults';
 import type { AppState } from '@/store/storeTypes';
 import type { AppSliceCreator } from './types';
 import { DEFAULT_ACTIVITY_ICON } from '@/utils/activityIcons';
+import { getTrackTimeRange } from '@/utils/trackTimeOverlap';
+import type { GPXTrack } from '@/types';
 
 type TracksSlice = Pick<
   AppState,
@@ -19,11 +21,74 @@ type TracksSlice = Pick<
   | 'reorderTracks'
   | 'addComparisonTrack'
   | 'removeComparisonTrack'
+  | 'ungroupComparisonTrack'
   | 'toggleComparisonTrack'
   | 'updateComparisonOffset'
   | 'updateComparisonTrackName'
   | 'updateComparisonColor'
 >;
+
+/**
+ * Places a track into `state.tracks` (at `insertIndex`, or appended when
+ * omitted/out of range) and gives it a matching journey segment, sharing the
+ * logic `addTrack` and `ungroupComparisonTrack` both need. The segment is
+ * inserted right before the segment of the track that ends up after it, so a
+ * mid-sequence insert keeps the journey order consistent with track order.
+ */
+function insertTrackIntoJourney(state: AppState, track: GPXTrack, insertIndex?: number) {
+  const colorIndex = state.tracks.length % trackColors.length;
+  const trackColor = track.color || trackColors[colorIndex];
+  const trackWithColor = {
+    ...track,
+    activityIcon: track.activityIcon || DEFAULT_ACTIVITY_ICON,
+    color: trackColor,
+    visible: true,
+  };
+
+  const atEnd = insertIndex === undefined || insertIndex >= state.tracks.length;
+  const nextTrack = atEnd ? null : state.tracks[insertIndex!];
+  if (atEnd) {
+    state.tracks.push(trackWithColor);
+  } else {
+    state.tracks.splice(insertIndex!, 0, trackWithColor);
+  }
+  state.exploreMode = false;
+
+  if (!state.activeTrackId) {
+    state.activeTrackId = track.id;
+    state.settings.trailStyle.trailColor = trackColor;
+    state.settings.trailStyle.currentIcon = trackWithColor.activityIcon;
+    state.settings.trailStyle.markerColor = trackColor;
+  }
+
+  if (!state.journey) {
+    state.journey = {
+      id: createId('journey'),
+      name: 'My Journey',
+      segments: [],
+      totalDuration: 0,
+      totalDistance: 0,
+    };
+  }
+
+  const segment = {
+    id: createId(`segment-${track.id}`),
+    type: 'track' as const,
+    trackId: track.id,
+    duration: 60000,
+  };
+  const nextSegmentIndex = nextTrack
+    ? state.journeySegments.findIndex(
+        (entry) => entry.type === 'track' && entry.trackId === nextTrack.id
+      )
+    : -1;
+  if (nextSegmentIndex >= 0) {
+    state.journeySegments.splice(nextSegmentIndex, 0, segment);
+  } else {
+    state.journeySegments.push(segment);
+  }
+  state.activePanel = 'journey';
+}
 
 export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
   tracks: [],
@@ -32,41 +97,7 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
 
   addTrack: (track) =>
     set((state) => {
-      const colorIndex = state.tracks.length % trackColors.length;
-      const trackColor = track.color || trackColors[colorIndex];
-      const trackWithColor = {
-        ...track,
-        activityIcon: track.activityIcon || DEFAULT_ACTIVITY_ICON,
-        color: trackColor,
-        visible: true,
-      };
-      state.tracks.push(trackWithColor);
-      state.exploreMode = false;
-
-      if (!state.activeTrackId) {
-        state.activeTrackId = track.id;
-        state.settings.trailStyle.trailColor = trackColor;
-        state.settings.trailStyle.currentIcon = trackWithColor.activityIcon;
-        state.settings.trailStyle.markerColor = trackColor;
-      }
-
-      if (!state.journey) {
-        state.journey = {
-          id: createId('journey'),
-          name: 'My Journey',
-          segments: [],
-          totalDuration: 0,
-          totalDistance: 0,
-        };
-      }
-
-      state.journeySegments.push({
-        id: createId(`segment-${track.id}`),
-        type: 'track',
-        trackId: track.id,
-        duration: 60000,
-      });
-      state.activePanel = 'journey';
+      insertTrackIntoJourney(state, track);
     }),
 
   removeTrack: (trackId) =>
@@ -152,6 +183,28 @@ export const createTracksSlice: AppSliceCreator<TracksSlice> = (set) => ({
   removeComparisonTrack: (trackId) =>
     set((state) => {
       state.comparisonTracks = state.comparisonTracks.filter((track) => track.id !== trackId);
+    }),
+
+  ungroupComparisonTrack: (trackId) =>
+    set((state) => {
+      const comparisonTrack = state.comparisonTracks.find((entry) => entry.id === trackId);
+      if (!comparisonTrack) return;
+
+      state.comparisonTracks = state.comparisonTracks.filter((entry) => entry.id !== trackId);
+
+      const range = getTrackTimeRange(comparisonTrack.track);
+      const insertIndex = range
+        ? state.tracks.findIndex((existing) => {
+            const existingRange = getTrackTimeRange(existing);
+            return !!existingRange && existingRange.start > range.start;
+          })
+        : -1;
+
+      insertTrackIntoJourney(
+        state,
+        comparisonTrack.track,
+        insertIndex >= 0 ? insertIndex : undefined
+      );
     }),
 
   toggleComparisonTrack: (trackId) =>

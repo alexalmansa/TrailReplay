@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useComputedJourney } from '@/hooks/useComputedJourney';
+import { useAvailableStats } from '@/hooks/useAvailableStats';
 import { formatDistance, formatPace, formatStatsDuration, formatElevation, formatSpeedFromKmh } from '@/utils/units';
 import { useI18n } from '@/i18n/useI18n';
 import type { StatId } from '@/types';
@@ -27,6 +28,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
   const journeySegments = useAppStore((state) => state.journeySegments);
   const playback = useAppStore((state) => state.playback);
   const settings = useAppStore((state) => state.settings);
+  const { visibleStats: availableStats } = useAvailableStats();
   const isNarrowLayout = compact || layout === 'narrow';
   const isHorizontalLayout = layout === 'horizontal';
   const isVerticalLayout = layout === 'vertical';
@@ -147,7 +149,7 @@ export function StatsOverlay({ compact = false, layout = 'default', variant = 'd
   ];
 
   const visibleStats = ALL_STATS.filter(
-    (s) => settings.visibleStats.includes(s.id) && s.value !== null,
+    (s) => availableStats.includes(s.id) && s.value !== null,
   );
 
   if (visibleStats.length === 0) return null;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Ungroup } from 'lucide-react';
 import type { AppSettings, ComparisonTrack } from '@/types';
 import { useI18n } from '@/i18n/useI18n';
 import { formatDistance } from '@/utils/units';
@@ -9,6 +9,7 @@ interface ComparisonTrackItemProps {
   settings: AppSettings;
   onNameChange: (name: string) => void;
   onRemove: () => void;
+  onUngroup: () => void;
 }
 
 export function ComparisonTrackItem({
@@ -16,6 +17,7 @@ export function ComparisonTrackItem({
   settings,
   onNameChange,
   onRemove,
+  onUngroup,
 }: ComparisonTrackItemProps) {
   const { t } = useI18n();
   const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +62,13 @@ export function ComparisonTrackItem({
         <span className="flex-shrink-0 text-xs text-[var(--evergreen-60)]">
           {formatDistance(track.track.totalDistance, settings.unitSystem)}
         </span>
+        <button
+          onClick={onUngroup}
+          title={t('tracks.ungroupTooltip')}
+          className="flex-shrink-0 rounded p-1 text-[var(--evergreen-60)] hover:bg-[var(--evergreen)]/10"
+        >
+          <Ungroup className="h-4 w-4" />
+        </button>
         <button onClick={onRemove} className="flex-shrink-0 rounded p-1 text-red-500 hover:bg-red-100">
           <X className="h-4 w-4" />
         </button>

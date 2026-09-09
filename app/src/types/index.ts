@@ -267,6 +267,8 @@ export interface ComparisonTrack {
   track: GPXTrack;
   visible: boolean;
   offset: number;
+  /** Set when this track was auto-grouped with an overlapping-time upload; names the primary track's id. */
+  groupId?: string;
 }
 
 export type UnitSystem = 'metric' | 'imperial';
