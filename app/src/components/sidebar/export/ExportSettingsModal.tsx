@@ -1,4 +1,4 @@
-import { AlertTriangle, Monitor } from 'lucide-react';
+import { AlertTriangle, Monitor, Sparkles } from 'lucide-react';
 import type { VideoExportSettings, VideoQuality } from '@/types';
 import {
   ASPECT_RATIO_OPTIONS,
@@ -10,21 +10,33 @@ import {
 type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
 interface ExportSettingsModalProps {
+  consentDefaultsLoaded: boolean;
   estimatedSize: string;
   isOpen: boolean;
+  marketingConsent: boolean;
   mp4Supported: boolean;
   onClose: () => void;
+  onMarketingConsentChange: (checked: boolean) => void;
+  onStudioDeliveryEmailChange: (email: string) => void;
   setVideoExportSettings: (settings: Partial<VideoExportSettings>) => void;
+  studioDeliveryEmail: string;
+  studioSupported: boolean;
   t: TranslateFn;
   videoExportSettings: VideoExportSettings;
 }
 
 export function ExportSettingsModal({
+  consentDefaultsLoaded,
   estimatedSize,
   isOpen,
+  marketingConsent,
   mp4Supported,
   onClose,
+  onMarketingConsentChange,
+  onStudioDeliveryEmailChange,
   setVideoExportSettings,
+  studioDeliveryEmail,
+  studioSupported,
   t,
   videoExportSettings,
 }: ExportSettingsModalProps) {
@@ -45,7 +57,10 @@ export function ExportSettingsModal({
             {(['mp4', 'webm'] as const).map((format) => (
               <button
                 key={format}
-                onClick={() => setVideoExportSettings({ format })}
+                onClick={() => setVideoExportSettings({
+                  format,
+                  qualityMode: format === 'webm' ? 'standard' : videoExportSettings.qualityMode,
+                })}
                 className={`
                   flex-1 py-2 px-3 rounded-lg text-sm font-medium uppercase transition-colors
                   ${videoExportSettings.format === format
@@ -128,6 +143,106 @@ export function ExportSettingsModal({
             ))}
           </div>
         </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">
+            {t('export.qualityMode')}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['standard', 'studio'] as const).map((mode) => {
+              // Studio pacing only exists on the deterministic MP4 encoder.
+              const isDisabled = mode === 'studio'
+                && (!studioSupported || videoExportSettings.format !== 'mp4');
+              const isSelected = videoExportSettings.qualityMode === mode && !isDisabled;
+              const isStudio = mode === 'studio';
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={isSelected}
+                  disabled={isDisabled}
+                  onClick={() => setVideoExportSettings({ qualityMode: mode })}
+                  className={`
+                    relative min-h-24 rounded-lg border-2 px-3 py-3 text-left transition-colors
+                    disabled:opacity-40 disabled:cursor-not-allowed
+                    ${isSelected
+                      ? isStudio
+                        ? 'border-[var(--trail-orange)] bg-[var(--trail-orange)] text-[var(--canvas)]'
+                        : 'border-[var(--evergreen)] bg-[var(--evergreen)] text-[var(--canvas)]'
+                      : isStudio
+                        ? 'border-[var(--trail-orange)]/60 bg-[var(--trail-orange-15)] text-[var(--evergreen)] hover:border-[var(--trail-orange)]'
+                        : 'border-transparent bg-[var(--evergreen)]/10 text-[var(--evergreen)] hover:bg-[var(--evergreen)]/20'
+                    }
+                  `}
+                >
+                  <span className="flex items-center gap-1.5 text-sm font-bold">
+                    {isStudio && <Sparkles className="h-4 w-4" aria-hidden="true" />}
+                    {isStudio ? t('export.qualityModeStudio') : t('export.qualityModeStandard')}
+                  </span>
+                  {isStudio && (
+                    <span className={`mt-1 inline-block text-[10px] font-bold uppercase tracking-[0.06em] ${isSelected ? 'text-[var(--canvas)]' : 'text-[var(--trail-orange)]'}`}>
+                      {t('export.qualityModeStudioBadge')}
+                    </span>
+                  )}
+                  <span className={`mt-1.5 block text-[11px] leading-4 ${isSelected ? 'opacity-80' : 'text-[var(--evergreen-60)]'}`}>
+                    {isStudio
+                      ? t('export.qualityModeStudioSummary')
+                      : t('export.qualityModeStandardSummary')}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-[var(--evergreen-60)]">
+            {videoExportSettings.qualityMode === 'studio'
+              ? t('export.qualityModeStudioHint')
+              : t('export.qualityModeStandardHint')}
+          </p>
+          {!studioSupported && (
+            <div className="mt-2 flex items-start gap-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+              <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+              {t('export.qualityModeStudioUnavailable')}
+            </div>
+          )}
+        </div>
+
+        {videoExportSettings.qualityMode === 'studio' && (
+          <div className="mb-4 rounded-lg border border-[var(--trail-orange)]/40 bg-[var(--trail-orange-15)] p-3">
+            <label
+              htmlFor="studio-delivery-email"
+              className="block text-sm font-medium text-[var(--evergreen)]"
+            >
+              {t('export.studioEmailLabel')}
+            </label>
+            <input
+              id="studio-delivery-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={studioDeliveryEmail}
+              onChange={(event) => onStudioDeliveryEmailChange(event.target.value)}
+              placeholder={t('export.studioEmailPlaceholder')}
+              className="mt-2 w-full rounded-lg border border-[var(--evergreen)]/20 bg-white px-3 py-2 text-sm text-[var(--evergreen)] focus:border-[var(--trail-orange)] focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-[var(--evergreen-60)]">
+              {t('export.studioEmailHint')}
+            </p>
+
+            <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-[var(--evergreen)]">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-[var(--trail-orange)]"
+                checked={marketingConsent}
+                disabled={!consentDefaultsLoaded}
+                onChange={(event) => onMarketingConsentChange(event.target.checked)}
+              />
+              <span>{t('export.marketingConsent')}</span>
+            </label>
+            <p className="ml-6 mt-1 text-[11px] text-[var(--evergreen-60)]">
+              {t('export.marketingConsentHint')}
+            </p>
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-[var(--evergreen)] mb-2">

@@ -210,9 +210,17 @@ export type VideoFormat = 'webm' | 'mp4';
 export type VideoQuality = 'low' | 'medium' | 'high' | 'ultra';
 export type AspectRatio = '16:9' | '1:1' | '9:16';
 
+/**
+ * `standard` advances as soon as the map has drawn a frame. `studio` waits for
+ * every tile of each frame to finish loading first, so no frame is encoded
+ * against the coarse fallback basemap — at roughly 6x the export wall clock.
+ */
+export type VideoQualityMode = 'standard' | 'studio';
+
 export interface VideoExportSettings {
   format: VideoFormat;
   quality: VideoQuality;
+  qualityMode: VideoQualityMode;
   fps: number;
   resolution: { width: number; height: number };
   aspectRatio: AspectRatio;

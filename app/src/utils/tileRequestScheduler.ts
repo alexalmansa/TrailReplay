@@ -103,6 +103,10 @@ export function getTilePriority(sourceId: string): number {
 export function preloadTileImage(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    // Match MapLibre's CORS-mode tile requests. Without this, the browser can
+    // cache a response fetched without Origin/ACAO headers and later reject
+    // that cached response when MapLibre requests the same terrain tile.
+    image.crossOrigin = 'anonymous';
     image.onload = () => resolve();
     image.onerror = () => reject(new Error(`Tile request failed: ${url}`));
     image.src = url;

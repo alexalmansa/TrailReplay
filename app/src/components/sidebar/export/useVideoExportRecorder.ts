@@ -8,8 +8,8 @@ import { useI18n } from '@/i18n/useI18n';
 import { getCropRegion } from '@/utils/crop';
 import {
   getBlobSizeBucket,
-  getDurationBucket,
   getProgressBucket,
+  getVideoExportAnalyticsParams,
   trackEvent,
 } from '@/utils/analytics';
 import { getActivityIconOption, isSvgActivityIcon } from '@/utils/activityIcons';
@@ -43,6 +43,15 @@ import {
   type Mp4CanvasEncoder,
 } from './mp4CanvasEncoder';
 import { getOverlayRefreshIntervalMs } from './exportOverlay';
+import { waitForSettledFrame } from './exportMapSettle';
+import {
+  createStudioDeliveryJob,
+  deliverStudioExport,
+  isValidDeliveryEmail,
+  shouldAutoDownloadVideo,
+  type StudioDeliveryJob,
+  type StudioDeliveryRequest,
+} from './studioDelivery';
 import { useExportOverlayCapture } from './useExportOverlayCapture';
 import { INTRO_DURATION, OUTRO_DELAY, OUTRO_DURATION } from '@/components/playback/PlaybackProvider';
 import {
@@ -56,6 +65,10 @@ const EXPORT_MAP_SETTLE_MS = 150;
 const EXPORT_TILE_PRELOAD_TIMEOUT_MS = 6000;
 const EXPORT_OPENING_WINDOW_MS = 20000;
 const EXPORT_OPENING_SAMPLE_COUNT = 8;
+// A studio frame stops waiting after this long so one unreachable tile cannot
+// strand a 1800-frame export. Measured worst-case settle on satellite + terrain
+// at 4K was 1.27s, so this leaves an order of magnitude of headroom.
+const STUDIO_FRAME_SETTLE_TIMEOUT_MS = 10_000;
 
 function extractCssUrl(value: string): string | null {
   const match = value.match(/url\((['"]?)(.*?)\1\)/);
@@ -94,8 +107,15 @@ function drawTintedSvgIcon(
   );
 }
 
-export function useVideoExportRecorder() {
-  const { t } = useI18n();
+export type StudioDeliveryStatus = 'idle' | 'registering' | 'uploading' | 'emailing' | 'sent' | 'failed';
+
+interface UseVideoExportRecorderOptions {
+  studioDelivery?: StudioDeliveryRequest;
+}
+
+export function useVideoExportRecorder(options: UseVideoExportRecorderOptions = {}) {
+  const { t, language } = useI18n();
+  const { studioDelivery } = options;
   const videoExportSettings = useAppStore((state) => state.videoExportSettings);
   const visibleStats = useAppStore((state) => state.settings.visibleStats);
   const showElevationProfile = useAppStore((state) => state.settings.showElevationProfile);
@@ -133,12 +153,13 @@ export function useVideoExportRecorder() {
   );
 
   const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
+  const [studioDeliveryStatus, setStudioDeliveryStatus] = useState<StudioDeliveryStatus>('idle');
+  const [studioDeliveryError, setStudioDeliveryError] = useState<string | null>(null);
 
+  const studioSupported = useMemo(() => isWebCodecsMp4Supported(), []);
   const mp4Supported = useMemo(
-    () =>
-      isWebCodecsMp4Supported() ||
-      MP4_MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType)),
-    []
+    () => studioSupported || MP4_MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType)),
+    [studioSupported]
   );
   const actualFormat = videoExportSettings.format === 'mp4' && !mp4Supported ? 'webm' : videoExportSettings.format;
   const estimatedSize = estimateFileSize(playback.totalDuration, videoExportSettings);
@@ -278,6 +299,16 @@ export function useVideoExportRecorder() {
   const cachedLogoRef = useRef<HTMLImageElement | null>(null);
   const svgMarkerImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const pendingSvgMarkerLoadsRef = useRef<Set<string>>(new Set());
+  // Studio quality is decided once when the export starts. Reading the store
+  // mid-export would let a settings change swap the frame pacing halfway
+  // through a recording.
+  const studioQualityRef = useRef(false);
+  const studioStatsRef = useRef({ frames: 0, timedOutFrames: 0, waitedMs: 0 });
+  const rasterFadeRestoreRef = useRef<Array<() => void>>([]);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const hiddenSinceRef = useRef<number | null>(null);
+  const hiddenMsRef = useRef(0);
+  const studioDeliveryJobRef = useRef<StudioDeliveryJob | null>(null);
 
   const preloadSvgMarkerIcon = useCallback((url: string) => {
     if (!url || svgMarkerImageCacheRef.current.has(url) || pendingSvgMarkerLoadsRef.current.has(url)) {
@@ -569,6 +600,131 @@ export function useVideoExportRecorder() {
     });
   }, []);
 
+  // Advances the map by exactly one rendered frame. The paired rAF fallback
+  // keeps a studio export cancellable if a style refuses to render.
+  const renderMapOnce = useCallback(async () => {
+    const map = mapGlobalRef.current;
+    if (!map) return;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        map.off('render', finish);
+        resolve();
+      };
+      map.once('render', finish);
+      map.triggerRepaint();
+      requestAnimationFrame(() => requestAnimationFrame(finish));
+    });
+  }, []);
+
+  /**
+   * Studio pacing: hold each frame until every tile for its pose has loaded.
+   *
+   * Standard export's `waitForMapFrame` only proves the map drew something.
+   * Measured on a 60s satellite replay, 80% of frames were drawn against the
+   * coarse z12 fallback pyramid because their detail tiles were still in
+   * flight. This trades wall clock (roughly 6x) for a video in which no frame
+   * shows the fallback basemap.
+   */
+  const waitForMapSettled = useCallback(async () => {
+    const map = mapGlobalRef.current;
+    if (!map) {
+      await waitForMapFrame();
+      return;
+    }
+
+    const result = await waitForSettledFrame(map, {
+      isCancelled: () => recordingCancelledRef.current || !isRecordingRef.current,
+      nextTask: () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+      now: () => performance.now(),
+      renderOnce: renderMapOnce,
+      timeoutMs: STUDIO_FRAME_SETTLE_TIMEOUT_MS,
+    });
+
+    const stats = studioStatsRef.current;
+    stats.frames += 1;
+    stats.waitedMs += result.waitedMs;
+    if (result.timedOut) stats.timedOutFrames += 1;
+  }, [renderMapOnce, waitForMapFrame]);
+
+  /**
+   * Frame pacing for the route playback loop.
+   *
+   * Only the route loop can be settled. The intro (`flyTo`) and outro
+   * (`fitBounds`) are time-based MapLibre camera animations that advance on
+   * wall clock, so pausing between frames does not hold the camera still — it
+   * lets the animation run ahead, dropping intro content from the video. They
+   * are also `isMoving()` throughout, so every one of their frames would burn
+   * the full settle timeout. The route loop drives the camera with `jumpTo`
+   * from explicit progress, so it holds still while tiles load, and it is the
+   * overwhelming majority of frames anyway.
+   */
+  const waitForExportFrame = useCallback(async () => {
+    if (studioQualityRef.current) {
+      await waitForMapSettled();
+      return;
+    }
+    await waitForMapFrame();
+  }, [waitForMapFrame, waitForMapSettled]);
+
+  /**
+   * Raster tiles crossfade in over ~300ms, so a tile can be fully loaded and
+   * still be captured mid-fade — which reads as exactly the softness studio
+   * mode exists to remove. Disable the transition while recording.
+   */
+  const applyStudioMapSettings = useCallback(() => {
+    const map = mapGlobalRef.current;
+    if (!map) return;
+
+    const restores: Array<() => void> = [];
+    const layers = map.getStyle()?.layers ?? [];
+    layers.forEach((layer) => {
+      if (layer.type !== 'raster') return;
+      try {
+        const previous = map.getPaintProperty(layer.id, 'raster-fade-duration');
+        map.setPaintProperty(layer.id, 'raster-fade-duration', 0);
+        restores.push(() => {
+          try {
+            map.setPaintProperty(layer.id, 'raster-fade-duration', previous ?? undefined);
+          } catch {
+            // The layer can be gone if the basemap changed during the export.
+          }
+        });
+      } catch {
+        // Ignore layers that reject the property rather than abort the export.
+      }
+    });
+    rasterFadeRestoreRef.current = restores;
+  }, []);
+
+  const restoreStudioMapSettings = useCallback(() => {
+    rasterFadeRestoreRef.current.forEach((restore) => restore());
+    rasterFadeRestoreRef.current = [];
+
+    const wakeLock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    void wakeLock?.release().catch(() => {
+      // Already released by the browser (tab hidden, display slept).
+    });
+  }, []);
+
+  // A studio export runs for minutes rather than seconds, so the display going
+  // to sleep mid-recording is a real risk. Best effort: the export still works
+  // without the lock.
+  const requestScreenWakeLock = useCallback(async () => {
+    try {
+      const nav = navigator as Navigator & {
+        wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
+      };
+      if (!nav.wakeLock) return;
+      wakeLockRef.current = await nav.wakeLock.request('screen');
+    } catch {
+      // Denied, unsupported, or the document was already hidden.
+    }
+  }, []);
+
   const preloadExportOpeningTiles = useCallback(async () => {
     const map = mapGlobalRef.current;
     if (!map || cameraSettings.mode === 'overview' || cameraPathCoordinates.length === 0) return;
@@ -639,6 +795,8 @@ export function useVideoExportRecorder() {
 
     for (let frameIndex = 0; frameIndex <= frameCount; frameIndex += 1) {
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
+      // Deliberately standard pacing even in studio mode — see the note on
+      // `waitForExportFrame` for why the intro/outro cannot be settled.
       await waitForMapFrame();
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
       captureFrame();
@@ -696,7 +854,8 @@ export function useVideoExportRecorder() {
     }
   }, [captureFrame, encodeWebCodecsFrame, updateOverlayAsync, videoExportSettings.fps, videoExportSettings.resolution]);
 
-  // Flush and download the WebCodecs-encoded MP4 once recording has stopped.
+  // Flush the WebCodecs-encoded MP4 once recording has stopped. Standard
+  // exports download immediately; Studio exports are delivered by email.
   const finalizeWebCodecsExport = useCallback(async () => {
     const encoder = mp4EncoderRef.current;
     if (!encoder) return;
@@ -713,22 +872,63 @@ export function useVideoExportRecorder() {
     try {
       const blob = await encoder.finalize();
       if (blob.size > 0) {
+        const studioStats = studioStatsRef.current;
+        const wasStudioQuality = studioQualityRef.current;
+        const studioTimedOut = wasStudioQuality && studioStats.timedOutFrames > 0;
+
         setExportedBlob(blob);
-        setExportStage(t('export.stageComplete'));
+        // Never claim a clean studio render when some frames gave up waiting —
+        // those frames contain exactly the soft fallback tiles this mode sells
+        // the absence of.
+        setExportStage(studioTimedOut
+          ? t('export.stageCompleteStudioPartial', { frames: studioStats.timedOutFrames })
+          : t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
+          ...getVideoExportAnalyticsParams(videoExportSettings, 'mp4', playback.totalDuration),
           export_blob_size_bucket: getBlobSizeBucket(blob.size),
-          export_format: 'mp4',
           export_encoder_path: 'webcodecs',
-          export_duration_bucket: getDurationBucket(playback.totalDuration),
+          export_quality_mode: wasStudioQuality ? 'studio' : 'standard',
+          export_studio_timed_out_frames: studioStats.timedOutFrames,
         });
 
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `trail-replay-${Date.now()}.mp4`;
-        anchor.click();
-        URL.revokeObjectURL(url);
+        if (shouldAutoDownloadVideo(wasStudioQuality ? 'studio' : 'standard')) {
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = `trail-replay-${Date.now()}.mp4`;
+          anchor.click();
+          URL.revokeObjectURL(url);
+        }
+
+        const deliveryJob = studioDeliveryJobRef.current;
+        if (wasStudioQuality && deliveryJob) {
+          try {
+            const deliveryResult = await deliverStudioExport(deliveryJob, blob, (phase) => {
+              setStudioDeliveryStatus(phase);
+              setExportStage(phase === 'uploading'
+                ? t('export.stageUploadingVideo')
+                : t('export.stageEmailingLink'));
+            });
+            setStudioDeliveryStatus('sent');
+            setStudioDeliveryError(null);
+            setExportStage(t('export.stageEmailSent'));
+            trackEvent('studio_export_delivery_completed', {
+              provider: deliveryResult.provider ?? 'unknown',
+            });
+          } catch (deliveryError) {
+            console.error('Studio export delivery failed', deliveryError);
+            const message = deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
+            setStudioDeliveryStatus('failed');
+            setStudioDeliveryError(message);
+            setExportStage(t('export.stageDeliveryFailed'));
+            trackEvent('export_failed', {
+              export_failure_scope: 'studio_delivery',
+              export_format: 'mp4',
+              export_encoder_path: 'webcodecs',
+            });
+          }
+        }
       } else {
         setExportStage(t('export.stageFailedNoData'));
         trackEvent('export_failed', {
@@ -746,13 +946,16 @@ export function useVideoExportRecorder() {
         export_encoder_path: 'webcodecs',
       });
     } finally {
+      restoreStudioMapSettings();
+      studioDeliveryJobRef.current = null;
+      studioQualityRef.current = false;
       setIsDeterministicExport(false);
       setIsExporting(false);
       // Deterministic export drives the animation directly through its outro.
       // Restore an idle, replayable timeline once the file has been finalized.
       resetPlayback();
     }
-  }, [playback.totalDuration, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t]);
+  }, [playback.totalDuration, resetPlayback, restoreStudioMapSettings, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, t, videoExportSettings]);
 
   const finishRecording = useCallback(() => {
     if (!isRecordingRef.current) return;
@@ -789,6 +992,27 @@ export function useVideoExportRecorder() {
       recorder.stop();
     }
   }, [finalizeWebCodecsExport, setExportStage, t]);
+
+  /**
+   * Studio export is bound by tile network latency, not by the video's own
+   * duration, so a percentage of the timeline sits near-still for minutes and
+   * reads as a hang. Report encoded frames and a rolling estimate instead.
+   * Time spent with the tab hidden is excluded: rAF is frozen there, so the
+   * export makes no progress and that wall clock would poison the average.
+   */
+  const describeRecordingStage = useCallback((frameIndex: number, frameCount: number) => {
+    if (!studioQualityRef.current) return t('export.recording');
+
+    const hiddenMs = hiddenMsRef.current
+      + (hiddenSinceRef.current === null ? 0 : performance.now() - hiddenSinceRef.current);
+    const elapsedMs = performance.now() - recordingStartTimeRef.current - hiddenMs;
+    const remainingMs = (elapsedMs / Math.max(1, frameIndex)) * Math.max(0, frameCount - frameIndex);
+    const minutes = Math.round(remainingMs / 60000);
+
+    return minutes < 1
+      ? t('export.studioProgressSoon', { frame: frameIndex, total: frameCount })
+      : t('export.studioProgress', { frame: frameIndex, total: frameCount, minutes });
+  }, [t]);
 
   const runDeterministicExport = useCallback(async () => {
     if (!mp4EncoderRef.current) return;
@@ -832,7 +1056,7 @@ export function useVideoExportRecorder() {
       const currentTime = Math.min(routeDurationMs, frameIndex * frameDurationMs);
       const progress = routeDurationMs > 0 ? currentTime / routeDurationMs : 1;
       useAppStore.getState().setPlayback({ currentTime, progress });
-      await waitForMapFrame();
+      await waitForExportFrame();
 
       if (!isRecordingRef.current || recordingCancelledRef.current) break;
       captureFrame();
@@ -845,7 +1069,7 @@ export function useVideoExportRecorder() {
 
       if (frameIndex % progressUpdateInterval === 0 || frameIndex === frameCount) {
         setExportProgress(progress * 100);
-        setExportStage(t('export.recording'));
+        setExportStage(describeRecordingStage(frameIndex, frameCount));
       }
 
       const triggeredPictures = getTriggeredPlaybackPictures({
@@ -889,7 +1113,7 @@ export function useVideoExportRecorder() {
     }
 
     if (!recordingCancelledRef.current) finishRecording();
-  }, [captureDeterministicPhase, capturePictureHold, captureFrame, encodeWebCodecsFrame, finishRecording, pictures, setExportProgress, setExportStage, setIsDeterministicExport, t, videoExportSettings, waitForMapFrame]);
+  }, [captureDeterministicPhase, capturePictureHold, captureFrame, describeRecordingStage, encodeWebCodecsFrame, finishRecording, pictures, setExportProgress, setExportStage, setIsDeterministicExport, videoExportSettings, waitForExportFrame, waitForMapFrame]);
 
   useEffect(() => {
     if (!isRecordingRef.current) return;
@@ -962,10 +1186,9 @@ export function useVideoExportRecorder() {
         setExportStage(t('export.stageComplete'));
         setExportProgress(100);
         trackEvent('export_completed', {
+          ...getVideoExportAnalyticsParams(videoExportSettings, extension, playback.totalDuration),
           export_blob_size_bucket: getBlobSizeBucket(blob.size),
-          export_format: extension,
           export_encoder_path: 'mediarecorder',
-          export_duration_bucket: getDurationBucket(playback.totalDuration),
         });
 
         const url = URL.createObjectURL(blob);
@@ -1021,11 +1244,24 @@ export function useVideoExportRecorder() {
       alert(t('export.noCanvas'));
       return;
     }
+    if (videoExportSettings.qualityMode === 'studio') {
+      if (!studioSupported) {
+        alert(t('export.qualityModeStudioUnavailable'));
+        return;
+      }
+      if (!studioDelivery || !isValidDeliveryEmail(studioDelivery.email)) {
+        alert(t('export.studioEmailRequired'));
+        return;
+      }
+    }
 
     setIsExporting(true);
     setExportProgress(0);
     setExportStage(t('export.stagePreparing'));
     setExportedBlob(null);
+    setStudioDeliveryStatus('idle');
+    setStudioDeliveryError(null);
+    studioDeliveryJobRef.current = null;
     recordedChunksRef.current = [];
     recordingCancelledRef.current = false;
     setIsDeterministicExport(false);
@@ -1033,13 +1269,9 @@ export function useVideoExportRecorder() {
     mp4EncoderRef.current = null;
     resetOverlayCapture();
     trackEvent('export_started', {
-      export_format: actualFormat,
-      export_quality: videoExportSettings.quality,
-      export_fps: videoExportSettings.fps,
-      export_aspect_ratio: videoExportSettings.aspectRatio,
+      ...getVideoExportAnalyticsParams(videoExportSettings, actualFormat, playback.totalDuration),
       export_include_stats: includeStats,
       export_include_elevation: includeElevation,
-      export_duration_bucket: getDurationBucket(playback.totalDuration),
       track_count: tracks.length,
       picture_count: pictures.length,
       journey_segment_count: journeySegments.length,
@@ -1119,6 +1351,40 @@ export function useVideoExportRecorder() {
         setupMediaRecorderFallback();
       }
 
+      // Studio pacing only exists on the deterministic WebCodecs path. The
+      // MediaRecorder fallback records against wall clock, so pausing between
+      // frames to wait for tiles would stretch the video rather than sharpen it.
+      studioQualityRef.current =
+        videoExportSettings.qualityMode === 'studio' && useWebCodecsRef.current;
+      studioStatsRef.current = { frames: 0, timedOutFrames: 0, waitedMs: 0 };
+      hiddenMsRef.current = 0;
+      hiddenSinceRef.current = document.hidden ? performance.now() : null;
+      if (studioQualityRef.current) {
+        setStudioDeliveryStatus('registering');
+        setExportStage(t('export.stageRegisteringDelivery'));
+        try {
+          studioDeliveryJobRef.current = await createStudioDeliveryJob({
+            email: studioDelivery!.email,
+            marketingConsent: studioDelivery!.marketingConsent,
+            locale: language,
+            settings: {
+              quality: videoExportSettings.quality,
+              qualityMode: 'studio',
+              aspectRatio: videoExportSettings.aspectRatio,
+              fps: videoExportSettings.fps,
+              durationMs: playback.totalDuration,
+            },
+          });
+        } catch (deliveryError) {
+          const message = deliveryError instanceof Error ? deliveryError.message : String(deliveryError);
+          setStudioDeliveryStatus('failed');
+          setStudioDeliveryError(message);
+          throw deliveryError;
+        }
+        applyStudioMapSettings();
+        await requestScreenWakeLock();
+      }
+
       setExportStage(t('export.stageStartingRecording'));
       recordingStartTimeRef.current = performance.now();
       isRecordingRef.current = true;
@@ -1143,6 +1409,9 @@ export function useVideoExportRecorder() {
         export_encoder_path: useWebCodecsRef.current ? 'webcodecs' : 'unknown',
       });
       setExportStage(t('export.stageFailedWithError', { error: (error as Error).message }));
+      restoreStudioMapSettings();
+      studioDeliveryJobRef.current = null;
+      studioQualityRef.current = false;
       setIsExporting(false);
       setIsDeterministicExport(false);
       resetPlayback();
@@ -1153,13 +1422,40 @@ export function useVideoExportRecorder() {
       }
       useWebCodecsRef.current = false;
     }
-  }, [actualFormat, finishRecording, includeElevation, includeStats, journeySegments.length, loadHtml2Canvas, pictures.length, play, playback.totalDuration, preloadExportOpeningTiles, resetOverlayCapture, resetPlayback, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, startFrameCapture, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+  }, [actualFormat, applyStudioMapSettings, cameraSettings.followBehindPreset, cameraSettings.mode, finishRecording, includeElevation, includeStats, journeySegments, language, loadHtml2Canvas, mapStyle, pictures.length, play, playback.totalDuration, preloadExportOpeningTiles, requestScreenWakeLock, resetOverlayCapture, resetPlayback, restoreStudioMapSettings, runDeterministicExport, setCinematicPlayed, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting, setSpeed, setupMediaRecorderFallback, show3DTerrain, startFrameCapture, studioDelivery, studioSupported, t, tracks.length, updateOverlayAsync, videoExportSettings]);
+
+  // `requestAnimationFrame` does not fire while the tab is hidden, so the whole
+  // export — standard and studio alike — stalls until the user comes back.
+  // Track that time so the studio ETA is not poisoned by it, and say so.
+  useEffect(() => {
+    if (!isExporting) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        hiddenSinceRef.current = performance.now();
+        return;
+      }
+      if (hiddenSinceRef.current !== null) {
+        hiddenMsRef.current += performance.now() - hiddenSinceRef.current;
+        hiddenSinceRef.current = null;
+      }
+      // The screen lock is dropped by the browser whenever the page is hidden,
+      // so it has to be taken again on the way back.
+      if (studioQualityRef.current && !wakeLockRef.current) void requestScreenWakeLock();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isExporting, requestScreenWakeLock]);
 
   const handleCancelExport = useCallback(() => {
     const exportEncoderPath = useWebCodecsRef.current ? 'webcodecs' : 'mediarecorder';
     isRecordingRef.current = false;
     recordingCancelledRef.current = true;
     resetOverlayCapture();
+    restoreStudioMapSettings();
+    studioDeliveryJobRef.current = null;
+    studioQualityRef.current = false;
 
     if (frameCleanupRef.current) {
       frameCleanupRef.current();
@@ -1187,7 +1483,7 @@ export function useVideoExportRecorder() {
     setExportProgress(0);
     setExportStage('');
     resetPlayback();
-  }, [actualFormat, exportProgress, resetOverlayCapture, resetPlayback, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting]);
+  }, [actualFormat, exportProgress, resetOverlayCapture, resetPlayback, restoreStudioMapSettings, setExportProgress, setExportStage, setIsDeterministicExport, setIsExporting]);
 
   const handleDownload = useCallback(() => {
     if (!exportedBlob) return;
@@ -1204,6 +1500,8 @@ export function useVideoExportRecorder() {
 
   const resetExportResult = useCallback(() => {
     setExportedBlob(null);
+    setStudioDeliveryStatus('idle');
+    setStudioDeliveryError(null);
     setExportProgress(0);
     setExportStage('');
   }, [setExportProgress, setExportStage]);
@@ -1220,5 +1518,8 @@ export function useVideoExportRecorder() {
     isExporting,
     mp4Supported,
     resetExportResult,
+    studioDeliveryError,
+    studioDeliveryStatus,
+    studioSupported,
   };
 }

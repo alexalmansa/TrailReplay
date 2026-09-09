@@ -10,3 +10,31 @@ binding = "LANDMARKS_DB"
 database_name = "trailreplay-landmarks"
 database_id = "c17bcd72-6d09-4b9c-a354-5603285564af"
 migrations_dir = "migrations"
+
+# Lead capture + studio export delivery. Kept in its own database: LANDMARKS_DB
+# is a rebuildable Overpass cache and may be wiped, which must never take the
+# mailing list with it.
+#
+# Create with:  npx wrangler d1 create trailreplay-leads
+# then paste the returned database_id below and run:
+#               npx wrangler d1 migrations apply trailreplay-leads --remote
+[[d1_databases]]
+binding = "LEADS_DB"
+database_name = "trailreplay-leads"
+database_id = "98e674c5-7281-4853-baab-04d2663003b2"
+migrations_dir = "migrations-leads"
+
+# Rendered studio videos, pending email delivery.
+# Create with:  npx wrangler r2 bucket create trailreplay-exports
+# Then add a lifecycle rule deleting the `exports/` prefix after 30 days.
+[[r2_buckets]]
+binding = "EXPORTS_BUCKET"
+bucket_name = "trailreplay-exports"
+
+# No [[send_email]] binding on purpose. That binding is Cloudflare Email
+# *Routing*: it takes raw MIME and can only deliver to addresses verified in
+# this account, so it cannot mail a customer. functions-lib/email.js calls the
+# Cloudflare Email *Sending* REST API instead, which needs two secrets:
+#   npx wrangler pages secret put CLOUDFLARE_ACCOUNT_ID
+#   npx wrangler pages secret put CLOUDFLARE_EMAIL_API_TOKEN
+# It falls back to RESEND_API_KEY when those are absent.

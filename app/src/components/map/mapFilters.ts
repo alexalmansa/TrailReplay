@@ -33,11 +33,19 @@ export const FILTERABLE_BASEMAP_LAYER_IDS = [
 
 export function applyBasemapFilter(map: maplibregl.Map, filter: MapFilter) {
   const paint = BASEMAP_FILTER_PAINT[filter] ?? BASEMAP_FILTER_PAINT.none;
+  let updatedLayer = false;
 
   FILTERABLE_BASEMAP_LAYER_IDS.forEach((layerId) => {
     if (!map.getLayer(layerId)) return;
+    updatedLayer = true;
     (Object.keys(paint) as (keyof BasemapFilterPaint)[]).forEach((property) => {
       map.setPaintProperty(layerId, property, paint[property]);
     });
   });
+
+  // An idle map may not schedule another frame after a batch of raster paint
+  // changes. Camera movement does, which made the filter appear only after the
+  // user nudged the map. Request one frame explicitly so the click is visible
+  // immediately without forcing a continuous render loop.
+  if (updatedLayer) map.triggerRepaint();
 }
