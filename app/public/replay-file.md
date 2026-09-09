@@ -196,7 +196,7 @@ route. These are the ones only you can get right.
 
 **A place is a pin; a moment is an annotation.** The choice that most often goes
 wrong. Aid stations, cut-offs and "the climb starts here" are moments. Summits,
-huts and the village you start in are places. Pinning every feed station leaves
+huts and the village you start in are places. Pinning every aid station leaves
 the map cluttered with markers that mean nothing when the marker is elsewhere.
 
 **One replay per course.** A replay plays one journey, and an annotation's

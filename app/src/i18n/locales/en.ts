@@ -660,8 +660,8 @@ export const en = {
             intro: 'Both recipes below are real and runnable. Neither contains a single coordinate.',
             race: {
                 badge: 'A race with aid stations',
-                title: 'Every avituallament, at the right kilometre',
-                problem: 'A race page lists its feed stations by kilometre. Placing them by hand means finding each point on the map, adding a note, and typing the contents four times over. An agent reads the page and writes them all.',
+                title: 'Every aid station, at the right kilometre',
+                problem: 'A race page lists its aid stations by kilometre. Placing them by hand means finding each point on the map, adding a note, and typing the contents four times over. An agent reads the page and writes them all.',
                 result: 'Each station becomes a card that rises as the runner approaches it and fades once past — so it reads as something met, not a pin left on the map.',
             },
             trip: {
