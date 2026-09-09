@@ -677,6 +677,29 @@ export const ca = {
             body: 'En deixar anar la carpeta, TrailReplay llista tot el que ha col·locat: el quilòmetre de la seva ruta, els segons que és a pantalla i a quina distància és el marcador de cada lloc en el moment en què apareix.',
             note: 'Aquest últim número hauria de ser de metres. Més que això vol dir que l’element està sincronitzat amb la part equivocada de la repetició, i l’app t’ho diu abans de donar-li al play.',
         },
+        sources: {
+            badge: 'Aconseguir els fitxers',
+            title: 'També et pot ajudar a aconseguir les rutes',
+            intro: 'No cal tenir els GPX abans de començar. Demana-ho i un bon agent provarà això en ordre: els dos primers no et costen res.',
+            url: {
+                label: 'Un enllaç públic',
+                body: 'Organitzadors de curses i clubs publiquen els GPX al seu web. Si dius el nom de la cursa, l’agent normalment el pot descarregar directament.',
+            },
+            folder: {
+                label: 'Una carpeta que ja tens',
+                body: 'La carpeta de baixades, o la d’un viatge. Llegeix el que hi hagi i ordena els dies per les seves pròpies marques de temps.',
+            },
+            export: {
+                label: 'Un arxiu que demanes',
+                body: 'Per a tot de cop, Strava i Garmin t’envien tot l’historial per correu. Arriba barrejant GPX, FIT i TCX: TrailReplay només llegeix GPX i KML.',
+            },
+            session: {
+                label: 'El teu propi navegador',
+                body: 'Un agent que pugui fer servir el teu navegador prem «Exporta GPX» en una pàgina on ja has iniciat sessió. Va bé per a unes poques activitats, no per a dues-centes.',
+            },
+            boundary: 'El que no hauria de fer mai: demanar-te la contrasenya, saltar-se un mur de pagament o una configuració privada, o rastrejar darrere d’un inici de sessió. Si el proveïdor vol que premis tu el botó, l’agent t’ha de dir quin.',
+            guideLink: 'Passos per plataforma →',
+        },
         resources: {
             title: 'Per al teu agent',
             intro: 'Envia’l aquí. Tot el que necessita és al mateix domini i res no requereix instal·lar res ni crear un compte.',

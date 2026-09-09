@@ -29,6 +29,9 @@ Write a recipe describing what you want, in the terms the source uses:
 }
 ```
 
+If the person has not sent you the GPX files yet, §7 covers how to get them —
+what you can fetch yourself, and what to ask them to do.
+
 Save it as `recipe.json`. Then tell the person:
 
 > Drag `recipe.json` onto <https://trailreplay.com> **together with** your GPX
@@ -469,6 +472,92 @@ dropped by hand on the map.
 
 Going the other way — you have a coordinate and want its progress — find the
 nearest track point and use its accumulated distance.
+
+---
+
+---
+
+## 7. Getting the routes in the first place
+
+Often the person has not exported anything yet. What you can do depends on where
+the route lives; try these in order.
+
+### 1. A public URL — fetch it
+
+Race organisers, clubs and blogs publish GPX files directly. This is the fastest
+case and needs nothing from the person:
+
+```
+https://www.vallsdelfreser.com/gpx/valls-del-freser-trail-25k.gpx
+```
+
+If they name a race, look for its route or "recorregut" page before asking them
+for anything. Check the file actually has track points — some sites serve an
+HTML error page under a `.gpx` name.
+
+### 2. Files they already have — read them
+
+A Downloads folder, an unzipped export, a folder per trip. `tracks: { "files":
+"*.gpx" }` takes whatever is there and orders it by its own timestamps, so
+pointing at the folder is usually the whole job.
+
+### 3. A bulk export they request — then work the folder
+
+For "all my runs last week", both Strava and Garmin let a person download their
+whole archive. That is the supported route for anything in bulk. Ask them to
+request it, then handle the folder when it arrives.
+
+**The archive will not be all GPX.** Strava keeps activities in whatever format
+they were uploaded in, so an export is usually a mix of `.gpx`, `.fit` and
+`.tcx`, often gzipped. TrailReplay reads GPX and KML only. Say so before they
+wait hours for an archive you cannot use, and convert or filter rather than
+silently dropping most of it.
+
+### 4. Their own browser session — one activity at a time
+
+If you can drive their browser, you can click the export button on a page they
+are already signed in to. That is their data and an action they could do
+themselves. It is reasonable for a handful of activities and wrong for two
+hundred — use the bulk export for that.
+
+### What not to do
+
+- **Never ask for, store, or type their password.** Not for any provider, not
+  even if they offer it.
+- **Never work around a paywall or a private setting.** If AllTrails wants a
+  subscription to download, that is the answer.
+- **Do not scrape behind a login, and do not use unofficial API wrappers.**
+  Garmin has no self-serve consumer API; the popular wrapper needs a raw
+  password and breaks whenever Garmin changes an internal endpoint. Strava now
+  blocks apps that reach its API through intermediaries.
+- **Do not build a Strava integration to fetch one activity.** It needs them to
+  register an app and complete OAuth, and even then the API has no GPX export
+  for activities — only for routes. Telling them to press "Export GPX" takes
+  ten seconds.
+
+### What to tell them, by provider
+
+These are instructions to relay, not steps to automate. The full version, with
+the caveats, is at <https://trailreplay.com/gpx-download-guide>.
+
+| Where the route lives | What to tell them |
+|---|---|
+| **Strava** | Open the activity, three-dot menu top right, *Export GPX*. Use *Export Original* only if GPX is missing — it may be a `.fit`. |
+| **Strava, many activities** | Settings → My Account → request an archive of your data. Arrives by email, can take hours. |
+| **Wikiloc** | Open the trail, *Download* → *GPX*. Public trails usually work; some need an account. |
+| **Garmin Connect** | Open the activity on the web dashboard, gear icon, *Export to GPX*. |
+| **Garmin, many activities** | Account Management Center → *Export Your Data*. |
+| **Komoot** | Open the tour, *…* menu → *Export GPX*. Planned tours export without timestamps. |
+| **Polar Flow** | Open the training session, *Export* → GPX. |
+| **AllTrails** | Route page → *Download route*. Needs a paid plan for most maps. |
+| **Apple Health / Google Fit** | No direct GPX. Use the app that recorded it, Google Takeout, or a converter. |
+
+### What to ask for
+
+A recorded activity beats a drawn route: it carries timestamps and elevation,
+which is what makes pace, duration and the elevation profile work. If what comes
+back has neither, the replay still runs — it just moves at a constant pace over a
+flat profile. Worth saying so before they wonder why.
 
 ---
 

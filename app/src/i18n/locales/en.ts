@@ -677,6 +677,29 @@ export const en = {
             body: 'When the folder lands, TrailReplay lists everything it placed: the kilometre along its route, the seconds it is on screen, and how far the moving marker is from each place at the moment it appears.',
             note: 'That last number should be metres. Anything more means the entry is timed to the wrong part of the replay, and the app says so before you ever press play.',
         },
+        sources: {
+            badge: 'Getting the files',
+            title: 'It can help you get the routes too',
+            intro: 'You do not need the GPX files in hand before you start. Ask, and a good agent works through these in order — the first two cost you nothing.',
+            url: {
+                label: 'A public link',
+                body: 'Race organisers and clubs publish GPX files on their own site. If you name the race, the agent can usually just fetch it.',
+            },
+            folder: {
+                label: 'A folder you already have',
+                body: 'Your Downloads folder, or a trip folder. It reads what is there and puts the days in order by their own timestamps.',
+            },
+            export: {
+                label: 'An archive you request',
+                body: 'For everything at once, Strava and Garmin will email you your whole history. Note it arrives as a mix of GPX, FIT and TCX — TrailReplay reads GPX and KML.',
+            },
+            session: {
+                label: 'Your own browser',
+                body: 'An agent that can use your browser presses Export GPX on a page you are already signed in to. Fine for a few activities, not for two hundred.',
+            },
+            boundary: 'What it should never do: ask for your password, work around a paywall or a private setting, or scrape behind a login. If a provider wants you to click the button yourself, the agent should tell you which button.',
+            guideLink: 'Per-provider export steps →',
+        },
         resources: {
             title: 'For your agent',
             intro: 'Send it here. Everything it needs is on one origin, and none of it requires an install or an account.',

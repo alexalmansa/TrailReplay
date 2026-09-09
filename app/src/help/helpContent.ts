@@ -238,3 +238,22 @@ export function getAgentResources(t: Translate): AgentResource[] {
     },
   ];
 }
+
+export interface AgentSource {
+  label: string;
+  body: string;
+}
+
+/**
+ * Where routes come from, in the order an agent should try them. The ordering is
+ * the useful part: a race's own GPX URL needs nothing from the person, and a
+ * bulk export costs them an hour.
+ */
+export function getAgentSources(t: Translate): AgentSource[] {
+  return [
+    { label: t('help.agents.sources.url.label'), body: t('help.agents.sources.url.body') },
+    { label: t('help.agents.sources.folder.label'), body: t('help.agents.sources.folder.body') },
+    { label: t('help.agents.sources.export.label'), body: t('help.agents.sources.export.body') },
+    { label: t('help.agents.sources.session.label'), body: t('help.agents.sources.session.body') },
+  ];
+}

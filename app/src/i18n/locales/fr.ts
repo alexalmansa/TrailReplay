@@ -677,6 +677,29 @@ export const fr = {
       body: 'À la réception du dossier, TrailReplay liste tout ce qu’il a placé : le kilomètre le long de son itinéraire, les secondes à l’écran, et la distance entre le marqueur mobile et chaque lieu au moment où il apparaît.',
       note: 'Ce dernier chiffre devrait se compter en mètres. Au-delà, l’élément est calé sur la mauvaise partie de la relecture, et l’application le dit avant même que vous lanciez la lecture.',
     },
+    sources: {
+      badge: 'Obtenir les fichiers',
+      title: 'Il peut aussi vous aider à récupérer les traces',
+      intro: 'Pas besoin d’avoir les GPX avant de commencer. Demandez, et un bon agent essaiera ceci dans l’ordre : les deux premiers ne vous coûtent rien.',
+      url: {
+        label: 'Un lien public',
+        body: 'Les organisateurs de courses et les clubs publient les GPX sur leur propre site. Nommez la course et l’agent peut souvent le récupérer directement.',
+      },
+      folder: {
+        label: 'Un dossier que vous avez déjà',
+        body: 'Votre dossier de téléchargements, ou celui d’un voyage. Il lit ce qui s’y trouve et ordonne les journées par leurs propres horodatages.',
+      },
+      export: {
+        label: 'Une archive que vous demandez',
+        body: 'Pour tout d’un coup, Strava et Garmin vous envoient votre historique complet par e-mail. Il arrive en mélangeant GPX, FIT et TCX : TrailReplay ne lit que GPX et KML.',
+      },
+      session: {
+        label: 'Votre propre navigateur',
+        body: 'Un agent capable d’utiliser votre navigateur clique sur « Exporter GPX » sur une page où vous êtes déjà connecté. Bien pour quelques activités, pas pour deux cents.',
+      },
+      boundary: 'Ce qu’il ne devrait jamais faire : demander votre mot de passe, contourner un paywall ou un réglage privé, ou aspirer des données derrière une connexion. Si le fournisseur veut que vous cliquiez vous-même, l’agent doit vous dire sur quoi.',
+      guideLink: 'Étapes par plateforme →',
+    },
     resources: {
       title: 'Pour votre agent',
       intro: 'Envoyez-le ici. Tout ce dont il a besoin est sur le même domaine, sans installation ni compte.',

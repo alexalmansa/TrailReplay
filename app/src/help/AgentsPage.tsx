@@ -6,12 +6,13 @@ import {
   ClipboardCopy,
   FolderInput,
   Radar,
+  Download,
   Sparkles,
   Wand2,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/useI18n';
 import { HelpLayout } from './HelpLayout';
-import { getAgentExamples, getAgentResources, getAgentSteps } from './helpContent';
+import { getAgentExamples, getAgentResources, getAgentSources, getAgentSteps } from './helpContent';
 import { trackEvent } from '@/utils/analytics';
 
 const stepIcons = [Bot, Wand2, FolderInput];
@@ -63,6 +64,7 @@ export function AgentsPage() {
   const steps = getAgentSteps(t);
   const examples = getAgentExamples(t);
   const resources = getAgentResources(t);
+  const sources = getAgentSources(t);
   const prompt = t('help.agents.prompt.body');
 
   return (
@@ -155,6 +157,45 @@ export function AgentsPage() {
             <Recipe code={example.recipe} />
           </article>
         ))}
+      </section>
+
+      {/* Before any of this works, someone has to have the files. */}
+      <section>
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--evergreen)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--canvas)]">
+          <Download className="h-3.5 w-3.5" />
+          {t('help.agents.sources.badge')}
+        </div>
+        <h2 className="text-xl font-bold">{t('help.agents.sources.title')}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--evergreen-80)]">
+          {t('help.agents.sources.intro')}
+        </p>
+
+        <ol className="mt-4 grid gap-3 md:grid-cols-2">
+          {sources.map((source, index) => (
+            <li
+              key={source.label}
+              className="rounded-2xl border border-[var(--evergreen)]/12 bg-white/80 px-4 py-4"
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs font-bold text-[var(--trail-orange)]">{index + 1}</span>
+                <span className="text-sm font-bold">{source.label}</span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[var(--evergreen-80)]">{source.body}</p>
+            </li>
+          ))}
+        </ol>
+
+        <p className="mt-4 rounded-2xl border border-[var(--trail-orange)]/25 bg-[var(--trail-orange-15)] px-4 py-3 text-sm leading-6 text-[var(--evergreen-80)]">
+          {t('help.agents.sources.boundary')}
+        </p>
+
+        <a
+          href="/gpx-download-guide"
+          onClick={() => trackEvent('agents_resource_clicked', { resource: '/gpx-download-guide' })}
+          className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--trail-orange)] hover:underline"
+        >
+          {t('help.agents.sources.guideLink')}
+        </a>
       </section>
 
       {/* Trust: the app checks the agent's work and shows you the result. */}

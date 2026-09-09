@@ -24,6 +24,15 @@ it placed.
 - [example-recipe.json](https://trailreplay.com/example-recipe.json): a real
   race, start to finish, as a recipe.
 
+If the person has no GPX files yet, §7 of the spec covers where routes come from:
+what you can fetch yourself (a race organiser's public GPX URL, a folder they
+already have, an archive they request) and what to ask them to click. Never ask
+for their password, and do not scrape behind a login or work around a paywall.
+
+- [Getting a GPX out of Strava, Garmin, Wikiloc and others](https://trailreplay.com/gpx-download-guide):
+  the per-provider steps, written for the person doing the clicking. Relay these
+  rather than automating them.
+
 Opening files is a drag-and-drop onto <https://trailreplay.com> — the recipe and
 the GPX files together, selected and dropped at once — done by the person, not
 by you.
@@ -32,5 +41,4 @@ by you.
 
 - [TrailReplay](https://trailreplay.com): the app itself.
 - [Tutorial](https://trailreplay.com/tutorial.html): what the app can do.
-- [Getting a GPX out of Strava, Garmin, Wikiloc and others](https://trailreplay.com/gpx-download-guide.html)
 - [Source](https://github.com/alexalmansa/TrailReplay)

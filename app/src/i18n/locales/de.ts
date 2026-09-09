@@ -677,6 +677,29 @@ export const de = {
             body: 'Sobald der Ordner ankommt, listet TrailReplay alles Platzierte auf: den Kilometer entlang seiner Route, die Sekunden auf dem Bildschirm und wie weit der bewegte Marker in dem Moment von jedem Ort entfernt ist.',
             note: 'Die letzte Zahl sollte in Metern stehen. Alles darüber heißt, der Eintrag ist auf den falschen Teil des Replays getaktet — und die App sagt es, bevor du auf Play drückst.',
         },
+        sources: {
+            badge: 'Die Dateien beschaffen',
+            title: 'Er kann dir auch helfen, die Routen zu bekommen',
+            intro: 'Du brauchst die GPX-Dateien nicht vorab. Frag danach, und ein guter Agent geht das der Reihe nach durch — die ersten beiden kosten dich nichts.',
+            url: {
+                label: 'Ein öffentlicher Link',
+                body: 'Rennveranstalter und Vereine stellen GPX-Dateien auf ihre eigene Seite. Nenn das Rennen, und der Agent kann sie meist direkt holen.',
+            },
+            folder: {
+                label: 'Ein Ordner, den du schon hast',
+                body: 'Dein Download-Ordner oder der einer Tour. Er liest, was da ist, und sortiert die Tage nach ihren eigenen Zeitstempeln.',
+            },
+            export: {
+                label: 'Ein Archiv, das du anforderst',
+                body: 'Für alles auf einmal schicken Strava und Garmin dir deine ganze Historie per E-Mail. Sie kommt gemischt als GPX, FIT und TCX — TrailReplay liest nur GPX und KML.',
+            },
+            session: {
+                label: 'Dein eigener Browser',
+                body: 'Ein Agent, der deinen Browser bedienen kann, klickt „GPX exportieren" auf einer Seite, auf der du bereits angemeldet bist. Gut für ein paar Aktivitäten, nicht für zweihundert.',
+            },
+            boundary: 'Was er nie tun sollte: nach deinem Passwort fragen, eine Bezahlschranke oder eine private Einstellung umgehen, oder hinter einem Login Daten abgreifen. Wenn ein Anbieter will, dass du selbst klickst, soll der Agent dir sagen, worauf.',
+            guideLink: 'Schritte je Plattform →',
+        },
         resources: {
             title: 'Für deinen Agenten',
             intro: 'Schick ihn hierher. Alles Nötige liegt auf derselben Domain, ohne Installation und ohne Konto.',

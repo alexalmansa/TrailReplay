@@ -677,6 +677,29 @@ export const es = {
             body: 'Al soltar la carpeta, TrailReplay lista todo lo que ha colocado: el kilómetro de su ruta, los segundos que está en pantalla y a qué distancia está el marcador de cada lugar en el momento en que aparece.',
             note: 'Ese último número debería ser de metros. Más que eso significa que el elemento está sincronizado con la parte equivocada de la repetición, y la app te lo dice antes de darle al play.',
         },
+        sources: {
+            badge: 'Conseguir los archivos',
+            title: 'También puede ayudarte a conseguir las rutas',
+            intro: 'No hace falta tener los GPX antes de empezar. Pídeselo y un buen agente probará esto en orden: los dos primeros no te cuestan nada.',
+            url: {
+                label: 'Un enlace público',
+                body: 'Organizadores de carreras y clubes publican los GPX en su propia web. Si dices el nombre de la carrera, el agente suele poder descargarlo directamente.',
+            },
+            folder: {
+                label: 'Una carpeta que ya tienes',
+                body: 'Tu carpeta de descargas, o la de un viaje. Lee lo que haya y ordena los días por sus propias marcas de tiempo.',
+            },
+            export: {
+                label: 'Un archivo que solicitas',
+                body: 'Para todo de golpe, Strava y Garmin te envían tu historial completo por correo. Llega mezclando GPX, FIT y TCX: TrailReplay solo lee GPX y KML.',
+            },
+            session: {
+                label: 'Tu propio navegador',
+                body: 'Un agente que pueda usar tu navegador pulsa «Exportar GPX» en una página donde ya has iniciado sesión. Vale para unas pocas actividades, no para doscientas.',
+            },
+            boundary: 'Lo que nunca debería hacer: pedirte la contraseña, saltarse un muro de pago o una configuración privada, o rastrear detrás de un inicio de sesión. Si el proveedor exige que pulses tú el botón, el agente debe decirte cuál.',
+            guideLink: 'Pasos por plataforma →',
+        },
         resources: {
             title: 'Para tu agente',
             intro: 'Mándalo aquí. Todo lo que necesita está en el mismo dominio y nada requiere instalar nada ni crear una cuenta.',
